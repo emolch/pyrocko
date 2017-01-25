@@ -1347,6 +1347,49 @@ class PAZ2(Stage):
         for zero in self.zeros:
             PAZ2Data(real=zero.real, imag=zero.imag).write(writer)
 
+    def as_stationxml(self, normalization_frequency=1.0):
+        import numpy as num
+        from pyrocko import trace
+        from pyrocko.fdsn import station as fs
+
+        resp = trace.PoleZeroResponse(
+            constant=1.0,
+            zeros=self.zeros,
+            poles=self.poles)
+
+        normalization_factor = float(1.0/abs(
+            resp.evaluate(
+                num.array([normalization_frequency], dtype=float))[0]))
+
+        pzs = fs.PolesZeros(
+            pz_transfer_function_type='LAPLACE (RADIANS/SECOND)',
+            input_units=None,
+            output_units=fs.Units(name=self.output_units),
+            normalization_factor=normalization_factor,
+            normalization_frequency=fs.Frequency(
+                value=float(normalization_frequency)),
+
+            zero_list=[fs.PoleZero(
+                number=i,
+                real=fs.FloatNoUnit(value=zero.real),
+                imaginary=fs.FloatNoUnit(value=zero.imag))
+                for (i, zero) in enumerate(self.zeros)],
+            pole_list=[fs.PoleZero(
+                number=i,
+                real=fs.FloatNoUnit(value=pole.real),
+                imaginary=fs.FloatNoUnit(value=pole.imag))
+                for (i, pole) in enumerate(self.poles)])
+
+        stage = fs.ResponseStage(
+            number=self.stage_number,
+            poles_zeros_list=[pzs],
+            coefficients_list=[],
+            fir=None,
+            decimation=None,
+            stage_gain=fs.Gain(value=self.scale_factor))
+
+        return stage
+
 
 class FAP2Data(Block):
     '''
@@ -1479,6 +1522,19 @@ class DIG2(Stage):
     description = String.T(default='', optional=True, help='description')
 
     comments = List.T(String.T(optional=True))
+
+    def as_stationxml(self):
+        from pyrocko.fdsn import station as fs
+
+        stage = fs.ResponseStage(
+            number=self.stage_number,
+            poles_zeros_list=[],
+            coefficients_list=[],
+            fir=None,
+            decimation=None,
+            stage_gain=fs.Gain(value=self.sensitivity))
+
+        return stage
 
 
 class SymmetryFlag(StringChoice):
@@ -2039,6 +2095,16 @@ class CAL2Section(Section):
         self.cal2.write(writer)
         for stage in self.stages:
             stage.write(writer)
+
+    def as_stationxml(self):
+        from pyrocko.fdsn import station as fs
+
+        stage_list = []
+        for stage in self.stages:
+            stage_list.append(stage.as_stationxml())
+
+        return fs.Response(
+            stage_list=stage_list)
 
 
 class ResponseSection(Section):
