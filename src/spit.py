@@ -338,7 +338,10 @@ class SPTree:
         return self.root.interpolate(x)
 
     def __call__(self, x):
-        return self.interpolate(x)
+        if isinstance(x, num.ndarray) and x.shape != ():
+            return self.interpolate_many(x)
+        else:
+            return self.interpolate(x)
 
     def interpolate_many(self, x):
         return self.root.interpolate_many(x)

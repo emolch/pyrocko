@@ -1496,28 +1496,59 @@ class Store(BaseStore):
                 phases = cake.PhaseDef.classic(phase_def)
 
             def evaluate(args):
-                if len(args) == 2:
-                    zr, zs, x = (self.config.receiver_depth,) + args
-                elif len(args) == 3:
-                    zr, zs, x = args
+                if isinstance(args, num.ndarray):
+                    if args.shape[1] == 2:
+                        zr = num.empty(args.shape[0])
+                        zr[:] = self.config.receiver_depth
+                        zs, x = args.T
+                    elif args.shape[1] == 3:
+                        zr, zs, x = args.T
+                    else:
+                        assert False
+
+                    n = len(args)
+                    t = num.empty(n)
+                    if phases:
+                        for i in xrange(n):
+                            tmp = []
+                            rays = mod.arrivals(
+                                phases=phases,
+                                distances=[x[i]*cake.m2d],
+                                zstart=zs[i],
+                                zstop=zr[i])
+
+                            for ray in rays:
+                                tmp.append(ray.t)
+
+                            if tmp:
+                                t[i] = min(tmp)
+                            else:
+                                t[i] = num.nan
+                    return t
+
                 else:
-                    assert False
+                    if len(args) == 2:
+                        zr, zs, x = (self.config.receiver_depth,) + args
+                    elif len(args) == 3:
+                        zr, zs, x = args
+                    else:
+                        assert False
 
-                t = []
-                if phases:
-                    rays = mod.arrivals(
-                        phases=phases,
-                        distances=[x*cake.m2d],
-                        zstart=zs,
-                        zstop=zr)
+                    t = []
+                    if phases:
+                        rays = mod.arrivals(
+                            phases=phases,
+                            distances=[x*cake.m2d],
+                            zstart=zs,
+                            zstop=zr)
 
-                    for ray in rays:
-                        t.append(ray.t)
+                        for ray in rays:
+                            t.append(ray.t)
 
-                if t:
-                    return min(t)
-                else:
-                    return None
+                    if t:
+                        return min(t)
+                    else:
+                        return None
 
             return evaluate
 
