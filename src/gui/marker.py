@@ -82,8 +82,8 @@ class Marker(object):
                 'Unable to create marker from string: "%s"' % line)
 
         def parsedate(ymd, hms, sfs):
-            return calendar.timegm(
-                time.strptime(ymd+' '+hms, '%Y-%m-%d %H:%M:%S')) + float(sfs)
+            return util.to_time_str(calendar.timegm(
+                time.strptime(ymd+' '+hms, '%Y-%m-%d %H:%M:%S'))) + float(sfs)
 
         try:
             toks = line.split()

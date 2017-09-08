@@ -15,7 +15,7 @@ from functools import reduce
 from pyrocko.guts import StringChoice, Float, List, Bool
 from pyrocko.gui.marker import PhaseMarker, EventMarker
 from pyrocko import gf, model, util, trace, io
-from pyrocko.io_common import FileSaveError
+from pyrocko.io.io_common import FileSaveError
 from pyrocko import pile
 
 from ..station import StationGenerator, RandomStationGenerator
@@ -206,7 +206,7 @@ class WaveformGenerator(TargetGenerator):
         dmin, dmax = self.station_generator.get_distance_range(sources)
 
         times = num.array([source.time for source in sources],
-                          dtype=num.float)
+                          dtype=util.get_time_class_numpy())
 
         tmin_events = num.min(times)
         tmax_events = num.max(times)
@@ -254,8 +254,8 @@ class WaveformGenerator(TargetGenerator):
         tts = util.time_to_str
 
         for nslc, deltat in self.get_codes_to_deltat(engine, sources).items():
-            tr_tmin = int(round(tmin / deltat)) * deltat
-            tr_tmax = (int(round(tmax / deltat))-1) * deltat
+            tr_tmin = round(tmin / deltat) * deltat
+            tr_tmax = (round(tmax / deltat)-1) * deltat
             nsamples = int(round((tr_tmax - tr_tmin) / deltat)) + 1
 
             tr = trace.Trace(
@@ -395,8 +395,8 @@ class WaveformGenerator(TargetGenerator):
         tts = util.time_to_str
 
         tinc = self.tinc or self.get_useful_time_increment(engine, sources)
-        tmin = math.floor(tmin / tinc) * tinc
-        tmax = math.ceil(tmax / tinc) * tinc
+        tmin = num.floor(tmin / tinc) * tinc
+        tmax = num.ceil(tmax / tinc) * tinc
 
         nwin = int(round((tmax - tmin) / tinc))
 

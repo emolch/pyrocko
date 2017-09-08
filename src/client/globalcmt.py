@@ -9,7 +9,7 @@ import calendar
 import re
 import logging
 
-from pyrocko import model
+from pyrocko import model, util
 from pyrocko.moment_tensor import MomentTensor
 from pyrocko.util import Request, urlopen
 from .base_catalog import EarthquakeCatalog
@@ -108,9 +108,10 @@ class GlobalCMT(EarthquakeCatalog):
 
         def complete(data):
             try:
-                t = calendar.timegm((
-                    data.year, data.month, data.day,
-                    data.hour, data.minute, data.seconds))
+                t = util.to_time_float(
+                    calendar.timegm((
+                        data.year, data.month, data.day,
+                        data.hour, data.minute, data.seconds)))
 
                 m = num.array(
                     [data.mrr, data.mrt, data.mrp,
@@ -222,5 +223,6 @@ class GlobalCMT(EarthquakeCatalog):
         else:
             y, m, d = time.strptime(name[:8], '%Y%m%d')[:3]
 
-        t = calendar.timegm((y, m, d, 0, 0, 0))
+        t = util.to_time_float(
+            calendar.timegm((y, m, d, 0, 0, 0)))
         return t

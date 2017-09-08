@@ -68,7 +68,8 @@ class KanFile:
         date = str(filedata[393:405].decode('ascii')).strip()
         tim = str(filedata[405:415].decode('ascii')).strip()
         microseconds = int(filedata[415:423])
-        ref_time = util.ctimegm('%s %s' % (date, tim)) + microseconds/1.0e6
+        ref_time = util.to_time_float(util.ctimegm('%s %s' % (date, tim))) \
+            + microseconds/1.0e6
 
         stationname = os.path.basename(filename)
         stationname = stationname.replace('.kan', '')

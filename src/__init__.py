@@ -7,7 +7,7 @@ from __future__ import absolute_import
 from .info import *  # noqa
 __version__ = version  # noqa
 
-grumpy = False  # noqa
+grumpy = 0  # noqa
 
 
 class ExternalProgramMissing(Exception):

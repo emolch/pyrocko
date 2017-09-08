@@ -14,7 +14,7 @@ import numpy as num
 from scipy import signal
 
 from . import util, evalresp, orthodrome, pchain, model
-from .util import reuse, hpfloat, UnavailableDecimation
+from .util import reuse, UnavailableDecimation
 from .guts import Object, Float, Int, String, Complex, Tuple, List, \
     StringChoice, Timestamp
 from .guts_array import Array
@@ -96,10 +96,11 @@ class Trace(Object):
 
         self._growbuffer = None
 
-        if deltat < 0.001:
-            tmin = hpfloat(tmin)
-            if tmax is not None:
-                tmax = hpfloat(tmax)
+        time_float = util.get_time_class()
+
+        tmin = time_float(tmin)
+        if tmax is not None:
+            tmax = time_float(tmax)
 
         if mtime is None:
             mtime = time.time()
@@ -385,7 +386,6 @@ class Trace(Object):
         '''
         Check if trace has overlap with a given time span.
         '''
-
         return not (tmax < self.tmin or self.tmax < tmin)
 
     def is_relevant(self, tmin, tmax, selector=None):
@@ -1154,10 +1154,14 @@ class Trace(Object):
             n = xself.data_len()
             ydata_new = num.empty(n, dtype=num.float)
             i_control = num.array([0, n-1], dtype=num.int64)
-            t_control = num.array([xself.tmin, xself.tmax])
+            tref = tmin
+            t_control = num.array(
+                [float(xself.tmin-tref), float(xself.tmax-tref)],
+                dtype=num.float)
+
             signal_ext.antidrift(i_control, t_control,
                                  xself.ydata.astype(num.float),
-                                 tmin, xself.deltat, ydata_new)
+                                 float(tmin-tref), xself.deltat, ydata_new)
 
             xself.ydata = ydata_new
 
@@ -2863,7 +2867,7 @@ class InverseEvalresp(FrequencyResponse):
     respfile = String.T()
     nslc_id = Tuple.T(4, String.T())
     target = String.T(default='dis')
-    instant = Float.T()
+    instant = Timestamp.T()
 
     def __init__(self, respfile, trace, target='dis'):
         FrequencyResponse.__init__(

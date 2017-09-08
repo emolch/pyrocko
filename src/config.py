@@ -106,6 +106,7 @@ class PyrockoConfig(ConfigBase):
     gui_toolkit = StringChoice.T(
         choices=['auto', 'qt4', 'qt5'],
         default='auto')
+    use_high_precision_time = Bool.T(default=False)
 
 
 config_cls = {

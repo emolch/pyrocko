@@ -8,7 +8,7 @@ import numpy as num
 import struct
 import calendar
 
-from pyrocko import trace
+from pyrocko import trace, util
 from .io_common import FileLoadError
 
 
@@ -163,8 +163,8 @@ def iload(filename, load_data, endianness='>'):
                     if year < 100:
                         year += 2000
 
-                    tmin = calendar.timegm(
-                        (year, 1, doy, hour, minute, second)) \
+                    tmin = util.to_time_float(calendar.timegm(
+                        (year, 1, doy, hour, minute, second))) \
                         + msecs * 1.0e-3 + usecs * 1.0e-6
 
                 except Exception:

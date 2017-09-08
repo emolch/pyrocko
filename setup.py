@@ -362,11 +362,15 @@ class CustomBuildPyCommand(build_py):
             module_code = '''
 import sys
 import pyrocko
-if pyrocko.grumpy:
+if pyrocko.grumpy == 1:
     sys.stderr.write('using renamed pyrocko module: %s.%s\\n')
     sys.stderr.write('           -> should now use: %s\\n\\n')
+elif pyrocko.grumpy == 2:
+    sys.stderr.write('pyrocko module has been renamed: %s.%s\\n')
+    sys.stderr.write('              -> should now use: %s\\n\\n')
+    raise ImportError('Pyrocko module "%s.%s" has been renamed to "%s".')
 
-''' % (package, compat_module, ', '.join(import_modules)) + ''.join(
+''' % ((package, compat_module, ', '.join(import_modules))*3) + ''.join(
                 ['from %s import *\n' % module for module in import_modules])
 
             outfile = self.get_module_outfile(

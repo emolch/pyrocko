@@ -175,6 +175,7 @@ type: docker
 name: tests-base
 
 steps:
+
 - name: tests-base
   image: pyrocko-nest
   pull: never
@@ -185,6 +186,23 @@ steps:
   - pip3 install obspy
   - python3 -m coverage run --parallel-mode -m nose test.base
   - for x in .coverage.* ; do mv $x $${x#.} ; done
+
+- name: tests-base-hptime
+  image: pyrocko-nest
+  pull: never
+  commands:
+  - python3 setup.py install -f
+  - pip3 install utm
+  - pip3 install git+https://github.com/pyrocko/kite
+  - pip3 install obspy
+  - python3 -m coverage run --parallel-mode -m nose test.base
+  - for x in .coverage.* ; do mv $x $${x#.} ; done
+  environment:
+    USE_HPTIME: 1
+  when:
+    branch:
+    - hptime
+    - candidate
 
 - name: stage
   image: pyrocko-aux
@@ -198,6 +216,7 @@ steps:
       from_secret: rsync-user
     RSYNC_KEY:
       from_secret: rsync-key
+
 
 ---
 
@@ -216,6 +235,23 @@ steps:
   - pip3 install obspy
   - python3 -m coverage run --parallel-mode -m nose test.gf
   - for x in .coverage.* ; do mv $x $${x#.} ; done
+
+- name: tests-gf-hptime
+  image: pyrocko-nest
+  pull: never
+  commands:
+  - python3 setup.py install -f
+  - pip3 install utm
+  - pip3 install git+https://github.com/pyrocko/kite
+  - pip3 install obspy
+  - python3 -m coverage run --parallel-mode -m nose test.gf
+  - for x in .coverage.* ; do mv $x $${x#.} ; done
+  environment:
+    USE_HPTIME: 1
+  when:
+    branch:
+    - hptime
+    - candidate
 
 - name: stage
   image: pyrocko-aux
@@ -248,6 +284,23 @@ steps:
   - python3 -m coverage run --parallel-mode -m nose test.examples
   - for x in .coverage.* ; do mv $x $${x#.} ; done
 
+- name: tests-examples-hptime
+  image: pyrocko-nest
+  pull: never
+  commands:
+  - python3 setup.py install -f
+  - pip3 install utm
+  - pip3 install git+https://github.com/pyrocko/kite
+  - pip3 install obspy
+  - python3 -m coverage run --parallel-mode -m nose test.examples
+  - for x in .coverage.* ; do mv $x $${x#.} ; done
+  environment:
+    USE_HPTIME: 1
+  when:
+    branch:
+    - hptime
+    - candidate
+
 - name: stage
   image: pyrocko-aux
   pull: never
@@ -276,6 +329,21 @@ steps:
   - pip3 install obspy
   - xvfb-run -s '-screen 0 640x480x24' python3 -m coverage run --parallel-mode -m nose test.gui test.base.test_obspy_compat:ObsPyCompatTestCase.test_obspy_fiddle test.base.test_obspy_compat:ObsPyCompatTestCase.test_obspy_snuffle
   - for x in .coverage.* ; do mv $x $${x#.} ; done
+
+- name: tests-gui-hptime
+  image: pyrocko-nest
+  pull: never
+  commands:
+  - python3 setup.py install -f
+  - pip3 install obspy
+  - xvfb-run -s '-screen 0 640x480x24' python3 -m coverage run --parallel-mode -m nose test.gui test.base.test_obspy_compat:ObsPyCompatTestCase.test_obspy_fiddle test.base.test_obspy_compat:ObsPyCompatTestCase.test_obspy_snuffle
+  - for x in .coverage.* ; do mv $x $${x#.} ; done
+  environment:
+    USE_HPTIME: 1
+  when:
+    branch:
+    - hptime
+    - candidate
 
 - name: stage
   image: pyrocko-aux

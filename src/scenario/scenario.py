@@ -245,7 +245,8 @@ class ScenarioGenerator(LocationGenerator):
         return lambda gen: [gen.get_time_range(self.get_sources())]
 
     def get_time_range(self):
-        ranges = num.array(self._get_time_ranges())
+        ranges = num.array(
+            self._get_time_ranges(), dtype=util.get_time_class_numpy())
         return ranges.min(), ranges.max()
 
     def _time_range_fill_defaults(self, tmin, tmax):

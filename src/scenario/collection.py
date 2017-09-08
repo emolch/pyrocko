@@ -12,7 +12,8 @@ import time
 
 
 from pyrocko.guts import Object, Timestamp
-from pyrocko import gf, guts, util, pile, gmtpy
+from pyrocko import gf, guts, util, pile
+from pyrocko.plot import gmtpy
 
 from .scenario import draw_scenario_gmt
 from .error import ScenarioError
@@ -191,7 +192,7 @@ class ScenarioCollection(object):
 
         scenario = ScenarioCollectionItem(
             scenario_id=scenario_id,
-            time_created=time.time())
+            time_created=util.to_time_float(time.time()))
 
         scenario_path = self.get_path(scenario_id, 'scenario.yaml')
         guts.dump(scenario, filename=scenario_path)

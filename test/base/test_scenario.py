@@ -3,8 +3,9 @@ import unittest
 from tempfile import mkdtemp
 import shutil
 
-from pyrocko import scenario, util, gf, gmtpy, config
+from pyrocko import scenario, util, gf, config
 from pyrocko.scenario import targets
+from pyrocko.plot import gmtpy
 
 util.force_dummy_progressbar = True
 

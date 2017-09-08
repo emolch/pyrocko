@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as num
+from pyrocko import util
 from ..base import Generator
 
 
@@ -17,7 +18,7 @@ class TargetGenerator(Generator):
         targets we have to consider vmin, vmax
         '''
         times = num.array([source.time for source in sources],
-                          dtype=num.float)
+                          dtype=util.get_time_class_numpy())
 
         return num.min(times), num.max(times)
 

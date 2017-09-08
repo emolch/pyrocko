@@ -39,11 +39,12 @@ class ModelTestCase(unittest.TestCase):
         return tempdir
 
     def testIOEventOld(self):
+        time_float = util.get_time_class()
         tempdir = self.make_tempdir()
         fn = pjoin(tempdir, 'event.txt')
         e1 = model.Event(
             10., 20.,
-            time=1234567890.,
+            time=time_float(1234567890.),
             name='bubu', region='taka tuka land',
             magnitude=5.1, magnitude_type='Mw',
             tags=['cluster:-1', 'custom_magnitude:2.5'])
@@ -63,9 +64,13 @@ class ModelTestCase(unittest.TestCase):
     def testIOEvent(self):
         tempdir = self.make_tempdir()
         fn = pjoin(tempdir, 'event.txt')
+        time_float = util.get_time_class()
         e1 = model.Event(
-            10., 20., time=1234567890.,
-            name='bubu', depth=10., region='taka tuka land',
+            10., 20.,
+            depth=10000.,
+            time=time_float(1234567890.),
+            name='bubu',
+            region='taka tuka land',
             moment_tensor=moment_tensor.MomentTensor(strike=45., dip=90),
             magnitude=5.1, magnitude_type='Mw',
             tags=['cluster:-1', 'custom_magnitude:2.5'])

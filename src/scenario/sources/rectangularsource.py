@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as num
 
 from pyrocko.guts import Float, Int
-from pyrocko import moment_tensor, gf
+from pyrocko import moment_tensor, gf, util
 
 from .base import SourceGenerator
 
@@ -39,7 +39,8 @@ class RectangularSourceGenerator(SourceGenerator):
 
     def get_source(self, ievent):
         rstate = self.get_rstate(ievent)
-        time = rstate.uniform(self.time_min, self.time_max)
+        time = self.time_min + rstate.uniform(
+            0., float(self.time_max - self.time_min))  # hptime aware
         lat, lon = self.get_latlon(ievent)
         depth = rstate.uniform(self.depth_min, self.depth_max)
 
@@ -68,7 +69,7 @@ class RectangularSourceGenerator(SourceGenerator):
             rake = self.rake
 
         source = gf.RectangularSource(
-            time=float(time),
+            time=util.to_time_float(time),
             lat=float(lat),
             lon=float(lon),
             anchor='top',

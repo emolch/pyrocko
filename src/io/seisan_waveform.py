@@ -35,7 +35,8 @@ def read_file_header(f, npad=4):
                     d)
 
             year = 1900 + ear
-            tmin = calendar.timegm((year, mon, day, hr, min, secs))
+            tmin = util.to_time_float(
+                calendar.timegm((year, mon, day, hr, min, secs)))
             header_infos.append(
                 (net_name, nchannels, util.time_to_str(tmin)))
 
@@ -84,7 +85,8 @@ def read_channel_header(f, npad=4):
     cha = cha1+cha2
     loc = loc1+loc2
     net = net1+net2
-    tmin = calendar.timegm((1900+ear, mon, day, hr, min, secs))
+    tmin = util.to_time_float(
+        calendar.timegm((1900+ear, mon, day, hr, min, secs)))
     deltat = 1./rate
 
     return (net, sta, loc, cha,

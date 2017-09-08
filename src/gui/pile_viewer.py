@@ -215,32 +215,8 @@ acceptable_tincs = num.array([
     60*60*6, 60*60*12, sday, smonth, syear], dtype=num.float)
 
 
-def get_working_system_time_range():
-    now = time.time()
-    hi = now
-    for ignore in range(200):
-        now += syear
-        try:
-            tt = time.gmtime(now)
-            time.strftime('', tt)
-            hi = now
-        except Exception:
-            break
-
-    now = time.time()
-    lo = now
-    for ignore in range(200):
-        now -= syear
-        try:
-            tt = time.gmtime(now)
-            time.strftime('', tt)
-            lo = now
-        except Exception:
-            break
-    return lo, hi
-
-
-working_system_time_range = get_working_system_time_range()
+working_system_time_range = \
+    pyrocko.util.working_system_time_range(1950, 2030)
 
 
 def is_working_time(t):

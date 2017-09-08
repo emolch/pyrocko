@@ -371,8 +371,8 @@ class GPSRecord(object):
             raise GPSTimeNotUTC()
 
         tm = self._tm
-        return calendar.timegm((
-            tm.year, tm.month, tm.day, tm.hours, tm.minutes, tm.seconds))
+        return util.to_time_float(calendar.timegm((
+            tm.year, tm.month, tm.day, tm.hours, tm.minutes, tm.seconds)))
 
     @property
     def latitude(self):

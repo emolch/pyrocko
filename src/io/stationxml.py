@@ -18,6 +18,7 @@ from pyrocko.guts import (StringChoice, StringPattern, UnicodePattern, String,
                           Unicode, Int, Float, List, Object, Timestamp,
                           ValidationError, TBase, re_tz)
 from pyrocko.guts import load_xml  # noqa
+from pyrocko.util import hpfloat, time_to_str, get_time_class
 
 import pyrocko.model
 from pyrocko import trace, util
@@ -120,18 +121,21 @@ this_year = time.gmtime()[0]
 
 
 class DummyAwareOptionalTimestamp(Object):
-    dummy_for = float
+    dummy_for = (hpfloat, float)
+    dummy_for_description = 'time_float'
 
     class __T(TBase):
 
         def regularize_extra(self, val):
+            time_float = get_time_class()
+
             if isinstance(val, datetime.datetime):
                 tt = val.utctimetuple()
-                val = calendar.timegm(tt) + val.microsecond * 1e-6
+                val = time_float(calendar.timegm(tt)) + val.microsecond * 1e-6
 
             elif isinstance(val, datetime.date):
                 tt = val.timetuple()
-                val = float(calendar.timegm(tt))
+                val = time_float(calendar.timegm(tt))
 
             elif isinstance(val, (str, newstr)):
                 val = val.strip()
@@ -147,7 +151,7 @@ class DummyAwareOptionalTimestamp(Object):
 
                     val = re_tz.sub('', val)
 
-                if val[10] == 'T':
+                if len(val) > 10 and val[10] == 'T':
                     val = val.replace('T', ' ', 1)
 
                 try:
@@ -165,20 +169,23 @@ class DummyAwareOptionalTimestamp(Object):
 
                     raise
 
-            elif isinstance(val, int):
-                val = float(val)
+            elif isinstance(val, (int, float)):
+                val = time_float(val)
 
             else:
                 raise ValidationError(
-                    '%s: cannot convert "%s" to float' % (self.xname(), val))
+                    '%s: cannot convert "%s" to type %s' % (
+                        self.xname(), val, time_float))
 
             return val
 
         def to_save(self, val):
-            return datetime.datetime.utcfromtimestamp(val)
+            return time_to_str(val, format='%Y-%m-%d %H:%M:%S.9FRAC')\
+                .rstrip('0').rstrip('.')
 
         def to_save_xml(self, val):
-            return datetime.datetime.utcfromtimestamp(val).isoformat() + 'Z'
+            return time_to_str(val, format='%Y-%m-%dT%H:%M:%S.9FRAC')\
+                .rstrip('0').rstrip('.') + 'Z'
 
 
 class Nominal(StringChoice):
@@ -1167,7 +1174,7 @@ class FDSNStationXML(Object):
                 'coordinates. Storing effective lat/lon for stations: %s' %
                 ', '.join('.'.join(nsl) for nsl in sorted(have_offsets)))
 
-        timestamp = time.time()
+        timestamp = util.to_time_float(time.time())
         network_list = []
         for k, station_list in network_dict.items():
 

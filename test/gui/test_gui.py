@@ -325,7 +325,7 @@ class GUITest(unittest.TestCase):
 
     def test_load_save_markers(self):
         nmarkers = 505
-        times = num.arange(nmarkers)
+        times = list(map(util.to_time_float, num.arange(nmarkers)))
         markers = [gui_util.Marker(tmin=t, tmax=t,
                                    nslc_ids=[('*', '*', '*', '*'), ])
                    for t in times]

@@ -450,7 +450,7 @@ def load_kps_event_list(filename):
         if len(toks) < 7:
             continue
 
-        tim = util.ctimegm(toks[0]+' '+toks[1])
+        tim = util.to_time_float(util.ctimegm(toks[0]+' '+toks[1]))
         lat, lon, depth, magnitude = [float(x) for x in toks[2:6]]
         duration = float(toks[10])
         region = toks[-1]

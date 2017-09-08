@@ -54,8 +54,8 @@ class SeisanResponseFile(object):
         line = str(line.decode('ascii'))
 
         comment = line.strip()
-        tmin = calendar.timegm(
-            (century+deltayear, 1, doy, hr, mi, int(sec))) + sec-int(sec)
+        tmin = util.to_time_float(calendar.timegm(
+            (century+deltayear, 1, doy, hr, mi, int(sec)))) + sec-int(sec)
 
         if filetype == 'gains-and-filters':
 

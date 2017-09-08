@@ -2,7 +2,64 @@
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
-'''Utility functions for Pyrocko.'''
+'''
+Utility functions for Pyrocko.
+
+.. _time-handling-mode:
+
+High precision time handling mode
+.................................
+
+Pyrocko can treat timestamps either as standard double precision (64 bit)
+floating point values, or as high precision float (:py:class:`numpy.float128`
+or :py:class:`numpy.float96`, whichever is available), aliased here as
+:py:class:`pyrocko.util.hpfloat`. High precision time stamps are required when
+handling data with sub-millisecond precision, i.e. kHz/MHz data streams and
+event catalogs derived from such data.
+
+Not all functions in Pyrocko and in programs depending on Pyrocko may work
+correctly with high precision times. Therefore, Pyrocko's high precision time
+handling mode has to be actively activated by user config, command line option
+or enforced within a certain script/program.
+
+The default high precision time handling mode can be configured globally with
+the user config variable
+:py:gattr:`~pyrocko.config.Config.use_high_precision_time`. Calling the
+function :py:func:`use_high_precision_time` overrides the default from the
+config file. This function may be called at startup of a program/script
+requiring a specific time handling mode.
+
+To create a valid time stamp for use in Pyrocko (e.g. in
+:py:class:`~pyrocko.model.Event` or :py:class:`~pyrocko.trace.Trace` objects),
+use:
+
+.. code-block :: python
+
+    import time
+    from pyrocko import util
+
+    # By default using mode selected in user config, override with:
+    # util.use_high_precision_time(True)   # force high precision mode
+    # util.use_high_precision_time(False)  # force low precision mode
+
+    t1 = util.str_to_time('2020-08-27 10:22:00')
+    t2 = util.str_to_time('2020-08-27 10:22:00.111222')
+    t3 = util.to_time_float(time.time())
+
+    # To get the appropriate float class, use:
+
+    time_float = util.get_time_class()
+    #  -> float, numpy.float128 or numpy.float96
+    [isinstance(t, time_float) for t in [t1, t2, t3]]
+    #  -> [True, True, True]
+
+    # Shortcut:
+    util.check_time_class(t1)
+
+Module content
+..............
+'''
+
 from __future__ import division, print_function
 
 import time
@@ -22,6 +79,7 @@ import errno
 
 import numpy as num
 from scipy import signal
+import pyrocko
 from pyrocko import dummy_progressbar
 
 try:
@@ -352,6 +410,112 @@ else:
         raise Exception(
             'NumPy lacks support for float128 or float96 data type on this '
             'platform.')
+
+
+g_time_float = None
+g_time_float_numpy = None
+
+
+def use_high_precision_time(enabled):
+    '''
+    Globally force a specific time handling mode.
+
+    See :ref:`High precision time handling mode <time-handling-mode>`.
+
+    :param enabled: enable/disable use of high precision time type
+    :type enabled: bool
+
+    This function should be called before handling/reading any time data.
+    Furthermore, it should not be changed later unless you know what you are
+    doing.
+
+    Special attention is required when using multiprocessing on a platform
+    which does not use fork under the hood. In such cases, the desired setting
+    must be set also in the subprocess.
+    '''
+
+    global g_time_float
+    g_time_float = hpfloat if enabled else float
+
+    global g_time_float_numpy
+    g_time_float_numpy = hpfloat if enabled else num.float64
+
+
+def get_time_class():
+    '''
+    Get the effective float class for timestamps.
+
+    See :ref:`High precision time handling mode <time-handling-mode>`.
+
+    :returns: :py:class:`float` or :py:class:`hpfloat`, depending on the
+        current time handling mode
+    '''
+    global g_time_float
+
+    if g_time_float is None:
+        from pyrocko import config
+        conf = config.config()
+        g_time_float = hpfloat if conf.use_high_precision_time else float
+
+    return g_time_float
+
+
+def get_time_class_numpy():
+    '''
+    Get effective NumPy float class to handle timestamps.
+
+    See :ref:`High precision time handling mode <time-handling-mode>`.
+    '''
+
+    global g_time_float_numpy
+
+    if g_time_float_numpy is None:
+        from pyrocko import config
+        conf = config.config()
+        g_time_float_numpy = hpfloat \
+            if conf.use_high_precision_time \
+            else num.float64
+
+    return g_time_float_numpy
+
+
+def to_time_float(t):
+    '''
+    Convert float to valid time stamp in the current time handling mode.
+
+    See :ref:`High precision time handling mode <time-handling-mode>`.
+    '''
+    return get_time_class()(t)
+
+
+class TimestampTypeError(ValueError):
+    pass
+
+
+def check_time_class(t, error='raise'):
+    '''
+    Type-check variable against current time handling mode.
+
+    See :ref:`High precision time handling mode <time-handling-mode>`.
+    '''
+
+    if t == 0.0:
+        return
+
+    if not isinstance(t, get_time_class()):
+        message = (
+            'Timestamp %g is of type %s but should be of type %s with '
+            'Pyrocko\'s currently selected time handling mode.\n\n'
+            'See https://pyrocko.org/docs/current/library/reference/util.html'
+            '#high-precision-time-handling-mode' % (
+                t, type(t), get_time_class()))
+
+        if error == 'raise':
+            raise TimestampTypeError(message)
+        elif error == 'warn':
+            logger.warn(message)
+        else:
+            assert False
 
 
 class Stopwatch(object):
@@ -933,7 +1097,7 @@ def zfmt(n):
 
 def _year_to_time(year):
     tt = (year, 1, 1, 0, 0, 0)
-    return calendar.timegm(tt)
+    return to_time_float(calendar.timegm(tt))
 
 
 def _working_year(year):
@@ -956,10 +1120,7 @@ def _working_year(year):
     return True
 
 
-g_working_system_time_range = None
-
-
-def get_working_system_time_range():
+def working_system_time_range(year_min_lim=None, year_max_lim=None):
     '''
     Check time range supported by the systems's time conversion functions.
 
@@ -970,33 +1131,51 @@ def get_working_system_time_range():
     :returns: ``(tmin, tmax, year_min, year_max)``
     '''
 
+    year0 = 2000
+    year_min = year0
+    year_max = year0
+
+    itests = list(range(101))
+    for i in range(19):
+        itests.append(200 + i*100)
+
+    for i in itests:
+        year = year0 - i
+        if year_min_lim is not None and year < year_min_lim:
+            year_min = year_min_lim
+            break
+        elif not _working_year(year):
+            break
+        else:
+            year_min = year
+
+    for i in itests:
+        year = year0 + i
+        if year_max_lim is not None and year > year_max_lim:
+            year_max = year_max_lim
+            break
+        elif not _working_year(year + 1):
+            break
+        else:
+            year_max = year
+
+    return (
+        _year_to_time(year_min),
+        _year_to_time(year_max),
+        year_min, year_max)
+
+
+g_working_system_time_range = None
+
+
+def get_working_system_time_range():
+    '''
+    Caching variant of :py:func:`working_system_time_range`.
+    '''
+
     global g_working_system_time_range
-
     if g_working_system_time_range is None:
-        year0 = 2000
-        year_min = year0
-        year_max = year0
-
-        itests = list(range(101))
-        for i in range(19):
-            itests.append(200 + i*100)
-
-        for i in itests:
-            if not _working_year(year0 - i):
-                break
-            else:
-                year_min = year0 - i
-
-        for i in itests:
-            if not _working_year(year0 + i + 1):
-                break
-            else:
-                year_max = year0 + i
-
-        g_working_system_time_range = (
-            _year_to_time(year_min),
-            _year_to_time(year_max),
-            year_min, year_max)
+        g_working_system_time_range = working_system_time_range()
 
     return g_working_system_time_range
 
@@ -1016,6 +1195,20 @@ def julian_day_of_year(timestamp):
     return time.gmtime(int(timestamp)).tm_yday
 
 
+def hour_start(timestamp):
+    '''
+    Get beginning of hour for any point in time.
+
+    :param timestamp: time instant as system timestamp (in seconds)
+
+    :returns: instant of hour start as system timestamp
+    '''
+
+    tt = time.gmtime(int(timestamp))
+    tts = tt[0:4] + (0, 0)
+    return to_time_float(calendar.timegm(tts))
+
+
 def day_start(timestamp):
     '''
     Get beginning of day for any point in time.
@@ -1026,8 +1219,8 @@ def day_start(timestamp):
     '''
 
     tt = time.gmtime(int(timestamp))
-    tts = tt[0:3] + (0, 0, 0) + tt[6:9]
-    return calendar.timegm(tts)
+    tts = tt[0:3] + (0, 0, 0)
+    return to_time_float(calendar.timegm(tts))
 
 
 def month_start(timestamp):
@@ -1040,8 +1233,8 @@ def month_start(timestamp):
     '''
 
     tt = time.gmtime(int(timestamp))
-    tts = tt[0:2] + (1, 0, 0, 0) + tt[6:9]
-    return calendar.timegm(tts)
+    tts = tt[0:2] + (1, 0, 0, 0)
+    return to_time_float(calendar.timegm(tts))
 
 
 def year_start(timestamp):
@@ -1054,8 +1247,8 @@ def year_start(timestamp):
     '''
 
     tt = time.gmtime(int(timestamp))
-    tts = tt[0:1] + (1, 1, 0, 0, 0) + tt[6:9]
-    return calendar.timegm(tts)
+    tts = tt[0:1] + (1, 1, 0, 0, 0)
+    return to_time_float(calendar.timegm(tts))
 
 
 def iter_days(tmin, tmax):
@@ -1224,6 +1417,8 @@ def str_to_time(s, format='%Y-%m-%d %H:%M:%S.OPTFRAC'):
     seconds.
     '''
 
+    time_float = get_time_class()
+
     if util_ext is not None:
         try:
             t, tfrac = util_ext.stt(s, format)
@@ -1231,7 +1426,7 @@ def str_to_time(s, format='%Y-%m-%d %H:%M:%S.OPTFRAC'):
             raise TimeStrError(
                 '%s, string=%s, format=%s' % (str(e), s, format))
 
-        return t+tfrac
+        return time_float(t)+tfrac
 
     fracsec = 0.
     fixed_endings = '.FRAC', '.1FRAC', '.2FRAC', '.3FRAC'
@@ -1261,7 +1456,8 @@ def str_to_time(s, format='%Y-%m-%d %H:%M:%S.OPTFRAC'):
             s = s[:dotpos]
 
     try:
-        return calendar.timegm(time.strptime(s, format)) + fracsec
+        return time_float(calendar.timegm(time.strptime(s, format))) \
+            + fracsec
     except ValueError as e:
         raise TimeStrError('%s, string=%s, format=%s' % (str(e), s, format))
 
@@ -1283,6 +1479,9 @@ def time_to_str(t, format='%Y-%m-%d %H:%M:%S.3FRAC'):
     with ``x`` digits precision.
     '''
 
+    if pyrocko.grumpy > 0:
+        check_time_class(t, 'warn' if pyrocko.grumpy == 1 else 'raise')
+
     if isinstance(format, int):
         if format > 0:
             format = '%Y-%m-%d %H:%M:%S.' + '%iFRAC' % format
@@ -1290,9 +1489,9 @@ def time_to_str(t, format='%Y-%m-%d %H:%M:%S.3FRAC'):
             format = '%Y-%m-%d %H:%M:%S'
 
     if util_ext is not None:
-        t0 = math.floor(t)
+        t0 = num.floor(t)
         try:
-            return util_ext.tts(int(t0), t - t0, format)
+            return util_ext.tts(int(t0), float(t - t0), format)
         except util_ext.UtilExtError as e:
             raise TimeStrError(
                 '%s, timestamp=%f, format=%s' % (str(e), t, format))

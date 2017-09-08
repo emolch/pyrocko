@@ -428,8 +428,8 @@ class InSARGenerator(TargetGenerator):
 
         tmin, tmax = self.get_time_range(sources)
         for sc in scenes:
-            sc.meta.time_master = float(tmin)
-            sc.meta.time_slave = float(tmax)
+            sc.meta.time_master = util.to_time_float(tmin)
+            sc.meta.time_slave = util.to_time_float(tmax)
 
         scenes_asc = [sc for sc in scenes
                       if sc.config.meta.orbital_node == 'Ascending']

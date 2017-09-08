@@ -260,6 +260,8 @@ class TracesFileCache(object):
             if not os.path.isfile(fn):
                 del cache[fn]
 
+        time_float = util.get_time_class()
+
         for v in cache.values():
             v.trees_from_content(v.traces)
             for tr in v.traces:
@@ -273,6 +275,9 @@ class TracesFileCache(object):
                         str(tr.station),
                         str(tr.location),
                         str(tr.channel))
+
+                tr.tmin = time_float(tr.tmin)
+                tr.tmax = time_float(tr.tmax)
 
             v.data_use_count = 0
             v.data_loaded = False

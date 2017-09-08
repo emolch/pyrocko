@@ -1,4 +1,5 @@
 import unittest
+import pyrocko
 from pyrocko import util
 
 
@@ -48,7 +49,10 @@ compat_modules = [
 
 def _make_function(module):
     def f(self):
+        grumpy = pyrocko.grumpy
+        pyrocko.grumpy = 0
         __import__('pyrocko.' + module)
+        pyrocko.grumpy = grumpy
 
     f.__name__ = 'test_import_%s' % module
 

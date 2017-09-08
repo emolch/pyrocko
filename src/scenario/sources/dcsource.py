@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as num
 
+from pyrocko import util
 from pyrocko.guts import Float
 from pyrocko import moment_tensor, gf
 
@@ -28,7 +29,9 @@ class DCSourceGenerator(SourceGenerator):
 
     def get_source(self, ievent):
         rstate = self.get_rstate(ievent)
-        time = rstate.uniform(self.time_min, self.time_max)
+        time = self.time_min + rstate.uniform(
+            0., float(self.time_max - self.time_min))  # hptime aware
+
         lat, lon, north_shift, east_shift, depth = self.get_coordinates(ievent)
         depth = rstate.uniform(self.depth_min, self.depth_max)
         magnitude = self.draw_magnitude(rstate)
@@ -53,7 +56,7 @@ class DCSourceGenerator(SourceGenerator):
 
         source = gf.DCSource(
             name='ev%04i' % ievent,
-            time=float(time),
+            time=util.to_time_float(time),
             lat=float(lat),
             lon=float(lon),
             north_shift=float(north_shift),
@@ -67,7 +70,7 @@ class DCSourceGenerator(SourceGenerator):
         return source
 
     def add_map_artists(self, automap):
-        from pyrocko import gmtpy
+        from pyrocko.plot import gmtpy
 
         for source in self.get_sources():
             event = source.pyrocko_event()

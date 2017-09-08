@@ -400,7 +400,8 @@ class SeedVolumeAccess(eventdata.EventDataAccess):
                 if len(toks) == 9:
                     datetime = toks[1].split('.')[0]
                     format = '%Y/%m/%d %H:%M:%S'
-                    secs = calendar.timegm(time.strptime(datetime, format))
+                    secs = util.to_time_float(calendar.timegm(
+                        time.strptime(datetime, format)))
                     e = model.Event(
                         lat=float(toks[2]),
                         lon=float(toks[3]),

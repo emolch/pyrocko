@@ -49,6 +49,20 @@ class UtilTestCase(unittest.TestCase):
                 t3 = util.str_to_time(s, format=fmt_opt)
                 assert abs(t1 - t3) < accu
 
+    def testTimeType(self):
+        t = util.str_to_time('2020-01-01 10:10:10')
+        util.check_time_class(t)
+        util.check_time_class(0.0)  # special case zero is always ok
+
+        with self.assertRaises(util.TimestampTypeError):
+
+            if util.get_time_class() is float:
+                v = util.hpfloat(1.0)
+            else:
+                v = 1.0
+
+            util.check_time_class(v)
+
     def testTimeRange(self):
         tmin, tmax = util.get_working_system_time_range()[:2]
         stmin, stmax = map(util.time_to_str, (tmin, tmax))
@@ -129,7 +143,7 @@ class UtilTestCase(unittest.TestCase):
 
     def test_gps_utc_offset(self):
         for t_utc_0 in [x[0] for x in util.read_leap_seconds2()]:
-            t_utc_0 = float(t_utc_0)
+            t_utc_0 = util.to_time_float(t_utc_0)
             ts_utc = num.linspace(
                 t_utc_0 - 2.0, t_utc_0 + 2.0, 17)
 

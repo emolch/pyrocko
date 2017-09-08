@@ -13,7 +13,7 @@ import numpy as num
 from calendar import timegm
 from time import gmtime
 
-from pyrocko import trace
+from pyrocko import trace, util
 from pyrocko.util import reuse
 from .io_common import FileLoadError
 
@@ -106,8 +106,9 @@ iqb1 iqb2 iqbx iqmt ieq ieq1 ieq2 ime iex inu inc io_ il ir it iu
                     self.nzsec, self.nzmsec):
             raise SacError('Not all header values for reference time are set.')
 
-        return timegm((self.nzyear, 1, self.nzjday, self.nzhour, self.nzmin,
-                       self.nzsec)) + self.nzmsec/1000.
+        return util.to_time_float(timegm(
+            (self.nzyear, 1, self.nzjday,
+             self.nzhour, self.nzmin, self.nzsec))) + self.nzmsec/1000.
 
     def set_ref_time(self, timestamp):
         '''
