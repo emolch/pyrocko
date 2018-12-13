@@ -140,14 +140,16 @@ class TopoElement(Element):
                 if self.mesh is None:
                     t = self._tile
                     vertices, faces = geometry.topo_to_mesh(
-                        t.y(), t.x(), t.data*tstate.exaggeration, cake.earthradius)
+                        t.y(), t.x(), t.data*tstate.exaggeration,
+                        cake.earthradius)
 
                     self.mesh = TrimeshPipe(vertices, faces, smooth=True)
 
                 else:
                     t = self._tile
                     vertices = geometry.topo_to_vertices(
-                        t.y(), t.x(), t.data*tstate.exaggeration, cake.earthradius)
+                        t.y(), t.x(), t.data*tstate.exaggeration,
+                        cake.earthradius)
 
                     self.mesh.set_vertices(vertices)
 
