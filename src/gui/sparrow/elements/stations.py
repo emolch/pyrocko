@@ -22,6 +22,35 @@ from .base import Element, ElementState
 guts_prefix = 'sparrow'
 
 
+def stations_to_points(stations):
+    # coords = num.zeros((len(stations), 3))
+    statable = table.Table()
+
+    keys = stations[0].__dict__
+    statable.add_cols(
+        [table.Header(name=name) for name in keys.iterkeys()],
+        [num.array([station.__dict__[key] for station in stations])
+            .astype(object) for key in keys],
+        [i for i in len(keys) * [None]])
+
+    # for attr in stations[0].iterkeys():
+
+    # stationtable.add_cols(
+    #     [table.Header(name=name) for name in
+    #         ['Latitude', 'Longitude', 'Depth', 'StationID', 'NetworkID']],
+    #     [coords, stat_names, net_names],
+    #     [table.Header(name=name) for name in['Coordinates', None, None]])
+
+    latlondepth = num.array([
+        statable.get_col('lat').astype(float),
+        statable.get_col('lon').astype(float),
+        statable.get_col('elevation').astype(float)])
+    print(latlondepth)
+    return geometry.latlondepth2xyz(
+        latlondepth,
+        planetradius=cake.earthradius)
+
+
 class LoadingChoice(StringChoice):
     choices = [choice.upper() for choice in [
         'file',
@@ -42,21 +71,22 @@ class FDSNStationSelection(StationSelection):
     tmax = Timestamp.T()
 
     def get_stations(self):
-        return fdsn.station(
+        return [fdsn.station(
             site=self.site,
             format='text',
             level='channel',
             channel='??Z',
             startbefore=self.tmin,
             endafter=self.tmax
-        ).get_pyrocko_stations()
+        ).get_pyrocko_stations()]
 
 
 class FileStationSelection(StationSelection):
     paths = List.T(String.T())
 
     def get_stations(self):
-        return model.load_stations(self.path)
+        stations = [model.load_stations(str(path)) for path in self.paths]
+        return [station for sublist in stations for station in sublist]
 
 
 class StationsState(ElementState):
@@ -121,9 +151,6 @@ class StationsElement(Element):
     def update(self, *args):
         state = self._state
 
-
-        
-
         if self._pipe and not state.visible:
             self._parent.remove_actor(self._pipe.actor)
             self._pipe.set_size(state.size)
@@ -132,6 +159,7 @@ class StationsElement(Element):
             if self._current_selection is not state.station_selection:
                 stations = state.station_selection.get_stations()
                 points = stations_to_points(stations)
+                print(points)
                 self._pipe = ScatterPipe(points)
                 self._parent.add_actor(self._pipe.actor)
 
@@ -148,13 +176,12 @@ class StationsElement(Element):
 
             fns, _ = fnpatch(qw.QFileDialog.getOpenFileNames(
                 self, caption, options=common.qfiledialog_options))
+            self._state.station_selection = FDSNStationSelection(
+                paths=[fn for fn in fns])
 
-            stations = [model.load_stations(str(x)) for x in fns]
-            for stat in stations:
-                self.add_stations(stat)
-
-            # self._state.FileStationsState.file = #
-            # '/home/mmetz/Documents/MA/data/stations_fdsn'
+            # stations = [model.load_stations(str(x)) for x in fns]
+            # for stat in stations:
+            #     self.add_stations(stat)
 
             self._state.visible = True
 
