@@ -69,3 +69,7 @@ def cover_region(lat, lon, delta, step=None):
         lon_closed = True
 
     return lat_min, lat_max, lon_min, lon_max, lon_closed
+
+
+qfiledialog_options = qw.QFileDialog.DontUseNativeDialog | \
+    qw.QFileDialog.DontUseSheet
