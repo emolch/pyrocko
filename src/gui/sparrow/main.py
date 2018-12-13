@@ -114,7 +114,7 @@ class Viewer(qw.QMainWindow):
         qw.QMainWindow.__init__(self)
 
         self._panel_togglers = {}
-        
+
         mbar = self.menuBar()
         menu = mbar.addMenu('File')
 
@@ -534,7 +534,6 @@ class Viewer(qw.QMainWindow):
         mitem = dockwidget.toggleViewAction()
         self._panel_togglers[dockwidget] = mitem
         self.panels_menu.addAction(mitem)
-
 
     def toggle_panel_visibility(self):
         self.state.panels_visible = not self.state.panels_visible

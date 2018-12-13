@@ -125,7 +125,6 @@ class CoastlinesElement(Element):
             self._parent.update_view()
             self._parent = None
 
-
     def update(self, *args):
         state = self._state
         if not state.visible and self._coastlines:
