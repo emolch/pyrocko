@@ -44,7 +44,6 @@ import platform
 
 MIN_LABEL_SIZE_PT = 6
 
-
 qc.QString = str
 
 qfiledialog_options = qw.QFileDialog.DontUseNativeDialog | \
