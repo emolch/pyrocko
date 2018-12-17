@@ -706,6 +706,7 @@ class TBase(object):
 
 class ObjectMetaClass(type):
     def __new__(meta, classname, bases, class_dict):
+        classname = class_dict.get('class_name', classname)
         cls = type.__new__(meta, classname, bases, class_dict)
         if classname != 'Object':
             t_class_attr_name = '_%s__T' % classname

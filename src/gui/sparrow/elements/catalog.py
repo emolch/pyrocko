@@ -60,9 +60,16 @@ class FileCatalogSelection(CatalogSelection):
     paths = List.T(String.T())
 
     def get_events(self):
+        from pyrocko.io import quakeml
+
         events = []
         for path in self.paths:
-            events.extend(model.load_events(path))
+            if path.split('.')[-1].lower() in ['xml', 'qml', 'quakeml']:
+                qml = quakeml.QuakeML.load_xml(filename=path)
+                events.extend(qml.get_pyrocko_events())
+
+            else:
+                events.extend(model.load_events(path))
 
         return events
 

@@ -127,7 +127,8 @@ class Viewer(qw.QMainWindow):
                 ('Stations', elements.StationsState()),
                 ('Topography', elements.TopoState()),
                 ('Catalog', elements.CatalogState()),
-                ('Coastlines', elements.CoastlinesState())]:
+                ('Coastlines', elements.CoastlinesState()),
+                ('Source', elements.SourceState())]:
 
             def wrap_add_element(estate):
                 def add_element(*args):
