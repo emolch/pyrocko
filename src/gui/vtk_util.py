@@ -13,7 +13,7 @@ from vtk.util.numpy_support import \
     numpy_to_vtk as numpy_to_vtk_, get_vtk_array_type
 # , numpy_to_vtkIdTypeArray
 
-from pyrocko import geometry
+from pyrocko import geometry, cake
 
 logger = logging.getLogger('pyrocko.gui.vtk_util')
 
@@ -36,7 +36,8 @@ def numpy_to_vtk_colors(a):
     return c
 
 
-def make_multi_polyline(lines_rtp=None, lines_latlon=None):
+def make_multi_polyline(
+        lines_rtp=None, lines_latlon=None, lines_latlondepth=None):
     if lines_rtp is not None:
         points = geometry.rtp2xyz(num.vstack(lines_rtp))
         lines = lines_rtp
@@ -44,6 +45,10 @@ def make_multi_polyline(lines_rtp=None, lines_latlon=None):
         points = geometry.latlon2xyz(
             num.vstack(lines_latlon), radius=1.0)
         lines = lines_latlon
+    elif lines_latlondepth is not None:
+        points = geometry.latlondepth2xyz(
+            num.vstack(lines_latlondepth), planetradius=cake.earthradius)
+        lines = lines_latlondepth
 
     vpoints = vtk.vtkPoints()
     vpoints.SetNumberOfPoints(points.shape[0])
@@ -194,6 +199,77 @@ class TrimeshPipe(object):
 
     def set_values(self, values):
         vvalues = numpy_to_vtk(values.astype(num.float64), deep=1)
+
+        vvalues = vtk.vtkDoubleArray()
+        for value in values:
+            vvalues.InsertNextValue(value)
+
+        self.polydata.GetCellData().SetScalars(vvalues)
+        self.mapper.SetScalarRange(values.min(), values.max())
+
+
+class PolygonPipe(object):
+    def __init__(self, vertices, faces, values=None, contour=False):
+
+        vpoints = vtk.vtkPoints()
+        vpoints.SetNumberOfPoints(vertices.shape[0])
+        vpoints.SetData(numpy_to_vtk(vertices))
+
+        pd = vtk.vtkPolyData()
+        pd.SetPoints(vpoints)
+
+        cells = vtk.vtkCellArray()
+        for face in faces:
+            cells.InsertNextCell(face.size)
+            for ivert in face:
+                cells.InsertCellPoint(ivert)
+
+        pd.SetPolys(cells)
+
+        mapper = vtk.vtkPolyDataMapper()
+
+        vtk_set_input(mapper, pd)
+
+        act = vtk.vtkActor()
+
+        if contour:
+            pass
+            # scalar_range = pd.GetScalarRange()
+            # vcontour = vtk.vtkContourFilter()
+            # vcontour.SetInputConnection(mapper.GetOutputPort())
+            # vcontour.GenerateValues(12, scalar_range)
+            # mapper.SetInputConnection(vcontour.GetOutputPort())
+            # act.SetMapper(mapper)
+
+        else:
+            act.SetMapper(mapper)
+
+        prop = act.GetProperty()
+        # prop.SetColor(0.5, 0.5, 0.5)
+        # prop.SetAmbientColor(0.3, 0.3, 0.3)
+        # prop.SetDiffuseColor(0.5, 0.5, 0.5)
+        # prop.SetSpecularColor(1.0, 1.0, 1.0)
+        # prop.SetOpacity(0.7)
+        self.prop = prop
+
+        self.polydata = pd
+        self.mapper = mapper
+        self.actor = act
+
+        if values is not None:
+            self.set_values(values)
+
+    def set_opacity(self, value):
+        self.prop.SetOpacity(value)
+
+    def set_vertices(self, vertices):
+        vpoints = vtk.vtkPoints()
+        vpoints.SetNumberOfPoints(vertices.shape[0])
+        vpoints.SetData(numpy_to_vtk(vertices))
+        self.polydata.SetPoints(vpoints)
+
+    def set_values(self, values):
+        vvalues = numpy_to_vtk(values.astype(num.float64))#, deep=1)
 
         vvalues = vtk.vtkDoubleArray()
         for value in values:

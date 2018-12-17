@@ -53,12 +53,6 @@ def stations_to_points(stations):
         planetradius=cake.earthradius)
 
 
-class LoadingChoice(StringChoice):
-    choices = [choice.upper() for choice in [
-        'file',
-        'fdsn']]
-
-
 class FDSNSiteChoice(StringChoice):
     choices = [key.upper() for key in fdsn.g_site_abbr.iterkeys()]
 
@@ -86,9 +80,16 @@ class FileStationSelection(StationSelection):
     paths = List.T(String.T())
 
     def get_stations(self):
+        from pyrocko.io import stationxml
+
         stations = []
         for path in self.paths:
-            stations.extend(model.load_stations(path))
+            if path.split('.')[-1].lower() in ['xml']:
+                stxml = stationxml.load_xml(filename=path)
+                stations.extend(stxml.get_pyrocko_stations())
+
+            else:
+                stations.extend(model.load_stations(path))
 
         return stations
 
@@ -175,6 +176,7 @@ class StationsElement(Element):
                 self._pipe.set_size(state.size)
 
         self._parent.update_view()
+        self._current_selection = state.station_selection
 
     def open_file_load_dialog(self):
         caption = 'Select one or more files to open'
@@ -218,7 +220,7 @@ class StationsElement(Element):
         if dialog.result() == qw.QDialog.Accepted:
             self._state.station_selection = FDSNStationSelection(
                 site=site,
-                tmin=now-3600.,
+                tmin=now - 3600.,
                 tmax=now)
 
     def _get_controls(self):

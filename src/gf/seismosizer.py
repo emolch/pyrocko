@@ -413,6 +413,54 @@ def points_on_rect_source(
     return num.dot(rotmat.T, points.T).T
 
 
+class SourceGeometry(Object):
+    patches = []
+    dl = None
+    dw = None
+
+    def get_discrete_source(self, source, *args, **kwargs):
+        ds = source.discretize_basesource(*args)
+
+        self.dl = ds.dl
+        self.dw = ds.dw
+
+        latlon = ne_to_latlon(
+            source.lat, source.lon, ds.north_shifts[:], ds.east_shifts[:])
+        latlon = num.array(latlon).T
+        latlondepth = num.concatenate(
+                    (latlon,ds.depths.reshape((len(ds.depths), 1))),
+                    axis=1)
+
+        self.patches = [Patch(
+            latlondepth[i], self.dl, self.dw, source,
+            time=ds.times[i], ms6=ds.m6s[i]) for i in range(ds.nelements)]
+
+
+class Patch(SourceGeometry):
+    points = []
+    central_point = None
+
+    def __init__(self, point, dl, dw, source, **kwargs):
+        self.central_point = point
+        points = outline_rect_source(
+            source.strike, source.dip, dl, dw, 'center')
+
+        points[:, 0] += point[0]
+        points[:, 1] += point[1]
+        points[:, 2] += point[2]
+
+        latlon = ne_to_latlon(
+            point[0], point[1], points[:, 0], points[:, 1])
+        latlon = num.array(latlon).T
+        self.points = num.concatenate(
+                    (latlon,points[:, 2].reshape((len(points[:, 2]), 1))),
+                    axis=1)
+
+        if kwargs:
+            for key, value in kwargs.iteritems():
+                setattr(self, key, value)
+
+ 
 class InvalidGridDef(Exception):
     pass
 
@@ -1660,7 +1708,6 @@ class RectangularExplosionSource(ExplosionSource):
         elif cs in ('latlon', 'lonlat'):
             latlon = ne_to_latlon(
                 self.lat, self.lon, points[:, 0], points[:, 1])
-
             latlon = num.array(latlon).T
             if cs == 'latlon':
                 return latlon
@@ -2293,16 +2340,13 @@ class RectangularSource(SourceWithDerivedMagnitude):
             depths=points[:, 2],
             m6s=m6s,
             dl=dl,
-            dw=dw,
-            nl=nl,
-            nw=nw)
+            dw=dw)
 
         return ds
 
     def outline(self, cs='xyz'):
         points = outline_rect_source(self.strike, self.dip, self.length,
                                      self.width, self.anchor)
-
         points[:, 0] += self.north_shift
         points[:, 1] += self.east_shift
         points[:, 2] += self.depth
@@ -5568,6 +5612,7 @@ stf_classes = [
 ]
 
 __all__ = '''
+SourceGeometry
 SeismosizerError
 BadRequest
 NoSuchStore

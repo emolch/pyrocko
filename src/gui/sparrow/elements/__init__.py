@@ -11,3 +11,4 @@ from .icosphere import *  # noqa
 from .catalog import *  # noqa
 from .topo import *  # noqa
 from .stations import *  # noqa
+from .source import * # noqa
