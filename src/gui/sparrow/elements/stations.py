@@ -54,7 +54,7 @@ def stations_to_points(stations):
 
 
 class FDSNSiteChoice(StringChoice):
-    choices = [key.upper() for key in fdsn.g_site_abbr.iterkeys()]
+    choices = [key.upper() for key in fdsn.g_site_abbr.keys()]
 
 
 class StationSelection(Object):
@@ -195,7 +195,7 @@ class StationsElement(Element):
 
         layout.addWidget(qw.QLabel('Site'))
 
-        sites = [key.upper() for key in fdsn.g_site_abbr.iterkeys()]
+        sites = [key.upper() for key in fdsn.g_site_abbr.keys()]
 
         cb = qw.QComboBox()
         for i, s in enumerate(sites):
