@@ -49,7 +49,7 @@ class LoadingChoice(StringChoice):
 
 
 class FDSNSiteChoice(StringChoice):
-    choices = [key.upper() for key in fdsn.g_site_abbr.iterkeys()]
+    choices = [key.upper() for key in fdsn.g_site_abbr.keys()]
 
 
 class CatalogSelection(Object):
