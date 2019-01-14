@@ -1,6 +1,7 @@
 import math
 import numpy as num
 from pyrocko.guts import Object, String, Unicode, List, Int, SObject, Any
+from pyrocko import geometry, cake
 from pyrocko import orthodrome as od
 from pyrocko.util import num_full
 
@@ -174,8 +175,7 @@ class Table(object):
             array = header.default_array(nrows_current)
 
         array = num.asarray(array)
-        print(header.get_ncols(), ncols(array))
-
+        
         assert header.get_ncols() == ncols(array)
         assert array.ndim in (1, 2)
         if self._arrays:
@@ -248,7 +248,6 @@ class Table(object):
             recipe = self.get_recipe_for_col(name)
             recipe._update_col(self, name)
 
-            print('mm', mask)
             return recipe.get_table().get_col(name, mask)
 
     def get_header(self, name):
@@ -281,13 +280,9 @@ class Table(object):
 
     def get_recipe_for_col(self, name):
         for recipe in self.recipes:
-            print(recipe, recipe.has_col(name), name)
             if recipe.has_col(name):
-                print('xx')
                 return recipe
-                print('yyy')
-
-        print('yy')
+                
         raise NoSuchRecipe(name)
 
     def get_description(self):
@@ -367,7 +362,6 @@ class Recipe(object):
 
     def _update_col(self, table, name):
         if not self._table.has_col(name):
-            print('aufruf')
             self._col_update_map[name](table)
 
     def _add_rows_handler(self, table, nrows_added):
@@ -421,10 +415,19 @@ class LocationRecipe(Recipe):
 
         self._register_computed_col(self._latlon_header, self._update_latlon)
 
+        self._xyz_header = Header(name='xyz', sub_headers=[
+            SubHeader(name='x', unit=''),
+            SubHeader(name='y', unit=''),
+            SubHeader(name='z', unit='')])
+
+        self._register_computed_col(self._xyz_header, self._update_xyz)
+
     def _add_rows_handler(self, table, nrows_added):
         Recipe._add_rows_handler(self, table, nrows_added)
-        if self._table.has_col('latlon'):
-            self._table.remove_col('latlon')
+
+        for colname in ['latlon', 'xyz']:
+            if self._table.has_col(colname):
+                self._table.remove_col(colname)
 
     def _update_latlon(self, table):
         lats, lons = od.ne_to_latlon(
@@ -438,6 +441,19 @@ class LocationRecipe(Recipe):
         latlons[:, 1] = lons
 
         self._table.add_col(self._latlon_header, latlons)
+
+    def _update_xyz(self, table):
+        self._update_latlon(table)
+
+        xyzs = geometry.latlondepth2xyz(
+            num.concatenate((
+                table.get_col('lat').reshape(-1, 1),
+                table.get_col('lon').reshape(-1, 1),
+                table.get_col('depth').reshape(-1, 1)),
+                axis=1),
+            planetradius=cake.earthradius)
+
+        self._table.add_col(self._xyz_header, xyzs)
 
 
 class EventRecipe(LocationRecipe):

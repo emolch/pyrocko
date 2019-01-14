@@ -584,8 +584,8 @@ setup(
         'Topic :: Scientific/Engineering :: Physics',
         'Topic :: Scientific/Engineering :: Visualization',
         'Topic :: Scientific/Engineering :: Information Analysis',
-        'Topic :: Software Development :: Libraries :: Application Frameworks',
-        ],
+        'Topic :: Software Development :: Libraries :: Application Frameworks'
+    ],
     keywords=[
         'seismology, waveform analysis, earthquake modelling, geophysics,'
         ' geophysical inversion'],

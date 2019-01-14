@@ -6,6 +6,7 @@
 from __future__ import absolute_import, print_function, division
 
 import logging
+import time
 
 from pyrocko.guts import StringChoice, Float, List, Bool
 
@@ -31,6 +32,8 @@ class ViewerState(talkie.TalkieRoot):
     distance = Float.T(default=3.0)
     elements = List.T(talkie.Talkie.T())
     panels_visible = Bool.T(default=True)
+    tmin = Float.T(default=time.time() - 3600.)
+    tmax = Float.T(default=time.time())
 
     def next_focal_point(self):
         choices = FocalPointChoice.choices
