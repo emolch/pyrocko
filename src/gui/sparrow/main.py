@@ -10,6 +10,7 @@ import sys
 import signal
 import gc
 import logging
+import re
 
 import numpy as num
 
@@ -231,6 +232,7 @@ class Viewer(qw.QMainWindow):
         self.state.elements.append(elements.GridState())
         self.state.elements.append(elements.CoastlinesState())
         # self.state.elements.append(elements.StationsState())
+        # self.state.elements.append(elements.SourceState())
 
         self.timer = qc.QTimer(self)
         self.timer.timeout.connect(self.periodical)
@@ -255,6 +257,10 @@ class Viewer(qw.QMainWindow):
 
     def add_actor(self, actor):
         self.ren.AddActor(actor)
+
+    def add_actor_list(self, actorlist):
+        for actor in actorlist:
+            self.add_actor(actor)
 
     def remove_actor(self, actor):
         self.ren.RemoveActor(actor)
@@ -330,8 +336,8 @@ class Viewer(qw.QMainWindow):
         elif k == ' ':
             self.toggle_panel_visibility()
 
-    def _state_bind(self, *args):
-        vstate.state_bind(self, self.state, *args)
+    def _state_bind(self, *args, **kwargs):
+        vstate.state_bind(self, self.state, *args, **kwargs)
 
     def controls(self):
         frame = qw.QFrame(self)
@@ -439,7 +445,59 @@ class Viewer(qw.QMainWindow):
         self.register_state_listener(update_panel_visibility)
         self.state.add_listener(update_panel_visibility, 'panels_visible')
 
-        layout.addWidget(qw.QFrame(), 3, 0, 1, 2)
+        layout.addWidget(qw.QLabel('T<sub>MIN</sub> UTC:'), 3, 0)
+        le_tmin = qw.QLineEdit()
+        layout.addWidget(le_tmin, 3, 1)
+
+        layout.addWidget(qw.QLabel('T<sub>MAX</sub> UTC:'), 4, 0)
+        le_tmax = qw.QLineEdit()
+        layout.addWidget(le_tmax, 4, 1)
+
+        def time_to_lineedit(state, attribute, widget):
+            from pyrocko.util import time_to_str
+
+            sel = getattr(state, attribute)
+            widget.setText('%s' % (time_to_str(
+                getattr(state, attribute), format='%Y-%m-%d %H:%M')))
+            if sel:
+                widget.selectAll()
+
+        def lineedit_to_time(widget, state, attribute):
+            from pyrocko.util import str_to_time
+
+            s = str(widget.text())
+            m = re.match(
+                r'^\d\d\d\d-\d\d-\d\d( \d\d:\d\d+)?$', s)
+            if m:
+                if not m.group(1):
+                    time_str = m.group(0) + ' 00:00'
+                else:
+                    time_str = m.group(0)
+                setattr(
+                    state,
+                    attribute,
+                    str_to_time(time_str, format='%Y-%m-%d %H:%M'))
+            else:
+                raise ValueError('Use time format: YYYY-mm-dd [HH:MM]')
+
+        self._state_bind(
+            ['tmin'], lineedit_to_time, le_tmin,
+            [le_tmin.editingFinished, le_tmin.returnPressed], time_to_lineedit,
+            attribute='tmin')
+        self._state_bind(
+            ['tmax'], lineedit_to_time, le_tmax,
+            [le_tmax.editingFinished, le_tmax.returnPressed], time_to_lineedit,
+            attribute='tmax')
+
+        self.tmin_lineedit = le_tmin
+        self.tmax_lineedit = le_tmax
+
+        self.tmin_lineedit.returnPressed.connect(
+            lambda *args: self.tmin_lineedit.selectAll())
+        self.tmax_lineedit.returnPressed.connect(
+            lambda *args: self.tmax_lineedit.selectAll())
+
+        layout.addWidget(qw.QFrame(), 5, 0, 1, 2)
 
         return frame
 

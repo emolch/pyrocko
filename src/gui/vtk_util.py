@@ -103,7 +103,6 @@ class ScatterPipe(object):
         pd = vtk.vtkPolyData()
         pd.ShallowCopy(vertex_filter.GetOutput())
 
-        # colors = num.random.random((nvertices, 3))
         colors = num.ones((nvertices, 3))
         vcolors = numpy_to_vtk_colors(colors)
         pd.GetPointData().SetScalars(vcolors)
@@ -209,8 +208,7 @@ class TrimeshPipe(object):
 
 
 class PolygonPipe(object):
-    def __init__(self, vertices, faces, values=None, contour=False):
-
+    def __init__(self, vertices, faces, values=None, contour=False, **kwargs):
         vpoints = vtk.vtkPoints()
         vpoints.SetNumberOfPoints(vertices.shape[0])
         vpoints.SetData(numpy_to_vtk(vertices))
@@ -227,22 +225,10 @@ class PolygonPipe(object):
         pd.SetPolys(cells)
 
         mapper = vtk.vtkPolyDataMapper()
-
         vtk_set_input(mapper, pd)
 
         act = vtk.vtkActor()
-
-        if contour:
-            pass
-            # scalar_range = pd.GetScalarRange()
-            # vcontour = vtk.vtkContourFilter()
-            # vcontour.SetInputConnection(mapper.GetOutputPort())
-            # vcontour.GenerateValues(12, scalar_range)
-            # mapper.SetInputConnection(vcontour.GetOutputPort())
-            # act.SetMapper(mapper)
-
-        else:
-            act.SetMapper(mapper)
+        act.SetMapper(mapper)
 
         prop = act.GetProperty()
         # prop.SetColor(0.5, 0.5, 0.5)
@@ -257,7 +243,26 @@ class PolygonPipe(object):
         self.actor = act
 
         if values is not None:
+            if contour:
+                factors = [0.01, 0.1, 1., 2., 5., 10., 20., 50.]
+                limits = num.array([
+                    num.max(num.ceil(values / fac)) for fac in factors])
+
+                factor_ind = num.argmin(num.abs(limits - 10.))
+                fac = factors[factor_ind]
+                lim = int(limits[factor_ind])
+                kwargs = dict(kwargs, numcolor=lim - 1)
+
+                for i in range(lim):
+                    values[(values >= i * fac) & (values < (i + 1) * fac)] = \
+                        i * fac
+
             self.set_values(values)
+
+        if kwargs:
+            colorbar_actor = self.get_colorbar_actor(**kwargs)
+            colorbar_actor.GetProperty()
+            self.actor = [act, colorbar_actor]
 
     def set_opacity(self, value):
         self.prop.SetOpacity(value)
@@ -269,7 +274,7 @@ class PolygonPipe(object):
         self.polydata.SetPoints(vpoints)
 
     def set_values(self, values):
-        vvalues = numpy_to_vtk(values.astype(num.float64))#, deep=1)
+        vvalues = numpy_to_vtk(values.astype(num.float64))
 
         vvalues = vtk.vtkDoubleArray()
         for value in values:
@@ -277,3 +282,189 @@ class PolygonPipe(object):
 
         self.polydata.GetCellData().SetScalars(vvalues)
         self.mapper.SetScalarRange(values.min(), values.max())
+
+    def get_colorbar_actor(self, cbar_title=None, numcolor=None):
+        lut = vtk.vtkLookupTable()
+        if numcolor:
+            lut.SetNumberOfTableValues(numcolor)
+        lut.Build()
+        self.mapper.SetLookupTable(lut)
+
+        scalar_bar = vtk.vtkScalarBarActor()
+        if numcolor:
+            scalar_bar.SetNumberOfLabels(numcolor + 1)
+        scalar_bar.SetMaximumHeightInPixels(500)
+        scalar_bar.SetMaximumWidthInPixels(50)
+        scalar_bar.SetLookupTable(lut)
+        scalar_bar.SetTitle(cbar_title)
+        try:
+            scalar_bar.SetUnconstrainedFontSize(True)
+        except AttributeError:
+            pass
+
+        prop_title = vtk.vtkTextProperty()
+        prop_title.SetFontFamilyToArial()
+        prop_title.SetColor(.8, .8, .8)
+        prop_title.SetFontSize(int(prop_title.GetFontSize() * 1.3))
+        prop_title.BoldOn()
+        scalar_bar.SetTitleTextProperty(prop_title)
+        try:
+            scalar_bar.SetVerticalTitleSeparation(20)
+        except AttributeError:
+            pass
+
+        prop_label = vtk.vtkTextProperty()
+        prop_label.SetFontFamilyToArial()
+        prop_label.SetColor(.8, .8, .8)
+        prop_label.SetFontSize(int(prop_label.GetFontSize() * 1.1))
+        scalar_bar.SetLabelTextProperty(prop_label)
+
+        pos = scalar_bar.GetPositionCoordinate()
+        pos.SetCoordinateSystemToNormalizedViewport()
+        pos.SetValue(0.95, 0.05)
+
+        return scalar_bar
+
+
+class ArrowPipe(object):
+    def __init__(self, start, end, value=None):
+        from vtk import vtkMath as vm
+
+        arrow = vtk.vtkArrowSource()
+        arrow.SetTipResolution(31)
+        arrow.SetShaftResolution(21)
+        arrow.Update()
+
+        normalized_x = [0.0] * 3
+        normalized_y = [0.0] * 3
+        normalized_z = [0.0] * 3
+
+        vm.Subtract(end, start, normalized_x)
+        length = vm.Norm(normalized_x)
+        vm.Normalize(normalized_x)
+
+        arbitrary = [0.0] * 3
+        arbitrary[0] = vm.Random(-10, 10)
+        arbitrary[1] = vm.Random(-10, 10)
+        arbitrary[2] = vm.Random(-10, 10)
+        vm.Cross(normalized_x, arbitrary, normalized_z)
+        vm.Normalize(normalized_z)
+
+        vm.Cross(normalized_z, normalized_x, normalized_y)
+
+        matrix = vtk.vtkMatrix4x4()
+
+        matrix.Identity()
+        for i in range(0, 3):
+            matrix.SetElement(i, 0, normalized_x[i])
+            matrix.SetElement(i, 1, normalized_y[i])
+            matrix.SetElement(i, 2, normalized_z[i])
+
+        transform = vtk.vtkTransform()
+        transform.Translate(start)
+        transform.Concatenate(matrix)
+        transform.Scale(length, length, length)
+
+        transform_filter = vtk.vtkTransformPolyDataFilter()
+        transform_filter.SetTransform(transform)
+        transform_filter.SetInputConnection(arrow.GetOutputPort())
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(transform_filter.GetOutputPort())
+
+        act = vtk.vtkActor()
+        act.SetMapper(mapper)
+
+        prop = act.GetProperty()
+        self.prop = prop
+        self.mapper = mapper
+        self.actor = act
+
+
+class Glyph3DPipe(object):
+    def __init__(self, vertices, vectors, sizefactor=1.):
+        assert len(vertices) == len(vectors)
+
+        if isinstance(vectors, list):
+            vectors = num.array(vectors)
+
+        assert vectors.shape[1] == 3
+
+        vectors = vectors
+        vpoints = vtk.vtkPoints()
+        vpoints.SetNumberOfPoints(vertices.shape[0])
+        vpoints.SetData(numpy_to_vtk(vertices))
+
+        vvectors = vtk.vtkDoubleArray()
+        vvectors.SetNumberOfComponents(3)
+        vvectors.SetNumberOfTuples(vectors.shape[0])
+
+        for iv, vec in enumerate(vectors):
+            for ic, comp in enumerate(vec):
+                vvectors.SetComponent(iv, ic, comp)
+
+        pd = vtk.vtkPolyData()
+        pd.SetPoints(vpoints)
+        pd.GetPointData().SetVectors(vvectors)
+
+        arrow = vtk.vtkArrowSource()
+        arrow.SetTipResolution(31)
+        arrow.SetShaftResolution(21)
+        arrow.Update()
+
+        glyph = vtk.vtkGlyph3D()
+        glyph.SetSourceData(arrow.GetOutput())
+        glyph.SetInputData(pd)
+        glyph.ScalingOn()
+        glyph.SetVectorModeToUseVector()
+        glyph.OrientOn()
+        glyph.SetScaleModeToScaleByVector()
+        glyph.SetScaleFactor(10**sizefactor)
+        glyph.Update()
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(glyph.GetOutputPort())
+
+        act = vtk.vtkActor()
+        act.SetMapper(mapper)
+
+        prop = act.GetProperty()
+        self.prop = prop
+
+        self.polydata = pd
+        self.mapper = mapper
+
+        # if scale_bar:
+        #     self.actor = [act, self.scale_bar_actor(glyph.GetScaleFactor())]
+        # else:
+        self.actor = act
+
+    def scale_bar_actor(self, ScalingFactor):
+        leader = vtk.vtkLeaderActor2D()
+
+        pos = leader.GetPositionCoordinate()
+        pos2c = leader.GetPosition2Coordinate()
+        pos.SetCoordinateSystemToNormalizedViewport()
+        pos2c.SetCoordinateSystemToNormalizedViewport()
+        pos.SetValue(0.8, 0.12)
+        pos2c.SetValue(0.9, 0.12)
+        leader.SetArrowStyleToFilled()
+        leader.SetLabel('Disp. = %.2f m' % 10.)
+        leader.SetArrowPlacementToPoint1()
+
+        try:
+            leader.SetUnconstrainedFontSize(True)
+        except AttributeError:
+            pass
+
+        prop_label = vtk.vtkTextProperty()
+        prop_label.SetFontFamilyToArial()
+        prop_label.BoldOn()
+        prop_label.SetColor(.8, .8, .8)
+        prop_label.SetJustificationToCentered()
+        prop_label.SetVerticalJustificationToBottom()
+        leader.SetLabelTextProperty(prop_label)
+        leader.SetLabelFactor(0.5)
+        leader.GetProperty().SetColor(1., 1., 0.69)
+
+        return leader

@@ -7,6 +7,8 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as num
 
+from pyrocko import orthodrome as od
+
 d2r = num.pi/180.
 r2d = 1.0 / d2r
 
@@ -67,6 +69,16 @@ def latlondepth2xyz(latlondepth, planetradius):
     rtp[:, 2] = latlondepth[:, 1] * d2r
     return rtp2xyz(rtp)
 
+def ned2xyz(ned, latlondepth, planetradius):
+    endpoints = num.empty_like(latlondepth)
+    endpoints[:, 0], endpoints[:, 1] = od.ne_to_latlon(
+        latlondepth[:, 0], latlondepth[:, 1], ned[:, 0], ned[:, 1])
+    endpoints[:, 2] = latlondepth[:, 2] + ned[:, 2]
+
+    start_xyz = latlondepth2xyz(latlondepth, planetradius)
+    end_xyz = latlondepth2xyz(endpoints, planetradius)
+
+    return end_xyz - start_xyz
 
 def topo_to_vertices(lat, lon, ele, planetradius):
     nlat = lat.size

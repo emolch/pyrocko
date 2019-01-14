@@ -5,8 +5,6 @@
 
 from __future__ import absolute_import, print_function, division
 
-import time
-
 import numpy as num
 
 from pyrocko.guts import \
@@ -33,23 +31,10 @@ def stations_to_points(stations):
 
     station_table = table.Table()
 
-    # keys = stations[0].__dict__
-    # statable.add_cols(
-    #     [table.Header(name=name) for name in keys.iterkeys()],
-    #     [num.array([station.__dict__[key] for station in stations])
-    #         .astype(object) for key in keys],
-    #     [i for i in len(keys) * [None]])
-
-    # for attr in stations[0].iterkeys():
-
-    station_table.add_cols(
-        [table.Header(name=name) for name in
-            ['lat', 'lon', 'depth']],
-        [coords],
-        [table.Header(name=name) for name in['coords']])
+    station_table.add_col(('coords', '', ('lat', 'lon', 'depth')), coords)
 
     return geometry.latlondepth2xyz(
-        station_table.get_col_group('coords'),
+        station_table.get_col('coords'),
         planetradius=cake.earthradius)
 
 
@@ -171,6 +156,8 @@ class StationsElement(Element):
                 points = stations_to_points(stations)
                 self._pipe = ScatterPipe(points)
                 self._parent.add_actor(self._pipe.actor)
+            elif self._pipe:
+                self._parent.add_actor(self._pipe.actor)
 
             if self._pipe:
                 self._pipe.set_size(state.size)
@@ -215,13 +202,13 @@ class StationsElement(Element):
 
         site = str(cb.currentText()).lower()
 
-        now = time.time()
+        vstate = self._parent.state
 
         if dialog.result() == qw.QDialog.Accepted:
             self._state.station_selection = FDSNStationSelection(
                 site=site,
-                tmin=now - 3600.,
-                tmax=now)
+                tmin=vstate.tmin,
+                tmax=vstate.tmax)
 
     def _get_controls(self):
         if not self._controls:
