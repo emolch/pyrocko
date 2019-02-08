@@ -793,6 +793,21 @@ class GutsTestCase(unittest.TestCase):
 
         b_int = load_string  # noqa
 
+    def testListArrayNoDtype(self):
+        from pyrocko.guts_array import Array
+        import numpy as num
+
+        class A(Object):
+            arr = List.T(Array.T(serialize_as='base64+meta'))
+
+        for dtype in (num.int, num.float):
+            a = A(arr=[num.zeros((3, 3), dtype=dtype)])
+            b = load_string(a.dump())
+            assert a.arr[0].shape == b.arr[0].shape
+            self.assertTrue(num.all(a.arr[0] == b.arr[0]))
+
+        b_int = load_string  # noqa
+
     def testPO(self):
         class SKU(StringPattern):
             pattern = '\\d{3}-[A-Z]{2}'

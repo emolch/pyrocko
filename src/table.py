@@ -1,6 +1,7 @@
 import math
 import numpy as num
 from pyrocko.guts import Object, String, Unicode, List, Int, SObject, Any
+from pyrocko.guts_array import Array
 from pyrocko import geometry, cake
 from pyrocko import orthodrome as od
 from pyrocko.util import num_full
@@ -103,35 +104,125 @@ class Description(Object):
     nrows = Int.T()
     ncols = Int.T()
 
-    def __init__(self, table):
-        Object.__init__(
-            self,
-            name=table._name,
-            headers=table._headers,
-            nrows=table.get_nrows(),
-            ncols=table.get_ncols())
+    def __init__(self, table=None, **kwargs):
+        if table:
+            Object.__init__(
+                self,
+                name=table._name,
+                headers=table._headers,
+                nrows=table.get_nrows(),
+                ncols=table.get_ncols())
+        else:
+            Object.__init__(self, **kwargs)
 
 
 class NoSuchRecipe(Exception):
     pass
 
 
-class Table(object):
+class Recipe(Object):
 
-    def __init__(self, name=None, nrows_capacity=None, nrows_capacity_min=0):
+    def __init__(self):
+        self._table = None
+        self._table = Table()
+
+        self._required_headers = []
+        self._headers = []
+        self._col_update_map = {}
+        self._name_to_header = {}
+
+    def has_col(self, name):
+        return name in self._name_to_header
+
+    def get_col_names(self):
+        names = []
+        for h in self._headers:
+            names.append(h.name)
+            for sh in h.sub_headers:
+                names.append(sh.name)
+
+        return names
+
+    def get_table(self):
+        return self._table
+
+    def get_header(self, name):
+        return self._name_to_header[name]
+
+    def _add_required_cols(self, table):
+        for h in self._headers:
+            if not table.has_col(h.name):
+                table.add_col(h)
+
+    def _update_col(self, table, name):
+        if not self._table.has_col(name):
+            self._col_update_map[name](table)
+
+    def _add_rows_handler(self, table, nrows_added):
+        pass
+
+    def _register_required_col(self, header):
+        self._required_headers.append(header)
+
+    def _register_computed_col(self, header, updater):
+        self._headers.append(header)
+        self._name_to_header[header.name] = header
+        self._col_update_map[header.name] = updater
+        for sh in header.sub_headers:
+            self._col_update_map[sh.name] = updater
+            self._name_to_header[sh.name] = sh
+
+
+class Table(Object):
+
+    description__ = Description.T()
+    arrays__ = List.T(Array.T(serialize_as='base64+meta'))
+    recipes__ = List.T(Recipe.T())
+
+    def __init__(
+            self,
+            name=None,
+            nrows_capacity=None,
+            nrows_capacity_min=0,
+            description=None,
+            arrays=None,
+            recipes=[]):
+
+        Object.__init__(self, init_props=False)
+
         self._name = name
         self._buffers = []
         self._arrays = []
         self._headers = []
         self._cols = {}
-        self.recipes = []
+        self._recipes = []
         self.nrows_capacity_min = nrows_capacity_min
         self._nrows_capacity = 0
         if nrows_capacity is not None:
             self.set_nrows_capacity(max(nrows_capacity, nrows_capacity_min))
 
+        if description and arrays:
+            self.T.get_property('arrays').validate(
+                arrays, regularize=True, depth=0)
+            self._name = description.name
+            self.add_cols(description.headers, arrays)
+            for recipe in recipes:
+                self.add_recipe(recipe)
+
+    @property
+    def description(self):
+        return self.get_description()
+
+    @property
+    def arrays(self):
+        return self._arrays
+
+    @property
+    def recipes(self):
+        return self._recipes
+
     def add_recipe(self, recipe):
-        self.recipes.append(recipe)
+        self._recipes.append(recipe)
         recipe._add_required_cols(self)
 
     def get_nrows(self):
@@ -175,7 +266,7 @@ class Table(object):
             array = header.default_array(nrows_current)
 
         array = num.asarray(array)
-        
+
         assert header.get_ncols() == ncols(array)
         assert array.ndim in (1, 2)
         if self._arrays:
@@ -231,7 +322,7 @@ class Table(object):
 
         self._arrays = new_arrays
 
-        for recipe in self.recipes:
+        for recipe in self._recipes:
             recipe._add_rows_handler(self, nrows_add)
 
     def get_col(self, name, mask=slice(None)):
@@ -263,7 +354,7 @@ class Table(object):
 
     def has_col(self, name):
         return name in self._cols or \
-            any(rec.has_col(name) for rec in self.recipes)
+            any(rec.has_col(name) for rec in self._recipes)
 
     def get_col_names(self, sub_headers=True):
         names = []
@@ -273,24 +364,22 @@ class Table(object):
                 for sh in h.sub_headers:
                     names.append(sh.name)
 
-        for recipe in self.recipes:
+        for recipe in self._recipes:
             names.extend(recipe.get_col_names())
 
         return names
 
     def get_recipe_for_col(self, name):
-        for recipe in self.recipes:
+        for recipe in self._recipes:
             if recipe.has_col(name):
                 return recipe
-                
+
         raise NoSuchRecipe(name)
 
     def get_description(self):
-        d = Description(self)
-        d.validate()
-        return str(Description(self))
+        return Description(self)
 
-    def __str__(self):
+    def get_as_text(self):
         scols = []
         formats = {
             num.dtype('float64'): '%e'}
@@ -324,59 +413,6 @@ class Table(object):
     def add_computed_col(self, header, func):
         header = anything_to_header(header)
         self.add_recipe(SimpleRecipe(header, func))
-
-
-class Recipe(object):
-
-    def __init__(self):
-        self._table = None
-        self._table = Table()
-
-        self._required_headers = []
-        self._headers = []
-        self._col_update_map = {}
-        self._name_to_header = {}
-
-    def has_col(self, name):
-        return name in self._name_to_header
-
-    def get_col_names(self):
-        names = []
-        for h in self._headers:
-            names.append(h.name)
-            for sh in h.sub_headers:
-                names.append(sh.name)
-
-        return names
-
-    def get_table(self):
-        return self._table
-
-    def get_header(self, name):
-        return self._name_to_header[name]
-
-    def _add_required_cols(self, table):
-        for h in self._headers:
-            if not table.has_col(h.name):
-                table.add_col(h)
-
-    def _update_col(self, table, name):
-        if not self._table.has_col(name):
-            self._col_update_map[name](table)
-
-    def _add_rows_handler(self, table, nrows_added):
-        pass
-
-    def _register_required_col(self, header):
-        self._required_headers.append(header)
-
-    def _register_computed_col(self, header, updater):
-        self._headers.append(header)
-        self._name_to_header[header.name] = header
-        self._col_update_map[header.name] = updater
-        for sh in header.sub_headers:
-            self._col_update_map[sh.name] = updater
-            self._name_to_header[sh.name] = sh
 
 
 class SimpleRecipe(Recipe):
