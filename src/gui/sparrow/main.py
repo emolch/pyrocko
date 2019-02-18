@@ -14,6 +14,7 @@ import re
 
 import numpy as num
 
+# from pyrocko.plot import mpl_color
 from pyrocko import guts
 from pyrocko import geonames
 from pyrocko import moment_tensor as pmt
@@ -94,6 +95,15 @@ def color_lights():
     l2.SetColor(0.53, 0.53, 0.37)
     l3.SetColor(1., 1., 0.69)
     l4.SetColor(0.56, 0.68, 0.84)
+    # l1.SetColor(1., 0.8, 0.8)
+    # l2.SetColor(1.0, 1.0, 0.8)
+    # l3.SetColor(1., 1., 0.8)
+    # l4.SetColor(0.8, 0.8, 1.0)
+    # l1.SetColor(*mpl_color('scarletred1'))
+    # l2.SetColor(*mpl_color('skyblue1'))
+    # l3.SetColor(*mpl_color('orange1'))
+    # l4.SetColor(*mpl_color('plum1'))
+
     vertices, _ = icosphere.tetrahedron()
     vertices *= -1.
     l1.SetPosition(*vertices[0, :])
@@ -326,7 +336,6 @@ class Viewer(qw.QMainWindow):
 
     def key_press_event(self, obj, event):
         k = obj.GetKeyCode()
-        print(k)
         if k == 'f':
             self.state.next_focal_point()
 
@@ -559,21 +568,19 @@ class Viewer(qw.QMainWindow):
         camera.SetPosition(*cam)
         camera.SetFocalPoint(*foc)
         camera.SetViewUp(*up)
-        if self.state.focal_point == 'center':
-            camera.SetClippingRange(0.0001, 1.0 + self.state.distance)
-        else:
-            horizon = math.sqrt(max(
-                0.,
-                self.state.distance**2
-                - 2.0 * self.state.distance * math.cos(
-                    (180. - self.state.dip)*d2r)))
 
-            if horizon == 0.0:
-                horizon = 2.0 + self.state.distance
+        horizon = math.sqrt(max(
+            0.,
+            self.state.distance**2
+            - 2.0 * self.state.distance * math.cos(
+                (180. - self.state.dip)*d2r)))
 
-            horizon = max(0.5, horizon)
+        if horizon == 0.0:
+            horizon = 2.0 + self.state.distance
 
-            camera.SetClippingRange(0.0001, horizon)
+        horizon = max(0.5, horizon)
+
+        camera.SetClippingRange(0.0001, horizon)
 
         self.update_view()
 

@@ -35,12 +35,15 @@ def vdot(a, b):
 
 
 def vnorm(vertices):
-
     return num.linalg.norm(vertices, axis=1)
 
 
 def normalize(vertices):
     return vertices / vnorm(vertices)[:, num.newaxis]
+
+
+def face_centers(vertices, faces):
+    return num.mean(vertices[faces], axis=1)
 
 
 def rtp2xyz(rtp):
@@ -69,6 +72,7 @@ def latlondepth2xyz(latlondepth, planetradius):
     rtp[:, 2] = latlondepth[:, 1] * d2r
     return rtp2xyz(rtp)
 
+
 def ned2xyz(ned, latlondepth, planetradius):
     endpoints = num.empty_like(latlondepth)
     endpoints[:, 0], endpoints[:, 1] = od.ne_to_latlon(
@@ -80,6 +84,7 @@ def ned2xyz(ned, latlondepth, planetradius):
 
     return end_xyz - start_xyz
 
+
 def topo_to_vertices(lat, lon, ele, planetradius):
     nlat = lat.size
     nlon = lon.size
@@ -89,34 +94,61 @@ def topo_to_vertices(lat, lon, ele, planetradius):
     rtp[:, 1] = (num.repeat(lat, nlon) + 90.) * d2r
     rtp[:, 2] = num.tile(lon, nlat) * d2r
     vertices = rtp2xyz(rtp)
-
     return vertices
 
 
-def topo_to_faces(lat, lon, ele, planetradius):
-    nlat = lat.size
-    nlon = lon.size
-    assert nlat > 1 and nlon > 1 and ele.shape == (nlat, nlon)
-    nfaces = 2 * (nlat - 1) * (nlon - 1)
-    faces = num.empty((nfaces, 3), dtype=num.int)
-    ilon = num.arange(nlon - 1)
-    for ilat in range(nlat - 1):
-        ibeg = ilat*(nlon-1) * 2
-        iend = (ilat+1)*(nlon-1) * 2
-        faces[ibeg:iend:2, 0] = ilat*nlon + ilon
-        faces[ibeg:iend:2, 1] = ilat*nlon + ilon + 1
-        faces[ibeg:iend:2, 2] = ilat*nlon + ilon + nlon
-        faces[ibeg+1:iend+1:2, 0] = ilat*nlon + ilon + 1
-        faces[ibeg+1:iend+1:2, 1] = ilat*nlon + ilon + nlon + 1
-        faces[ibeg+1:iend+1:2, 2] = ilat*nlon + ilon + nlon
+g_topo_faces = {}
 
-    return faces
+
+def topo_to_faces(nlat, nlon):
+    k = (nlat, nlon)
+    if k not in g_topo_faces:
+
+        nfaces = 2 * (nlat - 1) * (nlon - 1)
+        faces = num.empty((nfaces, 3), dtype=num.int)
+        ilon = num.arange(nlon - 1)
+        for ilat in range(nlat - 1):
+            ibeg = ilat*(nlon-1) * 2
+            iend = (ilat+1)*(nlon-1) * 2
+            faces[ibeg:iend:2, 0] = ilat*nlon + ilon
+            faces[ibeg:iend:2, 1] = ilat*nlon + ilon + 1
+            faces[ibeg:iend:2, 2] = ilat*nlon + ilon + nlon
+            faces[ibeg+1:iend+1:2, 0] = ilat*nlon + ilon + 1
+            faces[ibeg+1:iend+1:2, 1] = ilat*nlon + ilon + nlon + 1
+            faces[ibeg+1:iend+1:2, 2] = ilat*nlon + ilon + nlon
+
+        g_topo_faces[k] = faces
+
+    return g_topo_faces[k]
+
+
+g_topo_faces_quad = {}
+
+
+def topo_to_faces_quad(nlat, nlon):
+    k = (nlat, nlon)
+    if k not in g_topo_faces_quad:
+
+        nfaces = (nlat - 1) * (nlon - 1)
+        faces = num.empty((nfaces, 4), dtype=num.int)
+        ilon = num.arange(nlon - 1)
+        for ilat in range(nlat - 1):
+            ibeg = ilat*(nlon-1)
+            iend = (ilat+1)*(nlon-1)
+            faces[ibeg:iend, 0] = ilat*nlon + ilon
+            faces[ibeg:iend, 1] = ilat*nlon + ilon + 1
+            faces[ibeg:iend, 2] = ilat*nlon + ilon + nlon + 1
+            faces[ibeg:iend, 3] = ilat*nlon + ilon + nlon
+
+        g_topo_faces_quad[k] = faces
+
+    return g_topo_faces_quad[k]
 
 
 def topo_to_mesh(lat, lon, ele, planetradius):
     return \
         topo_to_vertices(lat, lon, ele, planetradius), \
-        topo_to_faces(lat, lon, ele, planetradius)
+        topo_to_faces_quad(*ele.shape)
 
 
 def refine_triangles(vertices, faces):

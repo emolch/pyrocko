@@ -8,7 +8,7 @@ from __future__ import absolute_import, print_function, division
 import math
 import numpy as num
 from .geometry import arr_vertices, arr_faces, normalize, refine_triangles, \
-    vdot, vnorm
+    vdot, vnorm, face_centers
 
 r2d = 180./math.pi
 
@@ -40,7 +40,7 @@ def triangles_to_center(vertices, faces):
     vs = vertices
     fs = faces
 
-    vcs = centers(vs, fs)
+    vcs = face_centers(vs, fs)
 
     nv = vs.shape[0]
     nf = fs.shape[0]
@@ -165,10 +165,6 @@ def project_to_plane_nn(vns, vas):
     return vas - (vdot(vas, vns))[:, num.newaxis] * vns
 
 
-def centers(vertices, faces):
-    return num.mean(vertices[faces], axis=1)
-
-
 def corner_handednesses(vertices, faces):
     vs = vertices[faces]
     gs = num.zeros(vs.shape)
@@ -190,7 +186,7 @@ def truncate(vertices, faces):
     ilengths[-1] = iverts.size - ifirsts[-1]
     nc = num.max(ilengths)
     nf = nv
-    vertices_new = centers(vertices, faces)
+    vertices_new = face_centers(vertices, faces)
     faces_new = num.zeros((nf, nc), dtype=num.int)
     for iface in range(nf):
         ifirst = ifirsts[iface]
