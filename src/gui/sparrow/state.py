@@ -78,11 +78,11 @@ def state_bind(
     wrap_update_widget()
 
 
-def state_bind_slider(owner, state, path, widget, factor=1.):
+def state_bind_slider(owner, state, path, widget, factor=1., dtype=float):
 
     def make_funcs():
         def update_state(widget, state):
-            state.set(path, widget.value() * factor)
+            state.set(path, dtype(widget.value() * factor))
 
         def update_widget(state, widget):
             widget.blockSignals(True)

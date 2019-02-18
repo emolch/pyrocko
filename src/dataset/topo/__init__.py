@@ -160,16 +160,20 @@ def elevation(lat, lon):
             return r
 
 
-def select_dem_names(kind, dmin, dmax, region):
+def select_dem_names(kind, dmin, dmax, region, mode='highest'):
     assert kind in ('land', 'ocean')
+    assert mode in ('highest', 'lowest')
+
+    step = -1 if mode == 'lowest' else 1
+
     ok = []
     if kind == 'land':
-        for dem in srtmgl3_all:
+        for dem in srtmgl3_all[::step]:
             if dem.is_suitable(region, dmin, dmax):
                 ok.append(dem.name)
                 break
 
-    for dem in etopo1_all:
+    for dem in etopo1_all[::step]:
         if dem.is_suitable(region, dmin, dmax):
             ok.append(dem.name)
             break

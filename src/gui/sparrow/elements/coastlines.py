@@ -66,7 +66,7 @@ class CoastlinesPipe(object):
                 lines.append(poly.points)
 
             self._polyline_grid[resolution] = vtk_util.make_multi_polyline(
-                lines_latlon=lines)
+                lines_latlon=lines, depth=-100.)
 
             if pb:
                 pb.set_status(mess, 100, can_abort=False)

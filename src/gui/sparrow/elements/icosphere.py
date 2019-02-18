@@ -130,7 +130,7 @@ class IcosphereElement(Element):
             layout.addWidget(qw.QLabel('Level'), 0, 0)
             layout.addWidget(slider, 0, 1)
 
-            state_bind_slider(self, state, 'level', slider)
+            state_bind_slider(self, state, 'level', slider, dtype=int)
 
             cb = common.string_choices_to_combobox(IcosphereBaseChoice)
             layout.addWidget(qw.QLabel('Base'), 1, 0)

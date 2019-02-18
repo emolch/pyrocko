@@ -11,7 +11,6 @@ import vtk
 
 from vtk.util.numpy_support import \
     numpy_to_vtk as numpy_to_vtk_, get_vtk_array_type
-# , numpy_to_vtkIdTypeArray
 
 from pyrocko import geometry, cake
 
@@ -36,14 +35,28 @@ def numpy_to_vtk_colors(a):
     return c
 
 
+def cpt_to_vtk_lookuptable(cpt):
+    n = 1024
+    lut = vtk.vtkLookupTable()
+    lut.Allocate(n, n)
+    values = num.linspace(cpt.vmin, cpt.vmax, n)
+    colors = cpt(values)
+    lut.SetTableRange(cpt.vmin, cpt.vmax)
+    for i in range(n):
+        lut.SetTableValue(
+            i, colors[i, 0]/255., colors[i, 1]/255., colors[i, 2]/255.)
+
+    return lut
+
+
 def make_multi_polyline(
-        lines_rtp=None, lines_latlon=None, lines_latlondepth=None):
+        lines_rtp=None, lines_latlon=None, depth=0.0, lines_latlondepth=None):
     if lines_rtp is not None:
         points = geometry.rtp2xyz(num.vstack(lines_rtp))
         lines = lines_rtp
     elif lines_latlon is not None:
         points = geometry.latlon2xyz(
-            num.vstack(lines_latlon), radius=1.0)
+            num.vstack(lines_latlon), radius=1.0 - depth/cake.earthradius)
         lines = lines_latlon
     elif lines_latlondepth is not None:
         points = geometry.latlondepth2xyz(
@@ -60,19 +73,13 @@ def make_multi_polyline(
     ioff = 0
     celltype = vtk.vtkPolyLine().GetCellType()
     for iline, line in enumerate(lines):
-        pids = vtk.vtkIdList()
-
-        # slow:
-        pids.SetNumberOfIds(line.shape[0])
-        for i in range(line.shape[0]):
-            pids.SetId(i, ioff+i)
-
-        # should be faster but doesn't work:
+        # should be faster but doesn't work (SetArray seems to be the problem)
         # arr = numpy_to_vtkIdTypeArray(num.arange(line.shape[0]) + ioff, 1)
-        # pids.SetArray(arr, line.shape[0])
+        # pids.SetArray(
+        #     int(arr.GetPointer(0).split('_')[1], base=16), line.shape[0])
 
         polyline_grid.InsertNextCell(
-            celltype, pids)
+            celltype, line.shape[0], range(ioff, ioff+line.shape[0]))
 
         ioff += line.shape[0]
 
@@ -138,8 +145,30 @@ class ScatterPipe(object):
         self.prop.SetPointSize(size)
 
 
+def faces_to_cells(faces):
+    cells = vtk.vtkCellArray()
+
+    for face in faces:
+        cells.InsertNextCell(face.size)
+        for ivert in face:
+            cells.InsertCellPoint(ivert)
+
+    return cells
+
+
 class TrimeshPipe(object):
-    def __init__(self, vertices, faces, values=None, smooth=False):
+    def __init__(
+            self, vertices,
+            faces=None,
+            cells=None,
+            values=None,
+            smooth=False,
+            cpt=None,
+            lut=None):
+
+        self._opacity = 1.0
+        self._smooth = None
+        self._lut = None
 
         vpoints = vtk.vtkPoints()
         vpoints.SetNumberOfPoints(vertices.shape[0])
@@ -148,25 +177,12 @@ class TrimeshPipe(object):
         pd = vtk.vtkPolyData()
         pd.SetPoints(vpoints)
 
-        cells = vtk.vtkCellArray()
-        for face in faces:
-            cells.InsertNextCell(face.size)
-            for ivert in face:
-                cells.InsertCellPoint(ivert)
+        if faces is not None:
+            cells = faces_to_cells(faces)
 
         pd.SetPolys(cells)
 
         mapper = vtk.vtkPolyDataMapper()
-
-        if smooth:
-            normals = vtk.vtkPolyDataNormals()
-            vtk_set_input(normals, pd)
-            normals.SetFeatureAngle(60.)
-            normals.ConsistencyOff()
-            normals.SplittingOff()
-            mapper.SetInputConnection(normals.GetOutputPort())
-        else:
-            vtk_set_input(mapper, pd)
 
         mapper.ScalarVisibilityOff()
 
@@ -177,34 +193,60 @@ class TrimeshPipe(object):
         prop.SetAmbientColor(0.3, 0.3, 0.3)
         prop.SetDiffuseColor(0.5, 0.5, 0.5)
         prop.SetSpecularColor(1.0, 1.0, 1.0)
-        # prop.SetOpacity(0.7)
         self.prop = prop
 
         self.polydata = pd
         self.mapper = mapper
         self.actor = act
 
+        self.set_smooth(smooth)
+
         if values is not None:
+            mapper.ScalarVisibilityOn()
             self.set_values(values)
 
-    def set_opacity(self, value):
-        self.prop.SetOpacity(value)
+        if cpt is not None:
+            self.set_cpt(cpt)
+
+        if lut is not None:
+            self.set_lookuptable(lut)
+
+    def set_smooth(self, smooth):
+        if self._smooth is None or self._smooth != smooth:
+            if not smooth:
+                vtk_set_input(self.mapper, self.polydata)
+            else:
+                normals = vtk.vtkPolyDataNormals()
+                normals.SetFeatureAngle(60.)
+                normals.ConsistencyOff()
+                normals.SplittingOff()
+                vtk_set_input(normals, self.polydata)
+                self.mapper.SetInputConnection(normals.GetOutputPort())
+
+            self._smooth = smooth
+
+    def set_opacity(self, opacity):
+        opacity = float(opacity)
+        if self._opacity != opacity:
+            self.prop.SetOpacity(opacity)
+            self._opacity = opacity
 
     def set_vertices(self, vertices):
-        vpoints = vtk.vtkPoints()
-        vpoints.SetNumberOfPoints(vertices.shape[0])
-        vpoints.SetData(numpy_to_vtk(vertices))
-        self.polydata.SetPoints(vpoints)
+        self.polydata.GetPoints().SetData(numpy_to_vtk(vertices))
 
     def set_values(self, values):
-        vvalues = numpy_to_vtk(values.astype(num.float64), deep=1)
-
-        vvalues = vtk.vtkDoubleArray()
-        for value in values:
-            vvalues.InsertNextValue(value)
-
+        vvalues = numpy_to_vtk(values)
         self.polydata.GetCellData().SetScalars(vvalues)
-        self.mapper.SetScalarRange(values.min(), values.max())
+        # self.mapper.SetScalarRange(values.min(), values.max())
+
+    def set_lookuptable(self, lut):
+        if self._lut is not lut:
+            self.mapper.SetUseLookupTableScalarRange(True)
+            self.mapper.SetLookupTable(lut)
+            self._lut = lut
+
+    def set_cpt(self, cpt):
+        self.set_lookuptable(cpt_to_vtk_lookuptable(cpt))
 
 
 class PolygonPipe(object):
@@ -275,11 +317,6 @@ class PolygonPipe(object):
 
     def set_values(self, values):
         vvalues = numpy_to_vtk(values.astype(num.float64))
-
-        vvalues = vtk.vtkDoubleArray()
-        for value in values:
-            vvalues.InsertNextValue(value)
-
         self.polydata.GetCellData().SetScalars(vvalues)
         self.mapper.SetScalarRange(values.min(), values.max())
 
@@ -413,8 +450,13 @@ class Glyph3DPipe(object):
         arrow.Update()
 
         glyph = vtk.vtkGlyph3D()
-        glyph.SetSourceData(arrow.GetOutput())
-        glyph.SetInputData(pd)
+        if vtk.vtkVersion.GetVTKMajorVersion() > 5:
+            glyph.SetSourceData(arrow.GetOutput())
+            glyph.SetInputData(pd)
+        else:
+            glyph.SetSource(arrow.GetOutput())
+            glyph.SetInput(pd)
+
         glyph.ScalingOn()
         glyph.SetVectorModeToUseVector()
         glyph.OrientOn()

@@ -26,7 +26,7 @@ class LatLonGrid(object):
     def __init__(self, r, step_major, step_minor, lat, lon, delta):
 
         lat_min, lat_max, lon_min, lon_max, lon_closed = common.cover_region(
-            lat, lon, delta, step_major)
+            lat, lon, delta, step_major, avoid_poles=True)
 
         lat_majors = util.arange2(lat_min, lat_max, step_major)
         lon_majors = util.arange2(lon_min, lon_max, step_major)

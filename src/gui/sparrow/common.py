@@ -41,11 +41,11 @@ def string_choices_to_combobox(cls):
     return cb
 
 
-def cover_region(lat, lon, delta, step=None):
+def cover_region(lat, lon, delta, step=None, avoid_poles=False):
     if step is None:
         step = plot.nice_value(delta / 10.)
 
-    assert step <= 10.
+    assert step <= 20.
 
     def fl_major(x):
         return math.floor(x / step) * step
@@ -53,8 +53,15 @@ def cover_region(lat, lon, delta, step=None):
     def ce_major(x):
         return math.ceil(x / step) * step
 
-    lat_min = max(-90. + step, fl_major(lat - delta))
-    lat_max = min(90. - step, ce_major(lat + delta))
+    if avoid_poles:
+        lat_min_lim = -90. + step
+        lat_max_lim = 90. - step
+    else:
+        lat_min_lim = -90.
+        lat_max_lim = 90.
+
+    lat_min = max(lat_min_lim, fl_major(lat - delta))
+    lat_max = min(lat_max_lim, ce_major(lat + delta))
 
     lon_closed = False
     if abs(lat)+delta < 89.:
