@@ -94,24 +94,27 @@ class HiMesh(Object):
     def make_levels(self):
         root = None
         level = None
+        levels = []
         for vertices, faces in icosphere.iter_icospheres(
                 self.order, inflate=False):
 
             new = Level(vertices, faces)
-            if not root:
+            if not levels:
                 new.parents = None
-                root = new
             else:
                 new.parents = g.refine_triangle_parents(faces.shape[0])
                 level.next = new
 
             level = new
+            levels.append(new)
 
-        return root
+        return levels
+
+    def get_vertices(self):
+        return g.normalize(self.levels[-1].vertices)
+
+    def get_faces(self):
+        return self.levels[-1].faces
 
     def points_to_faces(self, points):
-
-        level = self.levels
-
-        ifaces = level.points_to_face(points)
-        return ifaces
+        return self.levels[0].points_to_face(points)[0]

@@ -84,7 +84,7 @@ class IcosphereElement(Element):
 
         if state.visible and not self._mesh:
             vertices, faces = icosphere.sphere(
-                state.level, state.base, state.kind, radius=0.99)
+                state.level, state.base, state.kind, radius=0.98, triangulate=False)
 
             self._mesh = TrimeshPipe(vertices, faces, smooth=state.smooth)
             self._params = params

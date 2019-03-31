@@ -11,16 +11,23 @@ import signal
 import gc
 import logging
 import re
+import time
+import tempfile
+import os
+import shutil
+from subprocess import check_call
 
 import numpy as num
 
-# from pyrocko.plot import mpl_color
 from pyrocko import guts
 from pyrocko import geonames
 from pyrocko import moment_tensor as pmt
 
 from pyrocko.gui.util import Progressbars
 from pyrocko.gui.qt_compat import qw, qc, use_pyqt5
+from pyrocko.gui import vtk_util
+
+from . import common, light, snapshots
 
 import vtk
 import vtk.qt
@@ -32,7 +39,7 @@ else:
     from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 
-from pyrocko import icosphere, geometry
+from pyrocko import geometry
 from . import state as vstate, elements
 
 
@@ -40,6 +47,12 @@ logger = logging.getLogger('pyrocko.gui.sparrow.main')
 
 
 d2r = num.pi/180.
+
+
+class ZeroFrame(qw.QFrame):
+
+    def sizeHint(self):
+        return qc.QSize(0, 0)
 
 
 def get_app():
@@ -82,42 +95,36 @@ class NoLocationChoices(Exception):
         return 'No location choices for string "%s"' % self._string
 
 
-def color_lights():
-    l1 = vtk.vtkLight()
-    l2 = vtk.vtkLight()
-    l3 = vtk.vtkLight()
-    l4 = vtk.vtkLight()
-    # l1.SetColor(1., 0.5, 0.5)
-    # l2.SetColor(0.5, 1.0, 1.0)
-    # l3.SetColor(1., 0.5, 0.5)
-    # l4.SetColor(0.5, 1.0, 1.0)
-    l1.SetColor(1., 0.53, 0.0)
-    l2.SetColor(0.53, 0.53, 0.37)
-    l3.SetColor(1., 1., 0.69)
-    l4.SetColor(0.56, 0.68, 0.84)
-    # l1.SetColor(1., 0.8, 0.8)
-    # l2.SetColor(1.0, 1.0, 0.8)
-    # l3.SetColor(1., 1., 0.8)
-    # l4.SetColor(0.8, 0.8, 1.0)
-    # l1.SetColor(*mpl_color('scarletred1'))
-    # l2.SetColor(*mpl_color('skyblue1'))
-    # l3.SetColor(*mpl_color('orange1'))
-    # l4.SetColor(*mpl_color('plum1'))
+class MyDockWidget(qw.QDockWidget):
 
-    vertices, _ = icosphere.tetrahedron()
-    vertices *= -1.
-    l1.SetPosition(*vertices[0, :])
-    l2.SetPosition(*vertices[1, :])
-    l3.SetPosition(*vertices[2, :])
-    l4.SetPosition(*vertices[3, :])
-    l1.SetFocalPoint(0., 0., 0.)
-    l2.SetFocalPoint(0., 0., 0.)
-    l3.SetFocalPoint(0., 0., 0.)
-    l4.SetFocalPoint(0., 0., 0.)
-    lights = [l1, l2, l3, l4]
-    for light in lights:
-        light.SetLightTypeToCameraLight()
-    return lights
+    def __init__(self, *args, **kwargs):
+        qw.QDockWidget.__init__(self, *args, **kwargs)
+        self._visible = False
+        self._blocked = False
+
+    def setVisible(self, visible):
+        self._visible = visible
+        if not self._blocked:
+            qw.QDockWidget.setVisible(self, self._visible)
+
+    def show(self):
+        self.setVisible(True)
+
+    def hide(self):
+        self.setVisible(False)
+
+    def setBlocked(self, blocked):
+        self._blocked = blocked
+        if blocked:
+            qw.QDockWidget.setVisible(self, False)
+        else:
+            qw.QDockWidget.setVisible(self, self._visible)
+
+    def block(self):
+        self.setBlocked(True)
+
+    def unblock(self):
+        self.setBlocked(False)
 
 
 class Viewer(qw.QMainWindow):
@@ -125,6 +132,9 @@ class Viewer(qw.QMainWindow):
         qw.QMainWindow.__init__(self)
 
         self._panel_togglers = {}
+        self._actors = set()
+        self._actors_2d = set()
+        self._render_window_size = (0, 0)
 
         mbar = self.menuBar()
         menu = mbar.addMenu('File')
@@ -133,13 +143,22 @@ class Viewer(qw.QMainWindow):
         mitem.triggered.connect(self.request_quit)
         menu.addAction(mitem)
 
+        self.panels_menu = mbar.addMenu('Panels')
+
         menu = mbar.addMenu('Add')
         for name, estate in [
                 ('Stations', elements.StationsState()),
                 ('Topography', elements.TopoState()),
+                ('Custom Topography', elements.CustomTopoState()),
                 ('Catalog', elements.CatalogState()),
                 ('Coastlines', elements.CoastlinesState()),
-                ('Source', elements.SourceState())]:
+                ('Source', elements.SourceState()),
+                ('HUD (tmax)', elements.HudState(
+                    variables=['tmax'],
+                    template='tmax: {0|date}',
+                    position='top-left')),
+                ('HUD subtitle', elements.HudState(
+                    template='Awesome'))]:
 
             def wrap_add_element(estate):
                 def add_element(*args):
@@ -152,9 +171,9 @@ class Viewer(qw.QMainWindow):
 
             menu.addAction(mitem)
 
-        self.panels_menu = mbar.addMenu('Panels')
-
         self.state = vstate.ViewerState()
+        self.gui_state = vstate.ViewerGuiState()
+
         self.listeners = []
         self.elements = {}
 
@@ -180,24 +199,50 @@ class Viewer(qw.QMainWindow):
 
         self.frame.setLayout(self.vl)
 
-        self.add_panel('Navigation', self.controls(), visible=True)
+        self.add_panel(
+            'Navigation',
+            self.controls(), visible=True, where=qc.Qt.RightDockWidgetArea)
+
+        self.add_panel(
+            'Snapshots', self.snapshots_panel(), visible=False,
+            where=qc.Qt.LeftDockWidgetArea)
 
         self.setCentralWidget(self.frame)
 
         self.mesh = None
 
         ren = vtk.vtkRenderer()
-        for l in color_lights():
-            ren.AddLight(l)
 
-        ren.SetBackground(0.15, 0.15, 0.15)
+        # ren.SetBackground(0.15, 0.15, 0.15)
+        ren.SetBackground(0.0, 0.0, 0.0)
+        # ren.TwoSidedLightingOn()
+        # ren.SetUseShadows(1)
+
+        self._lighting = None
 
         self.ren = ren
+        self.update_render_settings()
         self.update_camera()
 
         renwin = self.vtk_widget.GetRenderWindow()
-        renwin.LineSmoothingOn()
-        renwin.PointSmoothingOn()
+
+        use_depth_peeling = True
+        if use_depth_peeling:
+            renwin.SetAlphaBitPlanes(1)
+            renwin.SetMultiSamples(0)
+
+            ren.SetUseDepthPeeling(1)
+            ren.SetMaximumNumberOfPeels(100)
+            ren.SetOcclusionRatio(0.1)
+
+        ren.SetUseFXAA(1)
+        # ren.SetUseHiddenLineRemoval(1)
+        # ren.SetBackingStore(1)
+
+        self.renwin = renwin
+
+        # renwin.LineSmoothingOn()
+        # renwin.PointSmoothingOn()
         # renwin.PolygonSmoothingOn()
 
         renwin.AddRenderer(ren)
@@ -221,10 +266,15 @@ class Viewer(qw.QMainWindow):
             'MouseWheelBackwardEvent',
             self.mouse_wheel_event_backward)
 
+        iren.AddObserver('ModifiedEvent', self.check_resize)
+
+        renwin.Render()
+
+        print(ren.GetLastRenderingUsedDepthPeeling())
+
         self.show()
         iren.Initialize()
 
-        self.renwin = renwin
         self.iren = iren
 
         self.rotating = False
@@ -243,13 +293,131 @@ class Viewer(qw.QMainWindow):
         self.state.elements.append(elements.CoastlinesState())
         # self.state.elements.append(elements.StationsState())
         # self.state.elements.append(elements.SourceState())
+        # self.state.elements.append(
+        #      elements.CatalogState(
+        #     selection=elements.FileCatalogSelection(paths=['japan.dat'])))
+        #     selection=elements.FileCatalogSelection(paths=['excerpt.dat'])))
 
         self.timer = qc.QTimer(self)
         self.timer.timeout.connect(self.periodical)
         self.timer.setInterval(1000)
         self.timer.start()
 
+        self._animation_saver = None
+
         self.closing = False
+        # self.test_overlay()
+
+    def update_render_settings(self, *args):
+        if self._lighting is None or self._lighting != self.state.lighting:
+            self.ren.RemoveAllLights()
+            for li in light.get_lights(self.state.lighting):
+                self.ren.AddLight(li)
+
+            self._lighting = self.state.lighting
+
+        self.update_view()
+
+    def start_animation(self, interpolator, output_path=None):
+        self._animation = interpolator
+        if output_path is None:
+            self._animation_tstart = time.time()
+            self._animation_iframe = None
+        else:
+            self._animation_iframe = 0
+            self.showFullScreen()
+            self.update_view()
+            self.gui_state.panels_visible = False
+            self.update_view()
+
+        self._animation_timer = qc.QTimer(self)
+        self._animation_timer.timeout.connect(self.next_animation_frame)
+        self._animation_timer.setInterval(interpolator.dt * 1000.)
+        self._animation_timer.start()
+        if output_path is not None:
+            self.vtk_widget.setFixedSize(qc.QSize(1920, 1080))
+            #self.vtk_widget.setFixedSize(qc.QSize(960, 540))
+
+            wif = vtk.vtkWindowToImageFilter()
+            wif.SetInput(self.renwin)
+            wif.SetInputBufferTypeToRGBA()
+            wif.SetScale(1, 1)
+            wif.ReadFrontBufferOff()
+            writer = vtk.vtkPNGWriter()
+            temp_path = tempfile.mkdtemp()
+            self._animation_saver = (wif, writer, temp_path, output_path)
+            writer.SetInputConnection(wif.GetOutputPort())
+
+    def next_animation_frame(self):
+
+        ani = self._animation
+        if not ani:
+            return
+
+        if self._animation_iframe is not None:
+            state = ani(
+                ani.tmin
+                + self._animation_iframe * ani.dt)
+
+            self._animation_iframe += 1
+        else:
+            tnow = time.time()
+            state = ani(min(
+                ani.tmax,
+                ani.tmin + (tnow - self._animation_tstart)))
+
+        self.set_state(state)
+        self.renwin.Render()
+        if self._animation_saver:
+            wif, writer, temp_path, _ = self._animation_saver
+            wif.Modified()
+            fn = os.path.join(temp_path, 'f%09i.png')
+            writer.SetFileName(fn % self._animation_iframe)
+            writer.Write()
+
+        if self._animation_iframe is not None:
+            t = self._animation_iframe * ani.dt
+        else:
+            t = tnow - self._animation_tstart
+
+        if t > ani.tmax - ani.tmin:
+            self.stop_animation()
+
+    def stop_animation(self):
+        if self._animation_timer:
+            self._animation_timer.stop()
+
+        if self._animation_saver:
+            self.vtk_widget.setFixedSize(
+                qw.QWIDGETSIZE_MAX, qw.QWIDGETSIZE_MAX)
+
+            wif, writer, temp_path, output_path = self._animation_saver
+            fn_path = os.path.join(temp_path, 'f%09d.png')
+            check_call([
+                'ffmpeg', '-y',
+                '-i', fn_path,
+                '-c:v', 'libx264',
+                '-preset', 'slow',
+                '-crf', '17',
+                '-vf', 'format=yuv420p,fps=%i' % (
+                    int(round(1.0/self._animation.dt))),
+                output_path])
+            shutil.rmtree(temp_path)
+
+            self._animation_saver = None
+            self._animation_saver
+
+            self.showNormal()
+            self.gui_state.panels_visible = True
+
+        self._animation_tstart = None
+        self._animation_iframe = None
+        self._animation = None
+
+    def set_state(self, state):
+        self.setUpdatesEnabled(False)
+        self.state.diff_update(state)
+        self.setUpdatesEnabled(True)
 
     def periodical(self):
         pass
@@ -258,6 +426,13 @@ class Viewer(qw.QMainWindow):
         app = get_app()
         app.myQuit()
 
+    def check_resize(self, *args):
+        self._render_window_size
+        render_window_size = self.renwin.GetSize()
+        if self._render_window_size != render_window_size:
+            self._render_window_size = render_window_size
+            self.resize_event(*render_window_size)
+
     def update_elements(self, path, value):
         for estate in self.state.elements:
             if estate not in self._elements:
@@ -265,18 +440,78 @@ class Viewer(qw.QMainWindow):
                 element.set_parent(self)
                 self._elements[estate] = element
 
+        for estate, element in self._elements.items():
+            if estate not in self.state.elements:
+                element.unset_parent()
+
+    def test_overlay(self):
+
+        size_x, size_y = self.renwin.GetSize()
+        cx = size_x / 2.0
+        # cy = size_y / 2.0
+
+        vertices = num.array([
+            [cx - 100., cx - 100., 0.0],
+            [cx - 100., cx + 100., 0.0],
+            [cx + 100., cx + 100., 0.0],
+            [cx + 100., cx - 100., 0.0],
+            [cx - 100., cx - 100., 0.0]])
+
+        vpoints = vtk.vtkPoints()
+        vpoints.SetNumberOfPoints(vertices.shape[0])
+        vpoints.SetData(vtk_util.numpy_to_vtk(vertices))
+
+        faces = num.array([[0, 1, 2, 3]], dtype=num.int)
+        cells = vtk_util.faces_to_cells(faces)
+
+        pd = vtk.vtkPolyData()
+        pd.SetPoints(vpoints)
+        pd.SetLines(cells)
+
+        mapper = vtk.vtkPolyDataMapper2D()
+
+        vtk_util.vtk_set_input(mapper, pd)
+
+        act = vtk.vtkActor2D()
+        act.SetMapper(mapper)
+
+        prop = act.GetProperty()
+        prop.SetColor(1.0, 1.0, 1.0)
+        prop.SetOpacity(0.5)
+        prop.SetLineWidth(2.0)
+        # prop.EdgeVisibilityOn()
+
+        self.ren.AddActor2D(act)
+
+    def add_actor_2d(self, actor):
+        if actor not in self._actors_2d:
+            self.ren.AddActor2D(actor)
+            self._actors_2d.add(actor)
+
+    def remove_actor_2d(self, actor):
+        if actor in self._actors_2d:
+            self.ren.RemoveActor2D(actor)
+            self._actors_2d.remove(actor)
+
     def add_actor(self, actor):
-        self.ren.AddActor(actor)
+        if actor not in self._actors:
+            self.ren.AddActor(actor)
+            self._actors.add(actor)
 
     def add_actor_list(self, actorlist):
         for actor in actorlist:
             self.add_actor(actor)
 
     def remove_actor(self, actor):
-        self.ren.RemoveActor(actor)
+        if actor in self._actors:
+            self.ren.RemoveActor(actor)
+            self._actors.remove(actor)
 
     def update_view(self):
         self.vtk_widget.update()
+
+    def resize_event(self, size_x, size_y):
+        self.gui_state.size = (size_x, size_y)
 
     def button_event(self, obj, event):
         if event == "LeftButtonPressEvent":
@@ -298,8 +533,8 @@ class Viewer(qw.QMainWindow):
 
         if self.rotating:
             self.do_rotate(x, y, x0, y0, center_x, center_y)
-        elif self.zooming:
-            self.do_dolly(x, y, x0, y0, center_x, center_y)
+        # elif self.zooming:
+        #     self.do_dolly(x, y, x0, y0, center_x, center_y)
 
     def mouse_wheel_event_forward(self, obj, event):
         self.do_dolly(-1.0)
@@ -438,6 +673,7 @@ class Viewer(qw.QMainWindow):
 
         update_camera = self.update_camera        # this assignment is
         reset_strike_dip = self.reset_strike_dip  # necessary!
+        update_render_settings = self.update_render_settings
 
         self.register_state_listener(update_camera)
         self.register_state_listener(reset_strike_dip)
@@ -452,22 +688,38 @@ class Viewer(qw.QMainWindow):
 
         update_panel_visibility = self.update_panel_visibility
         self.register_state_listener(update_panel_visibility)
-        self.state.add_listener(update_panel_visibility, 'panels_visible')
+        self.gui_state.add_listener(update_panel_visibility, 'panels_visible')
 
-        layout.addWidget(qw.QLabel('T<sub>MIN</sub> UTC:'), 3, 0)
+        # lighting
+
+        layout.addWidget(qw.QLabel('Lighting'), 4, 0)
+
+        cb = common.string_choices_to_combobox(vstate.LightingChoice)
+        layout.addWidget(cb, 4, 1)
+        vstate.state_bind_combobox(self, self.state, 'lighting', cb)
+
+        self.register_state_listener(update_render_settings)
+        self.state.add_listener(update_render_settings, 'lighting')
+
+        layout.addWidget(qw.QLabel('T<sub>MIN</sub> UTC:'), 5, 0)
         le_tmin = qw.QLineEdit()
-        layout.addWidget(le_tmin, 3, 1)
+        layout.addWidget(le_tmin, 5, 1)
 
-        layout.addWidget(qw.QLabel('T<sub>MAX</sub> UTC:'), 4, 0)
+        layout.addWidget(qw.QLabel('T<sub>MAX</sub> UTC:'), 6, 0)
         le_tmax = qw.QLineEdit()
-        layout.addWidget(le_tmax, 4, 1)
+        layout.addWidget(le_tmax, 6, 1)
 
         def time_to_lineedit(state, attribute, widget):
             from pyrocko.util import time_to_str
 
-            sel = getattr(state, attribute)
-            widget.setText('%s' % (time_to_str(
-                getattr(state, attribute), format='%Y-%m-%d %H:%M')))
+            sel = widget.selectedText() == widget.text() \
+                and widget.text() != ''
+
+            if getattr(state, attribute) is None:
+                widget.setText('')
+            else:
+                widget.setText('%s' % (time_to_str(
+                    getattr(state, attribute), format='%Y-%m-%d %H:%M')))
             if sel:
                 widget.selectAll()
 
@@ -475,19 +727,22 @@ class Viewer(qw.QMainWindow):
             from pyrocko.util import str_to_time
 
             s = str(widget.text())
-            m = re.match(
-                r'^\d\d\d\d-\d\d-\d\d( \d\d:\d\d+)?$', s)
-            if m:
-                if not m.group(1):
-                    time_str = m.group(0) + ' 00:00'
-                else:
-                    time_str = m.group(0)
-                setattr(
-                    state,
-                    attribute,
-                    str_to_time(time_str, format='%Y-%m-%d %H:%M'))
+            if not s.strip():
+                setattr(state, attribute, None)
             else:
-                raise ValueError('Use time format: YYYY-mm-dd [HH:MM]')
+                m = re.match(
+                    r'^\d\d\d\d-\d\d-\d\d( \d\d:\d\d+)?$', s)
+                if m:
+                    if not m.group(1):
+                        time_str = m.group(0) + ' 00:00'
+                    else:
+                        time_str = m.group(0)
+                    setattr(
+                        state,
+                        attribute,
+                        str_to_time(time_str, format='%Y-%m-%d %H:%M'))
+                else:
+                    raise ValueError('Use time format: YYYY-mm-dd [HH:MM]')
 
         self._state_bind(
             ['tmin'], lineedit_to_time, le_tmin,
@@ -501,14 +756,12 @@ class Viewer(qw.QMainWindow):
         self.tmin_lineedit = le_tmin
         self.tmax_lineedit = le_tmax
 
-        self.tmin_lineedit.returnPressed.connect(
-            lambda *args: self.tmin_lineedit.selectAll())
-        self.tmax_lineedit.returnPressed.connect(
-            lambda *args: self.tmax_lineedit.selectAll())
-
-        layout.addWidget(qw.QFrame(), 5, 0, 1, 2)
+        layout.addWidget(ZeroFrame(), 7, 0, 1, 2)
 
         return frame
+
+    def snapshots_panel(self):
+        return snapshots.SnapshotsPanel(self)
 
     def reset_strike_dip(self, *args):
         self.state.strike = 90.
@@ -591,7 +844,13 @@ class Viewer(qw.QMainWindow):
             tabify=False,
             where=qc.Qt.RightDockWidgetArea):
 
-        dockwidget = qw.QDockWidget(name, self)
+        dockwidget = MyDockWidget(name, self)
+
+        if not visible:
+            dockwidget.hide()
+
+        if not self.gui_state.panels_visible:
+            dockwidget.block()
 
         dockwidget.setWidget(panel)
         panel.setParent(dockwidget)
@@ -602,20 +861,18 @@ class Viewer(qw.QMainWindow):
         self.panels_menu.addAction(mitem)
 
     def toggle_panel_visibility(self):
-        self.state.panels_visible = not self.state.panels_visible
+        self.gui_state.panels_visible = not self.gui_state.panels_visible
 
     def update_panel_visibility(self, *args):
+        self.setUpdatesEnabled(False)
         mbar = self.menuBar()
-        dockwidgets = self.findChildren(qw.QDockWidget)
+        dockwidgets = self.findChildren(MyDockWidget)
 
-        if self.state.panels_visible:
-            mbar.show()
-            for dockwidget in dockwidgets:
-                dockwidget.setVisible(True)
-        else:
-            mbar.hide()
-            for dockwidget in dockwidgets:
-                dockwidget.setVisible(False)
+        mbar.setVisible(self.gui_state.panels_visible)
+        for dockwidget in dockwidgets:
+            dockwidget.setBlocked(not self.gui_state.panels_visible)
+
+        self.setUpdatesEnabled(True)
 
     def remove_panel(self, panel):
         dockwidget = panel.parent()

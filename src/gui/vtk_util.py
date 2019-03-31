@@ -49,6 +49,21 @@ def cpt_to_vtk_lookuptable(cpt):
     return lut
 
 
+def vtk_set_prop_interpolation(prop, name):
+    if name == 'gouraud':
+        prop.SetInterpolationToGouraud()
+    elif name == 'phong':
+        prop.SetInterpolationToPhong()
+    elif name == 'flat':
+        prop.SetInterpolationToFlat()
+    elif name == 'pbr':
+        if hasattr(prop, 'SetInterpolationToPBR'):
+            prop.SetInterpolationToPBR()
+        else:
+            logger.warn(
+                'PBR shading not available - update your VTK installation.')
+
+
 def make_multi_polyline(
         lines_rtp=None, lines_latlon=None, depth=0.0, lines_latlondepth=None):
     if lines_rtp is not None:
@@ -108,11 +123,11 @@ class ScatterPipe(object):
         vertex_filter.Update()
 
         pd = vtk.vtkPolyData()
+        self.polydata = pd
         pd.ShallowCopy(vertex_filter.GetOutput())
 
-        colors = num.ones((nvertices, 3))
-        vcolors = numpy_to_vtk_colors(colors)
-        pd.GetPointData().SetScalars(vcolors)
+        self._colors = num.ones((nvertices, 4))
+        self._update_colors()
 
         map = vtk.vtkPolyDataMapper()
         try:
@@ -120,29 +135,47 @@ class ScatterPipe(object):
         except AttributeError:
             map.SetInputData(pd)
 
-        self.polydata = pd
-
         act = vtk.vtkActor()
         act.SetMapper(map)
 
         prop = act.GetProperty()
         prop.SetPointSize(10)
-        try:
-            prop.SetRenderPointsAsSpheres(True)
-        except AttributeError:
-            logger.warn(
-                'Cannot render points as sphere with this version of VTK')
 
         self.prop = prop
-
         self.actor = act
 
+        self._symbol = ''
+        self.set_symbol('point')
+
     def set_colors(self, colors):
-        vcolors = numpy_to_vtk_colors(colors)
+        self._colors[:, :3] = colors
+        self._update_colors()
+
+    def set_alpha(self, alpha):
+        print('colors', self._colors.shape)
+        self._colors[:, 3] = alpha
+        self._update_colors()
+
+    def _update_colors(self):
+        vcolors = numpy_to_vtk_colors(self._colors)
         self.polydata.GetPointData().SetScalars(vcolors)
 
     def set_size(self, size):
         self.prop.SetPointSize(size)
+
+    def set_symbol(self, symbol):
+        assert symbol in ('point', 'sphere')
+
+        if self._symbol != symbol:
+            try:
+                self.prop.SetRenderPointsAsSpheres(symbol == 'sphere')
+            except AttributeError:
+                if symbol == 'sphere':
+                    logger.warn(
+                        'Cannot render points as sphere with this version of '
+                        'VTK')
+
+            self._symbol = symbol
 
 
 def faces_to_cells(faces):
@@ -189,11 +222,18 @@ class TrimeshPipe(object):
         act = vtk.vtkActor()
         act.SetMapper(mapper)
         prop = act.GetProperty()
+        self.prop = prop
         prop.SetColor(0.5, 0.5, 0.5)
         prop.SetAmbientColor(0.3, 0.3, 0.3)
         prop.SetDiffuseColor(0.5, 0.5, 0.5)
         prop.SetSpecularColor(1.0, 1.0, 1.0)
-        self.prop = prop
+        prop.BackfaceCullingOn()  # solves problems at sphere horizon but
+                                  # disables seeing topo from below.
+
+        # prop.EdgeVisibilityOn()
+        # prop.SetInterpolationToGouraud()
+        self._shading = None
+        self.set_shading('phong')
 
         self.polydata = pd
         self.mapper = mapper
@@ -211,16 +251,32 @@ class TrimeshPipe(object):
         if lut is not None:
             self.set_lookuptable(lut)
 
+    def set_shading(self, shading):
+        if self._shading is None or self._shading != shading:
+            vtk_set_prop_interpolation(self.prop, shading)
+            self._shading = shading
+
     def set_smooth(self, smooth):
         if self._smooth is None or self._smooth != smooth:
             if not smooth:
+                # stripper = vtk.vtkStripper()
+                # stripper.SetInputData(self.polydata)
+                # stripper.Update()
+                # self.mapper.SetInputConnection(stripper.GetOutputPort())
+
                 vtk_set_input(self.mapper, self.polydata)
             else:
+                # stripper = vtk.vtkStripper()
+                # stripper.SetInputData(self.polydata)
+                # stripper.Update()
+
                 normals = vtk.vtkPolyDataNormals()
                 normals.SetFeatureAngle(60.)
                 normals.ConsistencyOff()
                 normals.SplittingOff()
-                vtk_set_input(normals, self.polydata)
+                # normals.SetInputConnection(stripper.GetOutputPort())
+                normals.SetInputData(self.polydata)
+
                 self.mapper.SetInputConnection(normals.GetOutputPort())
 
             self._smooth = smooth

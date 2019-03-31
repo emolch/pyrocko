@@ -46,6 +46,9 @@ class SubHeader(Object):
 
         return s
 
+    def get_ncols(self):
+        return 1
+
 
 class Header(SubHeader):
     sub_headers = List.T(SubHeader.T())
@@ -436,14 +439,14 @@ class LocationRecipe(Recipe):
 
     def __init__(self):
         Recipe.__init__(self)
+        self.c5_header = Header(name='c5', sub_headers=[
+            SubHeader(name='ref_lat', unit='degrees'),
+            SubHeader(name='ref_lon', unit='degrees'),
+            SubHeader(name='north_shift', unit='m'),
+            SubHeader(name='east_shift', unit='m'),
+            SubHeader(name='depth', unit='m')])
 
-        self._register_required_col(
-            Header(name='c5', sub_headers=[
-                SubHeader(name='ref_lat', unit='degrees'),
-                SubHeader(name='ref_lon', unit='degrees'),
-                SubHeader(name='north_shift', unit='m'),
-                SubHeader(name='east_shift', unit='m'),
-                SubHeader(name='depth', unit='m')]))
+        self._register_required_col(self.c5_header)
 
         self._latlon_header = Header(name='latlon', sub_headers=[
             SubHeader(name='lat', unit='degrees'),
@@ -452,11 +455,15 @@ class LocationRecipe(Recipe):
         self._register_computed_col(self._latlon_header, self._update_latlon)
 
         self._xyz_header = Header(name='xyz', sub_headers=[
-            SubHeader(name='x', unit=''),
-            SubHeader(name='y', unit=''),
-            SubHeader(name='z', unit='')])
+            SubHeader(name='x', unit='m'),
+            SubHeader(name='y', unit='m'),
+            SubHeader(name='z', unit='m')])
 
         self._register_computed_col(self._xyz_header, self._update_xyz)
+
+    def set_depth_offset(self, depth_offset):
+        self.depth_offset = depth_offset
+        
 
     def _add_rows_handler(self, table, nrows_added):
         Recipe._add_rows_handler(self, table, nrows_added)
@@ -485,7 +492,7 @@ class LocationRecipe(Recipe):
             num.concatenate((
                 table.get_col('lat').reshape(-1, 1),
                 table.get_col('lon').reshape(-1, 1),
-                table.get_col('depth').reshape(-1, 1)),
+                12000.0+table.get_col('depth').reshape(-1, 1)),
                 axis=1),
             planetradius=cake.earthradius)
 
