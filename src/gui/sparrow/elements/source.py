@@ -804,7 +804,7 @@ class SourceElement(Element):
 
             pb = qw.QPushButton('Remove')
             layout.addWidget(pb, il, 2)
-            pb.clicked.connect(self.unset_parent)
+            pb.clicked.connect(self.remove)
 
             il += 1
             layout.addWidget(qw.QFrame(), il, 0, 1, 3)

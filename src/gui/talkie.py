@@ -5,7 +5,9 @@
 
 from __future__ import absolute_import, print_function, division
 
-from pyrocko.guts import Object, List
+import difflib
+
+from pyrocko.guts import Object, List, clone
 from weakref import ref
 
 
@@ -29,6 +31,10 @@ def root_and_path(obj, name=None):
             break
 
     return root, '.'.join(path[::-1])
+
+
+def lclone(l):
+    [clone(x) for x in l]
 
 
 g_uid = 0
@@ -79,6 +85,173 @@ class Talkie(Object):
     def fire_event(self, path, value):
         pass
 
+    def diff(self, other, path=()):
+        assert type(self) is type(other), '%s %s' % (type(self), type(other))
+
+        for (s_prop, s_val), (o_prop, o_val) in zip(
+                self.T.ipropvals(self), other.T.ipropvals(other)):
+
+            if not s_prop.multivalued:
+                if isinstance(s_val, Talkie) \
+                        and type(s_val) is type(o_val):
+
+                    for x in s_val.diff(o_val, path + (s_prop.name,)):
+                        yield x
+                else:
+                    if not equal(s_val, o_val):
+                        yield 'set', path + (s_prop.name,), clone(o_val)
+            else:
+                if issubclass(s_prop.content_t.cls, Talkie):
+                    sm = difflib.SequenceMatcher(
+                        None,
+                        type_eq_proxy_seq(s_val),
+                        type_eq_proxy_seq(o_val))
+                    mode = 1
+
+                else:
+                    sm = difflib.SequenceMatcher(
+                        None,
+                        eq_proxy_seq(s_val),
+                        eq_proxy_seq(o_val))
+                    mode = 2
+
+                for tag, i1, i2, j1, j2 in list(sm.get_opcodes()):
+                    if tag == 'equal' and mode == 1:
+                        for koff, (s_element, o_element) in enumerate(zip(
+                                s_val[i1:i2], o_val[j1:j2])):
+
+                            for x in s_element.diff(
+                                    o_element,
+                                    path + ((s_prop.name, i1+koff),)):
+                                yield x
+
+                    if tag == 'replace':
+                        yield (
+                            'replace',
+                            path + ((s_prop.name, i1, i2),),
+                            lclone(o_val[j1:j2]))
+
+                    elif tag == 'delete':
+                        yield (
+                            'delete',
+                            path + ((s_prop.name, i1, i2),),
+                            None)
+
+                    elif tag == 'insert':
+                        yield (
+                            'insert',
+                            path + ((s_prop.name, i1, i2)),
+                            lclone(o_val[j1:j2]))
+
+    def diff_update(self, other, path=()):
+        assert type(self) is type(other), '%s %s' % (type(self), type(other))
+
+        for (s_prop, s_val), (o_prop, o_val) in zip(
+                self.T.ipropvals(self), other.T.ipropvals(other)):
+
+            if not s_prop.multivalued:
+                if isinstance(s_val, Talkie) \
+                        and type(s_val) is type(o_val):
+
+                    s_val.diff_update(o_val, path + (s_prop.name,))
+                else:
+                    if not equal(s_val, o_val):
+                        setattr(self, s_prop.name, clone(o_val))
+            else:
+                if issubclass(s_prop.content_t.cls, Talkie):
+                    sm = difflib.SequenceMatcher(
+                        None,
+                        type_eq_proxy_seq(s_val),
+                        type_eq_proxy_seq(o_val))
+                    mode = 1
+
+                else:
+                    sm = difflib.SequenceMatcher(
+                        None,
+                        eq_proxy_seq(s_val),
+                        eq_proxy_seq(o_val))
+                    mode = 2
+
+                ioff = 0
+                for tag, i1, i2, j1, j2 in list(sm.get_opcodes()):
+                    if tag == 'equal' and mode == 1:
+                        for koff, (s_element, o_element) in enumerate(zip(
+                                s_val[i1+ioff:i2+ioff], o_val[j1:j2])):
+
+                            s_element.diff_update(
+                                o_element,
+                                path + ((s_prop.name, i1+ioff+koff),))
+
+                    elif tag == 'replace':
+                        for _ in range(i1, i2):
+                            s_val.pop(i1+ioff)
+
+                        for j in range(j1, j2):
+                            s_val.insert(i1+ioff, clone(o_val[j]))
+
+                        ioff += (j2 - j1) - (i2 - i1)
+
+                    elif tag == 'delete':
+                        for _ in range(i1, i2):
+                            s_val.pop(i1 + ioff)
+
+                        ioff -= (i2 - i1)
+
+                    elif tag == 'insert':
+                        for j in range(j1, j2):
+                            s_val.insert(i1+ioff, clone(o_val[j]))
+
+                        ioff += (j2 - j1)
+
+
+def equal(a, b):
+    return str(a) == str(b)  # to be replaced by recursive guts.equal
+
+
+def ghash(obj):
+    return hash(str(obj))
+
+
+class GutsEqProxy(object):
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __eq__(self, other):
+        return equal(self._obj, other._obj)
+
+    def __hash__(self):
+        return ghash(self._obj)
+
+
+class TypeEqProxy(object):
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __eq__(self, other):
+        return type(self._obj) is type(other._obj)  # noqa
+
+    def __hash__(self):
+        return hash(type(self._obj))
+
+
+def eq_proxy_seq(seq):
+    return list(GutsEqProxy(x) for x in seq)
+
+
+def type_eq_proxy_seq(seq):
+    return list(TypeEqProxy(x) for x in seq)
+
+
+class ListenerRef(object):
+    def __init__(self, talkie_root, listener, path, ref_listener):
+        self._talkie_root = talkie_root
+        self._listener = listener
+        self._path = path
+        self._ref_listener = ref_listener
+
+    def release(self):
+        self._talkie_root.remove(self)
+
 
 class TalkieRoot(Talkie):
 
@@ -87,7 +260,12 @@ class TalkieRoot(Talkie):
         Talkie.__init__(self, **kwargs)
 
     def add_listener(self, listener, path=''):
-        self._listeners[path].append(ref(listener))
+        ref_listener = ref(listener)
+        self._listeners[path].append(ref_listener)
+        return ListenerRef(self, listener, path, ref_listener)
+
+    def remove_listener(self, listener_ref):
+        self._listeners[listener_ref.path].remove(listener_ref.ref_listener)
 
     def fire_event(self, path, value):
         path = '.'.join(path[::-1])

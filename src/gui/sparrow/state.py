@@ -6,12 +6,15 @@
 from __future__ import absolute_import, print_function, division
 
 import logging
-import time
 
-from pyrocko.guts import StringChoice, Float, List, Bool
+import numpy as num
+
+from pyrocko import util
+from pyrocko.guts import StringChoice, Float, List, Bool, Timestamp, Tuple, \
+    get_elements, set_elements, path_to_str, clone
 
 from pyrocko.gui import talkie
-from . import common
+from . import common, light
 
 guts_prefix = 'sparrow'
 
@@ -22,18 +25,31 @@ class FocalPointChoice(StringChoice):
     choices = ['center', 'target']
 
 
+class ShadingChoice(StringChoice):
+    choices = ['flat', 'gouraud', 'phong', 'pbr']
+
+
+class LightingChoice(StringChoice):
+    choices = light.get_lighting_theme_names()
+
+
+class ViewerGuiState(talkie.TalkieRoot):
+    panels_visible = Bool.T(default=True)
+    size = Tuple.T(2, Float.T(), default=(100., 100.))
+
+
 class ViewerState(talkie.TalkieRoot):
+    focal_point = FocalPointChoice.T(default='center')
     lat = Float.T(default=0.0)
     lon = Float.T(default=0.0)
     depth = Float.T(default=0.0)
     strike = Float.T(default=90.0)
     dip = Float.T(default=0.0)
-    focal_point = FocalPointChoice.T(default='center')
     distance = Float.T(default=3.0)
     elements = List.T(talkie.Talkie.T())
-    panels_visible = Bool.T(default=True)
-    tmin = Float.T(default=time.time() - 3600.)
-    tmax = Float.T(default=time.time())
+    tmin = Timestamp.T(optional=True)
+    tmax = Timestamp.T(optional=True)
+    lighting = LightingChoice.T(default=LightingChoice.choices[0])
 
     def next_focal_point(self):
         choices = FocalPointChoice.choices
@@ -139,3 +155,159 @@ def state_bind_checkbox(owner, state, path, widget):
     state_bind(
         owner, state, [path], update_state, widget, [widget.toggled],
         update_widget)
+
+
+def state_bind_lineedit(owner, state, path, widget):
+
+    def make_funcs():
+
+        def update_state(widget, state):
+            state.set(path, str(widget.text()))
+
+        def update_widget(state, widget):
+            widget.blockSignals(True)
+            widget.setText(state.get(path))
+            widget.blockSignals(False)
+
+        return update_state, update_widget
+
+    update_state, update_widget = make_funcs()
+
+    state_bind(
+        owner,
+        state, [path], update_state,
+        widget, [widget.editingFinished, widget.returnPressed], update_widget)
+
+
+def interpolateables(state_a, state_b):
+
+    animate = []
+    for tag, path, values in state_a.diff(state_b):
+        if tag == 'set':
+            ypath = path_to_str(path)
+            v_old = get_elements(state_a, ypath)[0]
+            v_new = values
+            if isinstance(v_old, float) and isinstance(v_new, float):
+                animate.append((ypath, v_old, v_new))
+
+    return animate
+
+
+def interpolate(times, states, times_inter):
+
+    assert len(times) == len(states)
+
+    states_inter = []
+    for i in range(len(times) - 1):
+
+        state_a = states[i]
+        state_b = states[i+1]
+        time_a = times[i]
+        time_b = times[i+1]
+
+        animate = interpolateables(state_a, state_b)
+
+        if i == 0:
+            times_inter_this = times_inter[num.logical_and(
+                time_a <= times_inter, times_inter <= time_b)]
+        else:
+            times_inter_this = times_inter[num.logical_and(
+                time_a < times_inter, times_inter <= time_b)]
+
+        for time_inter in times_inter_this:
+            state = clone(state_b)
+            if time_b == time_a:
+                blend = 0.
+            else:
+                blend = (time_inter - time_a) / (time_b - time_a)
+
+            for ypath, v_old, v_new in animate:
+                if isinstance(v_old, float) and isinstance(v_new, float):
+                    if ypath == 'strike':
+                        if v_new - v_old > 180.:
+                            v_new -= 360.
+                        elif v_new - v_old < -180.:
+                            v_new += 360.
+
+                    if ypath != 'distance':
+                        v_inter = v_old + blend * (v_new - v_old)
+                    else:
+                        v_old = num.log(v_old)
+                        v_new = num.log(v_new)
+                        v_inter = v_old + blend * (v_new - v_old)
+                        v_inter = num.exp(v_inter)
+
+                    set_elements(state, ypath, v_inter)
+                else:
+                    set_elements(state, ypath, v_new)
+
+            states_inter.append(state)
+
+    return states_inter
+
+
+class Interpolator(object):
+
+    def __init__(self, times, states, fps=25.):
+
+        assert len(times) == len(states)
+
+        self.dt = 1.0 / fps
+        self.tmin = times[0]
+        self.tmax = times[-1]
+        times_inter = util.arange2(self.tmin, self.tmax, self.dt)
+        times_inter[-1] = times[-1]
+
+        states_inter = []
+        for i in range(len(times) - 1):
+
+            state_a = states[i]
+            state_b = states[i+1]
+            time_a = times[i]
+            time_b = times[i+1]
+
+            animate = interpolateables(state_a, state_b)
+
+            if i == 0:
+                times_inter_this = times_inter[num.logical_and(
+                    time_a <= times_inter, times_inter <= time_b)]
+            else:
+                times_inter_this = times_inter[num.logical_and(
+                    time_a < times_inter, times_inter <= time_b)]
+
+            for time_inter in times_inter_this:
+                state = clone(state_b)
+
+                if time_b == time_a:
+                    blend = 0.
+                else:
+                    blend = (time_inter - time_a) / (time_b - time_a)
+
+                for ypath, v_old, v_new in animate:
+                    if isinstance(v_old, float) and isinstance(v_new, float):
+                        if ypath == 'strike':
+                            if v_new - v_old > 180.:
+                                v_new -= 360.
+                            elif v_new - v_old < -180.:
+                                v_new += 360.
+
+                        if ypath != 'distance':
+                            v_inter = v_old + blend * (v_new - v_old)
+                        else:
+                            v_old = num.log(v_old)
+                            v_new = num.log(v_new)
+                            v_inter = v_old + blend * (v_new - v_old)
+                            v_inter = num.exp(v_inter)
+
+                        set_elements(state, ypath, v_inter)
+                    else:
+                        set_elements(state, ypath, v_new)
+
+                states_inter.append(state)
+
+        self._states_inter = states_inter
+
+    def __call__(self, t):
+        itime = int(round((t - self.tmin) / self.dt))
+        itime = min(max(0, itime), len(self._states_inter)-1)
+        return self._states_inter[itime]

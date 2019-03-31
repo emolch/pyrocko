@@ -248,7 +248,7 @@ class StationsElement(Element):
 
             pb = qw.QPushButton('Remove')
             layout.addWidget(pb, 2, 1)
-            pb.clicked.connect(self.unset_parent)
+            pb.clicked.connect(self.remove)
 
             layout.addWidget(qw.QFrame(), 3, 0, 1, 3)
 

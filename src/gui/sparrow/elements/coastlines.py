@@ -7,8 +7,8 @@ from __future__ import absolute_import, print_function, division
 
 import vtk
 
-from pyrocko.guts import Bool, StringChoice
-from pyrocko.gui.qt_compat import qw
+from pyrocko.guts import Bool, StringChoice, Float
+from pyrocko.gui.qt_compat import qw, qc
 
 
 from pyrocko.gui import vtk_util
@@ -32,6 +32,7 @@ class CoastlinesPipe(object):
 
         self.mapper = vtk.vtkDataSetMapper()
         self._polyline_grid = {}
+        self._opacity = 1.0
         self.set_resolution(resolution)
 
         actor = vtk.vtkActor()
@@ -39,8 +40,8 @@ class CoastlinesPipe(object):
 
         prop = actor.GetProperty()
         prop.SetDiffuseColor(1, 1, 1)
-        prop.SetOpacity(0.3)
 
+        self.prop = prop
         self.actor = actor
 
     def set_resolution(self, resolution):
@@ -73,10 +74,17 @@ class CoastlinesPipe(object):
 
         vtk_util.vtk_set_input(self.mapper, self._polyline_grid[resolution])
 
+    def set_opacity(self, opacity):
+        opacity = float(opacity)
+        if self._opacity != opacity:
+            self.prop.SetOpacity(opacity)
+            self._opacity = opacity
+
 
 class CoastlinesState(ElementState):
     visible = Bool.T(default=True)
     resolution = CoastlineResolutionChoice.T(default='low')
+    opacity = Float.T(default=0.3)
 
     def create(self):
         element = CoastlinesElement()
@@ -100,6 +108,7 @@ class CoastlinesElement(Element):
         self._listeners = [upd]
         state.add_listener(upd, 'visible')
         state.add_listener(upd, 'resolution')
+        state.add_listener(upd, 'opacity')
         self._state = state
 
     def unbind_state(self):
@@ -136,13 +145,14 @@ class CoastlinesElement(Element):
 
             self._parent.add_actor(self._coastlines.actor)
             self._coastlines.set_resolution(state.resolution)
+            self._coastlines.set_opacity(state.opacity)
 
         self._parent.update_view()
 
     def _get_controls(self):
         if not self._controls:
             from ..state import state_bind_combobox, \
-                state_bind_checkbox
+                state_bind_checkbox, state_bind_slider
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
@@ -154,15 +164,30 @@ class CoastlinesElement(Element):
             layout.addWidget(cb, 0, 1)
             state_bind_combobox(self, self._state, 'resolution', cb)
 
+            # opacity
+
+            layout.addWidget(qw.QLabel('Opacity'), 1, 0)
+
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            slider.setMinimum(0)
+            slider.setMaximum(1000)
+            layout.addWidget(slider, 1, 1)
+
+            state_bind_slider(
+                self, self._state, 'opacity', slider, factor=0.001)
+
             cb = qw.QCheckBox('Show')
-            layout.addWidget(cb, 1, 0)
+            layout.addWidget(cb, 2, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
 
             pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 1, 1)
-            pb.clicked.connect(self.unset_parent)
+            layout.addWidget(pb, 2, 1)
+            pb.clicked.connect(self.remove)
 
-            layout.addWidget(qw.QFrame(), 2, 0, 1, 2)
+            layout.addWidget(qw.QFrame(), 3, 0, 1, 2)
 
         self._controls = frame
 

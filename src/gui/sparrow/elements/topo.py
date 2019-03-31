@@ -17,6 +17,7 @@ from pyrocko.gui.vtk_util import TrimeshPipe, faces_to_cells, \
     cpt_to_vtk_lookuptable
 
 from .base import Element, ElementState
+from .. import state as vstate
 from pyrocko import geometry
 
 from .. import common
@@ -26,7 +27,7 @@ guts_prefix = 'sparrow'
 
 class TopoMeshPipe(TrimeshPipe):
 
-    def __init__(self, tile, cells_cache, mask_ocean=False, **kwargs):
+    def __init__(self, tile, cells_cache=None, mask_ocean=False, **kwargs):
 
         vertices, faces = geometry.topo_to_mesh(
             tile.y(), tile.x(), tile.data,
@@ -40,12 +41,16 @@ class TopoMeshPipe(TrimeshPipe):
 
         altitudes = (geometry.vnorm(centers) - 1.0) * cake.earthradius
         if mask_ocean:
-            altitudes[altitudes <= 1.0] = None
+            mask = num.all(tile.data.flatten()[faces] == 0, axis=1)
+            altitudes[mask] = None
 
-        if id(faces) not in cells_cache:
-            cells_cache[id(faces)] = faces_to_cells(faces)
+        if cells_cache is not None:
+            if id(faces) not in cells_cache:
+                cells_cache[id(faces)] = faces_to_cells(faces)
 
-        cells = cells_cache[id(faces)]
+            cells = cells_cache[id(faces)]
+        else:
+            cells = faces_to_cells(faces)
 
         TrimeshPipe.__init__(
             self, self._raw_vertices, cells=cells, values=altitudes, **kwargs)
@@ -69,6 +74,7 @@ class TopoState(ElementState):
     opacity = Float.T(default=1.0)
     smooth = Bool.T(default=False)
     cpt = TopoCPTChoice.T(default='light')
+    shading = vstate.ShadingChoice.T(default='phong')
 
     def create(self):
         element = TopoElement()
@@ -104,6 +110,7 @@ class TopoElement(Element):
         state.add_listener(upd, 'exaggeration')
         state.add_listener(upd, 'opacity')
         state.add_listener(upd, 'smooth')
+        state.add_listener(upd, 'shading')
         state.add_listener(upd, 'cpt')
         self._state = state
 
@@ -205,7 +212,8 @@ class TopoElement(Element):
                 for ilon, lon in enumerate(lon_majors):
                     lon = ((lon + 180.) % 360.) - 180.
 
-                    region = topo.positive_region((lon, lon+step, lat, lat+step))
+                    region = topo.positive_region(
+                        (lon, lon+step, lat, lat+step))
 
                     for demname in dems_land[:1] + dems_ocean[:1]:
                         k = (step, demname, region)
@@ -242,6 +250,7 @@ class TopoElement(Element):
             self._active_meshes[k].set_exaggeration(self._state.exaggeration)
             self._active_meshes[k].set_opacity(self._state.opacity)
             self._active_meshes[k].set_smooth(self._state.smooth)
+            self._active_meshes[k].set_shading(self._state.shading)
             self._active_meshes[k].set_lookuptable(
                 self._lookuptables[self._state.cpt])
 
@@ -295,16 +304,21 @@ class TopoElement(Element):
             layout.addWidget(cb, 2, 1)
             state_bind_checkbox(self, state, 'smooth', cb)
 
+            cb = common.string_choices_to_combobox(vstate.ShadingChoice)
+            layout.addWidget(qw.QLabel('Shading'), 3, 0)
+            layout.addWidget(cb, 3, 1)
+            state_bind_combobox(self, state, 'shading', cb)
+
             cb = common.string_choices_to_combobox(TopoCPTChoice)
             layout.addWidget(qw.QLabel('CPT'), 3, 0)
-            layout.addWidget(cb, 3, 1)
+            layout.addWidget(cb, 4, 1)
             state_bind_combobox(self, state, 'cpt', cb)
 
             pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 4, 1)
-            pb.clicked.connect(self.unset_parent)
+            layout.addWidget(pb, 5, 1)
+            pb.clicked.connect(self.remove)
 
-            layout.addWidget(qw.QFrame(), 5, 0, 1, 2)
+            layout.addWidget(qw.QFrame(), 6, 0, 1, 2)
 
         self._controls = frame
 

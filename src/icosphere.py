@@ -216,7 +216,14 @@ bases = {
     'tcube': tcube}
 
 
-def sphere(order, base=icosahedron, kind='kind1', inflate=True, radius=1.0):
+def sphere(
+        order,
+        base=icosahedron,
+        kind='kind1',
+        inflate=True,
+        radius=1.0,
+        triangulate=True):
+
     if isinstance(base, str):
         base = bases[base]
 
@@ -232,6 +239,7 @@ def sphere(order, base=icosahedron, kind='kind1', inflate=True, radius=1.0):
 
     if kind == 'kind2':
         vertices, faces = truncate(vertices, faces)
-        vertices, faces = triangles_to_center(vertices, faces)
+        if triangulate:
+            vertices, faces = triangles_to_center(vertices, faces)
 
     return vertices, faces
