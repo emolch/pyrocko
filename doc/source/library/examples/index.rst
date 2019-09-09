@@ -8,7 +8,7 @@ utilize the framework.
 Jupyter Notebooks
 -----------------
 
-Example notebooks are available in the `Pyrocko Notebooks Repository <https://git.pyrocko.org/pyrocko/pyrocko-notebooks>`_ - Contributions to the collection is highly welcome!
+Example notebooks are available in the `Pyrocko Notebooks Repository <https://git.pyrocko.org/pyrocko/pyrocko-notebooks>`_ - Contributions to the collection are highly welcome!
 
 
 Scripts collection
@@ -32,6 +32,7 @@ Annotated scripts and real-world use cases using Pyrocko.
     snuffler_markers
     cake_raytracing
     gf_forward
+    kindyn_modeling
     orthodrome
     geographical_datasets
     velocity_databases

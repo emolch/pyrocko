@@ -35,6 +35,21 @@ Station file used in the example: :download:`stations_deadsea.pf </static/statio
     :align: center
     :alt: Map created using automap
 
+
+Map with gridded data
+^^^^^^^^^^^^^^^^^^^^^
+
+This example demonstrates how to create a map using GMT methods and plotting spatial gridded data on it.
+
+Download :download:`automap_example2.py </../../examples/automap_example2.py>`
+
+.. literalinclude :: /../../examples/automap_example2.py
+    :language: python
+
+.. figure :: /static/automap_chile.png
+    :align: center
+    :alt: Map with interpolated gridded data created using automap
+
 .. rubric:: Footnotes
 
 .. [#f1] Wessel, P., W. H. F. Smith, R. Scharroo, J. F. Luis, and F. Wobbe, Generic Mapping Tools: Improved version released, EOS Trans. AGU, 94, 409-410, 2013.
