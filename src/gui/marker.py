@@ -128,7 +128,7 @@ class Marker(object):
              strings (default 3)
         '''
         f = open(fn, 'w')
-        f.write('# Snuffler Markers File Version 0.2\n')
+        f.write('# Snuffler Markers File Version 0.3\n')
         writer = TableWriter(f)
         for marker in markers:
             a = marker.get_attributes(fdigits=fdigits)
@@ -174,7 +174,8 @@ class Marker(object):
 
                 f.close()
 
-            elif line.startswith('# Snuffler Markers File Version 0.2'):
+            elif line.startswith('# Snuffler Markers File Version 0.'):
+                version = line.rsplit(maxsplit=1)[-1]
                 reader = TableReader(f)
                 while not reader.eof:
                     row = reader.readrow()
@@ -183,7 +184,7 @@ class Marker(object):
                     if row[0] == 'event:':
                         marker = EventMarker.from_attributes(row)
                     elif row[0] == 'phase:':
-                        marker = PhaseMarker.from_attributes(row)
+                        marker = PhaseMarker.from_attributes(row, version=version)
                     else:
                         marker = Marker.from_attributes(row)
 
@@ -468,8 +469,6 @@ class Marker(object):
         except trace.NoData:
             pass
 
-        color = self.select_color(self.color_b)
-        pen = qg.QPen(qg.QColor(*color))
         pen.setWidth(2)
         p.setPen(pen)
 
@@ -507,7 +506,8 @@ class Marker(object):
             polarity=None,
             automatic=None,
             incidence_angle=None,
-            takeoff_angle=None):
+            takeoff_angle=None,
+            uncertainty=None):
 
         if isinstance(self, PhaseMarker):
             return
@@ -519,6 +519,7 @@ class Marker(object):
         self._automatic = automatic
         self._incidence_angle = incidence_angle
         self._takeoff_angle = takeoff_angle
+        self._uncertainty = uncertainty
         if self._event:
             self._event_hash = event.get_hash()
             self._event_time = event.time
@@ -693,7 +694,8 @@ class PhaseMarker(Marker):
             polarity=None,
             automatic=None,
             incidence_angle=None,
-            takeoff_angle=None):
+            takeoff_angle=None,
+            uncertainty=None):
 
         Marker.__init__(self, nslc_ids, tmin, tmax, kind)
         self._event = event
@@ -703,11 +705,33 @@ class PhaseMarker(Marker):
         self._automatic = automatic
         self._incidence_angle = incidence_angle
         self._takeoff_angle = takeoff_angle
+        self._uncertainty = uncertainty
 
         self.set_polarity(polarity)
 
     def draw_trace(self, viewer, p, tr, time_projection, track_projection,
                    gain):
+
+        if self.nslc_ids and not self.match_nslc(tr.nslc_id):
+            return
+
+        from .qt_compat import qc, qg
+
+        color = self.select_color(self.color_b)
+
+        def draw_box(tmin, tmax, alpha=50):
+            fill_brush = qg.QBrush(qg.QColor(*color + (alpha, )))
+            p.setBrush(fill_brush)
+            dvmin, dvmax = track_projection.get_out_range()
+            dtmin = time_projection.clipped(tmin)
+            dtmax = time_projection.clipped(tmax)
+            rect = qc.QRectF(dtmin, dvmin, float(dtmax-dtmin), dvmax-dvmin)
+            p.fillRect(rect, fill_brush)
+
+        if self._uncertainty:
+            draw_box(self.tmin, self.tmin - self._uncertainty)
+            draw_box(self.tmax, self.tmax + self._uncertainty)
+            draw_box(self.tmin, self.tmax, alpha=35)
 
         Marker.draw_trace(
             self, viewer, p, tr, time_projection, track_projection, gain,
@@ -775,11 +799,13 @@ class PhaseMarker(Marker):
     def convert_to_marker(self):
         del self._event
         del self._event_hash
+        del self._event_time
         del self._phasename
         del self._polarity
         del self._automatic
         del self._incidence_angle
         del self._takeoff_angle
+        del self._uncertainty
         self.__class__ = Marker
 
     def hoover_message(self):
@@ -795,40 +821,46 @@ class PhaseMarker(Marker):
         attributes = ['phase:']
         attributes.extend(Marker.get_attributes(self, fdigits=fdigits))
 
-        et = None, None
-        if self._event:
-            et = self._st(self._event.time, fdigits).split()
-        elif self._event_time:
-            et = self._st(self._event_time, fdigits).split()
+        def _st(t, fdigits):
+            return util.time_to_str(
+                t, format='%Y-%m-%d %H:%M:%S.'+'%iFRAC' % fdigits)
+
+        et = self.get_event_time()
+
+        if et is None:
+            et = (None, None)
+        else:
+            et = _st(et, fdigits).split()
 
         attributes.extend([
             self.get_event_hash(), et[0], et[1], self._phasename,
-            self._polarity, self._automatic])
+            self._polarity, self._automatic, self._uncertainty])
 
         return attributes
-
-    def _st(self, t, fdigits):
-        return util.time_to_str(
-            t, format='%Y-%m-%d %H:%M:%S.'+'%iFRAC' % fdigits)
 
     def get_attribute_widths(self, fdigits=3):
         ws = [6]
         ws.extend(Marker.get_attribute_widths(self, fdigits=fdigits))
-        ws.extend([14, 12, 12, 8, 4, 5])
+        ws.extend([14, 12, 12, 8, 4, 5, 5])
         return ws
 
     @staticmethod
-    def from_attributes(vals):
-        if len(vals) == 14:
+    def from_attributes(vals, version='0.3'):
+        if len(vals) in [14, 15]:
+            i = 11
             nbasicvals = 7
         else:
+            i = 8
             nbasicvals = 4
+        uncertainty = None
+
+        if version == '0.3':
+            uncertainty = str_to_float_or_none(vals[-1])
+        else:
+            uncertainty = None
+
         nslc_ids, tmin, tmax, kind = Marker.parse_attributes(
             vals[1:1+nbasicvals])
-
-        i = 8
-        if len(vals) == 14:
-            i = 11
 
         event_hash = str_to_str_or_none(vals[i-3])
         event_sdate = str_to_str_or_none(vals[i-2])
@@ -845,7 +877,7 @@ class PhaseMarker(Marker):
         marker = PhaseMarker(nslc_ids, tmin, tmax, kind, event=None,
                              event_hash=event_hash, event_time=event_time,
                              phasename=phasename, polarity=polarity,
-                             automatic=automatic)
+                             automatic=automatic, uncertainty=uncertainty)
         return marker
 
 

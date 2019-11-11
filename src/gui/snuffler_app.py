@@ -29,8 +29,8 @@ from pyrocko import model           # noqa
 from pyrocko import config          # noqa
 from pyrocko import io              # noqa
 
-from . import pile_viewer     # noqa
-
+from . import pile_viewer           # noqa
+from .marker_editor import setup_marker_editor
 from .qt_compat import qc, qg, qw, qn
 
 logger = logging.getLogger('pyrocko.gui.snuffler_app')
@@ -586,7 +586,7 @@ class SnufflerWindow(qw.QMainWindow):
             pile, ntracks_shown_max=ntracks, use_opengl=opengl,
             panel_parent=self)
 
-        self.marker_editor = self.pile_viewer.marker_editor()
+        self.marker_editor = setup_marker_editor(self.pile_viewer)
         self.add_panel(
             'Markers', self.marker_editor, visible=False,
             where=qc.Qt.RightDockWidgetArea)

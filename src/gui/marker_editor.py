@@ -61,7 +61,7 @@ logger = logging.getLogger('pyrocko.gui.marker_editor')
 
 _header_data = [
     'T', 'Time', 'M', 'Label', 'Depth [km]', 'Lat', 'Lon', 'Kind', 'Dist [km]',
-    'NSLCs', 'Polarity', 'Kagan Angle [deg]', 'Event Hash', 'MT']
+    'NSLCs', 'Polarity', 'Kagan Angle [deg]', 'Event Hash', 'MT', 'Uncertainty [s]']
 
 _column_mapping = dict(zip(_header_data, range(len(_header_data))))
 
@@ -70,7 +70,7 @@ _string_header = (_column_mapping['Time'], _column_mapping['Label'])
 _header_sizes = [70] * len(_header_data)
 _header_sizes[0] = 40
 _header_sizes[1] = 190
-_header_sizes[-1] = 20
+_header_sizes[-2] = 20
 
 
 class BeachballWidget(qw.QWidget):
@@ -257,10 +257,10 @@ class MarkerTableView(qw.QTableView):
         self.menu_labels = ['Type', 'Time', 'Magnitude', 'Label', 'Depth [km]',
                             'Latitude/Longitude', 'Kind', 'Distance [km]',
                             'NSLCs', 'Polarity', 'Kagan Angle [deg]',
-                            'Event Hash', 'MT']
+                            'Event Hash', 'MT', 'Uncertainty [s]']
 
         self.menu_items = dict(zip(
-            self.menu_labels, [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13]))
+            self.menu_labels, [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14]))
 
         self.editable_columns = [2, 3, 4, 5, 6, 7]
 
@@ -524,14 +524,15 @@ class MarkerTableModel(qc.QAbstractTableModel):
             elif column == _column_mapping['Event Hash']:
                 if isinstance(marker, (EventMarker, PhaseMarker)):
                     s = marker.get_event_hash()
-                else:
-                    return qc.QVariant()
 
             elif column == _column_mapping['Polarity']:
                 if isinstance(marker, (PhaseMarker)):
                     s = marker.get_polarity_symbol()
-                else:
-                    return qc.QVariant()
+
+            elif column == _column_mapping['Uncertainty [s]']:
+                if isinstance(marker, (PhaseMarker)):
+                    s = marker._uncertainty
+                    s = '' if s is None else round(s, 3)
 
             return qc.QVariant(s)
 
@@ -780,3 +781,11 @@ class MarkerEditor(qw.QFrame):
                 mi_start, selection_flags)
 
         self.selection_model.select(selections, selection_flags)
+
+
+def setup_marker_editor(viewer):
+    editor = MarkerEditor(viewer)
+    editor.set_viewer(viewer.viewer)
+    editor.get_marker_model().dataChanged.connect(
+        viewer.update_contents)
+    return editor

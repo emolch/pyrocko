@@ -26,7 +26,6 @@ import pyrocko.util
 import pyrocko.plot
 import pyrocko.gui.snuffling
 import pyrocko.gui.snufflings
-import pyrocko.gui.marker_editor
 
 from pyrocko.util import hpfloat, gmtime_x, mystrftime
 
@@ -1132,6 +1131,7 @@ def MakePileViewerMainClass(base):
             self.tf_cache = {}
 
             self.automatic_updates = True
+            self.set_uncertainty_y = False
 
             self.closing = False
             self.paint_timer = qc.QTimer(self)
@@ -1799,10 +1799,13 @@ def MakePileViewerMainClass(base):
 
         def mousePressEvent(self, mouse_ev):
             self.show_all = False
+
             point = self.mapFromGlobal(mouse_ev.globalPos())
 
             if mouse_ev.button() == qc.Qt.LeftButton:
                 marker = self.marker_under_cursor(point.x(), point.y())
+                self._last_y = point.y()
+
                 if self.picking:
                     if self.picking_down is None:
                         self.picking_down = (
@@ -1818,6 +1821,9 @@ def MakePileViewerMainClass(base):
                 else:
                     self.track_start = mouse_ev.x(), mouse_ev.y()
                     self.track_trange = self.tmin, self.tmax
+
+                if mouse_ev.modifiers() & qc.Qt.ShiftModifier:
+                    self.set_uncertainty_y = self.time_projection(point.y())
 
             if mouse_ev.button() == qc.Qt.RightButton:
                 self.menu.exec_(qg.QCursor.pos())
@@ -1837,6 +1843,8 @@ def MakePileViewerMainClass(base):
 
             self.track_start = None
             self.track_trange = None
+            self.set_uncertainty_y = False
+
             self.update_status()
 
         def mouseDoubleClickEvent(self, mouse_ev):
@@ -1850,6 +1858,9 @@ def MakePileViewerMainClass(base):
 
             if self.picking:
                 self.update_picking(point.x(), point.y())
+
+            if self.set_uncertainty_y:
+                self.update_uncertainty(point.y())
 
             elif self.track_start is not None:
                 x0, y0 = self.track_start
@@ -1875,6 +1886,17 @@ def MakePileViewerMainClass(base):
                 self.hoovering(point.x(), point.y())
 
             self.update_status()
+
+        def update_uncertainty(self, y):
+            d = self.time_projection.rev(y) - self.time_projection.rev(
+                self._last_y)
+            for m in self.selected_markers():
+                if isinstance(m, PhaseMarker):
+                    m._uncertainty = m._uncertainty or 0.
+                    m._uncertainty = max(0., m._uncertainty + d)
+
+            self.emit_selected_markers()
+            self._last_y = y
 
         def nslc_ids_under_cursor(self, x, y):
             ftrack = self.track_to_screen.rev(y)
@@ -1969,6 +1991,7 @@ def MakePileViewerMainClass(base):
                         else:
                             p = 1 if m.get_polarity() != 1 else None
                         m.set_polarity(p)
+                self.emit_selected_markers()
 
             elif key_event.key() == qc.Qt.Key_Down:
                 for m in self.selected_markers():
@@ -1978,6 +2001,7 @@ def MakePileViewerMainClass(base):
                         else:
                             p = -1 if m.get_polarity() != -1 else None
                         m.set_polarity(p)
+                self.emit_selected_markers()
 
             elif keytext == 'b':
                 dt = self.tmax - self.tmin
@@ -2178,6 +2202,8 @@ def MakePileViewerMainClass(base):
             self.emit_selected_markers()
 
         def emit_selected_markers(self):
+            '''Emits indices of selected markers and triggers an update
+            of according entries in the marker_editor.'''
             _indexes = []
             selected_markers = self.selected_markers()
             markers = self.get_markers()
@@ -4110,13 +4136,6 @@ class PileViewer(qw.QFrame):
 
         self.adjust_controls()
         return frame
-
-    def marker_editor(self):
-        editor = pyrocko.gui.marker_editor.MarkerEditor(self)
-        editor.set_viewer(self.get_view())
-        editor.get_marker_model().dataChanged.connect(
-            self.update_contents)
-        return editor
 
     def adjust_controls(self):
         dtmin, dtmax = self.viewer.content_deltat_range()
