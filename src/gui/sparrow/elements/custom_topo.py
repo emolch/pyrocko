@@ -5,7 +5,7 @@
 
 from __future__ import absolute_import, print_function, division
 
-from pyrocko.plot import automap, gmtpy
+from pyrocko.plot import automap
 from pyrocko.dataset.topo import tile
 from pyrocko.guts import String
 from pyrocko.dataset import topo
@@ -19,11 +19,6 @@ from .topo import TopoMeshPipe, TopoCPTChoice, TopoState
 from .. import common
 
 guts_prefix = 'sparrow'
-
-
-def load_tile(path):
-    lon, lat, z = gmtpy.loadgrd(path)
-    return tile.Tile(lon[0], lat[0], lon[1] - lon[0], lat[1] - lat[0],  z)
 
 
 class CustomTopoState(TopoState):
@@ -122,7 +117,7 @@ class CustomTopoElement(Element):
                     self._parent.remove_actor(self._mesh.actor)
                     self._mesh = None
 
-                t = load_tile(self._state.path)
+                t = tile.Tile.from_grd(self._state.path)
                 self._path_loaded = self._state.path
                 self._mesh = TopoMeshPipe(
                     t,

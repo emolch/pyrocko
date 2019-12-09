@@ -10,6 +10,8 @@ import scipy.signal
 
 from pyrocko.orthodrome import positive_region
 
+km = 1e3
+
 
 class OutOfBounds(Exception):
     pass
@@ -75,6 +77,13 @@ class Tile(object):
         else:
             raise OutOfBounds()
 
+    @classmethod
+    def from_grd(cls, path):
+        '''Load from GMT .grd'''
+        from pyrocko.plot import gmtpy
+        lon, lat, z = gmtpy.loadgrd(path)
+        return cls(lon[0], lat[0], lon[1] - lon[0], lat[1] - lat[0],  z)
+
 
 def multiple_of(x, dx, eps=1e-5):
     return abs(int(round(x / dx))*dx - x) < dx * eps
@@ -136,3 +145,73 @@ def combine(tiles, region=None):
         return None
 
     return Tile(xmin, ymin, dx, dy, data)
+
+
+def tile_export(tle, path, format='stl', exaggeration=3., socket_scale=1.,
+                scale=100):
+    '''Export DEM to 3D printable formats'''
+    import trimesh
+
+    from pyrocko import geometry
+    from pyrocko.cake import earthradius
+
+    x = tle.x()
+    x = x - x.min()
+
+    y = tle.y()
+    y = y - y.min()
+
+    data = tle.data * exaggeration
+
+    vertices, faces = geometry.topo_to_mesh(
+        y, x, data, earthradius)
+
+    vertices[:, 0] -= vertices[:, 0].min()
+
+    nlat = y.size
+    nlon = x.size
+    socket_level = -vertices[:, 0].max() * socket_scale
+    nvertices = vertices.shape[0]
+
+    south_indices = num.arange(0, nlon)
+    north_indices = num.arange(nvertices - nlon, nvertices)
+    east_indices = num.arange(0, nlat) * nlon
+    west_indices = num.arange(0, nlat) * nlon + nlon - 1
+
+    north_indices = north_indices[::-1]
+    east_indices = east_indices[::-1]
+
+    socket_bottom_faces = []
+    for border_indices in [north_indices, east_indices,
+                           south_indices, west_indices]:
+        nvertices = vertices.shape[0]
+        nfaces = border_indices.size - 1
+
+        socket_vertices = vertices[border_indices.astype(num.int)].copy()
+        socket_vertices[:, 0] = socket_level
+
+        socket_faces = num.empty((nfaces, 4), dtype=num.int)
+        for iface in range(nfaces):
+            socket_faces[iface, 0] = iface + nvertices
+            socket_faces[iface, 1] = iface + nvertices + 1
+            socket_faces[iface, 2] = border_indices[iface+1]
+            socket_faces[iface, 3] = border_indices[iface]
+
+        vertices = num.vstack((vertices, socket_vertices))
+        faces = num.vstack((faces, socket_faces))
+
+        socket_bottom_faces.append(vertices.shape[0] - nfaces)
+
+    faces = num.vstack((faces, socket_bottom_faces[::-1]))
+
+    mesh = trimesh.Trimesh(
+        vertices, faces)
+    mesh.fix_normals()
+    mesh.fill_holes()
+
+    mesh.apply_scale(scale)
+
+    with open(path, 'wb') as f:
+        mesh.export(f, file_type=format)
+
+    return mesh

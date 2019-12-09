@@ -31,7 +31,7 @@ from . import common, light, snapshots
 
 import vtk
 import vtk.qt
-vtk.qt.QVTKRWIBase = "QGLWidget"  # noqa
+vtk.qt.QVTKRWIBase = 'QGLWidget'  # noqa
 
 if use_pyqt5:  # noqa
     from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -158,7 +158,9 @@ class Viewer(qw.QMainWindow):
                     template='tmax: {0|date}',
                     position='top-left')),
                 ('HUD subtitle', elements.HudState(
-                    template='Awesome'))]:
+                    template='Awesome')),
+                ('Volcanoes', elements.VolcanoesState()),
+                ('InSAR Surface Displacements', elements.KiteState())]:
 
             def wrap_add_element(estate):
                 def add_element(*args):

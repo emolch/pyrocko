@@ -10,13 +10,12 @@ import numpy as num
 from pyrocko.guts import \
     Object, Bool, Float, StringChoice, Timestamp, String, List
 
-from pyrocko import cake, table, model
+from pyrocko import cake, table, model, geometry
 from pyrocko.client import fdsn
 from pyrocko.gui.qt_compat import qw, qc, fnpatch
 
 from pyrocko.gui.vtk_util import ScatterPipe
 from .. import common
-from pyrocko import geometry
 
 from .base import Element, ElementState
 
@@ -85,7 +84,7 @@ class StationsState(ElementState):
     station_selection = StationSelection.T(optional=True)
 
     @classmethod
-    def get_name(self):
+    def get_name(cls):
         return 'Stations'
 
     def create(self):
@@ -100,6 +99,7 @@ class StationsElement(Element):
         Element.__init__(self)
         self._parent = None
         self._pipe = None
+        self._state = None
         self._controls = None
         self._points = num.array([])
 
@@ -252,7 +252,7 @@ class StationsElement(Element):
 
             layout.addWidget(qw.QFrame(), 3, 0, 1, 3)
 
-        self._controls = frame
+            self._controls = frame
 
         return self._controls
 
