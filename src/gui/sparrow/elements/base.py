@@ -35,5 +35,11 @@ class Element(object):
         self._state = state
 
     def unbind_state(self):
+        for listener in self._listeners:
+            try:
+                listener.release()
+            except Exception as e:
+                pass
+
         self._listeners = []
         self._state = None

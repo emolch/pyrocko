@@ -15,3 +15,5 @@ from .custom_topo import *  # noqa
 from .stations import *  # noqa
 from .source import *  # noqa
 from .hud import *  # noqa
+from .volcanoes import *  # noqa
+from .kite_insar import *  # noqa
