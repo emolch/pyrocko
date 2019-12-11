@@ -357,10 +357,27 @@ class PolygonPipe(object):
 
             self.set_values(values)
 
+        nfaces = faces.shape[0]
+        self._colors = num.ones((nfaces, 4))
+        self._update_colors()
+
         if kwargs:
             colorbar_actor = self.get_colorbar_actor(**kwargs)
             colorbar_actor.GetProperty()
             self.actor = [act, colorbar_actor]
+
+    def set_colors(self, colors):
+        self._colors[:, :3] = colors
+        self._update_colors()
+
+    def set_alpha(self, alpha):
+        print('colors', self._colors.shape)
+        self._colors[:, 3] = alpha
+        self._update_colors()
+
+    def _update_colors(self):
+        vcolors = numpy_to_vtk_colors(self._colors)
+        self.polydata.GetPointData().SetScalars(vcolors)
 
     def set_opacity(self, value):
         self.prop.SetOpacity(value)
@@ -417,6 +434,65 @@ class PolygonPipe(object):
         pos.SetValue(0.95, 0.05)
 
         return scalar_bar
+
+
+class ColorbarPipe(object):
+
+    def __init__(self, lut=None, cbar_title=None, numcolor=None):
+
+        act = vtk.vtkScalarBarActor()
+        if numcolor:
+            act.SetNumberOfLabels(numcolor + 1)
+        act.SetMaximumHeightInPixels(500)
+        act.SetMaximumWidthInPixels(50)
+
+        try:
+            act.SetUnconstrainedFontSize(True)
+        except AttributeError:
+            pass
+
+        self.actor = act
+        self._format_text()
+        self._set_position(0.95, 0.05)
+
+        if cbar_title is not None:
+            self.set_title(cbar_title)
+
+        if lut is not None:
+            self.set_lookuptable(lut)
+
+        prop = self.actor.GetProperty()
+        self.prop = prop
+
+    def set_lookuptable(self, lut):
+        self.actor.SetLookupTable(lut)
+
+    def set_title(self, cbar_title):
+        self.actor.SetTitle(cbar_title)
+
+    def _format_text(self):
+
+        prop_title = vtk.vtkTextProperty()
+        prop_title.SetFontFamilyToArial()
+        prop_title.SetColor(.8, .8, .8)
+        prop_title.SetFontSize(int(prop_title.GetFontSize() * 1.3))
+        prop_title.BoldOn()
+        self.actor.SetTitleTextProperty(prop_title)
+        try:
+            self.actor.SetVerticalTitleSeparation(20)
+        except AttributeError:
+            pass
+
+        prop_label = vtk.vtkTextProperty()
+        prop_label.SetFontFamilyToArial()
+        prop_label.SetColor(.8, .8, .8)
+        prop_label.SetFontSize(int(prop_label.GetFontSize() * 1.1))
+        self.actor.SetLabelTextProperty(prop_label)
+
+    def _set_position(self, xpos, ypos):
+        pos = self.actor.GetPositionCoordinate()
+        pos.SetCoordinateSystemToNormalizedViewport()
+        pos.SetValue(xpos, ypos)
 
 
 class ArrowPipe(object):

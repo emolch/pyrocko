@@ -162,7 +162,8 @@ class Viewer(qw.QMainWindow):
                 ('Volcanoes', elements.VolcanoesState()),
                 ('Faults', elements.ActiveFaultsState()),
                 ('Plate bounds', elements.PlatesBoundsState()),
-                ('InSAR Surface Displacements', elements.KiteState())]:
+                ('InSAR Surface Displacements', elements.KiteState()),
+                ('Geometry', elements.GeometryState())]:
 
             def wrap_add_element(estate):
                 def add_element(*args):
