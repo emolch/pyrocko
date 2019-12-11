@@ -105,6 +105,8 @@ class PyrockoConfig(ConfigBase):
         default=os.path.join(pyrocko_dir_tmpl, 'gshhg'))
     volcanoes_dir = PathWithPlaceholders.T(
         default=os.path.join(pyrocko_dir_tmpl, 'volcanoes'))
+    fault_lines_dir = PathWithPlaceholders.T(
+        default=os.path.join(pyrocko_dir_tmpl, 'fault_lines'))
     leapseconds_path = PathWithPlaceholders.T(
         default=os.path.join(pyrocko_dir_tmpl, 'leap-seconds.list'))
     leapseconds_url = String.T(
