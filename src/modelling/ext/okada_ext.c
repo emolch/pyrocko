@@ -1093,6 +1093,9 @@ static PyObject* w_dc3d_flexi(PyObject *m, PyObject *args, PyObject *kwds) {
     output_arr = PyArray_ZEROS(output_ndims, output_dims, NPY_FLOAT64, 0);
     output = PyArray_DATA((PyArrayObject*) output_arr);
 
+    if (!halfspace_check(source_patches, receiver_coords, nsources, nrec))
+        return NULL;
+
     #if defined(_OPENMP)
         Py_BEGIN_ALLOW_THREADS
         if (nthreads <= 0)

@@ -57,8 +57,8 @@ def get_shift_zero_coord(source, *args):
     :return: Northin and easting from nucleation point to ref_loc
     :rtype: tuple, float
     """
-    ref_pt = source.points_on_source(
-        points_x=[0.], points_y=[-1.],
+    ref_pt = source.xy_to_coord(
+        x=[0.], y=[-1.],
         cs='latlon')
 
     return ref_pt, latlon_to_ne_numpy(ref_pt[0, 0], ref_pt[0, 1], *args)
@@ -179,7 +179,7 @@ def okada_surface_displacement(
         receiver_geom, dim=dim)
 
     return receiver_geom, okada_ext.okada(
-        source_patches, source_disl, receiver_coords, 0.25, 0)
+        source_patches, source_disl, receiver_coords, 32.e9, 32.e9, 0)
 
 class LatLonWindow(ElementState):
     pass
@@ -598,12 +598,13 @@ class SourceElement(Element):
         endpoint[1] = nucl_y + num.sin(-rake)
 
         points = geometry.latlondepth2xyz(
-            fault.points_on_source(
-                points_x=[nucl_x, endpoint[0]],
-                points_y=[nucl_y, endpoint[1]],
+            fault.xy_to_coord(
+                x=[nucl_x, endpoint[0]],
+                y=[nucl_y, endpoint[1]],
                 cs='latlondepth'),
             planetradius=cake.earthradius)
         vertices = geometry.arr_vertices(points)
+
         self._pipe.append(ArrowPipe(vertices[0], vertices[1]))
         self._parent.add_actor(self._pipe[-1].actor)
 
@@ -656,8 +657,8 @@ class SourceElement(Element):
                              num.array([[0., 0., 1.]]))):
 
                         points = geometry.latlondepth2xyz(
-                            fault.points_on_source(
-                                points_x=[point[0]], points_y=[point[1]],
+                            fault.xy_to_coord(
+                                x=[point[0]], y=[point[1]],
                                 cs='latlondepth'),
                             planetradius=cake.earthradius)
 
