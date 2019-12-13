@@ -253,8 +253,8 @@ void Disloc(double *pOutput, double *pModel, double *pCoords, double nu, int Num
 }
 
 
-int good_array(PyObject* o, int typenum, npy_intp size_want, int ndim_want, npy_intp* shape_want) {
-    int i;
+int good_array(PyObject* o, npy_intp typenum, npy_intp ndim_want, npy_intp* shape_want) {
+    unsigned long i;
 
     if (!PyArray_Check(o)) {
         PyErr_SetString(PyExc_AttributeError, "not a NumPy array" );
@@ -270,12 +270,6 @@ int good_array(PyObject* o, int typenum, npy_intp size_want, int ndim_want, npy_
         PyErr_SetString(PyExc_AttributeError, "array is not contiguous or not well behaved");
         return 0;
     }
-
-    if (size_want != -1 && size_want != PyArray_SIZE((PyArrayObject*)o)) {
-        PyErr_SetString(PyExc_AttributeError, "array is of unexpected size");
-        return 0;
-    }
-
 
     if (ndim_want != -1 && ndim_want != PyArray_NDIM((PyArrayObject*)o)) {
         PyErr_SetString(PyExc_AttributeError, "array is of unexpected ndim");
@@ -295,10 +289,11 @@ int good_array(PyObject* o, int typenum, npy_intp size_want, int ndim_want, npy_
 
 
 static PyObject* w_disloc(PyObject *m, PyObject *args) {
-  int nstations, ndislocations;
+  unsigned long nstations, ndislocations;
   PyObject *output_arr, *coords_arr, *models_arr;
   npy_intp output_dims[2];
-  int nthreads;
+  npy_intp nthreads;
+  npy_intp shape_want[2];
   npy_float64 *output, *coords, *models, nu;
 
   struct module_state *st = GETSTATE(m);
@@ -308,9 +303,14 @@ static PyObject* w_disloc(PyObject *m, PyObject *args) {
     return NULL;
   }
 
-  if (! good_array(models_arr, NPY_FLOAT64, -1, 2, NULL))
+  shape_want[0] = PyArray_SHAPE(((PyArrayObject*) models_arr))[0];
+  shape_want[1] = 10;
+  if (! good_array(models_arr, NPY_FLOAT64, 2, shape_want))
     return NULL;
-  if (! good_array(coords_arr, NPY_FLOAT64, -1, 2, NULL))
+
+  shape_want[0] = PyArray_SHAPE(((PyArrayObject*) coords_arr))[0];
+  shape_want[1] = 2;
+  if (! good_array(coords_arr, NPY_FLOAT64, 2, shape_want))
     return NULL;
 
   nstations = PyArray_SHAPE((PyArrayObject*) coords_arr)[0];

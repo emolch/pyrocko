@@ -492,7 +492,7 @@ class LocationRecipe(Recipe):
             num.concatenate((
                 table.get_col('lat').reshape(-1, 1),
                 table.get_col('lon').reshape(-1, 1),
-                12000.0+table.get_col('depth').reshape(-1, 1)),
+                table.get_col('depth').reshape(-1, 1)),
                 axis=1),
             planetradius=cake.earthradius)
 

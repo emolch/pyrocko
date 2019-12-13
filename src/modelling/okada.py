@@ -188,10 +188,6 @@ class OkadaSource(AnalyticalRectangularSource):
         self.shearmod__ = shearmod
 
     @property
-    def lamb(self):
-        return (2 * self.nu * self.mu) / (1 - 2 * self.nu)
-
-    @property
     def seismic_moment(self):
         '''
         Scalar Seismic moment :math:`M_0`.
