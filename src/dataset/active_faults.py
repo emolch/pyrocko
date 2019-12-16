@@ -4,7 +4,7 @@
 # ---|P------/S----------~Lg----------
 from __future__ import absolute_import
 
-import csv
+import re
 import logging
 import numpy as num
 from os import path as op
@@ -12,6 +12,14 @@ from collections import OrderedDict
 import json
 
 from pyrocko import config, util
+
+
+def parse_3tup(s):
+    m = re.match(r'^\(([^,]+),([^,]*),([^,]*)\)$', s)
+    if m:
+        return [float(m.group(1)) if m.group(1) else None for i in range(3)]
+    else:
+        return [None, None, None]
 
 
 logger = logging.getLogger('ActiveFaults')
@@ -24,36 +32,38 @@ class Fault(object):
     def get_property(self, fault_obj, attr):
         try:
             values = float(fault_obj['properties'][attr][1:3])
-        except:
+        except KeyError:
             if attr == 'lower_seis_depth' or attr == 'upper_seis_depth':
                 values = 0
             else:
                 values = -999
         return values
 
-    def __init__(self, *args):
-        for f in args:
-            nodes = len(f['geometry']['coordinates'])
-            for (attr, attr_type) in self.__fields__.items():
-                values = []
-                if attr == 'lat':
-                    for i in range(0, nodes):
-                        values.append(f['geometry']['coordinates'][i][1])
-                elif attr == 'lon':
-                    for i in range(0, nodes):
-                        values.append(f['geometry']['coordinates'][i][0])
-                elif attr == 'slip_type':
-                    try:
-                        values = f['properties']['slip_type']
-                    except:
-                        values = 'Unknown'
+    def __init__(self, f):
+        nodes = f['geometry']['coordinates']
+        props = f['properties']
+        lons = [p[0] for p in nodes]
+        lats = [p[1] for p in nodes]
+        self.lon = lons
+        self.lat = lats
+        self.slip_type = props.get('slip_type', 'Unknown')
+
+        for attr, attr_type in self.__fields__.items():
+            if attr_type is float:
+                if attr in props:
+                    v = parse_3tup(props[attr])[0]
                 else:
-                    values = self.get_property(f, attr)
-                try:
-                    setattr(self, attr, attr_type(values))
-                except ValueError as e:
-                    print(list(zip(self.__fields__.keys(), args)))
-                    raise e
+                    v = None
+
+                setattr(self, attr, v)
+
+    def get_surface_line(self):
+        arr = num.empty((len(self.lat), 2))
+        for i in range(len(self.lat)):
+            arr[i, 0] = self.lat[i]
+            arr[i, 1] = self.lon[i]
+
+        return arr
 
     def __str__(self):
         d = {attr: getattr(self, attr) for attr in self.__fields__.keys()}
