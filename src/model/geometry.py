@@ -51,9 +51,11 @@ class Geometry(Object):
              'Indexes belonging to one polygon have to be given row-wise.',
         optional=True)
 
-    outline = Table.T(
-        default=Table.D(),
-        help='Id vector of outline integer indexes to respective vertices.',
+    outlines = List.T(Table.T(),
+        default=[],
+        help='List of vertices of the mesh of the outlines of the geometry. '
+             'Expected to be (lat,lon,north,east,depth) for each vertex'
+             '(outline).',
         optional=True)
 
     event = Event.T(default=Event.D())
@@ -64,6 +66,10 @@ class Geometry(Object):
         help='1d vector of times [s] wrt. event time for which '
              'properties have value. Must have constant delta t',
         optional=True)
+
+    def __init__(self, **kwargs):
+        Object.__init__(self, **kwargs)
+        self._ntimes = None
 
     @property
     def deltat(self):
@@ -76,10 +82,27 @@ class Geometry(Object):
         else:
             return 1.
 
-    def time2idx(self, time, dtype='int'):
+    @property
+    def ntimes(self):
+        if self._ntimes is None:
+            if self.times is not None:
+                self._ntimes = len(self.times)
+            else:
+                return 0
+
+        return self._ntimes
+
+    def time2idx(self, time):
         if self.times.size > 2:
-            return round((time - self.times.min() - (
-                self.deltat / 2.)) / self.deltat).astype(dtype)
+            idx = int(round((time - self.times.min() - (
+                    self.deltat / 2.)) / self.deltat))
+
+            if idx < 0:
+                return 0
+            elif idx > self.ntimes:
+                return self.ntimes
+            else:
+                return idx
         else:
             return 0
 
@@ -110,15 +133,27 @@ class Geometry(Object):
         self.set_vertices(vertices)
         self.set_faces(faces)
 
-    def set_outline(self, face):
-        face = face.reshape(-1, 1) if face.ndim == 1 else face
-        sub_headers = tuple(['f{}'.format(i) for i in range(face.shape[1])])
+        if outlines is not None:
+            self.set_outlines(outlines)
 
-        self.outline.add_col(('outline', '', sub_headers), face)
+    def set_outlines(self, outlines):
+        if outlines is not None:
+            self.outlines = []
+            for outline in outlines:
+                outl = Table()
+                outl.add_recipe(LocationRecipe())
+                outl.add_col((
+                    'c5', '',
+                    ('ref_lat', 'ref_lon', 'north_shift', 'east_shift',
+                     'depth')),
+                    outline)
+                self.outlines.append(outl)
 
-    def get_outline(self):
-        if self.outline:
-            return reduce_array_dims(self.outline.get_col('outline'))
+    def get_outlines(self):
+        if self.outlines:
+            return self.outlines
+        else:
+            logger.warning('No outlines set!')
 
     def add_property(self, name, values):
         if values.ndim == 1 or values.shape[1] == 1:
