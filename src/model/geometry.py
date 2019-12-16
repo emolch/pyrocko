@@ -3,11 +3,23 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+import numpy as num
+
 from pyrocko.guts import Object, String, Unicode, List, Int, SObject, Any
 from pyrocko.guts_array import Array
 from pyrocko.table import Table, LocationRecipe
 
 from .event import Event
+
+
+def reduce_array_dims(array):
+    '''
+    Support function to reduce output array ndims from table
+    '''
+    if array.shape[0] == 1 and array.ndim > 1:
+        return num.squeeze(array, axis=0)
+    else:
+        return array
 
 
 class Geometry(Object):
@@ -27,6 +39,12 @@ class Geometry(Object):
         help='Face integer indexes to the respective vertices. '
              'Indexes belonging to one polygon have to be given row-wise.',
         optional=True)
+
+    outline = Table.T(
+        default=Table.D(),
+        help='Id vector of outline integer indexes to respective vertices.',
+        optional=True)
+
     event = Event.T(default=Event.D())
     times = Array.T(
         shape=(None,),
@@ -49,22 +67,56 @@ class Geometry(Object):
         else:
             return 0
 
-    def setup(self, vertices, faces):
-
-        self.vertices = Table()
+    def set_vertices(self, vertices):
         self.vertices.add_recipe(LocationRecipe())
         self.vertices.add_col((
             'c5', '',
             ('ref_lat', 'ref_lon', 'north_shift', 'east_shift', 'depth')),
             vertices)
 
-        self.faces = Table()
+    def get_vertices(self, col='c5'):
+        if self.vertices:
+            return reduce_array_dims(self.vertices.get_col(col))
+
+    def set_faces(self, faces):
         ncorners = faces.shape[1]
         sub_headers = tuple(['f{}'.format(i) for i in range(ncorners)])
         self.faces.add_col(('faces', '', sub_headers), faces)
 
+    def get_faces(self, col='faces'):
+        if self.faces:
+            return reduce_array_dims(self.faces.get_col(col))
+
+    def no_faces(self):
+        return self.faces.get_nrows()
+
+    def setup(self, vertices, faces):
+        self.set_vertices(vertices)
+        self.set_faces(faces)
+
+    def set_outline(self, face):
+        face = face.reshape(-1, 1) if face.ndim == 1 else face
+        sub_headers = tuple(['f{}'.format(i) for i in range(face.shape[1])])
+
+        self.outline.add_col(('outline', '', sub_headers), face)
+
+    def get_outline(self):
+        if self.outline:
+            return reduce_array_dims(self.outline.get_col('outline'))
+
     def add_property(self, name, values):
-        self.properties.add_col(name, values)
+        if values.ndim == 1 or values.shape[1] == 1:
+            self.properties.add_col(name, values.reshape(-1,))
+        elif (values.ndim == 2) and (self.times is not None):
+            assert values.shape[1] == self.times.shape[0]
+            sub_headers = tuple(['{}'.format(i) for i in self.times])
+            self.properties.add_col((name, '', sub_headers), values)
+        else:
+            raise AttributeError(
+                'Please give either 1D array or the associated times first.')
 
     def get_property(self, name):
-        return self.properties.get_col(name)
+        return reduce_array_dims(self.properties.get_col(name))
+
+    def has_property(self, name):
+        return self.properties.has_col(name)

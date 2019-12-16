@@ -301,6 +301,7 @@ def check_rect_source_discretisation(points2, nl, nw, store):
 def outline_rect_source(strike, dip, length, width, anchor):
     ln = length
     wd = width
+
     points = num.array(
         [[-0.5 * ln, -0.5 * wd, 0.],
          [0.5 * ln, -0.5 * wd, 0.],
@@ -1655,25 +1656,82 @@ class RectangularExplosionSource(ExplosionSource):
             depths=points[:, 2],
             m0s=amplitudes)
 
-    def outline(self, cs='xyz'):
-        points = outline_rect_source(self.strike, self.dip, self.length,
-                                     self.width, self.anchor)
 
-        points[:, 0] += self.north_shift
-        points[:, 1] += self.east_shift
-        points[:, 2] += self.depth
+    def xy_to_coord(self, x, y, cs='xyz'):
+        ln, wd = self.length, self.width
+        strike, dip = self.strike, self.dip
+
+        def array_check(variable):
+            if not isinstance(variable, num.ndarray):
+                return num.array(variable)
+            else:
+                return variable
+
+        x, y = array_check(x), array_check(y)
+
+        if x.shape[0] != y.shape[0]:
+            raise ValueError('Shapes of x and y mismatch')
+
+        x, y =  x * 0.5 * ln, y * 0.5 * wd
+
+        points = num.hstack((
+            x.reshape(-1, 1), y.reshape(-1, 1), num.zeros((x.shape[0], 1))))
+
+        anch_x, anch_y = map_anchor[self.anchor]
+        points[:, 0] -= anch_x * 0.5 * ln
+        points[:, 1] -= anch_y * 0.5 * wd
+
+        rotmat = num.asarray(
+            pmt.euler_to_matrix(dip * d2r, strike * d2r, 0.0))
+
+        points_rot = num.dot(rotmat.T, points.T).T
+
+        points_rot[:, 0] += self.north_shift
+        points_rot[:, 1] += self.east_shift
+        points_rot[:, 2] += self.depth
+
         if cs == 'xyz':
-            return points
+            return points_rot
         elif cs == 'xy':
-            return points[:, :2]
-        elif cs in ('latlon', 'lonlat'):
+            return points_rot[:, :2]
+        elif cs in ('latlon', 'lonlat', 'latlondepth'):
             latlon = ne_to_latlon(
-                self.lat, self.lon, points[:, 0], points[:, 1])
+                self.lat, self.lon, points_rot[:, 0], points_rot[:, 1])
             latlon = num.array(latlon).T
             if cs == 'latlon':
                 return latlon
-            else:
+            elif cs == 'lonlat':
                 return latlon[:, ::-1]
+            else:
+                return num.concatenate(
+                    (latlon, points_rot[:, 2].reshape((len(points_rot),1))),
+                    axis=1)
+
+    def outline(self, cs='xyz'):
+        x = num.array([-1., 1., 1., -1., -1.])
+        y = num.array([-1., -1., 1., 1., -1.])
+
+        return self.xy_to_coord(x, y, cs=cs)
+
+    # def outline(self, cs='xyz'):
+    #     points = outline_rect_source(self.strike, self.dip, self.length,
+    #                                  self.width, self.anchor)
+
+    #     points[:, 0] += self.north_shift
+    #     points[:, 1] += self.east_shift
+    #     points[:, 2] += self.depth
+    #     if cs == 'xyz':
+    #         return points
+    #     elif cs == 'xy':
+    #         return points[:, :2]
+    #     elif cs in ('latlon', 'lonlat'):
+    #         latlon = ne_to_latlon(
+    #             self.lat, self.lon, points[:, 0], points[:, 1])
+    #         latlon = num.array(latlon).T
+    #         if cs == 'latlon':
+    #             return latlon
+    #         else:
+                # return latlon[:, ::-1]
 
     def get_nucleation_abs_coord(self, cs='xy'):
 
@@ -2357,18 +2415,16 @@ class RectangularSource(SourceWithDerivedMagnitude):
                     (latlon, points_rot[:, 2].reshape((len(points_rot),1))),
                     axis=1)
 
-    def outline(self, **kwargs):
+    def outline(self, cs='xyz'):
         x = num.array([-1., 1., 1., -1., -1.])
         y = num.array([-1., -1., 1., 1., -1.])
 
-        return self.xy_to_coord(x, y, **kwargs)
+        return self.xy_to_coord(x, y, cs=cs)
 
     def geometry(self, *args, **kwargs):
-        geom = OldGeometry()
-        geom.set_centroid(self.pyrocko_event(**kwargs))
-        geom.set_outline(self.lat, self.lon, self.outline(cs='xyz'), **kwargs)
+        from pyrocko.model import Geometry
 
-        ds = self.discretize_basesource(*args)
+        ds = self.discretize_basesource(*args, **kwargs)
         nx, ny = ds.nl, ds.nw
 
         def patch_outlines_xy(nx, ny):
@@ -2379,22 +2435,39 @@ class RectangularSource(SourceWithDerivedMagnitude):
             return points
 
         points_ds = patch_outlines_xy(nx + 1, ny + 1)
+        npoints = (nx + 1) * (ny + 1)
 
-        vertices = self.xy_to_coord(points_ds[:, 0], points_ds[:, 1], cs='xyz')
+        vertices = num.hstack((
+            num.ones((npoints, 1)) * self.lat,
+            num.ones((npoints, 1)) * self.lon,
+            self.xy_to_coord(points_ds[:, 0], points_ds[:, 1], cs='xyz')))
 
-        faces = []
-        for iy in range(ny):
-            for ix in range(nx):
-                faces.append((
-                    iy * (nx + 1) + ix,
-                    iy * (nx + 1) + ix + 1,
-                    (iy + 1) * (nx + 1) + ix + 1,
-                    (iy + 1) * (nx + 1) + ix,
-                    iy * (nx + 1) + ix))
+        faces = num.array([[
+                iy * (nx + 1) + ix,
+                iy * (nx + 1) + ix + 1,
+                (iy + 1) * (nx + 1) + ix + 1,
+                (iy + 1) * (nx + 1) + ix,
+                iy * (nx + 1) + ix]
+            for iy in range(ny) for ix in range(nx)])
 
-        faces = num.array(faces, dtype=num.dtype(('int,int,int,int,int')))
+        face_outline = num.concatenate([
+            num.arange(nx + 1),
+            num.arange(2 * nx + 1, (ny + 1) * nx + 1, nx + 1),
+            num.arange((nx + 1) * (ny + 1) - 1, (nx + 1) * ny - 1, -1),
+            num.arange((nx + 1) * (ny - 1), 0, -(nx + 1))]).reshape(1, -1)
 
-        geom.set_patches(ds, vertices, faces, **kwargs)
+        geom = Geometry()
+        geom.setup(vertices, faces)
+        geom.set_outline(face_outline)
+
+        if self.stf:
+            geom.times = num.unique(ds.times)
+
+        if self.nucleation_x is not None and self.nucleation_y is not None:
+            geom.add_property('t_arrival', ds.times)
+
+        geom.add_property(
+            'moment', ds.moments().reshape(ds.nl*ds.nw, -1))
 
         return geom
 
