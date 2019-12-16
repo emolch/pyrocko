@@ -10,12 +10,18 @@ import logging
 from pyrocko.guts import Object, Bool, List, String, load, StringChoice, Float
 from pyrocko.geometry import arr_vertices, arr_faces
 from pyrocko.gui.qt_compat import qw, qc, fnpatch
-from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, cpt_to_vtk_lookuptable
+from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, \
+    cpt_to_vtk_lookuptable, make_multi_polyline, vtk_set_input
+
 from pyrocko.model import Geometry
 from pyrocko import automap
 from pyrocko.dataset import topo
 from .base import Element, ElementState
 from .. import common
+
+from matplotlib import pyplot as plt
+import vtk
+from numpy import concatenate
 
 
 logger = logging.getLogger('geometry')
@@ -25,9 +31,53 @@ guts_prefix = 'sparrow'
 km = 1e3
 
 
+
+class OutlinesPipe(object):
+
+    def __init__(self, geom, color):
+
+        self._polyline_grid = {}
+        self._actors = {}
+
+        lines = []
+        for outline in geom.outlines:
+            latlon = outline.get_col('latlon')
+            depth = outline.get_col('depth')
+
+            points = concatenate(
+                (latlon, depth.reshape(len(depth), 1)),
+                axis=1)
+            points = concatenate((points, points[0].reshape(1, -1)), axis=0)
+
+            lines.append(points)
+
+        for cs in ['latlondepth', 'latlon']:
+            mapper = vtk.vtkDataSetMapper()
+            if cs == 'latlondepth':
+                self._polyline_grid[cs] = make_multi_polyline(
+                    lines_latlondepth=lines)
+            elif cs == 'latlon':
+                self._polyline_grid[cs] = make_multi_polyline(
+                    lines_latlon=lines)
+
+            vtk_set_input(mapper, self._polyline_grid[cs])
+
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+
+            prop = actor.GetProperty()
+            prop.SetDiffuseColor(color)
+            prop.SetOpacity(1.)
+
+            self._actors[cs] = actor
+
+    def get_actors(self):
+        return list(self._actors.values())
+
+
 class CPTChoices(StringChoice):
 
-    choices = ['slip_colors']
+    choices = ['slip_colors', 'seismic', 'jet', 'hot_r', 'gist_earth_r']
 
 
 class GeometryState(ElementState):
@@ -51,8 +101,11 @@ class GeometryElement(Element):
         self._parent = None
         self._state = None
         self._controls = None
+
         self._pipe = []
         self._cbar_pipe = None
+        self._outlines_pipe = None
+
         self._cpt_name = None
         self._lookuptables = {}
 
@@ -73,7 +126,12 @@ class GeometryElement(Element):
         if self._cbar_pipe is not None:
             self._parent.remove_actor(self._cbar_pipe.actor)
 
+        if self._outlines_pipe is not None:
+            for actor in self._outlines_pipe.get_actors():
+                self._parent.remove_actor(actor)
+
         self._cbar_pipe = None
+        self._outlines_pipe = None
 
         self.init_pipeslots()
 
@@ -81,6 +139,12 @@ class GeometryElement(Element):
         self._parent = parent
         self._parent.add_panel(
             self.get_name(), self._get_controls(), visible=True)
+
+        update = self.update
+        self._listeners.append(update)
+        self._parent.state.add_listener(update, 'tmin')
+        self._parent.state.add_listener(update, 'tmax')
+
         self.update()
 
     def unset_parent(self):
@@ -128,10 +192,18 @@ class GeometryElement(Element):
             vmaxs = []
             for geom in state.geometries:
                 values = geom.get_property(state.display_parameter)
+                if len(values.shape) == 2:
+                    values = values.sum(1)
+
                 vmins.append(values.min())
                 vmaxs.append(values.max())
 
-            cpt = automap.read_cpt(topo.cpt(state.cpt))
+            if state.cpt == 'slip_colors':
+                cpt = automap.read_cpt(topo.cpt(state.cpt))
+            else:
+                cmap = plt.cm.get_cmap(state.cpt)
+                cpt = automap.CPT.from_numpy(cmap(range(256))[:, :-1])
+
             cpt.scale(min(vmins), min(vmaxs))
 
             vtk_cpt = cpt_to_vtk_lookuptable(cpt)
@@ -155,6 +227,14 @@ class GeometryElement(Element):
     def load_file(self, path):
 
         loaded_geometry = load(filename=path)
+        props = loaded_geometry.properties.get_col_names(sub_headers=False)
+
+        if props:
+            if self._state.display_parameter not in props:
+                self._state.display_parameter = props[0]
+        else:
+            raise ValueError(
+                'Imported geometry contains no property to be displayed!')
 
         self._parent.remove_panel(self._controls)
         self._controls = None
@@ -165,12 +245,40 @@ class GeometryElement(Element):
 
         self.update()
 
-    def get_values(self, geom, state):
-        values = geom.get_property(state.display_parameter)
+    def get_values(self, geom):
+        values = geom.get_property(self._state.display_parameter)
+
+        if geom.event is not None:
+            ref_time = geom.event.time
+        else:
+            ref_time = 0.
+
         if len(values.shape) == 2:
-            idx = geom.time2idx(state.time)
-            values = values[:, idx]
-        return values
+            tmin = self._parent.state.tmin
+            tmax = self._parent.state.tmax
+            if tmin is not None:
+                ref_tmin = tmin - ref_time
+                ref_idx_min = geom.time2idx(ref_tmin)
+            else:
+                ref_idx_min = geom.time2idx(self._state.time)
+
+            if tmax is not None:
+                ref_tmax = tmax - ref_time
+                ref_idx_max = geom.time2idx(ref_tmax)
+            else:
+                ref_idx_max = geom.time2idx(self._state.time)
+
+            if ref_idx_min == ref_idx_max:
+                out = values[:, ref_idx_min]
+            elif ref_idx_min > ref_idx_max:
+                out = values[:, ref_idx_min]
+            elif ref_idx_max < ref_idx_min:
+                out = values[:, ref_idx_max]
+            else:
+                out = values[:, ref_idx_min:ref_idx_max].sum(1)
+        else:
+            out = values.ravel()
+        return out
 
     def update(self, *args):
 
@@ -184,21 +292,34 @@ class GeometryElement(Element):
             cpt_name = self.get_cpt_name(
                 state.cpt, state.display_parameter)
             for i, geo in enumerate(state.geometries):
-                values = self.get_values(geo, state)
+                values = self.get_values(geo)
                 lut = self._lookuptables[cpt_name]
                 if not isinstance(self._pipe[i], TrimeshPipe):
                     vertices = arr_vertices(geo.vertices.get_col('xyz'))
                     faces = arr_faces(geo.faces.get_col('faces'))
                     self._pipe[i] = TrimeshPipe(
-                        vertices, faces,
-                        values=values,
-                        lut=lut)
-                    self._cbar_pipe = ColorbarPipe(lut=lut, cbar_title=state.display_parameter)
-                    self._parent.add_actor(self._pipe[i].actor)
+                            vertices, faces,
+                            values=values,
+                            lut=lut)
+                    self._cbar_pipe = ColorbarPipe(
+                        lut=lut, cbar_title=state.display_parameter)
+                    self._parent.add_actor(self._pipe.actor)
                     self._parent.add_actor(self._cbar_pipe.actor)
+
+                    if geo.outlines:
+                        self._outlines_pipe = OutlinesPipe(
+                            geo, color=(1., 1., 1.), cs='latlondepth')
+                        self._parent.add_actor(
+                            self._outlines_pipe[-1].actor)
+                        self._outlines_pipe.append(OutlinesPipe(
+                            geo, color=(0.6, 0.6, 0.6), cs='latlon'))
+                        self._parent.add_actor(
+                            self._outlines_pipe[-1].actor)
+
                 else:
                     self._pipe[i].set_values(values)
                     self._pipe[i].set_lookuptable(lut)
+                    self._pipe.set_opacity(self._state.opacity)
 
                     self._cbar_pipe.set_lookuptable(lut)
                     self._cbar_pipe.set_title(state.display_parameter)
