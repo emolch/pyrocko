@@ -7,51 +7,44 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as num
 
-from pyrocko import table, geometry, cake
 from pyrocko.guts import Bool, Float
 from pyrocko.gui.qt_compat import qw, qc
 
 from pyrocko.dataset.active_faults import ActiveFaults
-from pyrocko.gui.vtk_util import ScatterPipe
 from pyrocko.gui import vtk_util
+from pyrocko import plot
 import vtk
-from matplotlib.pyplot import cm
 
 from .base import Element, ElementState
 
 guts_prefix = 'sparrow'
 
 km = 1e3
-COLOR_FAULTS_NORMAL = (0.5, 0.3, .22)
-COLOR_FAULTS_REVERSE = (0.9, 0.3, .92)
-COLOR_FAULTS = (0.1, 0.0, .0)
-COLOR_FAULTS_SS = (0.3, 0.0, .62)
 
 
-def faults_to_color_slip_type(faults):
-    colors = []
-    for f in faults.active_faults:
-        num_nodes = len(f.lat)
-        if f.slip_type == "Reverse":
-            for i in range(0, num_nodes):
-                colors.append(COLOR_FAULTS_REVERSE)
-        elif f.slip_type == "Normal":
-            for i in range(0, num_nodes):
-                colors.append(COLOR_FAULTS_NORMAL)
-        elif f.slip_type == "Unkown":
-            for i in range(0, num_nodes):
-                colors.append(COLOR_FAULTS)
-        else:
-            for i in range(0, num_nodes):
-                colors.append(COLOR_FAULTS_SS)
-    return num.array(colors)
+def color(x):
+    return num.array(plot.to01(plot.color(x)), dtype=num.float)
 
 
-def faults_to_color(faults):
-    colors = []
-    for f in faults.active_faults:
-        colors.append(COLOR_FAULTS)
-    return num.array(colors)
+fault_color_themes = {
+    'light': {
+        'Normal': color('skyblue1'),
+        'Reverse': color('scarletred1'),
+        'SS': color('chameleon1'),
+        'Sinistral': color('plum1'),
+        'Dextral': color('plum1'),
+        None: color('chocolate1')},
+    'dark': {
+        'Normal': color('skyblue3'),
+        'Reverse': color('scarletred3'),
+        'SS': color('chameleon3'),
+        'Sinistral': color('plum3'),
+        'Dextral': color('plum3'),
+        None: color('chocolate3')},
+    'uniform_light': {
+        None: color('chocolate1')},
+    'uniform_dark': {
+        None: color('chocolate3')}}
 
 
 class ActiveFaultsState(ElementState):
@@ -66,41 +59,60 @@ class ActiveFaultsState(ElementState):
 
 
 class FaultlinesPipe(object):
-    def __init__(self, fault=None):
+    def __init__(self, faults):
 
-        self.mapper = vtk.vtkDataSetMapper()
-        self._polyline_grid = {}
         self._opacity = 1.0
-        self.fault = fault
+        self._faults = faults
 
-        actor = vtk.vtkActor()
-        actor.SetMapper(self.mapper)
+        slip_types = sorted(set(f.slip_type for f in faults.active_faults))
+        self._slip_types = slip_types
 
-        prop = actor.GetProperty()
-        prop.SetDiffuseColor(1, 1, 1)
+        self._actors = {}
+        for slip_type in slip_types:
+            mapper = vtk.vtkDataSetMapper()
 
-        self.prop = prop
-        self.actor = actor
+            lines = [
+                f.get_surface_line()
+                for f in faults.active_faults
+                if f.slip_type == slip_type]
 
-    def fault_to_lines(self, f):
-        lines = []
-        poly = []
-        num_nodes = len(f.lat)
-        for i in range(0, num_nodes):
-            pp = (f.lat[i], f.lon[i], f.upper_seis_depth)
-            poly.append(pp)
-        lines.append(num.asarray(poly))
+            grid = vtk_util.make_multi_polyline(
+                lines_latlon=lines, depth=-100.)
 
-        self._polyline_grid[0] = vtk_util.make_multi_polyline(
-            lines_latlon=lines, depth=-100.)
+            vtk_util.vtk_set_input(mapper, grid)
 
-        vtk_util.vtk_set_input(self.mapper, self._polyline_grid[0])
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+
+            self._actors[slip_type] = actor
+
+        self._theme = ''
+        self.set_color_theme('uniform_light')
+
+    def set_color_theme(self, theme):
+
+        if self._theme != theme:
+
+            colors = fault_color_themes[theme]
+            default_color = colors[None]
+
+            for slip_type in self._slip_types:
+                actor = self._actors[slip_type]
+                prop = actor.GetProperty()
+                prop.SetDiffuseColor(*colors.get(slip_type, default_color))
+
+            self._theme = theme
 
     def set_opacity(self, opacity):
         opacity = float(opacity)
         if self._opacity != opacity:
-            self.prop.SetOpacity(opacity)
+            for actor in self._actors.values():
+                actor.getProperty().SetOpacity(opacity)
+
             self._opacity = opacity
+
+    def get_actors(self):
+        return [self._actors[slip_type] for slip_type in self._slip_types]
 
 
 class ActiveFaultsElement(Element):
@@ -113,7 +125,6 @@ class ActiveFaultsElement(Element):
         self._controls = None
         self._active_faults = None
         self._listeners = []
-        self._fault_lines = []
 
     def bind_state(self, state):
         self._listeners.append(
@@ -140,21 +151,21 @@ class ActiveFaultsElement(Element):
 
         state = self._state
         if state.visible:
-            if state.color_by_slip_type is True:
-                colors = faults_to_color_slip_type(self._active_faults)
-            else:
-                colors = faults_to_color(self._active_faults)
-            for i, fault in enumerate(self._active_faults.active_faults):
-                self._fault_line = FaultlinesPipe(fault=fault)
-                self._fault_line.fault_to_lines(fault)
-                self._parent.add_actor(self._fault_line.actor)
-                prop = self._fault_line.actor.GetProperty()
-                prop.SetDiffuseColor(colors[i][0:3])
-                self._fault_lines.append(self._fault_line)
+            if not self._pipe:
+                self._pipe = FaultlinesPipe(self._active_faults)
 
-        if not state.visible and self._fault_lines:
-                for i, fault in enumerate(self._fault_lines):
-                    self._parent.remove_actor(fault.actor)
+        if state.color_by_slip_type:
+            self._pipe.set_color_theme('light')
+        else:
+            self._pipe.set_color_theme('uniform_light')
+
+        if state.visible:
+            for actor in self._pipe.get_actors():
+                self._parent.add_actor(actor)
+
+        else:
+            for actor in self._pipe.get_actors():
+                self._parent.remove_actor(actor)
 
         self._parent.update_view()
 
