@@ -128,13 +128,14 @@ class MyDockWidget(qw.QDockWidget):
 
 
 class Viewer(qw.QMainWindow):
-    def __init__(self):
+    def __init__(self, use_depth_peeling=True):
         qw.QMainWindow.__init__(self)
 
         self._panel_togglers = {}
         self._actors = set()
         self._actors_2d = set()
         self._render_window_size = (0, 0)
+        self._use_depth_peeling = use_depth_peeling
 
         mbar = self.menuBar()
         menu = mbar.addMenu('File')
@@ -231,8 +232,7 @@ class Viewer(qw.QMainWindow):
 
         renwin = self.vtk_widget.GetRenderWindow()
 
-        use_depth_peeling = True
-        if use_depth_peeling:
+        if self._use_depth_peeling:
             renwin.SetAlphaBitPlanes(1)
             renwin.SetMultiSamples(0)
 

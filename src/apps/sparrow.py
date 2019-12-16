@@ -11,7 +11,8 @@ import pyrocko
 
 def main():
     try:
-        pyrocko.sparrow()
+        from pyrocko.gui.sparrow import cli
+        cli.main()
 
     except pyrocko.DependencyMissingVTK as e:
         message = str(e)
