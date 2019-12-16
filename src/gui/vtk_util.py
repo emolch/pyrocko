@@ -358,9 +358,9 @@ class PolygonPipe(object):
 
             self.set_values(values)
 
-        nfaces = faces.shape[0]
-        self._colors = num.ones((nfaces, 4))
-        self._update_colors()
+        # nfaces = faces.shape[0]
+        # self._colors = num.ones((nfaces, 4))
+        # self._update_colors()
 
         if kwargs:
             colorbar_actor = self.get_colorbar_actor(**kwargs)

@@ -961,6 +961,7 @@ class DiscretizedSource(Object):
 
         cat = num.concatenate
         times = cat([s.times for s in sources])
+        print(times)
         depths = cat([s.depths for s in sources])
 
         if same_ref:
