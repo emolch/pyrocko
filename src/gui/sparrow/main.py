@@ -263,14 +263,8 @@ class Viewer(qw.QMainWindow):
         iren.AddObserver('RightButtonPressEvent', self.button_event)
         iren.AddObserver('RightButtonReleaseEvent', self.button_event)
         iren.AddObserver('MouseMoveEvent', self.mouse_move_event)
-        iren.AddObserver('KeyPressEvent', self.key_press_event)
-        iren.AddObserver(
-            'MouseWheelForwardEvent',
-            self.mouse_wheel_event_forward)
-        iren.AddObserver(
-            'MouseWheelBackwardEvent',
-            self.mouse_wheel_event_backward)
-
+        iren.AddObserver('KeyPressEvent', self.key_down_event)
+        iren.AddObserver('KeyReleaseEvent', self.key_up_event)
         iren.AddObserver('ModifiedEvent', self.check_resize)
 
         renwin.Render()
@@ -283,8 +277,6 @@ class Viewer(qw.QMainWindow):
         self.iren = iren
 
         self.rotating = False
-        self.zooming = False
-        self.reset_strike_dip()
 
         self._elements = {}
 
@@ -341,7 +333,7 @@ class Viewer(qw.QMainWindow):
         self._animation_timer.start()
         if output_path is not None:
             self.vtk_widget.setFixedSize(qc.QSize(1920, 1080))
-            #self.vtk_widget.setFixedSize(qc.QSize(960, 540))
+            # self.vtk_widget.setFixedSize(qc.QSize(960, 540))
 
             wif = vtk.vtkWindowToImageFilter()
             wif.SetInput(self.renwin)
@@ -523,10 +515,6 @@ class Viewer(qw.QMainWindow):
             self.rotating = True
         elif event == "LeftButtonReleaseEvent":
             self.rotating = False
-        elif event == "RightButtonPressEvent":
-            self.zooming = True
-        elif event == "RightButtonReleaseEvent":
-            self.zooming = False
 
     def mouse_move_event(self, obj, event):
         x0, y0 = self.iren.GetLastEventPosition()
@@ -538,18 +526,34 @@ class Viewer(qw.QMainWindow):
 
         if self.rotating:
             self.do_rotate(x, y, x0, y0, center_x, center_y)
-        # elif self.zooming:
-        #     self.do_dolly(x, y, x0, y0, center_x, center_y)
 
-    def mouse_wheel_event_forward(self, obj, event):
-        self.do_dolly(-1.0)
+    def wheelEvent(self, event):
 
-    def mouse_wheel_event_backward(self, obj, event):
-        self.do_dolly(1.0)
+        if use_pyqt5:
+            angle = event.angleDelta().y()
+        else:
+            angle = event.delta()
+
+        if angle > 200:
+            angle = 200
+
+        if angle < -200:
+            angle = -200
+
+        self.do_dolly(-angle/100.)
 
     def do_rotate(self, x, y, x0, y0, center_x, center_y):
 
-        if self.state.focal_point == 'center':
+        dx = x0 - x
+        dy = y0 - y
+
+        phi = d2r*(self.state.strike - 90.)
+        focp = self.gui_state.focal_point
+
+        if focp == 'center':
+            dx, dy = math.cos(phi) * dx + math.sin(phi) * dy, \
+                - math.sin(phi) * dx + math.cos(phi) * dy
+
             lat = self.state.lat
             lon = self.state.lon
             factor = self.state.distance / 10.0
@@ -560,11 +564,14 @@ class Viewer(qw.QMainWindow):
             factor = 0.5
             factor_lat = 1.0
 
-        lat = max(min(lat + (y0 - y) * factor, 90.), -90.)
-        lon += (x0 - x) * factor * factor_lat
+        dlat = dy * factor
+        dlon = dx * factor * factor_lat
+
+        lat = max(min(lat + dlat, 90.), -90.)
+        lon += dlon
         lon = (lon + 180.) % 360. - 180.
 
-        if self. state.focal_point == 'center':
+        if focp == 'center':
             self.state.lat = float(lat)
             self.state.lon = float(lon)
         else:
@@ -574,19 +581,52 @@ class Viewer(qw.QMainWindow):
     def do_dolly(self, v):
         self.state.distance *= float(1.0 + 0.1*v)
 
-    def key_press_event(self, obj, event):
+    def key_down_event(self, obj, event):
         k = obj.GetKeyCode()
-        if k == 'f':
-            self.state.next_focal_point()
+        s = obj.GetKeySym()
+        if k == 'f' or s == 'Control_L':
+            self.gui_state.next_focal_point()
+
+        elif k == 'r':
+            self.reset_strike_dip()
 
         elif k == 'p':
             print(self.state)
 
+        elif k == 'i':
+            for elem in self.state.elements:
+                if isinstance(elem, elements.IcosphereState):
+                    elem.visible = not elem.visible
+
+        elif k == 'c':
+            for elem in self.state.elements:
+                if isinstance(elem, elements.CoastlinesState):
+                    elem.visible = not elem.visible
+
+        elif k == 't':
+            if not any(
+                    isinstance(elem, elements.TopoState)
+                    for elem in self.state.elements):
+
+                self.state.elements.append(elements.TopoState())
+            else:
+                for elem in self.state.elements:
+                    if isinstance(elem, elements.TopoState):
+                        elem.visible = not elem.visible
+
         elif k == ' ':
             self.toggle_panel_visibility()
 
+    def key_up_event(self, obj, event):
+        s = obj.GetKeySym()
+        if s == 'Control_L':
+            self.gui_state.next_focal_point()
+
     def _state_bind(self, *args, **kwargs):
         vstate.state_bind(self, self.state, *args, **kwargs)
+
+    def _gui_state_bind(self, *args, **kwargs):
+        vstate.state_bind(self, self.gui_state, *args, **kwargs)
 
     def controls(self):
         frame = qw.QFrame(self)
@@ -663,33 +703,33 @@ class Viewer(qw.QMainWindow):
 
         def focal_point_to_checkbox(state, widget):
             widget.blockSignals(True)
-            widget.setChecked(self.state.focal_point != 'center')
+            widget.setChecked(self.gui_state.focal_point != 'center')
             widget.blockSignals(False)
 
         def checkbox_to_focal_point(widget, state):
-            self.state.focal_point = \
+            self.gui_state.focal_point = \
                 'target' if widget.isChecked() else 'center'
 
-        self._state_bind(
+        self._gui_state_bind(
             ['focal_point'], checkbox_to_focal_point,
             cb, [cb.toggled], focal_point_to_checkbox)
 
         self.focal_point_checkbox = cb
 
+        but = qw.QPushButton('Reset')
+        but.clicked.connect(self.reset_strike_dip)
+        layout.addWidget(but, 2, 1)
+
         update_camera = self.update_camera        # this assignment is
-        reset_strike_dip = self.reset_strike_dip  # necessary!
         update_render_settings = self.update_render_settings
 
         self.register_state_listener(update_camera)
-        self.register_state_listener(reset_strike_dip)
 
         self.state.add_listener(update_camera, 'lat')
         self.state.add_listener(update_camera, 'lon')
         self.state.add_listener(update_camera, 'strike')
         self.state.add_listener(update_camera, 'dip')
         self.state.add_listener(update_camera, 'distance')
-        self.state.add_listener(update_camera, 'focal_point')
-        self.state.add_listener(reset_strike_dip, 'focal_point')
 
         update_panel_visibility = self.update_panel_visibility
         self.register_state_listener(update_panel_visibility)
@@ -771,13 +811,7 @@ class Viewer(qw.QMainWindow):
     def reset_strike_dip(self, *args):
         self.state.strike = 90.
         self.state.dip = 0
-        if self.state.focal_point == 'center':
-            self.strike_dip_lineedit.setDisabled(True)
-            self.strike_dip_lineedit.deselect()
-        else:
-            self.strike_dip_lineedit.setDisabled(False)
-            self.strike_dip_lineedit.setFocus(qc.Qt.OtherFocusReason)
-            self.strike_dip_lineedit.selectAll()
+        self.gui_state.focal_point = 'center'
 
     def register_state_listener(self, listener):
         self.listeners.append(listener)  # keep listeners alive
@@ -795,30 +829,26 @@ class Viewer(qw.QMainWindow):
         cam, up, foc = \
             rtp2xyz(cam_rtp), rtp2xyz(up_rtp), num.array([0., 0., 0.])
 
-        if self.state.focal_point == 'center':
-            return cam, up, foc
+        foc_rtp = num.array([
+            1.0,
+            self.state.lat * d2r + 0.5*num.pi,
+            self.state.lon * d2r])
 
-        elif self.state.focal_point == 'target':
-            foc_rtp = num.array([
-                1.0,
-                self.state.lat * d2r + 0.5*num.pi,
-                self.state.lon * d2r])
+        foc = rtp2xyz(foc_rtp)
 
-            foc = rtp2xyz(foc_rtp)
+        rot_world = pmt.euler_to_matrix(
+            -(self.state.lat-90.)*d2r,
+            (self.state.lon+90.)*d2r,
+            0.0*d2r).A.T
 
-            rot_world = pmt.euler_to_matrix(
-                -(self.state.lat-90.)*d2r,
-                (self.state.lon+90.)*d2r,
-                0.0*d2r).A.T
+        rot_cam = pmt.euler_to_matrix(
+            self.state.dip*d2r, -(self.state.strike-90)*d2r, 0.0*d2r).A.T
 
-            rot_cam = pmt.euler_to_matrix(
-                self.state.dip*d2r, -(self.state.strike-90)*d2r, 0.0*d2r).A.T
+        rot = num.dot(rot_world, num.dot(rot_cam, rot_world.T))
 
-            rot = num.dot(rot_world, num.dot(rot_cam, rot_world.T))
-
-            cam = foc + num.dot(rot, cam - foc)
-            up = num.dot(rot, up)
-            return cam, up, foc
+        cam = foc + num.dot(rot, cam - foc)
+        up = num.dot(rot, up)
+        return cam, up, foc
 
     def update_camera(self, *args):
         cam, up, foc = self.get_camera_geometry()

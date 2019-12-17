@@ -36,10 +36,15 @@ class LightingChoice(StringChoice):
 class ViewerGuiState(talkie.TalkieRoot):
     panels_visible = Bool.T(default=True)
     size = Tuple.T(2, Float.T(), default=(100., 100.))
+    focal_point = FocalPointChoice.T(default='center')
+
+    def next_focal_point(self):
+        choices = FocalPointChoice.choices
+        ii = choices.index(self.focal_point)
+        self.focal_point = choices[(ii+1) % len(choices)]
 
 
 class ViewerState(talkie.TalkieRoot):
-    focal_point = FocalPointChoice.T(default='center')
     lat = Float.T(default=0.0)
     lon = Float.T(default=0.0)
     depth = Float.T(default=0.0)
@@ -50,11 +55,6 @@ class ViewerState(talkie.TalkieRoot):
     tmin = Timestamp.T(optional=True)
     tmax = Timestamp.T(optional=True)
     lighting = LightingChoice.T(default=LightingChoice.choices[0])
-
-    def next_focal_point(self):
-        choices = FocalPointChoice.choices
-        ii = choices.index(self.focal_point)
-        self.focal_point = choices[(ii+1) % len(choices)]
 
 
 def state_bind(
