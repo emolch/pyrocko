@@ -27,7 +27,9 @@ guts_prefix = 'sparrow'
 
 class TopoMeshPipe(TrimeshPipe):
 
-    def __init__(self, tile, cells_cache=None, mask_ocean=False, **kwargs):
+    def __init__(
+            self, tile, cells_cache=None,
+            mask_ocean=False, mask_land=False, **kwargs):
 
         vertices, faces = geometry.topo_to_mesh(
             tile.y(), tile.x(), tile.data,
@@ -42,6 +44,10 @@ class TopoMeshPipe(TrimeshPipe):
         altitudes = (geometry.vnorm(centers) - 1.0) * cake.earthradius
         if mask_ocean:
             mask = num.all(tile.data.flatten()[faces] == 0, axis=1)
+            altitudes[mask] = None
+
+        if mask_land:
+            mask = num.all(tile.data.flatten()[faces] >= 0, axis=1)
             altitudes[mask] = None
 
         if cells_cache is not None:
@@ -75,6 +81,9 @@ class TopoState(ElementState):
     smooth = Bool.T(default=False)
     cpt = TopoCPTChoice.T(default='light')
     shading = vstate.ShadingChoice.T(default='phong')
+    resolution_max_factor = Float.T(default=1.0)
+    resolution_min_factor = Float.T(default=1.0)
+    coverage_factor = Float.T(default=1.0)
 
     def create(self):
         element = TopoElement()
@@ -112,6 +121,9 @@ class TopoElement(Element):
         state.add_listener(upd, 'smooth')
         state.add_listener(upd, 'shading')
         state.add_listener(upd, 'cpt')
+        state.add_listener(upd, 'resolution_min_factor')
+        state.add_listener(upd, 'resolution_max_factor')
+        state.add_listener(upd, 'coverage_factor')
         self._state = state
 
     def unbind_state(self):
@@ -151,19 +163,23 @@ class TopoElement(Element):
         if not self._parent:
             return [], []
 
-        if delta > 20.:
-            return ['ETOPO1_D8'], ['ETOPO1_D8']
-
         _, size_y = self._parent.renwin.GetSize()
 
-        dmin = 2.0 * delta * 1.0 / float(size_y)  # [deg]
-        dmax = 2.0 * delta * 20.0 / float(size_y)
+        dmin = 2.0 * delta * 1.0 / float(size_y) \
+            / self._state.resolution_max_factor  # [deg]
+        dmax = 2.0 * delta * 20.0 \
+            * self._state.resolution_min_factor / float(size_y)
 
-        return [
+        result = [
             topo.select_dem_names(
                 k, dmin, dmax, topo.positive_region(region), mode='highest')
 
             for k in ['ocean', 'land']]
+
+        if not any(result) and delta > 20.:
+            return ['ETOPO1_D8'], ['ETOPO1_D8']
+        else:
+            return result
 
     def update_cpt(self, cpt_name):
         if cpt_name not in self._lookuptables:
@@ -194,7 +210,7 @@ class TopoElement(Element):
 
         step = max(1./8., min(2**round(math.log(delta) / math.log(2.)), 10.))
         lat_min, lat_max, lon_min, lon_max, lon_closed = common.cover_region(
-            pstate.lat, pstate.lon, delta*1.0, step)
+            pstate.lat, pstate.lon, delta*self._state.coverage_factor, step)
 
         if lon_closed:
             lon_max = 180.
@@ -216,7 +232,11 @@ class TopoElement(Element):
                         (lon, lon+step, lat, lat+step))
 
                     for demname in dems_land[:1] + dems_ocean[:1]:
-                        k = (step, demname, region)
+                        mask_ocean = demname.startswith('SRTM')
+                        mask_land = demname.startswith('ETOPO') \
+                            and (dems_land and dems_land[0] != demname)
+
+                        k = (step, demname, region, mask_ocean, mask_land)
                         if k not in self._meshes:
                             tile = topo.get(demname, region)
                             if not tile:
@@ -225,11 +245,16 @@ class TopoElement(Element):
                             self._meshes[k] = TopoMeshPipe(
                                 tile,
                                 cells_cache=self._cells,
-                                mask_ocean=demname.startswith('SRTM'),
+                                mask_ocean=mask_ocean,
+                                mask_land=mask_land,
                                 smooth=self._state.smooth,
                                 lut=self._lookuptables[self._state.cpt])
 
                         wanted.add(k)
+
+                        # prevent adding both, SRTM and ETOPO because
+                        # vtk produces artifacts when showing the two masked
+                        # meshes (like this, mask_land is never used):
                         break
 
         unwanted = set()
@@ -254,8 +279,6 @@ class TopoElement(Element):
             self._active_meshes[k].set_lookuptable(
                 self._lookuptables[self._state.cpt])
 
-        # print(len(self._meshes), len(self._active_meshes))
-
         self._parent.update_view()
 
     def _get_controls(self):
@@ -268,9 +291,11 @@ class TopoElement(Element):
             layout = qw.QGridLayout()
             frame.setLayout(layout)
 
+            iy = 0
+
             # exaggeration
 
-            layout.addWidget(qw.QLabel('Exaggeration'), 0, 0)
+            layout.addWidget(qw.QLabel('Exaggeration'), iy, 0)
 
             slider = qw.QSlider(qc.Qt.Horizontal)
             slider.setSizePolicy(
@@ -278,13 +303,15 @@ class TopoElement(Element):
                     qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
             slider.setMinimum(0)
             slider.setMaximum(2000)
-            layout.addWidget(slider, 0, 1)
+            layout.addWidget(slider, iy, 1)
 
             state_bind_slider(self, state, 'exaggeration', slider, factor=0.01)
 
+            iy += 1
+
             # opacity
 
-            layout.addWidget(qw.QLabel('Opacity'), 1, 0)
+            layout.addWidget(qw.QLabel('Opacity'), iy, 0)
 
             slider = qw.QSlider(qc.Qt.Horizontal)
             slider.setSizePolicy(
@@ -292,33 +319,91 @@ class TopoElement(Element):
                     qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
             slider.setMinimum(0)
             slider.setMaximum(1000)
-            layout.addWidget(slider, 1, 1)
+            layout.addWidget(slider, iy, 1)
 
             state_bind_slider(self, state, 'opacity', slider, factor=0.001)
 
-            cb = qw.QCheckBox('Show')
-            layout.addWidget(cb, 2, 0)
-            state_bind_checkbox(self, state, 'visible', cb)
+            iy += 1
+
+            # high resolution
+
+            layout.addWidget(qw.QLabel('High-Res Factor'), iy, 0)
+
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            slider.setMinimum(500)
+            slider.setMaximum(4000)
+            layout.addWidget(slider, iy, 1)
+
+            state_bind_slider(
+                self, state, 'resolution_max_factor', slider, factor=0.001)
+
+            iy += 1
+
+            # low resolution
+
+            layout.addWidget(qw.QLabel('Low-Res Factor'), iy, 0)
+
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            slider.setMinimum(500)
+            slider.setMaximum(4000)
+            layout.addWidget(slider, iy, 1)
+
+            state_bind_slider(
+                self, state, 'resolution_min_factor', slider, factor=0.001)
+
+            iy += 1
+
+            # low resolution
+
+            layout.addWidget(qw.QLabel('Coverage Factor'), iy, 0)
+
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            slider.setMinimum(500)
+            slider.setMaximum(4000)
+            layout.addWidget(slider, iy, 1)
+
+            state_bind_slider(
+                self, state, 'coverage_factor', slider, factor=0.001)
+
+            iy += 1
+
+            cb = common.string_choices_to_combobox(TopoCPTChoice)
+            layout.addWidget(qw.QLabel('CPT'), iy, 0)
+            layout.addWidget(cb, iy, 1)
+            state_bind_combobox(self, state, 'cpt', cb)
+
+            iy += 1
 
             cb = qw.QCheckBox('Smooth')
-            layout.addWidget(cb, 2, 1)
+            layout.addWidget(cb, iy, 0)
             state_bind_checkbox(self, state, 'smooth', cb)
 
             cb = common.string_choices_to_combobox(vstate.ShadingChoice)
-            layout.addWidget(qw.QLabel('Shading'), 3, 0)
-            layout.addWidget(cb, 3, 1)
+            layout.addWidget(cb, iy, 1)
             state_bind_combobox(self, state, 'shading', cb)
 
-            cb = common.string_choices_to_combobox(TopoCPTChoice)
-            layout.addWidget(qw.QLabel('CPT'), 3, 0)
-            layout.addWidget(cb, 4, 1)
-            state_bind_combobox(self, state, 'cpt', cb)
+            iy += 1
+
+            cb = qw.QCheckBox('Show')
+            layout.addWidget(cb, iy, 0)
+            state_bind_checkbox(self, state, 'visible', cb)
 
             pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 5, 1)
+            layout.addWidget(pb, iy, 1)
             pb.clicked.connect(self.remove)
 
-            layout.addWidget(qw.QFrame(), 6, 0, 1, 2)
+            iy += 1
+
+            layout.addWidget(qw.QFrame(), iy, 0, 1, 2)
 
         self._controls = frame
 
