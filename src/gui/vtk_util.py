@@ -82,9 +82,10 @@ def make_multi_polyline(
     vpoints.SetNumberOfPoints(points.shape[0])
     vpoints.SetData(numpy_to_vtk(points))
 
-    polyline_grid = vtk.vtkUnstructuredGrid()
-    polyline_grid.Allocate(len(lines), len(lines))
-    polyline_grid.SetPoints(vpoints)
+    poly_data = vtk.vtkPolyData()
+    poly_data.Allocate(len(lines), len(lines))
+    poly_data.SetPoints(vpoints)
+
     ioff = 0
     celltype = vtk.vtkPolyLine().GetCellType()
     for iline, line in enumerate(lines):
@@ -93,12 +94,12 @@ def make_multi_polyline(
         # pids.SetArray(
         #     int(arr.GetPointer(0).split('_')[1], base=16), line.shape[0])
 
-        polyline_grid.InsertNextCell(
+        poly_data.InsertNextCell(
             celltype, line.shape[0], range(ioff, ioff+line.shape[0]))
 
         ioff += line.shape[0]
 
-    return polyline_grid
+    return poly_data
 
 
 class ScatterPipe(object):
