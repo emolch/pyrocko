@@ -95,6 +95,14 @@ class NoLocationChoices(Exception):
         return 'No location choices for string "%s"' % self._string
 
 
+class QVTKWidget(QVTKRenderWindowInteractor):
+    def __init__(self, parent, *args):
+        QVTKRenderWindowInteractor.__init__(self, *args)
+        self._parent = parent
+
+    def wheelEvent(self, event):
+        self._parent.myWheelEvent(event)
+
 class MyDockWidget(qw.QDockWidget):
 
     def __init__(self, *args, **kwargs):
@@ -194,7 +202,8 @@ class Viewer(qw.QMainWindow):
         vl2.setContentsMargins(0, 0, 0, 0)
         frame2.setLayout(vl2)
 
-        self.vtk_widget = QVTKRenderWindowInteractor(frame2)
+        # self.vtk_widget = QVTKRenderWindowInteractor(frame2)
+        self.vtk_widget = QVTKWidget(self, frame2)
 
         vl2.addWidget(self.vtk_widget)
         self.vl.addWidget(frame2)
@@ -527,7 +536,7 @@ class Viewer(qw.QMainWindow):
         if self.rotating:
             self.do_rotate(x, y, x0, y0, center_x, center_y)
 
-    def wheelEvent(self, event):
+    def myWheelEvent(self, event):
 
         if use_pyqt5:
             angle = event.angleDelta().y()
