@@ -6,15 +6,16 @@
 from __future__ import absolute_import, print_function, division
 
 # import copy
+import logging
 import operator
 import calendar
 import numpy as num
 
 from pyrocko.guts import \
-    Object, StringChoice, String, List
+    Object, StringChoice, String, List, Float
 
 from pyrocko import table, model  # , automap
-from pyrocko.client import fdsn
+from pyrocko.client import fdsn, catalog
 from pyrocko.gui.qt_compat import qw, fnpatch
 # from pyrocko.himesh import HiMesh
 
@@ -23,6 +24,8 @@ from pyrocko.gui.qt_compat import qw, fnpatch
 from .. import common
 
 from .table import TableElement, TableState
+
+logger = logging.getLogger('pyrocko.gui.sparrow.elements.catalog')
 
 guts_prefix = 'sparrow'
 
@@ -191,6 +194,65 @@ class FileCatalogSelection(CatalogSelection):
         return events_to_table(events)
 
 
+g_catalogs = {
+    'Geofon': catalog.Geofon(),
+    'USGS/NEIC US': catalog.USGS('us'),
+    'Global-CMT': catalog.GlobalCMT(),
+    'Saxony (Uni-Leipzig)': catalog.Saxony(),
+    }
+
+g_fdsn_has_events = ['ISC', 'SCEDC', 'NCEDC', 'IRIS', 'GEONET']
+
+g_sites = sorted(g_catalogs.keys())
+g_sites.extend(g_fdsn_has_events)
+
+
+class OnlineCatalogSelection(CatalogSelection):
+    site = String.T()
+    tmin = Float.T()
+    tmax = Float.T()
+    magnitude_min = Float.T(optional=True)
+
+    def get_table(self):
+        logger.info('Getting events from "%s" catalog.' % self.site)
+
+        cat = g_catalogs.get(self.site, None)
+        try:
+            if cat:
+                kwargs = {}
+                if self.magnitude_min is not None:
+                    kwargs['magmin'] = self.magnitude_min
+
+                events = cat.get_events(
+                    time_range=(self.tmin, self.tmax), **kwargs)
+
+            else:
+                kwargs = {}
+                if self.magnitude_min is not None:
+                    kwargs['minmagnitude'] = self.magnitude_min
+
+                request = fdsn.event(
+                    starttime=self.tmin,
+                    endtime=self.tmax,
+                    site=self.site, **kwargs)
+
+                from pyrocko.io import quakeml
+                qml = quakeml.QuakeML.load_xml(request)
+                events = qml.get_pyrocko_events()
+
+            logger.info('Got %i event%s from "%s" catalog.' % (
+                len(events), '' if len(events) == 1 else 's', self.site))
+
+        except Exception as e:
+            logger.error(
+                'Getting events from "%s" catalog failed: %s' % (
+                    self.site, str(e)))
+
+            events = []
+
+        return events_to_table(events)
+
+
 class CatalogState(TableState):
     selection = CatalogSelection.T(optional=True)
 
@@ -272,6 +334,40 @@ class CatalogElement(TableElement):
         self._state.selection = FileCatalogSelection(
             paths=[str(fn) for fn in fns])
 
+    def open_catalog_load_dialog(self):
+        dialog = qw.QDialog(self._parent)
+        dialog.setWindowTitle('Get events from online catalog.')
+
+        layout = qw.QHBoxLayout(dialog)
+
+        layout.addWidget(qw.QLabel('Site'))
+
+        cb = qw.QComboBox()
+        for i, s in enumerate(g_sites):
+            cb.insertItem(i, s)
+
+        layout.addWidget(cb)
+
+        pb = qw.QPushButton('Cancel')
+        pb.clicked.connect(dialog.reject)
+        layout.addWidget(pb)
+
+        pb = qw.QPushButton('Ok')
+        pb.clicked.connect(dialog.accept)
+        layout.addWidget(pb)
+
+        dialog.exec_()
+
+        site = str(cb.currentText())
+
+        vstate = self._parent.state
+
+        if dialog.result() == qw.QDialog.Accepted:
+            self._state.selection = OnlineCatalogSelection(
+                site=site,
+                tmin=vstate.tmin,
+                tmax=vstate.tmax)
+
     def _get_table_widgets_start(self):
         return 1  # used as y arg in addWidget calls
 
@@ -287,6 +383,13 @@ class CatalogElement(TableElement):
             layout.addWidget(pb_file, 0, 1)
 
             pb_file.clicked.connect(self.open_file_dialog)
+
+            pb_file = qw.QPushButton('Online Catalog')
+
+            layout.addWidget(lab, 0, 0)
+            layout.addWidget(pb_file, 0, 2)
+
+            pb_file.clicked.connect(self.open_catalog_load_dialog)
 
         return self._controls
 
