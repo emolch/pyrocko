@@ -133,8 +133,27 @@ def oa_to_array(objects, attribute):
         len(objects))
 
 
-def events_to_table(events):
+def eventtags_to_array(events, tag_ind):
 
+    if events[0].tags[tag_ind].find(':') > -1:
+        header = '_'.join(['tag', events[0].tags[tag_ind].split(':')[0]])
+        value_ind = 1
+    else:
+        header = 'tag_%i' % (tag_ind + 1)
+        value_ind = 0
+
+    try:
+        float(events[0].tags[tag_ind].split(':')[value_ind])
+        dtype = num.float
+    except ValueError:
+        dtype = num.string_
+
+    return header, num.array(
+        [ev.tags[tag_ind].split(':')[value_ind] for ev in events],
+        dtype=dtype)
+
+
+def events_to_table(events):
     c5 = num.zeros((len(events), 5))
 
     for i, ev in enumerate(events):
@@ -152,6 +171,11 @@ def events_to_table(events):
             ('magnitude', None)]:
 
         tab.add_col(table.Header(k, unit), oa_to_array(events, k))
+
+    if events:
+        for i in range(len(events[0].tags)):
+            header, values = eventtags_to_array(events, i)
+            tab.add_col(table.Header(header), values)
 
     return tab
 
@@ -200,8 +224,8 @@ g_catalogs = {
     'Geofon': catalog.Geofon(),
     'USGS/NEIC US': catalog.USGS('us'),
     'Global-CMT': catalog.GlobalCMT(),
-    'Saxony (Uni-Leipzig)': catalog.Saxony(),
-    }
+    'Saxony (Uni-Leipzig)': catalog.Saxony()
+}
 
 g_fdsn_has_events = ['ISC', 'SCEDC', 'NCEDC', 'IRIS', 'GEONET']
 
