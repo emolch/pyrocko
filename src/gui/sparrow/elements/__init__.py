@@ -20,3 +20,4 @@ from .kite_insar import *  # noqa
 from .active_faults import *
 from .plates import *
 from .geometry import *  # noqa
+from .spheroid import *  # noqa

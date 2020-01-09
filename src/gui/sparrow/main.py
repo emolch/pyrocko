@@ -103,6 +103,7 @@ class QVTKWidget(QVTKRenderWindowInteractor):
     def wheelEvent(self, event):
         self._parent.myWheelEvent(event)
 
+
 class MyDockWidget(qw.QDockWidget):
 
     def __init__(self, *args, **kwargs):
@@ -172,7 +173,8 @@ class Viewer(qw.QMainWindow):
                 ('Faults', elements.ActiveFaultsState()),
                 ('Plate bounds', elements.PlatesBoundsState()),
                 ('InSAR Surface Displacements', elements.KiteState()),
-                ('Geometry', elements.GeometryState())]:
+                ('Geometry', elements.GeometryState()),
+                ('Spheroid', elements.SpheroidState())]:
 
             def wrap_add_element(estate):
                 def add_element(*args):
