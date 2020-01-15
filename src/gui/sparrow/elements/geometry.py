@@ -190,9 +190,9 @@ class GeometryElement(Element):
                     vertices = arr_vertices(geo.vertices.get_col('xyz'))
                     faces = arr_faces(geo.faces.get_col('faces'))
                     self._pipe[i] = TrimeshPipe(
-                            vertices, faces,
-                            values=values,
-                            lut=lut)
+                        vertices, faces,
+                        values=values,
+                        lut=lut)
                     self._cbar_pipe = ColorbarPipe(lut=lut, cbar_title=state.display_parameter)
                     self._parent.add_actor(self._pipe[i].actor)
                     self._parent.add_actor(self._cbar_pipe.actor)
@@ -212,13 +212,14 @@ class GeometryElement(Element):
         state = self._state
         if not self._controls:
             from ..state import state_bind_checkbox, state_bind_combobox, \
-                                state_bind_slider
+                state_bind_slider
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
+            layout.setAlignment(qc.Qt.AlignTop)
             frame.setLayout(layout)
 
-            # load geometrie
+            # load geometry
             pb = qw.QPushButton('Load')
             layout.addWidget(pb, 0, 0)
             pb.clicked.connect(self.open_file_load_dialog)
@@ -274,6 +275,11 @@ class GeometryElement(Element):
             layout.addWidget(cb, 4, 0)
             state_bind_checkbox(self, state, 'visible', cb)
 
+            pb = qw.QPushButton('Remove')
+            layout.addWidget(pb, 4, 1)
+            pb.clicked.connect(self.remove)
+
+            layout.addWidget(qw.QFrame(), 5, 0, 1, 2)
 
             self._controls = frame
 

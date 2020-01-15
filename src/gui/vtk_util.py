@@ -307,7 +307,7 @@ class TrimeshPipe(object):
 
 
 class PolygonPipe(object):
-    def __init__(self, vertices, faces, values=None, contour=False, **kwargs):
+    def __init__(self, vertices, faces, values=None, cpt=None, lut=None):
         vpoints = vtk.vtkPoints()
         vpoints.SetNumberOfPoints(vertices.shape[0])
         vpoints.SetData(numpy_to_vtk(vertices))
@@ -330,55 +330,45 @@ class PolygonPipe(object):
         act.SetMapper(mapper)
 
         prop = act.GetProperty()
-        # prop.SetColor(0.5, 0.5, 0.5)
-        # prop.SetAmbientColor(0.3, 0.3, 0.3)
-        # prop.SetDiffuseColor(0.5, 0.5, 0.5)
-        # prop.SetSpecularColor(1.0, 1.0, 1.0)
-        # prop.SetOpacity(0.7)
         self.prop = prop
 
         self.polydata = pd
         self.mapper = mapper
         self.actor = act
 
+        self._colors = num.ones((faces.shape[0], 4))
+
         if values is not None:
-            if contour:
-                factors = [0.01, 0.1, 1., 2., 5., 10., 20., 50.]
-                limits = num.array([
-                    num.max(num.ceil(values / fac)) for fac in factors])
-
-                factor_ind = num.argmin(num.abs(limits - 10.))
-                fac = factors[factor_ind]
-                lim = int(limits[factor_ind])
-                kwargs = dict(kwargs, numcolor=lim - 1)
-
-                for i in range(lim):
-                    values[(values >= i * fac) & (values < (i + 1) * fac)] = \
-                        i * fac
-
             self.set_values(values)
 
-        # nfaces = faces.shape[0]
-        # self._colors = num.ones((nfaces, 4))
-        # self._update_colors()
+        if cpt is not None:
+            self.set_cpt(cpt)
 
-        if kwargs:
-            colorbar_actor = self.get_colorbar_actor(**kwargs)
-            colorbar_actor.GetProperty()
-            self.actor = [act, colorbar_actor]
+        self._lut = None
+        if lut is not None:
+            self.set_lookuptable(lut)
+            self._lut = lut
 
     def set_colors(self, colors):
         self._colors[:, :3] = colors
         self._update_colors()
 
+    def set_uniform_color(self, color):
+        npolys = self.polydata.GetNumberOfCells()
+
+        colors = num.ones((npolys, 4))
+        colors[:, :3] *= color
+        self._colors = colors
+
+        self._update_colors()
+
     def set_alpha(self, alpha):
-        print('colors', self._colors.shape)
         self._colors[:, 3] = alpha
         self._update_colors()
 
     def _update_colors(self):
         vcolors = numpy_to_vtk_colors(self._colors)
-        self.polydata.GetPointData().SetScalars(vcolors)
+        self.polydata.GetCellData().SetScalars(vcolors)
 
     def set_opacity(self, value):
         self.prop.SetOpacity(value)
@@ -394,56 +384,21 @@ class PolygonPipe(object):
         self.polydata.GetCellData().SetScalars(vvalues)
         self.mapper.SetScalarRange(values.min(), values.max())
 
-    def get_colorbar_actor(self, cbar_title=None, numcolor=None):
-        lut = vtk.vtkLookupTable()
-        if numcolor:
-            lut.SetNumberOfTableValues(numcolor)
-        lut.Build()
-        self.mapper.SetLookupTable(lut)
+    def set_lookuptable(self, lut):
+        if self._lut is not lut:
+            self.mapper.SetUseLookupTableScalarRange(True)
+            self.mapper.SetLookupTable(lut)
+            self._lut = lut
 
-        scalar_bar = vtk.vtkScalarBarActor()
-        if numcolor:
-            scalar_bar.SetNumberOfLabels(numcolor + 1)
-        scalar_bar.SetMaximumHeightInPixels(500)
-        scalar_bar.SetMaximumWidthInPixels(50)
-        scalar_bar.SetLookupTable(lut)
-        scalar_bar.SetTitle(cbar_title)
-        try:
-            scalar_bar.SetUnconstrainedFontSize(True)
-        except AttributeError:
-            pass
-
-        prop_title = vtk.vtkTextProperty()
-        prop_title.SetFontFamilyToArial()
-        prop_title.SetColor(.8, .8, .8)
-        prop_title.SetFontSize(int(prop_title.GetFontSize() * 1.3))
-        prop_title.BoldOn()
-        scalar_bar.SetTitleTextProperty(prop_title)
-        try:
-            scalar_bar.SetVerticalTitleSeparation(20)
-        except AttributeError:
-            pass
-
-        prop_label = vtk.vtkTextProperty()
-        prop_label.SetFontFamilyToArial()
-        prop_label.SetColor(.8, .8, .8)
-        prop_label.SetFontSize(int(prop_label.GetFontSize() * 1.1))
-        scalar_bar.SetLabelTextProperty(prop_label)
-
-        pos = scalar_bar.GetPositionCoordinate()
-        pos.SetCoordinateSystemToNormalizedViewport()
-        pos.SetValue(0.95, 0.05)
-
-        return scalar_bar
+    def set_cpt(self, cpt):
+        self.set_lookuptable(cpt_to_vtk_lookuptable(cpt))
 
 
 class ColorbarPipe(object):
 
-    def __init__(self, lut=None, cbar_title=None, numcolor=None):
-
+    def __init__(self, parent_pipe=None, cbar_title=None, cpt=None, lut=None):
         act = vtk.vtkScalarBarActor()
-        if numcolor:
-            act.SetNumberOfLabels(numcolor + 1)
+
         act.SetMaximumHeightInPixels(500)
         act.SetMaximumWidthInPixels(50)
 
@@ -452,20 +407,23 @@ class ColorbarPipe(object):
         except AttributeError:
             pass
 
+        self.prop = act.GetProperty()
         self.actor = act
+
         self._format_text()
         self._set_position(0.95, 0.05)
 
         if cbar_title is not None:
             self.set_title(cbar_title)
 
+        if cpt is not None:
+            self.set_cpt(cpt)
+
         if lut is not None:
             self.set_lookuptable(lut)
 
-        prop = self.actor.GetProperty()
-        self.prop = prop
-
     def set_lookuptable(self, lut):
+        lut.Build()
         self.actor.SetLookupTable(lut)
 
     def set_title(self, cbar_title):

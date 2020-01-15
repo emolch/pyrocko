@@ -16,6 +16,7 @@ def reduce_array_dims(array):
     '''
     Support function to reduce output array ndims from table
     '''
+
     if array.shape[0] == 1 and array.ndim > 1:
         return num.squeeze(array, axis=0)
     else:
@@ -23,17 +24,27 @@ def reduce_array_dims(array):
 
 
 class Geometry(Object):
+    '''
+    Spatial (and temporal) distributed properties of an event
+
+    The Geometry object allows to store properties of an event in a spatial
+    (and temporal) distributed manner. For a set of planes ("faces"),
+    characterized by their corner points ("vertices"), properties are stored.
+    Also information on the outline of the source are stored.
+    '''
 
     properties = Table.T(
         default=Table.D(),
         help='Properties that should be displayable on the surface of the'
              ' geometry. If 2d time dependency in column directions.',
         optional=True)
+
     vertices = Table.T(
         default=Table.D(),
         help='Vertices of the mesh of the geometry. '
              'Expected to be (lat,lon,north,east,depth) for each vertex.',
         optional=True)
+
     faces = Table.T(
         default=Table.D(),
         help='Face integer indexes to the respective vertices. '
@@ -46,15 +57,20 @@ class Geometry(Object):
         optional=True)
 
     event = Event.T(default=Event.D())
+
     times = Array.T(
         shape=(None,),
         dtype='float64',
         help='1d vector of times [s] wrt. event time for which '
-             'properties have value',
+             'properties have value. Must have constant delta t',
         optional=True)
 
     @property
     def deltat(self):
+        '''
+        Sampling rate of properties (time difference) [s]
+        '''
+
         if self.times.size > 2:
             return self.times[1] - self.times[0]
         else:
