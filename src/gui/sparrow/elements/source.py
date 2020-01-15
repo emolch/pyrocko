@@ -13,15 +13,14 @@ import vtk
 from pyrocko.guts import Bool, Float, Object, String
 
 from pyrocko import cake, geometry, gf
-from pyrocko.gui.qt_compat import qw, qc, fnpatch
+from pyrocko.gui.qt_compat import qc, qw, fnpatch
 
 from pyrocko.gui.vtk_util import \
-    ArrowPipe, Glyph3DPipe, PolygonPipe, ScatterPipe,\
+    ArrowPipe, ColorbarPipe, Glyph3DPipe, PolygonPipe, ScatterPipe,\
     make_multi_polyline, vtk_set_input
 from .. import state as vstate
 from .. import common
-
-from .base import Element, ElementState
+from . import base
 
 guts_prefix = 'sparrow'
 
@@ -79,7 +78,7 @@ class SourceOutlinesPipe(object):
         self.actor = actor
 
 
-class ProxySource(ElementState):
+class ProxySource(base.ElementState):
     pass
 
 
@@ -151,18 +150,14 @@ class ProxyStore(Object):
 
 
 parameter_label = {
-    'uniform': 'mono',
-    'time (s)': 'times',
-    'moment/patch (Nm)': 'moment'}
+    'time (s)': 'times'}
 
 
-class SourceState(ElementState):
+class SourceState(base.CPTState):
     visible = Bool.T(default=True)
-    contour = Bool.T(default=False)
     source_selection = ProxySource.T(default=ProxyRectangularSource())  # noqa
     deltat = Float.T(default=0.5)
     display_parameter = String.T(default='time (s)')
-    disp_arrow_size = Float.T(default=1.)
 
     @classmethod
     def get_name(self):
@@ -174,14 +169,20 @@ class SourceState(ElementState):
         return element
 
 
-class SourceElement(Element):
+class SourceElement(base.Element):
 
     def __init__(self):
-        Element.__init__(self)
+        base.Element.__init__(self)
         self._parent = None
         self._pipe = []
         self._controls = None
         self._points = num.array([])
+
+        self._cpts = {}
+        self._values = None
+        self._lookuptable = None
+
+        self._autoscaler = None
 
     def _state_bind_source(self, *args, **kwargs):
         vstate.state_bind(self, self._state.source_selection, *args, **kwargs)
@@ -193,16 +194,18 @@ class SourceElement(Element):
         upd = self.update
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'contour')
         state.add_listener(upd, 'source_selection')
         state.add_listener(upd, 'deltat')
         state.add_listener(upd, 'display_parameter')
-        state.add_listener(upd, 'disp_window')
-        state.add_listener(upd, 'disp_arrow_size')
+        base.bind_state_cpt(state, upd)
+
         self._state = state
 
     def unbind_state(self):
+        self._cpts = {}
+        self._lookuptable = None
         self._listeners = []
+        self._state = None
 
     def get_name(self):
         return 'Source'
@@ -238,11 +241,15 @@ class SourceElement(Element):
             self._parent, caption, options=common.qfiledialog_options))
 
         if fns:
-            self.load_file(str(fns[0]))
+            try:
+                self.load_file(str(fns[0]))
+            except gf.FileNotFoundError as e:
+                raise e
+
         else:
             return
 
-    def load_file(self, path):
+    def load_source_file(self, path):
         loaded_source = gf.load(filename=path)
         source = ProxyRectangularSource(
             **{prop: getattr(loaded_source, prop)
@@ -287,31 +294,88 @@ class SourceElement(Element):
 
         self.update()
 
-    def update_raster(self, source_geom, param):
+    def update_source(self, store):
+        state = self._state
+
+        source = state.source_selection
+        source_list = gf.source_classes
+
+        for i, a in enumerate(source_list):
+            if a.__name__ is source._name:
+                fault = a(
+                    **{prop: source.__dict__[prop]
+                        for prop in source.T.propnames})
+
+                source_geom = fault.geometry(store)
+
+                self._update_outlines(source_geom)
+                self._update_scatter(source, fault)
+                self._update_raster(source_geom, state.display_parameter)
+                self._update_rake_arrow(fault)
+
+    def _update_outlines(self, source_geom):
+        self._pipe.append(
+            SourceOutlinesPipe(
+                source_geom, (1., 1., 1.),
+                cs='latlondepth'))
+        self._parent.add_actor(self._pipe[-1].actor)
+
+        self._pipe.append(
+            SourceOutlinesPipe(
+                source_geom, (.6, .6, .6),
+                cs='latlon'))
+        self._parent.add_actor(self._pipe[-1].actor)
+
+    def _update_scatter(self, source, fault):
+        for point, color in zip(
+                ((source.nucleation_x,
+                  source.nucleation_y),
+                 map_anchor[source.anchor]),
+                (num.array([[1., 0., 0.]]),
+                 num.array([[0., 0., 1.]]))):
+
+            points = geometry.latlondepth2xyz(
+                fault.xy_to_coord(
+                    x=[point[0]], y=[point[1]],
+                    cs='latlondepth'),
+                planetradius=cake.earthradius)
+
+            vertices = geometry.arr_vertices(points)
+            p = ScatterPipe(vertices)
+            p.set_symbol('sphere')
+            p.set_colors(color)
+            self._pipe.append(p)
+            self._parent.add_actor(p.actor)
+
+    def _update_raster(self, source_geom, param):
         vertices = geometry.arr_vertices(
             source_geom.get_vertices(col='xyz'))
 
         faces = source_geom.get_faces()
 
-        if parameter_label[param] is 'times':
-            if source_geom.has_property('t_arrival'):
-                values = source_geom.get_property('t_arrival')
-            else:
-                values = source_geom.times
-        elif parameter_label[param] is 'mono':
-            values = num.ones(source_geom.no_faces())
+        if parameter_label[param] is 'times' and \
+                source_geom.has_property('t_arrival'):
 
-        self._pipe.append(
-            PolygonPipe(
-                vertices, faces,
-                values=values, contour=self._state.contour, cbar_title=param))
+            self._values = source_geom.get_property('t_arrival')
+            cbar_title = 'T arr [s]'
 
-        if isinstance(self._pipe[-1].actor, list):
-            self._parent.add_actor_list(self._pipe[-1].actor)
-        else:
+        base.update_cpt(self)
+
+        poly_pipe = PolygonPipe(
+            vertices, faces, values=self._values, lut=self._lookuptable)
+
+        self._pipe.append(poly_pipe)
+        self._parent.add_actor(self._pipe[-1].actor)
+
+        if cbar_title is not None:
+            cbar_pipe = ColorbarPipe(
+                parent_pipe=poly_pipe, cbar_title=cbar_title,
+                lut=self._lookuptable)
+
+            self._pipe.append(cbar_pipe)
             self._parent.add_actor(self._pipe[-1].actor)
 
-    def update_rake_arrow(self, fault):
+    def _update_rake_arrow(self, fault):
         source = self._state.source_selection
         rake = source.rake * d2r
 
@@ -337,73 +401,30 @@ class SourceElement(Element):
 
     def update(self, *args):
         state = self._state
-        source = state.source_selection
-        source_list = gf.source_classes
 
         store = ProxyStore(
-            deltat=self._state.deltat)
+            deltat=state.deltat)
         store.config.deltas = num.array(
             [(store.config.deltat * store.config.vs) + 1] * 2)
 
         if self._pipe:
             for pipe in self._pipe:
-                try:
-                    self._parent.remove_actor(pipe.actor)
-                except Exception:
-                    for actor in pipe.actor:
-                        self._parent.remove_actor(actor)
+                self._parent.remove_actor(pipe.actor)
 
             self._pipe = []
 
         if state.visible:
-            for i, a in enumerate(source_list):
-                if a.__name__ is source._name:
-                    fault = a(
-                        **{prop: source.__dict__[prop]
-                            for prop in source.T.propnames})
-
-                    source_geom = fault.geometry(store)
-
-                    self._pipe.append(
-                        SourceOutlinesPipe(
-                            source_geom, (1., 1., 1.),
-                            cs='latlondepth'))
-                    self._parent.add_actor(self._pipe[-1].actor)
-
-                    self._pipe.append(
-                        SourceOutlinesPipe(
-                            source_geom, (.6, .6, .6),
-                            cs='latlon'))
-                    self._parent.add_actor(self._pipe[-1].actor)
-
-                    for point, color in zip((
-                            (source.nucleation_x,
-                             source.nucleation_y),
-                            map_anchor[source.anchor]),
-                            (num.array([[1., 0., 0.]]),
-                             num.array([[0., 0., 1.]]))):
-
-                        points = geometry.latlondepth2xyz(
-                            fault.xy_to_coord(
-                                x=[point[0]], y=[point[1]],
-                                cs='latlondepth'),
-                            planetradius=cake.earthradius)
-
-                        vertices = geometry.arr_vertices(points)
-                        self._pipe.append(ScatterPipe(vertices))
-                        self._pipe[-1].set_colors(color)
-                        self._parent.add_actor(self._pipe[-1].actor)
-
-                    self.update_raster(source_geom, state.display_parameter)
-                    self.update_rake_arrow(fault)
+            self.update_source(store)
 
         self._parent.update_view()
 
     def _get_controls(self):
         if not self._controls:
             from ..state import \
+                state_bind, \
                 state_bind_checkbox, state_bind_slider, state_bind_combobox
             from pyrocko import gf
+
             source = self._state.source_selection
 
             frame = qw.QFrame()
@@ -497,16 +518,17 @@ class SourceElement(Element):
             cb = qw.QComboBox()
             for i, s in enumerate(parameter_label.keys()):
                 cb.insertItem(i, s)
-            layout.addWidget(cb, il, 1, 1, 2)
+            layout.addWidget(cb, il, 1)
             state_bind_combobox(
                 self, self._state, 'display_parameter', cb)
 
-            il += 1
+            base.cpt_controls(self, self._state, layout)
+
+            il = layout.rowCount() + 1
             pb = qw.QPushButton('Move Source Here')
             layout.addWidget(pb, il, 0)
             pb.clicked.connect(self.update_loc)
 
-            # il += 1
             pb = qw.QPushButton('Load')
             layout.addWidget(pb, il, 1)
             pb.clicked.connect(self.open_file_load_dialog)
@@ -520,10 +542,6 @@ class SourceElement(Element):
             layout.addWidget(cb, il, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
 
-            cb = qw.QCheckBox('Contour')
-            layout.addWidget(cb, il, 1)
-            state_bind_checkbox(self, self._state, 'contour', cb)
-
             pb = qw.QPushButton('Remove')
             layout.addWidget(pb, il, 2)
             pb.clicked.connect(self.remove)
@@ -532,6 +550,9 @@ class SourceElement(Element):
             layout.addWidget(qw.QFrame(), il, 0, 1, 3)
 
         self._controls = frame
+
+        base._update_cpt_combobox(self)
+        base._update_cptscale_lineedit(self)
 
         return self._controls
 

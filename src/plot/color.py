@@ -93,7 +93,7 @@ def parse_color(s):
             See pyrocko.plot.color.g_groups for complete list.
 
     :param s: Color string as name, RGB(A), rgb(a) or hex
-    :type s: string`
+    :type s: string
 
     :return: floating point rgba values between 0.0 and 1.0.
     :rtype: tuple of float, `len(rgba) = 4`
@@ -160,8 +160,10 @@ def parse_color(s):
 
 def to_int_255(f):
     '''
-    Convert floating point (range [0.0, 1.0]) to integer color component
-    (range [0, 255])
+    Convert floating point to integer color component
+
+    Convert a floating point color component (range [0.0, 1.0]) to an integer
+    color component (range [0, 255])
 
     :param f: rgba floating point color component
     :type f: float
@@ -179,8 +181,10 @@ def to_int_255(f):
 
 def to_float_1(i):
     '''
-    Convert integer color component (range [0, 255]) to floating point
-    (range [0.0, 1.0])
+    Convert floating point to integer color component
+
+    Convert an integer color component (range [0, 255]) to a floating point
+    color component (range [0.0, 1.0])
 
     :param i: RGBA integer color component
     :type i: int
@@ -236,6 +240,7 @@ class Component(Float):
 class Color(SObject):
     '''
     Color class with red, green, blue and alpha values ranging [0.0, 1.0].
+
     A name of color can be given instead of the RGBA/rgba/hex color.
     '''
 
@@ -395,8 +400,9 @@ class Color(SObject):
     @property
     def str_rgb(self):
         '''
-        Red, green and blue floating point color components as string of type:
-        'rgb(<red>, <green>, <blue>)'
+        red, green and blue floating point color components as string
+
+        Output will be of type 'rgb(<red>, <green>, <blue>)'
         '''
 
         return 'rgb(%5.3f, %5.3f, %5.3f)' % self.rgb
@@ -404,8 +410,9 @@ class Color(SObject):
     @property
     def str_RGB(self):
         '''
-        Red, green and blue integer color components as string of type:
-        'RGB(<red>, <green>, <blue>)'
+        Red, green and blue integer color components as string
+
+        Output will be of type 'RGB(<red>, <green>, <blue>)'
         '''
 
         return 'RGB(%i, %i, %i)' % self.RGB
@@ -413,8 +420,9 @@ class Color(SObject):
     @property
     def str_rgba(self):
         '''
-        Red, green, blue and alpha floating point color components as string of
-        type: 'rgba(<red>, <green>, <blue>, <alpha>)'
+        Red, green, blue and alpha floating point color components as string
+
+        Output will be of type 'rgba(<red>, <green>, <blue>, <alpha>)'
         '''
 
         return 'rgba(%5.3f, %5.3f, %5.3f, %5.3f)' % self.rgba
@@ -422,8 +430,9 @@ class Color(SObject):
     @property
     def str_RGBA(self):
         '''
-        Red, green, blue and alpha integer color components as string of type:
-        'RGBA(<red>, <green>, <blue>, <alpha>)'
+        Red, green, blue and alpha integer color components as string
+
+        Output will be of type 'RGBA(<red>, <green>, <blue>, <alpha>)'
         '''
 
         return 'RGBA(%i, %i, %i, %i)' % self.RGBA
@@ -452,8 +461,10 @@ class Color(SObject):
 
 class ColorGroup(Object):
     '''
-    Group of predefined colors. Each ColorGroup has a name and a set of
-    colornames and referring Color Objects
+    Group of predefined colors.
+
+    Each ColorGroup has a name and a set of colornames and referring Color
+    Objects
     '''
 
     name = String.T(optional=True)
