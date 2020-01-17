@@ -19,6 +19,7 @@ from subprocess import check_call
 
 import numpy as num
 
+from pyrocko import cake
 from pyrocko import guts
 from pyrocko import geonames
 from pyrocko import moment_tensor as pmt
@@ -47,6 +48,7 @@ logger = logging.getLogger('pyrocko.gui.sparrow.main')
 
 
 d2r = num.pi/180.
+km = 1000.
 
 
 class ZeroFrame(qw.QFrame):
@@ -75,7 +77,10 @@ def location_to_choices(s):
     choices = []
     s_vals = s.replace(',', ' ')
     try:
-        vals = map(float, s_vals.split())
+        vals = [float(x) for x in s_vals.split()]
+        if len(vals) == 3:
+            vals[2] *= km
+
         choices.append(LocationChoice('', *vals))
 
     except ValueError:
@@ -139,6 +144,8 @@ class MyDockWidget(qw.QDockWidget):
 class Viewer(qw.QMainWindow):
     def __init__(self, use_depth_peeling=True):
         qw.QMainWindow.__init__(self)
+
+        self._planetradius = cake.earthradius
 
         self._panel_togglers = {}
         self._actors = set()
@@ -284,8 +291,6 @@ class Viewer(qw.QMainWindow):
 
         renwin.Render()
 
-        print(ren.GetLastRenderingUsedDepthPeeling())
-
         self.show()
         iren.Initialize()
 
@@ -337,11 +342,9 @@ class Viewer(qw.QMainWindow):
         self.update_view()
         self.vtk_widget.setFixedSize(qc.QSize(1920, 1080))
 
-
         wif = vtk.vtkWindowToImageFilter()
         wif.SetInput(self.renwin)
         wif.SetInputBufferTypeToRGBA()
-        wif.SetScale(4, 4)
         wif.ReadFrontBufferOff()
         writer = vtk.vtkPNGWriter()
         writer.SetInputConnection(wif.GetOutputPort())
@@ -689,13 +692,15 @@ class Viewer(qw.QMainWindow):
         le = qw.QLineEdit()
         layout.addWidget(le, 0, 1)
 
-        def lat_lon_to_lineedit(state, widget):
+        def lat_lon_depth_to_lineedit(state, widget):
             sel = str(widget.selectedText()) == str(widget.text())
-            widget.setText('%g, %g, %g' % (state.lat, state.lon, state.depth))
+            widget.setText('%g, %g, %g' % (
+                state.lat, state.lon, state.depth / km))
+
             if sel:
                 widget.selectAll()
 
-        def lineedit_to_lat_lon(widget, state):
+        def lineedit_to_lat_lon_depth(widget, state):
             s = str(widget.text())
             choices = location_to_choices(s)
             if len(choices) > 0:
@@ -705,8 +710,10 @@ class Viewer(qw.QMainWindow):
                 raise NoLocationChoices(s)
 
         self._state_bind(
-            ['lat', 'lon', 'depth'], lineedit_to_lat_lon,
-            le, [le.editingFinished, le.returnPressed], lat_lon_to_lineedit)
+            ['lat', 'lon', 'depth'],
+            lineedit_to_lat_lon_depth,
+            le, [le.editingFinished, le.returnPressed],
+            lat_lon_depth_to_lineedit)
 
         self.lat_lon_lineedit = le
 
@@ -779,6 +786,7 @@ class Viewer(qw.QMainWindow):
 
         self.state.add_listener(update_camera, 'lat')
         self.state.add_listener(update_camera, 'lon')
+        self.state.add_listener(update_camera, 'depth')
         self.state.add_listener(update_camera, 'strike')
         self.state.add_listener(update_camera, 'dip')
         self.state.add_listener(update_camera, 'distance')
@@ -873,8 +881,10 @@ class Viewer(qw.QMainWindow):
         def rtp2xyz(rtp):
             return geometry.rtp2xyz(rtp[num.newaxis, :])[0]
 
+        radius = 1.0 - self.state.depth / self._planetradius
+
         cam_rtp = num.array([
-            1.0+self.state.distance,
+            radius+self.state.distance,
             self.state.lat * d2r + 0.5*num.pi,
             self.state.lon * d2r])
         up_rtp = cam_rtp + num.array([0., 0.5*num.pi, 0.])
@@ -882,7 +892,7 @@ class Viewer(qw.QMainWindow):
             rtp2xyz(cam_rtp), rtp2xyz(up_rtp), num.array([0., 0., 0.])
 
         foc_rtp = num.array([
-            1.0,
+            radius,
             self.state.lat * d2r + 0.5*num.pi,
             self.state.lon * d2r])
 
@@ -909,11 +919,7 @@ class Viewer(qw.QMainWindow):
         camera.SetFocalPoint(*foc)
         camera.SetViewUp(*up)
 
-        horizon = math.sqrt(max(
-            0.,
-            self.state.distance**2
-            - 2.0 * self.state.distance * math.cos(
-                (180. - self.state.dip)*d2r)))
+        horizon = math.sqrt(max(0., num.sum(cam**2) - 1.0))
 
         if horizon == 0.0:
             horizon = 2.0 + self.state.distance
