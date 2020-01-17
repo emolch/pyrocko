@@ -24,7 +24,7 @@ from pyrocko import geonames
 from pyrocko import moment_tensor as pmt
 
 from pyrocko.gui.util import Progressbars
-from pyrocko.gui.qt_compat import qw, qc, use_pyqt5
+from pyrocko.gui.qt_compat import qw, qc, use_pyqt5, fnpatch
 from pyrocko.gui import vtk_util
 
 from . import common, light, snapshots
@@ -151,6 +151,10 @@ class Viewer(qw.QMainWindow):
 
         mitem = qw.QAction('Quit', self)
         mitem.triggered.connect(self.request_quit)
+        menu.addAction(mitem)
+
+        mitem = qw.QAction('Export Image...', self)
+        mitem.triggered.connect(self.export_image)
         menu.addAction(mitem)
 
         self.panels_menu = mbar.addMenu('Panels')
@@ -315,6 +319,43 @@ class Viewer(qw.QMainWindow):
 
         self.closing = False
         # self.test_overlay()
+
+    def export_image(self):
+
+        caption = 'Export Image'
+        fn_out, _ = fnpatch(qw.QFileDialog.getSaveFileName(
+            self, caption, 'image.png',
+            options=common.qfiledialog_options))
+
+        if fn_out:
+            self.save_image(fn_out)
+
+    def save_image(self, path):
+        self.showFullScreen()
+        self.update_view()
+        self.gui_state.panels_visible = False
+        self.update_view()
+        self.vtk_widget.setFixedSize(qc.QSize(1920, 1080))
+
+
+        wif = vtk.vtkWindowToImageFilter()
+        wif.SetInput(self.renwin)
+        wif.SetInputBufferTypeToRGBA()
+        wif.SetScale(4, 4)
+        wif.ReadFrontBufferOff()
+        writer = vtk.vtkPNGWriter()
+        writer.SetInputConnection(wif.GetOutputPort())
+
+        self.renwin.Render()
+        wif.Modified()
+        writer.SetFileName(path)
+        writer.Write()
+
+        self.vtk_widget.setFixedSize(
+            qw.QWIDGETSIZE_MAX, qw.QWIDGETSIZE_MAX)
+
+        self.showNormal()
+        self.gui_state.panels_visible = True
 
     def update_render_settings(self, *args):
         if self._lighting is None or self._lighting != self.state.lighting:

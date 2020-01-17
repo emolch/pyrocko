@@ -138,7 +138,9 @@ def events_to_table(events):
     c5 = num.zeros((len(events), 5))
 
     for i, ev in enumerate(events):
-        c5[i, :] = ev.lat, ev.lon, 0., 0., ev.depth
+        c5[i, :] = ev.lat, ev.lon, 0., 0., ev.depth + 10000.
+
+    print('depth +10km patch')
 
     tab = table.Table()
     loc_rec = table.LocationRecipe()
