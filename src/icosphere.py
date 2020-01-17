@@ -194,6 +194,8 @@ def truncate(vertices, faces):
         faces_new[iface, :ilength] = ifaces[ifirst:ifirst+ilength]
         faces_new[iface, ilength:] = ifaces[ifirst+ilength-1]
 
+    faces_new = faces_new[:, ::-1]
+
     return vertices_new, faces_new
 
 
