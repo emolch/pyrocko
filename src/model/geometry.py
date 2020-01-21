@@ -11,6 +11,11 @@ from pyrocko.table import Table, LocationRecipe
 
 from .event import Event
 
+from logging import getLogger
+
+
+logger = getLogger('model.geometry')
+
 
 def reduce_array_dims(array):
     '''
@@ -129,7 +134,7 @@ class Geometry(Object):
     def no_faces(self):
         return self.faces.get_nrows()
 
-    def setup(self, vertices, faces):
+    def setup(self, vertices, faces, outlines=None):
         self.set_vertices(vertices)
         self.set_faces(faces)
 
