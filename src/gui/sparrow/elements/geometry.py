@@ -81,7 +81,7 @@ class CPTChoices(StringChoice):
 
 
 class GeometryState(ElementState):
-
+    opacity = Float.T(default=1.0)
     visible = Bool.T(default=False)
     geometries = List.T(Geometry.T(), default=[])
     display_parameter = String.T(default='slip')
@@ -168,6 +168,7 @@ class GeometryElement(Element):
         state.add_listener(upd, 'display_parameter')
         state.add_listener(upd, 'cpt')
         state.add_listener(upd, 'time')
+        state.add_listener(upd, 'opacity')
         self._state = state
         self.init_pipeslots()
 
@@ -319,7 +320,11 @@ class GeometryElement(Element):
                 else:
                     self._pipe[i].set_values(values)
                     self._pipe[i].set_lookuptable(lut)
+<<<<<<< HEAD
                     self._pipe.set_opacity(self._state.opacity)
+=======
+                    self._pipe[i].set_opacity(self._state.opacity)
+>>>>>>> opacity on geometry objects
 
                     self._cbar_pipe.set_lookuptable(lut)
                     self._cbar_pipe.set_title(state.display_parameter)
@@ -343,6 +348,7 @@ class GeometryElement(Element):
             # load geometry
             pb = qw.QPushButton('Load')
             layout.addWidget(pb, 0, 0)
+
             pb.clicked.connect(self.open_file_load_dialog)
 
             # property choice
@@ -362,6 +368,7 @@ class GeometryElement(Element):
                 layout.addWidget(cb, 1, 1)
                 state_bind_combobox(self, state, 'display_parameter', cb)
 
+
                 # times slider
                 values = geom.get_property(state.display_parameter)
                 if len(values.shape) == 2:
@@ -378,13 +385,22 @@ class GeometryElement(Element):
                     layout.addWidget(qw.QLabel('Time'), 2, 0)
                     layout.addWidget(slider, 2, 1)
 
+                    slider_opacity = qw.QSlider(qc.Qt.Horizontal)
+                    slider_opacity.setSizePolicy(
+                        qw.QSizePolicy(
+                            qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+                    slider_opacity.setMinimum(0)
+                    slider_opacity.setMaximum(1000)
+                    layout.addWidget(slider_opacity, 4, 1)
+                    layout.addWidget(qw.QLabel('Opacity'), 4, 0)
+
+                    state_bind_slider(self, state, 'opacity', slider_opacity, factor=0.001)
+
                     state_bind_slider(
                         self, state, 'time', slider, dtype=int)
-
                 pb = qw.QPushButton('Remove')
-                layout.addWidget(pb, 4, 1)
+                layout.addWidget(pb, 5, 1)
                 pb.clicked.connect(self.remove)
-
             # color maps
             cb = common.string_choices_to_combobox(CPTChoices)
             layout.addWidget(qw.QLabel('CPT'), 3, 0)
@@ -393,15 +409,18 @@ class GeometryElement(Element):
 
             # visibility
             cb = qw.QCheckBox('Show')
-            layout.addWidget(cb, 4, 0)
+            layout.addWidget(cb, 5, 0)
             state_bind_checkbox(self, state, 'visible', cb)
 
+<<<<<<< HEAD
             pb = qw.QPushButton('Remove')
             layout.addWidget(pb, 4, 1)
             pb.clicked.connect(self.remove)
 
             layout.addWidget(qw.QFrame(), 5, 0, 1, 2)
 
+=======
+>>>>>>> opacity on geometry objects
             self._controls = frame
 
         return self._controls
