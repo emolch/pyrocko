@@ -76,6 +76,29 @@ g_named_colors.update(g_standard_colors)
 
 
 def parse_color(s):
+    '''
+    Translate color string into rgba values (range [0.0, 1.0])
+
+    The color string can be defined as
+        - **integer RGB(A) values** (range [0, 255])
+            e.g. 'RGBA(255, 255, 255, 255)'
+            or 'RGB(255, 255, 255)' (alpha set to 255),
+        - **floating point rgb(a) values** (range [0.0, 1.0])
+            e.g. 'rgba(1.0, 1.0, 1.0, 1.0)'
+            or 'rgba(1.0, 1.0, 1.0)' (alpha set to 255),
+        - **hex color** with 3, 4, 6 or 8 digits after #
+            e.g. #fff, #ffff, #ffffff or #ffffffff
+        - **name of predefined colors**,
+            e.g. 'butter1' or 'white'.
+            See pyrocko.plot.color.g_groups for complete list.
+
+    :param s: Color string as name, RGB(A), rgb(a) or hex
+    :type s: string`
+
+    :return: floating point rgba values between 0.0 and 1.0.
+    :rtype: tuple of float, `len(rgba) = 4`
+    '''
+
     orig_s = s
 
     rgba = None
@@ -136,6 +159,17 @@ def parse_color(s):
 
 
 def to_int_255(f):
+    '''
+    Convert floating point (range [0.0, 1.0]) to integer color component
+    (range [0, 255])
+
+    :param f: rgba floating point color component
+    :type f: float
+
+    :return: RGBA integer color component
+    :rtype: int
+    '''
+
     if not (0.0 <= f <= 1.0):
         raise ColorError(
             'Floating point color component must be in the range [0.0, 1.0]')
@@ -144,6 +178,17 @@ def to_int_255(f):
 
 
 def to_float_1(i):
+    '''
+    Convert integer color component (range [0, 255]) to floating point
+    (range [0.0, 1.0])
+
+    :param i: RGBA integer color component
+    :type i: int
+
+    :return: rgba floating point color component
+    :rtype: float
+    '''
+
     if not (0 <= i <= 255):
         raise ColorError(
             'Integer color component must be in the range [0, 255]')
@@ -152,6 +197,20 @@ def to_float_1(i):
 
 
 def simplify_hex(s):
+    '''
+    Simplifiy a hex color code if possible
+
+    E.g.:
+        - #ffffffff -> #fff
+        - #11aabbff -> #1ab
+
+    :param s: hex color string
+    :type s: str
+
+    :return: simplified hex color string
+    :rtype: str
+    '''
+
     if s[1] == s[2] and s[3] == s[4] and s[5] == s[6] \
             and (len(s) == 9 and s[7] == s[8]):
 
@@ -175,6 +234,10 @@ class Component(Float):
 
 
 class Color(SObject):
+    '''
+    Color class with red, green, blue and alpha values ranging [0.0, 1.0].
+    A name of color can be given instead of the RGBA/rgba/hex color.
+    '''
 
     name__ = String.T(optional=True)
     r__ = Component.T(default=0.0)
@@ -216,6 +279,10 @@ class Color(SObject):
 
     @property
     def r(self):
+        '''
+        Red floating point color component
+        '''
+
         return self.r__
 
     @r.setter
@@ -225,6 +292,10 @@ class Color(SObject):
 
     @property
     def g(self):
+        '''
+        Green floating point color component
+        '''
+
         return self.g__
 
     @g.setter
@@ -234,6 +305,10 @@ class Color(SObject):
 
     @property
     def b(self):
+        '''
+        Blue floating point color component
+        '''
+
         return self.b__
 
     @b.setter
@@ -243,6 +318,10 @@ class Color(SObject):
 
     @property
     def a(self):
+        '''
+        Transparency (alpha) floating point color component
+        '''
+
         return self.a__
 
     @a.setter
@@ -252,6 +331,10 @@ class Color(SObject):
 
     @property
     def rgb(self):
+        '''
+        Red, green and blue floating point color components
+        '''
+
         return self.r__, self.g__, self.b__
 
     @rgb.setter
@@ -261,6 +344,10 @@ class Color(SObject):
 
     @property
     def rgba(self):
+        '''
+        Red, green, blue and alpha floating point color components
+        '''
+
         return self.r__, self.g__, self.b__, self.a__
 
     @rgba.setter
@@ -270,6 +357,10 @@ class Color(SObject):
 
     @property
     def RGB(self):
+        '''
+        Red, green and blue integer color components
+        '''
+
         return tuple(to_int_255(x) for x in self.rgb)
 
     @RGB.setter
@@ -279,6 +370,10 @@ class Color(SObject):
 
     @property
     def RGBA(self):
+        '''
+        Red, green, blue and alpha integer color components
+        '''
+
         return tuple(to_int_255(x) for x in self.rgba)
 
     @RGBA.setter
@@ -288,6 +383,10 @@ class Color(SObject):
 
     @property
     def str_hex(self):
+        '''
+        Hex color string
+        '''
+
         return simplify_hex('#%02x%02x%02x%02x' % self.RGBA)
 
     def use_hex_name(self):
@@ -295,21 +394,45 @@ class Color(SObject):
 
     @property
     def str_rgb(self):
+        '''
+        Red, green and blue floating point color components as string of type:
+        'rgb(<red>, <green>, <blue>)'
+        '''
+
         return 'rgb(%5.3f, %5.3f, %5.3f)' % self.rgb
 
     @property
     def str_RGB(self):
+        '''
+        Red, green and blue integer color components as string of type:
+        'RGB(<red>, <green>, <blue>)'
+        '''
+
         return 'RGB(%i, %i, %i)' % self.RGB
 
     @property
     def str_rgba(self):
+        '''
+        Red, green, blue and alpha floating point color components as string of
+        type: 'rgba(<red>, <green>, <blue>, <alpha>)'
+        '''
+
         return 'rgba(%5.3f, %5.3f, %5.3f, %5.3f)' % self.rgba
 
     @property
     def str_RGBA(self):
+        '''
+        Red, green, blue and alpha integer color components as string of type:
+        'RGBA(<red>, <green>, <blue>, <alpha>)'
+        '''
+
         return 'RGBA(%i, %i, %i, %i)' % self.RGBA
 
     def describe(self):
+        '''
+        Returns all possible definitions of the color
+        '''
+
         return '''
             name: %s
             hex: %s
@@ -328,6 +451,11 @@ class Color(SObject):
 
 
 class ColorGroup(Object):
+    '''
+    Group of predefined colors. Each ColorGroup has a name and a set of
+    colornames and referring Color Objects
+    '''
+
     name = String.T(optional=True)
     mapping = Dict.T(String.T(), Color.T())
 
