@@ -8,16 +8,14 @@ import string
 
 import numpy as num
 
-import vtk
-
 from pyrocko.guts import Bool, Float, Object, String
 
 from pyrocko import cake, geometry, gf
 from pyrocko.gui.qt_compat import qc, qw, fnpatch
 
 from pyrocko.gui.vtk_util import \
-    ArrowPipe, ColorbarPipe, Glyph3DPipe, PolygonPipe, ScatterPipe,\
-    make_multi_polyline, vtk_set_input
+    ArrowPipe, ColorbarPipe, PolygonPipe, ScatterPipe, OutlinesPipe
+
 from .. import state as vstate
 from .. import common
 from . import base
@@ -38,44 +36,6 @@ map_anchor = {
     'bottom': (0.0, 1.0),
     'bottom_left': (-1.0, 1.0),
     'bottom_right': (1.0, 1.0)}
-
-
-class SourceOutlinesPipe(object):
-    def __init__(self, source_geom, RGB, cs='latlondepth'):
-
-        self.mapper = vtk.vtkDataSetMapper()
-        self._polyline_grid = {}
-
-        lines = []
-
-        outline = source_geom.get_outline()
-        latlon = source_geom.get_vertices(col='latlon')[outline]
-        depth = source_geom.get_vertices(col='depth')[outline]
-
-        points = num.concatenate(
-            (latlon, depth.reshape(len(depth), 1)),
-            axis=1)
-        points = num.concatenate((points, points[0].reshape(1, -1)), axis=0)
-
-        lines.append(points)
-
-        if cs == 'latlondepth':
-            self._polyline_grid = make_multi_polyline(
-                lines_latlondepth=lines)
-        elif cs == 'latlon':
-            self._polyline_grid = make_multi_polyline(
-                lines_latlon=lines)
-
-        vtk_set_input(self.mapper, self._polyline_grid)
-
-        actor = vtk.vtkActor()
-        actor.SetMapper(self.mapper)
-
-        prop = actor.GetProperty()
-        prop.SetDiffuseColor(RGB)
-        prop.SetOpacity(1.)
-
-        self.actor = actor
 
 
 class ProxySource(base.ElementState):
@@ -314,17 +274,12 @@ class SourceElement(base.Element):
                 self._update_rake_arrow(fault)
 
     def _update_outlines(self, source_geom):
-        self._pipe.append(
-            SourceOutlinesPipe(
-                source_geom, (1., 1., 1.),
-                cs='latlondepth'))
-        self._parent.add_actor(self._pipe[-1].actor)
 
-        self._pipe.append(
-            SourceOutlinesPipe(
-                source_geom, (.6, .6, .6),
-                cs='latlon'))
-        self._parent.add_actor(self._pipe[-1].actor)
+        if source_geom.outlines:
+            self._outlines_pipe = OutlinesPipe(
+                source_geom, color=(1., 1., 1.))
+            self._parent.add_actor_list(
+                self._outlines_pipe.get_actors())
 
     def _update_scatter(self, source, fault):
         for point, color in zip(
