@@ -2449,15 +2449,14 @@ class RectangularSource(SourceWithDerivedMagnitude):
                 iy * (nx + 1) + ix]
             for iy in range(ny) for ix in range(nx)])
 
-        face_outline = num.concatenate([
-            num.arange(nx + 1),
-            num.arange(2 * nx + 1, (ny + 1) * nx + 1, nx + 1),
-            num.arange((nx + 1) * (ny + 1) - 1, (nx + 1) * ny - 1, -1),
-            num.arange((nx + 1) * (ny - 1), 0, -(nx + 1))]).reshape(1, -1)
+        xyz = self.outline('xyz')
+        latlon = num.ones((5, 2)) * num.array([self.lat, self.lon])
+        patchverts = num.hstack((latlon, xyz))
+        face_outlines = patchverts[:-1, :]  # last vertex double
 
         geom = Geometry()
         geom.setup(vertices, faces)
-        geom.set_outlines(face_outline)
+        geom.set_outlines([face_outlines])
 
         if self.stf:
             geom.times = num.unique(ds.times)
