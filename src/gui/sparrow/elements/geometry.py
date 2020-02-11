@@ -11,7 +11,7 @@ from pyrocko.guts import Object, Bool, List, String, load, StringChoice, Float
 from pyrocko.geometry import arr_vertices, arr_faces
 from pyrocko.gui.qt_compat import qw, qc, fnpatch
 from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, \
-    cpt_to_vtk_lookuptable, make_multi_polyline, vtk_set_input
+    cpt_to_vtk_lookuptable, OutlinesPipe
 
 from pyrocko.model import Geometry
 from pyrocko import automap
@@ -20,8 +20,6 @@ from .base import Element, ElementState
 from .. import common
 
 from matplotlib import pyplot as plt
-import vtk
-from numpy import concatenate
 
 
 logger = logging.getLogger('geometry')
@@ -29,50 +27,6 @@ logger = logging.getLogger('geometry')
 guts_prefix = 'sparrow'
 
 km = 1e3
-
-
-
-class OutlinesPipe(object):
-
-    def __init__(self, geom, color):
-
-        self._polyline_grid = {}
-        self._actors = {}
-
-        lines = []
-        for outline in geom.outlines:
-            latlon = outline.get_col('latlon')
-            depth = outline.get_col('depth')
-
-            points = concatenate(
-                (latlon, depth.reshape(len(depth), 1)),
-                axis=1)
-            points = concatenate((points, points[0].reshape(1, -1)), axis=0)
-
-            lines.append(points)
-
-        for cs in ['latlondepth', 'latlon']:
-            mapper = vtk.vtkDataSetMapper()
-            if cs == 'latlondepth':
-                self._polyline_grid[cs] = make_multi_polyline(
-                    lines_latlondepth=lines)
-            elif cs == 'latlon':
-                self._polyline_grid[cs] = make_multi_polyline(
-                    lines_latlon=lines)
-
-            vtk_set_input(mapper, self._polyline_grid[cs])
-
-            actor = vtk.vtkActor()
-            actor.SetMapper(mapper)
-
-            prop = actor.GetProperty()
-            prop.SetDiffuseColor(color)
-            prop.SetOpacity(1.)
-
-            self._actors[cs] = actor
-
-    def get_actors(self):
-        return list(self._actors.values())
 
 
 class CPTChoices(StringChoice):

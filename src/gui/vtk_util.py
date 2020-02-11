@@ -306,6 +306,49 @@ class TrimeshPipe(object):
         self.set_lookuptable(cpt_to_vtk_lookuptable(cpt))
 
 
+class OutlinesPipe(object):
+
+    def __init__(self, geom, color):
+
+        self._polyline_grid = {}
+        self._actors = {}
+
+        lines = []
+        for outline in geom.outlines:
+            latlon = outline.get_col('latlon')
+            depth = outline.get_col('depth')
+
+            points = num.concatenate(
+                (latlon, depth.reshape(len(depth), 1)),
+                axis=1)
+            points = num.concatenate((points, points[0].reshape(1, -1)), axis=0)
+
+            lines.append(points)
+
+        for cs in ['latlondepth', 'latlon']:
+            mapper = vtk.vtkDataSetMapper()
+            if cs == 'latlondepth':
+                self._polyline_grid[cs] = make_multi_polyline(
+                    lines_latlondepth=lines)
+            elif cs == 'latlon':
+                self._polyline_grid[cs] = make_multi_polyline(
+                    lines_latlon=lines)
+
+            vtk_set_input(mapper, self._polyline_grid[cs])
+
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+
+            prop = actor.GetProperty()
+            prop.SetDiffuseColor(color)
+            prop.SetOpacity(1.)
+
+            self._actors[cs] = actor
+
+    def get_actors(self):
+        return list(self._actors.values())
+
+
 class PolygonPipe(object):
     def __init__(self, vertices, faces, values=None, cpt=None, lut=None):
         vpoints = vtk.vtkPoints()
