@@ -71,8 +71,8 @@ ProxyRectangularSource._ranges = {
     'lat': {'min': -90., 'max': 90., 'step': 1, 'ini': 0.},
     'lon': {'min': -180., 'max': 180., 'step': 1, 'ini': 0.},
     'depth': {'min': 0., 'max': 600000., 'step': 1000, 'ini': 10000.},
-    'width': {'min': 0., 'max': 500000., 'step': 1000, 'ini': 10000.},
-    'length': {'min': 0., 'max': 1000000., 'step': 1000, 'ini': 50000.},
+    'width': {'min': 0.1, 'max': 500000., 'step': 1000, 'ini': 10000.},
+    'length': {'min': 0.1, 'max': 1000000., 'step': 1000, 'ini': 50000.},
     'strike': {'min': -180., 'max': 180., 'step': 1, 'ini': 0.},
     'dip': {'min': 0., 'max': 90., 'step': 1, 'ini': 45.},
     'rake': {'min': -180., 'max': 180., 'step': 1, 'ini': 0.},
@@ -113,11 +113,12 @@ parameter_label = {
     'time (s)': 'times'}
 
 
-class SourceState(base.CPTState):
+class SourceState(base.ElementState):
     visible = Bool.T(default=True)
     source_selection = ProxySource.T(default=ProxyRectangularSource())  # noqa
     deltat = Float.T(default=0.5)
     display_parameter = String.T(default='time (s)')
+    cpt = base.CPTState.T(default=base.CPTState.D())
 
     @classmethod
     def get_name(self):
@@ -138,11 +139,7 @@ class SourceElement(base.Element):
         self._controls = None
         self._points = num.array([])
 
-        self._cpts = {}
-        self._values = None
-        self._lookuptable = None
-
-        self._autoscaler = None
+        self.cpt_handler = base.CPTHandler()
 
     def _state_bind_source(self, *args, **kwargs):
         vstate.state_bind(self, self._state.source_selection, *args, **kwargs)
@@ -157,15 +154,14 @@ class SourceElement(base.Element):
         state.add_listener(upd, 'source_selection')
         state.add_listener(upd, 'deltat')
         state.add_listener(upd, 'display_parameter')
-        base.bind_state_cpt(state, upd)
+        self.cpt_handler.bind_state(state.cpt, upd)
 
         self._state = state
 
     def unbind_state(self):
-        self._cpts = {}
-        self._lookuptable = None
         self._listeners = []
         self._state = None
+        self.cpt_handler.unbind_state()
 
     def get_name(self):
         return 'Source'
@@ -276,10 +272,15 @@ class SourceElement(base.Element):
     def _update_outlines(self, source_geom):
 
         if source_geom.outlines:
-            self._outlines_pipe = OutlinesPipe(
-                source_geom, color=(1., 1., 1.))
-            self._parent.add_actor_list(
-                self._outlines_pipe.get_actors())
+            self._pipe.append(OutlinesPipe(
+                source_geom, color=(1., 1., 1.), cs='latlondepth'))
+            self._parent.add_actor(
+                self._pipe[-1].actor)
+
+            self._pipe.append(OutlinesPipe(
+                source_geom, color=(0.6, 0.6, 0.6), cs='latlon'))
+            self._parent.add_actor(
+                self._pipe[-1].actor)
 
     def _update_scatter(self, source, fault):
         for point, color in zip(
@@ -311,13 +312,14 @@ class SourceElement(base.Element):
         if parameter_label[param] is 'times' and \
                 source_geom.has_property('t_arrival'):
 
-            self._values = source_geom.get_property('t_arrival')
+            self.cpt_handler._values = source_geom.get_property('t_arrival')
             cbar_title = 'T arr [s]'
 
-        base.update_cpt(self)
+        self.cpt_handler.update_cpt()
 
         poly_pipe = PolygonPipe(
-            vertices, faces, values=self._values, lut=self._lookuptable)
+            vertices, faces,
+            values=self.cpt_handler._values, lut=self.cpt_handler._lookuptable)
 
         self._pipe.append(poly_pipe)
         self._parent.add_actor(self._pipe[-1].actor)
@@ -325,7 +327,7 @@ class SourceElement(base.Element):
         if cbar_title is not None:
             cbar_pipe = ColorbarPipe(
                 parent_pipe=poly_pipe, cbar_title=cbar_title,
-                lut=self._lookuptable)
+                lut=self.cpt_handler._lookuptable)
 
             self._pipe.append(cbar_pipe)
             self._parent.add_actor(self._pipe[-1].actor)
@@ -477,7 +479,7 @@ class SourceElement(base.Element):
             state_bind_combobox(
                 self, self._state, 'display_parameter', cb)
 
-            base.cpt_controls(self, self._state, layout)
+            self.cpt_handler.cpt_controls(self._parent, self._state.cpt, layout)
 
             il = layout.rowCount() + 1
             pb = qw.QPushButton('Move Source Here')
@@ -506,8 +508,8 @@ class SourceElement(base.Element):
 
         self._controls = frame
 
-        base._update_cpt_combobox(self)
-        base._update_cptscale_lineedit(self)
+        self.cpt_handler._update_cpt_combobox()
+        self.cpt_handler._update_cptscale_lineedit()
 
         return self._controls
 
