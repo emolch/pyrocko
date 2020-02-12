@@ -153,7 +153,7 @@ class ScatterPipe(object):
         self._update_colors()
 
     def set_alpha(self, alpha):
-        print('colors', self._colors.shape)
+        # print('colors', self._colors.shape)
         self._colors[:, 3] = alpha
         self._update_colors()
 
@@ -308,10 +308,10 @@ class TrimeshPipe(object):
 
 class OutlinesPipe(object):
 
-    def __init__(self, geom, color):
+    def __init__(self, geom, color, cs='latlon'):
 
-        self._polyline_grid = {}
-        self._actors = {}
+        self._polyline_grid = None
+        self.actors = None
 
         lines = []
         for outline in geom.outlines:
@@ -325,28 +325,26 @@ class OutlinesPipe(object):
 
             lines.append(points)
 
-        for cs in ['latlondepth', 'latlon']:
-            mapper = vtk.vtkDataSetMapper()
-            if cs == 'latlondepth':
-                self._polyline_grid[cs] = make_multi_polyline(
-                    lines_latlondepth=lines)
-            elif cs == 'latlon':
-                self._polyline_grid[cs] = make_multi_polyline(
-                    lines_latlon=lines)
+        mapper = vtk.vtkDataSetMapper()
+        if cs == 'latlondepth':
+            self._polyline_grid = make_multi_polyline(
+                lines_latlondepth=lines)
+        elif cs == 'latlon':
+            self._polyline_grid = make_multi_polyline(
+                lines_latlon=lines)
+        else:
+            raise ValueError('cs=%s is not supported!' % cs)
 
-            vtk_set_input(mapper, self._polyline_grid[cs])
+        vtk_set_input(mapper, self._polyline_grid)
 
-            actor = vtk.vtkActor()
-            actor.SetMapper(mapper)
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
 
-            prop = actor.GetProperty()
-            prop.SetDiffuseColor(color)
-            prop.SetOpacity(1.)
+        prop = actor.GetProperty()
+        prop.SetDiffuseColor(color)
+        prop.SetOpacity(1.)
 
-            self._actors[cs] = actor
-
-    def get_actors(self):
-        return list(self._actors.values())
+        self.actor = actor
 
 
 class PolygonPipe(object):

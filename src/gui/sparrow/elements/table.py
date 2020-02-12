@@ -49,10 +49,11 @@ class SymbolChoice(StringChoice):
     choices = ['point', 'sphere']
 
 
-class TableState(base.CPTState):
+class TableState(base.ElementState):
     visible = Bool.T(default=True)
     size = Float.T(default=5.0)
     color_parameter = String.T(optional=True)
+    cpt = base.CPTState.T(default=base.CPTState.D())
     size_parameter = String.T(optional=True)
     depth_offset = Float.T(default=0.0)
     symbol = SymbolChoice.T(default='point')
@@ -75,11 +76,7 @@ class TableElement(base.Element):
         self._isize_min = 1
         self._isize_max = 6
 
-        self._cpts = {}
-        self._values = None
-        self._lookuptable = None
-
-        self._autoscaler = None
+        self.cpt_handler = base.CPTHandler()
 
     def bind_state(self, state):
         upd = self.update
@@ -90,7 +87,7 @@ class TableElement(base.Element):
         state.add_listener(upd, 'depth_offset')
         state.add_listener(upd, 'color_parameter')
 
-        base.bind_state_cpt(state, upd)
+        self.cpt_handler.bind_state(state.cpt, upd)
 
         upd_s = self.update_sizes
         self._listeners.append(upd_s)
@@ -99,8 +96,8 @@ class TableElement(base.Element):
         self._state = state
 
     def unbind_state(self):
-        self._cpts = {}
-        self._lookuptable = None
+
+        self.cpt_handler.unbind_state()
         self._listeners = []
         self._state = None
 
@@ -192,11 +189,11 @@ class TableElement(base.Element):
                     if num.issubdtype(values.dtype, num.string_):
                         values = string_to_sorted_idx(values)
 
-                    self._values = values
+                    self.cpt_handler._values = values
+                    self.cpt_handler.update_cpt()
 
-                    base.update_cpt(self)
-
-                    cpt = copy.deepcopy(self._cpts[self._state.cpt_name])
+                    cpt = copy.deepcopy(
+                        self.cpt_handler._cpts[self._state.cpt.cpt_name])
                     colors2 = cpt(values)
                     colors2 = colors2 / 255.
 
@@ -219,7 +216,6 @@ class TableElement(base.Element):
             if self._parent.state.tmax is not None:
                 mask &= time <= self._parent.state.tmax
 
-            print(mask.shape)
             for m, p in zip(self._pipe_maps, self._pipes):
                 p.set_alpha(mask[m])
 
@@ -274,7 +270,7 @@ class TableElement(base.Element):
 
             self._color_combobox = cb
 
-            base.cpt_controls(self, self._state, layout)
+            self.cpt_handler.cpt_controls(self._parent, self._state.cpt, layout)
             iy = layout.rowCount() + 1
 
             layout.addWidget(qw.QLabel('Symbol'), iy, 0)
@@ -330,8 +326,8 @@ class TableElement(base.Element):
                         if h.get_ncols() == 1:
                             cb.insertItem(i, s)
 
-        base._update_cpt_combobox(self)
-        base._update_cptscale_lineedit(self)
+        self.cpt_handler._update_cpt_combobox()
+        self.cpt_handler._update_cptscale_lineedit()
 
 
 __all__ = [
