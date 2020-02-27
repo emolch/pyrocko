@@ -1,4 +1,6 @@
+from subprocess import check_call, CalledProcessError
 import logging
+
 
 from pyrocko.guts import Object, String, Float, Bytes, clone, \
     dump_all, load_all
@@ -297,6 +299,16 @@ class SnapshotsPanel(qw.QFrame):
             ip, output_path=kwargs.get('output_path', None))
 
     def render_movie(self):
+        try:
+            check_call(['ffmpeg', '-loglevel', 'panic'])
+        except CalledProcessError:
+            pass
+        except (TypeError, FileNotFoundError):
+            logger.warn(
+                'Package ffmpeg needed for movie rendering. Please install it '
+                '(e.g. on linux distr. via sudo apt-get ffmpeg.) and retry.')
+            return
+
         caption = 'Export Movie'
         fn_out, _ = fnpatch(qw.QFileDialog.getSaveFileName(
             self, caption, 'movie.mp4',
