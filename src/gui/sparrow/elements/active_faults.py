@@ -135,6 +135,9 @@ class ActiveFaultsElement(Element):
             state.add_listener(self.update, 'color_by_slip_type'))
         self._state = state
 
+    def unbind_state(self):
+        self._listeners = []
+
     def get_name(self):
         return 'Active Faults'
 
@@ -146,6 +149,22 @@ class ActiveFaultsElement(Element):
         self._parent.add_panel(
             self.get_name(), self._get_controls(), visible=True)
         self.update()
+
+    def unset_parent(self):
+        self.unbind_state()
+        if self._parent:
+            if self._pipe:
+                for actor in self._pipe.get_actors():
+                    self._parent.remove_actor(actor)
+
+                self._pipe = None
+
+            if self._controls:
+                self._parent.remove_panel(self._controls)
+                self._controls = None
+
+            self._parent.update_view()
+            self._parent = None
 
     def update(self, *args):
 
@@ -175,6 +194,7 @@ class ActiveFaultsElement(Element):
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
+            layout.setAlignment(qc.Qt.AlignTop)
             frame.setLayout(layout)
 
             layout.addWidget(qw.QLabel('Size'), 0, 0)
@@ -193,12 +213,16 @@ class ActiveFaultsElement(Element):
             cb = qw.QCheckBox('Show')
             cb_color_slip_type = qw.QCheckBox('Color by slip type')
 
-            layout.addWidget(cb, 1, 0)
-            state_bind_checkbox(self, self._state, 'visible', cb)
-
-            layout.addWidget(cb_color_slip_type, 2, 0)
+            layout.addWidget(cb_color_slip_type, 1, 0)
             state_bind_checkbox(self, self._state, 'color_by_slip_type',
                                 cb_color_slip_type)
+
+            layout.addWidget(cb, 2, 0)
+            state_bind_checkbox(self, self._state, 'visible', cb)
+
+            pb = qw.QPushButton('Remove')
+            layout.addWidget(pb, 2, 1)
+            pb.clicked.connect(self.remove)
 
             self._controls = frame
 

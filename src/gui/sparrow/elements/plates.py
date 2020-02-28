@@ -125,6 +125,9 @@ class PlatesBoundsElement(Element):
             state.add_listener(self.update, 'opacity'))
         self._state = state
 
+    def unbind_state(self):
+        self._listerners = []
+
     def get_name(self):
         return 'Plate bounds'
 
@@ -137,6 +140,21 @@ class PlatesBoundsElement(Element):
         self._parent.add_panel(
             self.get_name(), self._get_controls(), visible=True)
         self.update()
+
+    def unset_parent(self):
+        self.unbind_state()
+        if self._plate_lines:
+            for i, plate in enumerate(self._plate_lines):
+                self._parent.remove_actor(plate.actor)
+
+            self._pipe = None
+
+            if self._controls:
+                self._parent.remove_panel(self._controls)
+                self._controls = None
+
+            self._parent.update_view()
+            self._parent = None
 
     def update(self, *args):
 
@@ -163,9 +181,10 @@ class PlatesBoundsElement(Element):
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
+            layout.setAlignment(qc.Qt.AlignTop)
             frame.setLayout(layout)
 
-            layout.addWidget(qw.QLabel('opacity'), 0, 0)
+            layout.addWidget(qw.QLabel('Opacity'), 0, 0)
 
             slider = qw.QSlider(qc.Qt.Horizontal)
             slider.setSizePolicy(
@@ -182,6 +201,10 @@ class PlatesBoundsElement(Element):
 
             layout.addWidget(cb, 1, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
+
+            pb = qw.QPushButton('Remove')
+            layout.addWidget(pb, 1, 1)
+            pb.clicked.connect(self.remove)
 
             self._controls = frame
 

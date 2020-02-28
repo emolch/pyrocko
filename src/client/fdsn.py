@@ -54,6 +54,7 @@ g_site_abbr = {
     'iris': 'http://service.iris.edu',
     'orfeus': 'http://www.orfeus-eu.org',
     'bgr': 'http://eida.bgr.de',
+    'emsc': 'http://www.seismicportal.eu',
     'geonet': 'http://service.geonet.org.nz',
     'knmi': 'http://rdsa.knmi.nl',
     'ncedc': 'http://service.ncedc.org',
