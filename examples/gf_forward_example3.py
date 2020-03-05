@@ -3,34 +3,39 @@ import numpy as num
 import matplotlib.pyplot as plt
 from pyrocko import gf
 
+km = 1e3
+
 # Download a Greens Functions store, programmatically.
 store_id = 'gf_abruzzo_nearfield_vmod_Ameri'
 if not os.path.exists(store_id):
     gf.ws.download_gf_store(site='kinherd', store_id=store_id)
 
-# Ignite the LocalEngine and point it to your fomosto store, e.g. stored on a
-# USB stick, which for example has the id 'Abruzzo_Ameri_static_nearfield'
+# Ignite the LocalEngine and point it to your fomosto store at '.'
 engine = gf.LocalEngine(store_superdirs=['.'])
 
-# We want to reproduce the USGS Solution of an event, e.g.
-dep, strike, dip, leng, wid, rake, slip = 10.5, 90., 40., 10., 10., 90., .5
+# RectangularSource parameters
+strike = 90.
+dip = 40.
+dep = 10.5*km
+leng = 10.*km
+wid = 10.*km
+rake = 90.
+slip = .5
 
-km = 1e3    # distance in kilometer, for convenienve
-
-# We compute the magnitude of the event
-potency = leng*km*wid*km*slip
+# Magnitude of the event
+potency = leng * wid * slip
 rigidity = 31.5e9
 m0 = potency*rigidity
 mw = (2./3) * num.log10(m0) - 6.07
 
-# We define an extended rectangular source
+# Define an extended RectangularSource
 thrust = gf.RectangularSource(
     north_shift=0., east_shift=0.,
-    depth=dep*km, width=wid*km, length=leng*km,
+    depth=dep, width=wid, length=leng,
     dip=dip, rake=rake, strike=strike,
     slip=slip)
 
-# We will define a grid of targets
+# Define a grid of targets
 # number in east and north directions, and total
 ngrid = 40
 # ngrid = 90  # for better resolution
@@ -39,7 +44,6 @@ ngrid = 40
 obs_size = 20.*km
 ntargets = ngrid**2
 
-# make regular line vector
 norths = num.linspace(-obs_size, obs_size, ngrid)
 easts = num.linspace(-obs_size, obs_size, ngrid)
 
@@ -47,13 +51,14 @@ easts = num.linspace(-obs_size, obs_size, ngrid)
 norths2d = num.repeat(norths, len(easts))
 easts2d = num.tile(easts, len(norths))
 
-# We initialize the satellite target and set the line of site vectors
+# Initialize the SatelliteTarget and set the line of site vectors
 # Case example of the Sentinel-1 satellite:
+#
 # Heading: -166 (anti-clockwise rotation from east)
 # Average Look Angle: 36 (from vertical)
 heading = -76.
 look = 36.
-phi = num.empty(ntargets)    # Horizontal LOS from E in anti-clockwise rotation
+phi = num.empty(ntargets)  # Horizontal LOS from E in anti-clockwise rotation
 theta = num.empty(ntargets)  # Vertical LOS from horizontal
 phi.fill(num.deg2rad(-90-heading))
 theta.fill(num.deg2rad(90.-look))
@@ -67,17 +72,17 @@ satellite_target = gf.SatelliteTarget(
     theta=theta,
     store_id=store_id)
 
-# The computation is performed by calling 'process' on the engine
+# Forward-modell is performed by calling 'process' on the engine
 result = engine.process(thrust, [satellite_target])
 
-# get synthetic displacements and target coordinates from engine's 'result'
-# of the first target (i target=0)
-i_target = 0
-N = result.request.targets[i_target].coords5[:, 2]
-E = result.request.targets[i_target].coords5[:, 3]
-synth_disp = result.results_list[0][i_target].result
+# Retrieve synthetic displacements and coordinates from engine's result
+# of the first target (it=0)
+it = 0
+N = result.request.targets[it].coords5[:, 2]
+E = result.request.targets[it].coords5[:, 3]
+synth_disp = result.results_list[0][it].result
 
-# we get the fault projection to the surface for plotting
+# Fault projection to the surface for plotting
 n, e = thrust.outline(cs='xy').T
 
 fig, _ = plt.subplots(1, 2, figsize=(8, 4))
@@ -85,11 +90,12 @@ fig.suptitle(
     "fault: dep={:0.2f}, l={}, w={:0.2f},str={},"
     "rake={}, dip={}, slip={}, Mw={:0.3f}\n"
     "satellite: heading={}, look angle={}"
-    .format(dep, leng, wid, strike, rake, dip, slip, heading, look, mw),
+    .format(dep/km, leng/km, wid/km,
+            strike, rake, dip, slip, heading, look, mw),
     fontsize=14,
     fontweight='bold')
 
-# We shift the relative LOS displacements
+# Shift the relative LOS displacements
 los = synth_disp['displacement.los']
 losrange = [(los.max(), los.min())]
 losmax = num.abs([num.min(losrange), num.max(losrange)]).max()
@@ -107,18 +113,18 @@ ax.set_title('line-of-sight displacement [m]')
 ax.set_aspect('equal')
 ax.set_xlim(-obs_size, obs_size)
 ax.set_ylim(-obs_size, obs_size)
-# plot fault outline
+# Fault outline
 ax.fill(e, n, color=(0.5, 0.5, 0.5), alpha=0.5)
-# We underline the tip of the thrust
+# Underline the tip of the thrust
 ax.plot(e[:2], n[:2], linewidth=2., color='black', alpha=0.5)
 
 fig.colorbar(cmap, ax=ax, orientation='vertical', aspect=5, shrink=0.5)
 
-# We simulate a C-band interferogram for this source
+# Simulate a C-band interferogram for this source
 c_lambda = 0.056
 insar_phase = -num.mod(los, c_lambda/2.)/(c_lambda/2.)*2.*num.pi - num.pi
 
-# We plot wrapped phase
+# Plot wrapped phase
 ax = fig.axes[1]
 cmap = ax.scatter(
     E, N, c=insar_phase,

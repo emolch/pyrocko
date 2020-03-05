@@ -223,7 +223,56 @@ mantle
         process_multiple_targets()
 
         # self.plot_static_los_result(ml)
-        # print benchmark
+
+    def test_pseudo_dyn_rupture_vs_rectangular(self):
+
+        engine = gf.LocalEngine(store_dirs=[self.get_store_dir('pscmp')])
+        store = engine.get_store('psgrn_pscmp_test')
+        ntargets = 50
+        interpolation = 'nearest_neighbor'
+
+        source_params = dict(
+            north_shift=2*km,
+            east_shift=2*km,
+            depth=6.5*km,
+            width=2.*km,
+            length=4*km,
+            dip=random.uniform(0., 90.),
+            strike=random.uniform(-180., 180.),
+            magnitude=7.,
+            anchor='top',
+            decimation_factor=4)
+
+        dyn_rupture = gf.PseudoDynamicRupture(
+            nx=4, ny=4,
+            tractions=(1.e4, 0.e4, 0.),
+            **source_params)
+
+        dyn_rupture.ensure_tractions()
+        dyn_rupture.discretize_patches(store)
+        slip = dyn_rupture.get_okada_slip()
+        rake = num.arctan2(slip[:, 1].mean(), slip[:, 0].mean())
+
+        rect_rupture = gf.RectangularSource(
+            rake=float(rake*d2r),
+            **source_params)
+
+        static_target = gf.StaticTarget(
+            north_shifts=(random.rand(ntargets)-.5) * 25. * km,
+            east_shifts=(random.rand(ntargets)-.5) * 25. * km,
+            tsnapshot=20,
+            interpolation=interpolation)
+
+        result = engine.process(rect_rupture, static_target)
+        synth_disp_rect = result.results_list[0][0].result
+
+        result = engine.process(dyn_rupture, static_target)
+        synth_disp_dyn = result.results_list[0][0].result
+
+        down_rect = synth_disp_rect['displacement.d']
+        down_dyn = synth_disp_dyn['displacement.d']
+
+        num.testing.assert_allclose(down_rect, down_dyn)
 
     @staticmethod
     def plot_static_los_result(result):

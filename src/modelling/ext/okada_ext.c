@@ -135,7 +135,7 @@ static void ua(
         du[10] = c0->alp2*c2->ez;
         du[11] = - c0->alp1*(c0->sd/c2->r - qy*c0->cd) - c0->alp2*q*c2->fz;
         for (i=0; i<12; i++) {
-            u[i] = u[i] + disl1/(M_PI*2.0)*du[i];
+            u[i] += disl1/(M_PI*2.0)*du[i];
         }
     }
 
@@ -155,7 +155,7 @@ static void ua(
         du[10] = c0->alp1*c2->y*c2->x11 + xy/2.0*c0->cd + c0->alp2*et*c2->gz;
         du[11] = - c0->alp1*c2->d*c2->x11 - c0->alp2*q*c2->gz;
         for (i=0; i<12; i++) {
-            u[i] = u[i] + disl2/(M_PI*2.0)*du[i];
+            u[i] += disl2/(M_PI*2.0)*du[i];
         }
     }
 
@@ -175,7 +175,7 @@ static void ua(
         du[10] = c0->alp1*c2->d*c2->x11 - c0->alp2*q*c2->gz;
         du[11] = c0->alp1*(c2->y*c2->x11 + xy*c0->cd) + c0->alp2*q*c2->hz;
         for (i=0; i<12; i++) {
-            u[i] = u[i] + disl3/(M_PI*2.0)*du[i];
+            u[i] += disl3/(M_PI*2.0)*du[i];
         }
     }
 }
@@ -202,7 +202,6 @@ static void ub(
      */
 
     double ai1, ai2, ai3, ai4, aj1, aj2, aj3, aj4, aj5, aj6, ak1, ak2, ak3, ak4, d11, qx, qy, rd, rd2, x, xy;
-
     double du[12];
 
     int i;
@@ -264,7 +263,7 @@ static void ub(
         du[10] = - c2->ez + c0->alp3*c2->y*d11*c0->sd;
         du[11] = q*c2->fz + c0->alp3*ak2*c0->sd;
         for (i=0; i<12; i++) {
-            u[i] = u[i]+disl1/(2.0*M_PI)*du[i];
+            u[i] += disl1/(2.*M_PI)*du[i];
         }
     }
 
@@ -284,7 +283,7 @@ static void ub(
         du[10] = - et*c2->gz - xy*c0->cd - c0->alp3*xi*d11*c0->sdcd;
         du[11] = q*c2->gz - c0->alp3*ak4*c0->sdcd;
         for (i=0; i<12; i++) {
-            u[i] = u[i] + disl2/(2.0*M_PI)*du[i];
+            u[i] += disl2/(2.*M_PI)*du[i];
         }
     }
 
@@ -304,7 +303,7 @@ static void ub(
         du[10] = q*c2->gz + c0->alp3*xi*d11*c0->sdsd;
         du[11] = - q*c2->hz + c0->alp3*ak4*c0->sdsd;
         for (i=0; i<12; i++) {
-            u[i] = u[i] + disl3/(2.0*M_PI)*du[i];
+            u[i] += disl3/(2.*M_PI)*du[i];
         }
     }
 }
@@ -376,7 +375,7 @@ static void uc(
         du[10] = c0->alp4*2.0*(c2->y/c2->r3 - y0*c0->cd)*c0->sd + c2->d/c2->r3*c0->cd - c0->alp5*(cdr*c0->cd + c*c2->d*qr);
         du[11] = yy0*c0->cd - c0->alp5*(cdr*c0->sd - c*c2->y*qr - y0*c0->sdsd + q*z0*c0->cd);
         for (i=0; i<12; i++) {
-            u[i] = u[i] + disl1/(M_PI*2.0)*du[i];
+            u[i] += disl1/(2.*M_PI)*du[i];
         }
     }
 
@@ -396,7 +395,7 @@ static void uc(
         du[10] = c0->alp4*c2->y*c2->d*c2->x32 - c0->alp5*c*((c2->y - 2.0*q*c0->sd)*c2->x32 + c2->d*et*q*x53);
         du[11] = - xi*ppz*c0->sd + c2->x11 - c2->d*c2->d*c2->x32 - c0->alp5*c*((c2->d - 2.0*q*c0->cd)*c2->x32 - c2->d*c2->q2*x53);
         for (i=0; i<12; i++) {
-            u[i] = u[i] + disl2/(M_PI*2.0)*du[i];
+            u[i] += disl2/(2.*M_PI)*du[i];
         }
     }
 
@@ -416,7 +415,7 @@ static void uc(
         du[10] = c0->alp4*2.0*xi*ppz*c0->sd - c2->x11 + c2->d*c2->d*c2->x32 - c0->alp5*c*((c2->d - 2.0*q*c0->cd)*c2->x32 - c2->d*c2->q2*x53);
         du[11] = c0->alp4*(xi*ppz*c0->cd + c2->y*c2->d*c2->x32) + c0->alp5*(c*((c2->y - 2.0*q*c0->sd)*c2->x32 + c2->d*et*q*x53) + xi*qqz);
         for (i=0; i<12; i++) {
-            u[i] = u[i] + disl3/(M_PI*2.0)*du[i];
+            u[i] += disl3/(2.*M_PI)*du[i];
         }
     }
 }
@@ -715,13 +714,13 @@ static okada_error_t dc3d(
                 du[i+1] = (dua[i+1] + dub[i+1] + z*duc[i+1])*c0.cd - (dua[i+2] + dub[i+2] + z*duc[i+2])*c0.sd;
                 du[i+2] = (dua[i+1] + dub[i+1] - z*duc[i+1])*c0.sd + (dua[i+2] + dub[i+2] - z*duc[i+2])*c0.cd;
             }
-            du[9] = du[9] + duc[0];
-            du[10] = du[10] + duc[1]*c0.cd - duc[2]*c0.sd;
-            du[11] = du[11] - duc[1]*c0.sd - duc[2]*c0.cd;
+            du[9] += duc[0];
+            du[10] += duc[1]*c0.cd - duc[2]*c0.sd;
+            du[11] += -duc[1]*c0.sd - duc[2]*c0.cd;
 
             for (i=0; i<12; i++) {
-                if (j == k) u[i] = u[i] + du[i];
-                if (j != k) u[i] = u[i] - du[i];
+                if (j == k) u[i] += du[i];
+                if (j != k) u[i] -= du[i];
             }
         }
     }
@@ -812,25 +811,46 @@ void rot_u(
     }
 }
 
+void euler_to_matrix(double alpha, double beta, double rotmat[3][3]) {
+    double ca = cos(alpha);
+    double cb = cos(beta);
+    double cg = 1.;
+    double sa = sin(alpha);
+    double sb = sin(beta);
+    double sg = 0.;
+
+    rotmat[0][0] = cb*cg-ca*sb*sg;
+    rotmat[0][1] = sb*cg+ca*cb*sg;
+    rotmat[0][2] = sa*sg;
+
+    rotmat[1][0] = -cb*sg-ca*sb*cg;
+    rotmat[1][1] = -sb*sg+ca*cb*cg;
+    rotmat[1][2] = sa*cg;
+
+    rotmat[2][0] = sa*sb;
+    rotmat[2][1] = -sa*cb;
+    rotmat[2][2] = ca;
+}
 
 static okada_error_t dc3d_flexi(
-        double alpha,
-        double nr,
+        double alpha,  // (lambda + mu) / (lambda + 2. * mu)
+        double nr,  // receiver coords
         double er,
         double dr,
-        double ns,
+        double ns,  // source coords
         double es,
         double ds,
-        double strike,
+        double strike,  // source params
         double dip,
-        double al1,
+        double al1,  // length
         double al2,
-        double aw1,
+        double aw1,  // width
         double aw2,
-        double disl1,
+        double disl1,  // dislocation of the source in space
         double disl2,
         double disl3,
-        double *u) {
+        double *u,
+        int rot_sdn) {
 
     /*
      * Wrapper for dc3d function
@@ -844,16 +864,7 @@ static okada_error_t dc3d_flexi(
     okada_error_t iret;
 
     /* rotmat rotates from NED to XYZ (as used by Okada 1992) */
-
-    rotmat[0][0] = cos(strike*D2R);
-    rotmat[0][1] = sin(strike*D2R);
-    rotmat[0][2] = 0.0;
-    rotmat[1][0] = sin(strike*D2R);
-    rotmat[1][1] = -cos(strike*D2R);
-    rotmat[1][2] = 0.0;
-    rotmat[2][0] = 0.0;
-    rotmat[2][1] = 0.0;
-    rotmat[2][2] = -1.0;
+    euler_to_matrix((180.*D2R), strike*D2R, rotmat);
 
     /* calc and rotation of vector Source-Receiver r */
 
@@ -874,6 +885,10 @@ static okada_error_t dc3d_flexi(
     */
 
     rot_u(uokada, rotmat, u);
+    if (rot_sdn == 1) {
+        euler_to_matrix((dip + 180.)*D2R, strike*D2R, rotmat);
+        rot_u(u, rotmat, u);
+    }
 
     return iret;
 }
@@ -930,26 +945,22 @@ int halfspace_check(
     */
 
     unsigned long irec, isrc, src_idx;
-    char msg[1024];
 
     for (isrc=0; isrc<nsources; isrc++) {
         src_idx = isrc * 9;
         if ((source_patches[src_idx + 2] - sin(source_patches[src_idx + 4]*D2R) * source_patches[src_idx + 7]) < 0 || (source_patches[src_idx + 2] - sin(source_patches[src_idx + 4]*D2R) * source_patches[src_idx + 8]) < 0 ) {
-            sprintf(msg, "Source %g, %g, %g (N, E, D) is (partially) above z=0.\nCalculation was terminated. Please check.", source_patches[src_idx], source_patches[src_idx + 1], source_patches[src_idx + 2]);
-            PyErr_SetString(PyExc_ValueError, msg);
+            PyErr_Format(PyExc_ValueError, "Source %g, %g, %g (N, E, D) is (partially) above z=0.\nCalculation was terminated. Please check.", source_patches[src_idx], source_patches[src_idx + 1], source_patches[src_idx + 2]);
             return 0;
         }
         if (source_patches[src_idx + 2] < 0) {
-            sprintf(msg, "Source %g, %g, %g (N, E, D) is (partially) above z=0.\nCalculation was terminated. Please check.", source_patches[src_idx], source_patches[src_idx + 1], source_patches[src_idx + 2]);
-            PyErr_SetString(PyExc_ValueError, msg);
+            PyErr_Format(PyExc_ValueError, "Source %g, %g, %g (N, E, D) is (partially) above z=0.\nCalculation was terminated. Please check.", source_patches[src_idx], source_patches[src_idx + 1], source_patches[src_idx + 2]);
             return 0;
         }
     }
 
     for (irec=0; irec<nreceivers; irec++) {
         if (receiver_coords[irec * 3 + 2] < 0) {
-            sprintf(msg, "Receiver %g, %g, %g (N, E, D) is above z=0.\nCalculation was terminated.  Please check!", receiver_coords[irec * 3], receiver_coords[irec * 3 + 1], receiver_coords[irec * 3 + 2]);
-            PyErr_SetString(PyExc_ValueError, msg);
+            PyErr_Format(PyExc_ValueError, "Receiver %g, %g, %g (N, E, D) is above z=0.\nCalculation was terminated.  Please check!", receiver_coords[irec * 3], receiver_coords[irec * 3 + 1], receiver_coords[irec * 3 + 2]);
             return 0;
         }
     }
@@ -957,11 +968,8 @@ int halfspace_check(
 }
 
 
-static PyObject* w_dc3d_flexi(
-    PyObject *m,
-    PyObject *args) {
-
-    int nthreads;
+static PyObject* w_dc3d_flexi(PyObject *m, PyObject *args, PyObject *kwds) {
+    int nthreads, rot_sdn, stack_sources;
     unsigned long nrec, nsources, irec, isource, i;
 
     PyObject *source_patches_arr, *source_disl_arr, *receiver_coords_arr, *output_arr;
@@ -970,16 +978,33 @@ static PyObject* w_dc3d_flexi(
     double lambda, mu;
     double uout[12], alpha;
     npy_intp shape_want[2];
-    npy_intp output_dims[2];
+    npy_intp output_dims[3];
+    npy_intp output_ndims;
 
     struct module_state *st = GETSTATE(m);
 
-    if (! PyArg_ParseTuple(args, "OOOddI", &source_patches_arr, &source_disl_arr, &receiver_coords_arr, &lambda, &mu, &nthreads)) {
-        PyErr_SetString(st->error, "usage: okada(Sourcepatches(north, east, down, strike, dip, al1, al2, aw1, aw2), Dislocation(strike, dip, opening), ReceiverCoords(north, east, down), Lambda, Mu, NumThreads(0 equals all)");
+    nthreads = 1;
+    rot_sdn = 0;
+    stack_sources = 1;
+
+    static char *kwlist[] = {
+        "source_patches_arr", "source_disl_arr", "receiver_coords_arr", "lambda", "mu",
+        "nthreads", "rotate_sdn", "stack_sources",
+        NULL
+    };
+
+    if (! PyArg_ParseTupleAndKeywords(args, kwds, "OOOdd|Ipp", kwlist, &source_patches_arr, &source_disl_arr, &receiver_coords_arr, &lambda, &mu, &nthreads, &rot_sdn, &stack_sources)) {
+        PyErr_SetString(st->error, "usage: okada(source_patches_arr, disl_arr, receiver_coords_arr, lambda, mu, nthreads=0, rotate_sdn=False, stack_sources=True");
         return NULL;
     }
 
-    shape_want[0] = PyArray_SHAPE((PyArrayObject*) source_patches_arr)[0];
+    nrec = PyArray_SHAPE((PyArrayObject*) receiver_coords_arr)[0];
+    nsources = PyArray_SHAPE((PyArrayObject*) source_patches_arr)[0];
+    receiver_coords = PyArray_DATA((PyArrayObject*) receiver_coords_arr);
+    source_patches = PyArray_DATA((PyArrayObject*) source_patches_arr);
+    source_disl = PyArray_DATA((PyArrayObject*) source_disl_arr);
+
+    shape_want[0] = nsources;
     shape_want[1] = 9;
     if (! good_array(source_patches_arr, NPY_FLOAT64, 2, shape_want))
         return NULL;
@@ -988,42 +1013,58 @@ static PyObject* w_dc3d_flexi(
     if (! good_array(source_disl_arr, NPY_FLOAT64, 2, shape_want))
         return NULL;
 
-    shape_want[0] = PyArray_SHAPE((PyArrayObject*) receiver_coords_arr)[0];
+    shape_want[0] = nrec;
     if (! good_array(receiver_coords_arr, NPY_FLOAT64, 2, shape_want))
         return NULL;
 
-    nrec = PyArray_SHAPE((PyArrayObject*) receiver_coords_arr)[0];
-    nsources = PyArray_SHAPE((PyArrayObject*) source_patches_arr)[0];
-    receiver_coords = PyArray_DATA((PyArrayObject*) receiver_coords_arr);
-    source_patches = PyArray_DATA((PyArrayObject*) source_patches_arr);
-    source_disl = PyArray_DATA((PyArrayObject*) source_disl_arr);
-
-    output_dims[0] = PyArray_SHAPE((PyArrayObject*) receiver_coords_arr)[0];
-    output_dims[1] = 12;
-    output_arr = PyArray_ZEROS(2, output_dims, NPY_FLOAT64, 0);
-    output = PyArray_DATA((PyArrayObject*) output_arr);
+    if (stack_sources) {
+        output_dims[0] = nrec;
+        output_dims[1] = 12;
+        output_ndims = 2;
+    } else {
+        output_dims[0] = nsources;
+        output_dims[1] = nrec;
+        output_dims[2] = 12;
+        output_ndims = 3;
+    }
 
     if (!halfspace_check(source_patches, receiver_coords, nsources, nrec))
         return NULL;
 
+    output_arr = PyArray_ZEROS(output_ndims, output_dims, NPY_FLOAT64, 0);
+    output = PyArray_DATA((PyArrayObject*) output_arr);
+
     #if defined(_OPENMP)
         Py_BEGIN_ALLOW_THREADS
-        if (nthreads == 0)
+        if (nthreads <= 0)
             nthreads = omp_get_num_procs();
         #pragma omp parallel\
-            shared(nrec, nsources, lambda, mu, receiver_coords, source_patches, source_disl, output)\
+            shared(nrec, nsources, lambda, mu, receiver_coords, source_patches, source_disl, output, rot_sdn)\
             private(uout, irec, isource, i, alpha)\
             num_threads(nthreads)
         {
-        #pragma omp for schedule(static) nowait
+        #pragma omp for schedule(static)
     #endif
         for (irec=0; irec<nrec; irec++) {
             for (isource=0; isource<nsources; isource++) {
                 alpha = (lambda + mu) / (lambda + 2. * mu);
-                dc3d_flexi(alpha, receiver_coords[irec*3], receiver_coords[irec*3+1], receiver_coords[irec*3+2], source_patches[isource*9], source_patches[isource*9+1], source_patches[isource*9+2], source_patches[isource*9+3], source_patches[isource*9+4], source_patches[isource*9+5], source_patches[isource*9+6], source_patches[isource*9+7], source_patches[isource*9+8], source_disl[isource*3], source_disl[isource*3+1], source_disl[isource*3+2], uout);
+                dc3d_flexi(
+                    alpha,
+                    receiver_coords[irec*3], receiver_coords[irec*3+1], receiver_coords[irec*3+2],
+                    source_patches[isource*9], source_patches[isource*9+1], source_patches[isource*9+2], source_patches[isource*9+3], source_patches[isource*9+4],
+                    source_patches[isource*9+5], source_patches[isource*9+6], source_patches[isource*9+7], source_patches[isource*9+8],
+                    source_disl[isource*3], source_disl[isource*3+1], source_disl[isource*3+2],
+                    uout, rot_sdn);
 
-                for (i=0; i<12; i++) {
-                    output[irec*12+i] += uout[i];
+                if (stack_sources) {
+                    for(i=0; i<12; i++) {
+                        output[irec*12+i] += uout[i];
+                    }
+                } else {
+                    for(i=0; i<12; i++) {
+                        output[isource*nrec*12 + irec*12+i] = uout[i];
+                    }
+                    // memcpy(output + isource*nrec*12 + irec*12, uout, size_rec);
                 }
             }
         }
@@ -1037,9 +1078,12 @@ static PyObject* w_dc3d_flexi(
 
 
 static PyMethodDef okada_ext_methods[] = {
-    {"okada", w_dc3d_flexi, METH_VARARGS,
-    "Calculates the static displacement and its derivatives from Okada Source"},
-
+    {
+        "okada",
+        (PyCFunctionWithKeywords) w_dc3d_flexi,
+        METH_VARARGS | METH_KEYWORDS,
+        "Calculates the static displacement and its derivatives from Okada Source"
+    },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

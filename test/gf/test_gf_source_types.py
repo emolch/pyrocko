@@ -14,6 +14,7 @@ km = 1e3
 
 show_plot = int(os.environ.get('MPL_SHOW', 0))
 
+
 class GFSourceTypesTestCase(unittest.TestCase):
 
     def test_rectangular_source(self):

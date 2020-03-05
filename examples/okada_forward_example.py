@@ -47,5 +47,4 @@ result = okada_ext.okada(
     source.lamb, source.shearmod, 0)
 
 # Plot
-displt.plot(result, receiver_coords, cmap='coolwarm', zero_center=True
-)
+displt.plot(result, receiver_coords, cmap='coolwarm', zero_center=True)

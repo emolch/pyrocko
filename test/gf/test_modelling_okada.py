@@ -4,8 +4,12 @@ import numpy as num
 import unittest
 
 from pyrocko import util
+from pyrocko import moment_tensor as mt
 from pyrocko.modelling import DislocationInverter, okada_ext, OkadaSource
 
+from ..common import Benchmark
+
+benchmark = Benchmark()
 
 d2r = num.pi / 180.
 km = 1000.
@@ -15,6 +19,7 @@ show_plot = int(os.environ.get('MPL_SHOW', 0))
 
 
 class OkadaTestCase(unittest.TestCase):
+
     def test_okada(self):
         n = 1
 
@@ -71,15 +76,15 @@ class OkadaTestCase(unittest.TestCase):
             for i in range(n)]
         source_patches2 = num.array([
             source.source_patch() for source in source_list2])
-        assert (source_patches == source_patches2).all()
+        num.testing.assert_equal(source_patches, source_patches2)
 
         source_disl2 = num.array([
             patch.source_disloc() for patch in source_list2])
-        assert (source_disl == source_disl2).all()
+        num.testing.assert_equal(source_disl, source_disl2)
 
         results2 = okada_ext.okada(
             source_patches2, source_disl2, receiver_coords, lamb, mu, nthreads)
-        assert (results == results2).all()
+        num.testing.assert_equal(results, results2)
 
         seismic_moment = \
             mu * num.sum(num.abs([al1, al2])) * \
@@ -112,6 +117,164 @@ class OkadaTestCase(unittest.TestCase):
             vals = num.array([u[0][i], u_check[i]])
             assert num.abs(u[0][i]) - num.abs(u_check[i]) < 1e-5
             assert num.all(vals > 0.) or num.all(vals < 0.)
+
+    def test_okada_inv_benchmark(self):
+        nlength = 25
+        nwidth = 25
+
+        al1 = -40.
+        al2 = -al1
+        aw1 = -20.
+        aw2 = -aw1
+
+        strike = 0.
+        dip = 70.
+
+        ref_north = 100.
+        ref_east = 200.
+        ref_depth = 50.
+
+        source = OkadaSource(
+            lat=1., lon=-1., north_shift=ref_north, east_shift=ref_east,
+            depth=ref_depth,
+            al1=al1, al2=al2, aw1=aw1, aw2=aw2, strike=strike, dip=dip)
+
+        source_disc, _ = source.discretize(nlength, nwidth)
+
+        @benchmark.labeled('okada_inv')
+        def calc():
+            return DislocationInverter.get_coef_mat(
+                source_disc, nthreads=1)
+
+        @benchmark.labeled('okada_inv_single')
+        def calc_bulk():
+            return DislocationInverter.get_coef_mat_single(
+                source_disc, nthreads=1)
+
+        @benchmark.labeled('okada_slow')
+        def calc_slow():
+            return DislocationInverter.get_coef_mat_slow(
+                source_disc, nthreads=1)
+
+        res1 = calc()
+        res1 = calc()
+        res2 = calc_bulk()
+        res3 = calc_slow()
+
+        num.testing.assert_equal(res1, res2)
+        num.testing.assert_equal(res2, res3)
+        print(benchmark)
+
+    def test_okada_rotate_sdn(self):
+        nlength = 50
+        nwidth = 10
+
+        al1 = -40.
+        al2 = -al1
+        aw1 = -20.
+        aw2 = -aw1
+
+        strike = 0.
+        dip = 70.
+
+        ref_north = 100.
+        ref_east = 200.
+        ref_depth = 50.
+
+        source = OkadaSource(
+            lat=1., lon=-1., north_shift=ref_north, east_shift=ref_east,
+            depth=ref_depth,
+            al1=al1, al2=al2, aw1=aw1, aw2=aw2, strike=strike, dip=dip)
+
+        source_disc, _ = source.discretize(nlength, nwidth)
+        npoints = len(source_disc)
+
+        source_patches = num.array([
+            src.source_patch() for src in source_disc])
+        receiver_coords = source_patches[:, :3].copy()
+        coefmat = num.zeros((npoints * 3, npoints * 3))
+        coefmat_sdn = num.zeros((npoints * 3, npoints * 3))
+
+        def ned2sdn_rotmat(strike, dip):
+            return mt.euler_to_matrix((dip + 180.)*d2r, strike*d2r, 0.).A
+
+        lambda_mean = num.mean([src.lamb for src in source_disc])
+        mu_mean = num.mean([src.shearmod for src in source_disc])
+
+        case = {
+            'slip': 1.,
+            'opening': 0.,
+            'rake': 0.
+        }
+
+        diag_ind = (0, 4, 8)
+        kron = num.zeros((npoints, 9))
+        kron[:, diag_ind] = 1.
+
+        source_disl = num.array([
+            case['slip'] * num.cos(case['rake'] * d2r),
+            case['slip'] * num.sin(case['rake'] * d2r),
+            case['opening']])
+
+        # Python rotation to sdn
+        for isource, source in enumerate(source_patches):
+            results = okada_ext.okada(
+                source[num.newaxis, :],
+                source_disl[num.newaxis, :],
+                receiver_coords,
+                lambda_mean,
+                mu_mean,
+                nthreads=0,
+                rotate_sdn=False)
+
+            eps = \
+                0.5 * (
+                    results[:, 3:] +
+                    results[:, (3, 6, 9, 4, 7, 10, 5, 8, 11)])
+
+            dilatation = num.sum(eps[:, diag_ind], axis=1)[:, num.newaxis]
+
+            stress_ned = kron * lambda_mean * dilatation+2. * mu_mean * eps
+            rotmat = ned2sdn_rotmat(
+                source_disc[isource].strike,
+                source_disc[isource].dip)
+
+            stress_sdn = num.einsum(
+                'ij,...jk,lk->...il',
+                rotmat, stress_ned.reshape(npoints, 3, 3), rotmat,
+                optimize=True)
+
+            stress_sdn = stress_sdn.reshape(npoints, 9)
+
+            coefmat[0::3, isource * 3] = -stress_sdn[:, 2].ravel()
+            coefmat[1::3, isource * 3] = -stress_sdn[:, 5].ravel()
+            coefmat[2::3, isource * 3] = -stress_sdn[:, 8].ravel()
+
+        # c-ext rotation to sdn
+        for isource, source in enumerate(source_patches):
+            results = okada_ext.okada(
+                source[num.newaxis, :],
+                source_disl[num.newaxis, :],
+                receiver_coords,
+                lambda_mean,
+                mu_mean,
+                nthreads=0,
+                rotate_sdn=True)
+
+            eps = \
+                0.5 * (
+                    results[:, 3:] +
+                    results[:, (3, 6, 9, 4, 7, 10, 5, 8, 11)])
+
+            dilatation = num.sum(eps[:, diag_ind], axis=1)[:, num.newaxis]
+
+            stress_sdn = kron * lambda_mean * dilatation+2. * mu_mean * eps
+
+            coefmat_sdn[0::3, isource * 3] = -stress_sdn[:, 2].ravel()
+            coefmat_sdn[1::3, isource * 3] = -stress_sdn[:, 5].ravel()
+            coefmat_sdn[2::3, isource * 3] = -stress_sdn[:, 8].ravel()
+
+        num.testing.assert_allclose(coefmat, coefmat_sdn)
 
     def test_okada_discretize(self):
         nlength = 100
@@ -164,9 +327,11 @@ class OkadaTestCase(unittest.TestCase):
         source_coords[:, 1] += ref_east
         source_coords[:, 2] += ref_depth
 
-        assert (source_coords == num.array([
-            [src.north_shift, src.east_shift, src.depth]
-            for src in source_disc])).all()
+        num.testing.assert_equal(
+            source_coords,
+            num.array([
+                [src.north_shift, src.east_shift, src.depth]
+                for src in source_disc]))
 
         if show_plot:
             import matplotlib.pyplot as plt
@@ -188,8 +353,8 @@ class OkadaTestCase(unittest.TestCase):
         ref_east = 0.
         ref_depth = 100000.
 
-        nlength = 20
-        nwidth = 16
+        nlength = 10
+        nwidth = 10
 
         strike = 0.
         dip = 90.
@@ -217,7 +382,7 @@ class OkadaTestCase(unittest.TestCase):
         receiver_coords = num.array([
             src.source_patch()[:3] for src in source_list])
 
-        pure_shear = False
+        pure_shear = True
         if pure_shear:
             n_eq = 2
         else:
@@ -225,29 +390,30 @@ class OkadaTestCase(unittest.TestCase):
 
         gf = DislocationInverter.get_coef_mat(
             source_list, pure_shear=pure_shear)
-        gf2 = DislocationInverter.get_coef_mat_slow(
+        gf2 = DislocationInverter.get_coef_mat_bulk(
             source_list, pure_shear=pure_shear)
 
         assert num.linalg.slogdet(num.dot(gf.T, gf)) != (0., num.inf)
         assert num.linalg.slogdet(num.dot(gf2.T, gf2)) != (0., num.inf)
-        assert (gf == gf2).all()
+        num.testing.assert_equal(gf, gf2)
 
         # Function to test the computed GF
         dstress = -1.5e6
         stress_comp = 1
 
-        stress = num.zeros((nlength * nwidth * n_eq, 1))
+        stress = num.full(nlength * nwidth * 3, dstress)
         for iw in range(nwidth):
             for il in range(nlength):
                 idx = iw * nlength + il
+                if (il > 2 and il < 10) and (iw > 2 and iw < 12):
+                    stress[idx * 3 + stress_comp] = dstress / 4.
 
-                if (il > 8 and il < 16) and (iw > 2 and iw < 12):
-                    stress[idx * n_eq + stress_comp] = dstress
-                elif (il > 2 and il < 10) and (iw > 2 and iw < 12):
-                    stress[idx * n_eq + stress_comp] = dstress / 4.
+        @benchmark.labeled('lsq')
+        def lsq():
+            return DislocationInverter.get_disloc_lsq(
+                stress, coef_mat=gf, pure_shear=pure_shear)
 
-        disloc_est = DislocationInverter.get_disloc_lsq(
-            stress, coef_mat=gf)
+        disloc_est = lsq()
 
         if show_plot:
             import matplotlib.pyplot as plt
@@ -282,6 +448,8 @@ class OkadaTestCase(unittest.TestCase):
                     fig, n_eq + 1, 4, [i for i in param[2::n_eq]],
                     '$u_{opening}$', vmin=vmin, vmax=vmax)
             plt.show()
+
+        print(benchmark)
 
     def test_okada_vs_griffith_inf2d(self):
         from pyrocko.modelling import GriffithCrack
@@ -330,7 +498,8 @@ class OkadaTestCase(unittest.TestCase):
             shearmod=mu, poisson=poisson) for coords in source_coords]
 
         gf = DislocationInverter.get_coef_mat(source_list, pure_shear=False)
-        disloc_est = DislocationInverter.get_disloc_lsq(stress, coef_mat=gf)
+        disloc_est = DislocationInverter.get_disloc_lsq(stress, coef_mat=gf)\
+            .ravel()
 
         stressdrop = num.zeros(3, )
         stressdrop[stress_comp] = dstress
@@ -348,12 +517,14 @@ class OkadaTestCase(unittest.TestCase):
         idx = line
         idx2 = (nwidth - 1) * nlength + line + 1
 
-        assert num.mean(num.abs(
-            disloc_grif[:, 2] -
-            disloc_est[idx * 3 + 2:idx2 * 3 + 2:3 * nlength])) < 0.001
+        num.testing.assert_allclose(
+            disloc_grif[:, 2],
+            disloc_est[idx * 3 + 2:idx2 * 3 + 2:3 * nlength],
+            atol=1e-2)
 
         if show_plot:
             import matplotlib.pyplot as plt
+
             def add_subplot(fig, ntot, n, title, comp, typ='line'):
                 ax = fig.add_subplot(ntot, 1, n)
                 if typ == 'line':
@@ -438,7 +609,7 @@ class OkadaTestCase(unittest.TestCase):
 
         gf = DislocationInverter.get_coef_mat(source_list, pure_shear=False)
         disloc_est = DislocationInverter.get_disloc_lsq(
-            stress, coef_mat=gf)
+            stress, coef_mat=gf).ravel()
 
         stressdrop = num.zeros(3, )
         stressdrop[2] = dstress
@@ -452,12 +623,14 @@ class OkadaTestCase(unittest.TestCase):
         indices = num.arange(source_coords.shape[0])[source_coords[:, 0] == 0.]
         line = int(nlength / 2.)
 
-        assert num.abs(
-            num.max(num.abs(disloc_grif[:, 2])) -
-            num.max(num.abs(disloc_est[indices * 3 + 2]))) < 0.001
+        num.testing.assert_allclose(
+            disloc_grif[:, 2],
+            disloc_est[indices * 3 + 2],
+            atol=1e-2)
 
         if show_plot:
             import matplotlib.pyplot as plt
+
             def add_subplot(fig, ntot, n, title, comp, typ='line'):
                 ax = fig.add_subplot(ntot, 1, n)
                 if typ == 'line':
