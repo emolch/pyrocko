@@ -16,6 +16,7 @@ from pyrocko import config, util
 
 def parse_3tup(s):
     m = re.match(r'^\(([^,]+),([^,]*),([^,]*)\)$', s)
+    print(m)
     if m:
         return [float(m.group(1)) if m.group(1) else None for i in range(3)]
     else:
@@ -49,9 +50,17 @@ class Fault(object):
         self.slip_type = props.get('slip_type', 'Unknown')
 
         for attr, attr_type in self.__fields__.items():
-            if attr_type is float:
-                if attr in props:
-                    v = parse_3tup(props[attr])[0]
+            if attr in props:
+                if attr_type is float:
+                    if isinstance(props[attr], tuple):
+                        v = parse_3tup(props[attr])[0]
+                    else:
+                        v = props[attr]
+
+                elif attr_type is str:
+                    v = props[attr]
+                elif attr_type is int:
+                    v = props[attr]
                 else:
                     v = None
 
