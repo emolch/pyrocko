@@ -375,16 +375,13 @@ const mapping_scheme_t *get_mapping_scheme(char *name) {
 }
 
 interpolation_scheme_id get_interpolation_scheme_id(char *name) {
-    const char **s;
-    s = interpolation_scheme_names;
     interpolation_scheme_id i;
     i = 0;
-    while (s != NULL) {
-        if (0 == strcmp(*s, name)) {
+    while (interpolation_scheme_names[i] != NULL) {
+        if (0 == strcmp(interpolation_scheme_names[i], name)) {
             return i;
         }
         i++;
-        s++;
     }
     return UNDEFINED_INTERPOLATION_SCHEME;
 }
@@ -1624,7 +1621,7 @@ static PyObject* w_store_mapping_init(PyObject *m, PyObject *args) {
 
     mscheme = get_mapping_scheme(mapping_scheme_name);
     if (mscheme == NULL) {
-        PyErr_SetString(st->error, "store_mapping_init: invalid mapping scheme name");
+        PyErr_Format(st->error, "store_mapping_init: invalid mapping scheme name %s", mapping_scheme_name);
         return NULL;
     }
     n = mscheme->ndims_continuous;
@@ -2672,13 +2669,13 @@ static PyObject* w_store_calc_timeseries(PyObject *m, PyObject *args) {
 
     cscheme = get_component_scheme(component_scheme_name);
     if (cscheme == NULL) {
-        PyErr_SetString(st->error, "w_store_calc_timeseries: invalid component scheme name");
+        PyErr_Format(st->error, "w_store_calc_timeseries: invalid component scheme name %s", component_scheme_name);
         return NULL;
     }
 
     interpolation = get_interpolation_scheme_id(interpolation_scheme_name);
     if (interpolation == UNDEFINED_INTERPOLATION_SCHEME) {
-        PyErr_SetString(st->error, "w_store_calc_timeseries: invalid interpolation scheme name");
+        PyErr_Format(st->error, "w_store_calc_timeseries: invalid interpolation scheme name %s", interpolation_scheme_name);
         return NULL;
     }
     if (!good_array(source_coords_arr, NPY_FLOAT64, -1, 2, shape_want_coords)) {
@@ -2861,15 +2858,16 @@ static PyObject* w_store_calc_static(PyObject *m, PyObject *args) {
 
     cscheme = get_component_scheme(component_scheme_name);
     if (cscheme == NULL) {
-        PyErr_SetString(st->error, "w_store_calc_static: invalid component scheme name");
+        PyErr_Format(st->error, "w_store_calc_static: invalid component scheme name %s", component_scheme_name);
         return NULL;
     }
 
     interpolation = get_interpolation_scheme_id(interpolation_scheme_name);
     if (interpolation == UNDEFINED_INTERPOLATION_SCHEME) {
-        PyErr_SetString(st->error, "w_store_calc_static: invalid interpolation scheme name");
+        PyErr_Format(st->error, "w_store_calc_static: invalid interpolation scheme name %s", interpolation_scheme_name);
         return NULL;
     }
+
     if (!good_array(source_coords_arr, NPY_FLOAT64, -1, 2, shape_want_coords)) {
         PyErr_SetString(st->error, "w_store_calc_static: unhealthy source_coords array");
         return NULL;
