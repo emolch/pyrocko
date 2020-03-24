@@ -2361,15 +2361,24 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
              ' bottom and also top_left, top_right,bottom_left,'
              ' bottom_right, center_left and center right')
 
-    nucleation_x = Float.T(
-        default=0.,
+    nucleation_x__ = Array.T(
+        default=num.array([0]),
+        dtype=num.float,
         help='horizontal position of rupture nucleation in normalized fault '
              'plane coordinates (-1 = left edge, +1 = right edge)')
 
-    nucleation_y = Float.T(
-        default=0.,
+    nucleation_y__ = Array.T(
+        default=num.array([0]),
+        dtype=num.float,
         help='down-dip position of rupture nucleation in normalized fault '
              'plane coordinates (-1 = upper edge, +1 = lower edge)')
+
+    nucleation_time__ = Array.T(
+        optional=True,
+        help='Time in [s] after origin, when nucleation points defined by '
+             'nucleation_x and nucleation_y shall rupture.',
+        dtype=num.float,
+        shape=(None,))
 
     gamma = Float.T(
         default=0.8,
@@ -2377,9 +2386,11 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
              'v_r = gamma * v_s')
 
     nx = Int.T(
+        default=2,
         help='number of discrete source patches in x direction (along strike)')
 
     ny = Int.T(
+        default=2,
         help='number of discrete source patches in y direction (down dip)')
 
     magnitude = Float.T(
@@ -2401,7 +2412,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         optional=True,
         help='List of all boundary elements/sub faults/fault patches')
 
-    tractions = Array.T(
+    tractions__ = Array.T(
         optional=True,
         help='Stress field the source is exposed to in [Pa].'
              'Float will initialize an isotrop stress field for'
@@ -2457,6 +2468,69 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         SourceWithDerivedMagnitude.__init__(self, **kwargs)
         self.check_conflicts()
+
+    @property
+    def nucleation_x(self):
+        return self.nucleation_x__
+
+    @nucleation_x.setter
+    def nucleation_x(self, nucleation_x):
+
+        if not isinstance(
+                nucleation_x, num.ndarray) and nucleation_x is not None:
+
+            nucleation_x = num.array([nucleation_x])
+
+        self.nucleation_x__ = nucleation_x
+
+    @property
+    def nucleation_y(self):
+        return self.nucleation_y__
+
+    @nucleation_y.setter
+    def nucleation_y(self, nucleation_y):
+        if not isinstance(
+                nucleation_y, num.ndarray) and nucleation_y is not None:
+
+            nucleation_y = num.array([nucleation_y])
+
+        self.nucleation_y__ = nucleation_y
+
+    @property
+    def nucleation_time(self):
+        return self.nucleation_time__
+
+    @nucleation_time.setter
+    def nucleation_time(self, nucleation_time):
+        if not isinstance(
+                nucleation_time, num.ndarray) and nucleation_time is not None:
+
+            nucleation_time = num.array([nucleation_time])
+
+        self.nucleation_time__ = nucleation_time
+
+    @property
+    def tractions(self):
+        if self.tractions__ is None:
+            logger.warn(
+                'no traction field given, assuming uniform traction 1.0 Pa')
+            return num.full((self.nx*self.ny, 3), 1.)
+        else:
+            return self.tractions__
+
+    @tractions.setter
+    def tractions(self, tractions):
+        if isinstance(tractions, float):
+            logger.info('Assuming uniform traction %.1f Pa', tractions)
+            self.tractions__ = num.full((self.nx * self.ny, 3), tractions)
+
+        elif isinstance(tractions, tuple):
+            assert len(tractions) == 3
+            self.tractions__ = num.tile(tractions, self.nx*self.ny)\
+                .reshape(-1, 3)
+
+        else:
+            self.tractions__ = tractions
 
     def base_key(self):
         return SourceWithDerivedMagnitude.base_key(self) + (
@@ -2550,8 +2624,6 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                     axis=1)
 
     def pyrocko_moment_tensor(self, store=None, target=None):
-        self.ensure_tractions()
-
         # TODO: Now this should be slip, then it depends on the store.
         # TODO: default to tractions is store is not given?
         tractions = num.mean(self.tractions, axis=0)
@@ -2682,33 +2754,36 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         vr = self._discretize_rupture_v(store, interpolation, points)\
             .reshape(nx, ny)
 
-        def initialize_times(nucl_times=None):
+        def initialize_times():
             nucl_x, nucl_y = self.nucleation_x, self.nucleation_y
 
-            if not isinstance(nucl_x, num.ndarray):
-                nucl_x = num.array([nucl_x])
-            if not isinstance(nucl_y, num.ndarray):
-                nucl_y = num.array([nucl_y])
-
             if nucl_x.shape != nucl_y.shape:
-                logger.warn('nucleation coordinates have different shape.')
+                raise ValueError(
+                    'nucleation coordinates have different shape.')
 
             dist_points = num.array([
                 num.linalg.norm(points_xy - num.array([x, y]), axis=1)
                 for x, y in zip(nucl_x, nucl_y)])
             nucl_indices = num.argmin(dist_points, axis=1)
 
-            if nucl_times is None:
+            if self.nucleation_time is None:
                 nucl_times = num.zeros_like(nucl_indices)
+            else:
+                if self.nucleation_time.shape == nucl_x.shape:
+                    nucl_times = self.nucleation_time
+                else:
+                    raise ValueError(
+                        'Nucleation coordinates and times have different '
+                        'shapes')
 
             t = num.full(nx*ny, -1.)
             t[nucl_indices] = nucl_times
             return t.reshape(nx, ny)
 
         if times is None:
-            times = initialize_times(nucl_times=None)
+            times = initialize_times()
         elif times.shape != tuple((nx, ny)):
-            times = initialize_times(nucl_times=None)
+            times = initialize_times()
             logger.warn(
                 'Given times are not in right shape. Therefore standard time'
                 ' array is used.')
@@ -2818,21 +2893,6 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         self.patches = source_disc
 
-    def ensure_tractions(self):
-        if isinstance(self.tractions, float):
-            logger.info('Assuming uniform traction %.1f Pa', self.tractions)
-            self.tractions = num.full((self.nx * self.ny, 3), self.tractions)
-
-        elif isinstance(self.tractions, tuple):
-            assert len(self.tractions) == 3
-            self.tractions = num.tile(self.tractions, self.nx*self.ny)\
-                .reshape(-1, 3)
-
-        elif self.tractions is None:
-            logger.warn(
-                'no traction field given, assuming uniform traction 1.0 Pa')
-            self.tractions = num.full((self.nx*self.ny, 3), 1.)
-
     def discretize_basesource(self, store, target=None):
         '''
         Prepare source for synthetic waveform calculation
@@ -2851,7 +2911,6 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         self.discretize_patches(store, interpolation)
         self.calc_coef_mat()
-        self.ensure_tractions()
 
         delta_slip, times = self.get_delta_slip(store)
         ntimes = times.size
@@ -3067,7 +3126,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         npatches = self.nx * self.ny
         times = self.get_patch_attribute('time') - self.time
 
-        calc_times = num.arange(times.min(), times.max() + dt, dt)
+        calc_times = num.arange(0., times.max() + dt, dt)
         delta_disloc_est = num.zeros((npatches, 3, calc_times.size))
 
         for itime, t in enumerate(calc_times):
@@ -3076,9 +3135,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         # if we have only one timestep there is no gradient
         if calc_times.size > 1:
-            delta_disloc_est = num.gradient(delta_disloc_est, axis=2)
+            delta_disloc_est = num.diff(delta_disloc_est, axis=2)
 
-        return delta_disloc_est, calc_times
+        return delta_disloc_est, calc_times[1:]
 
     def get_moment_rate(self, *args, **kwargs):
         '''
