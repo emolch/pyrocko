@@ -28,61 +28,8 @@ class Seismosizer(Snuffling):
         self.stf_instances = [gf.HalfSinusoidSTF(), gf.TriangularSTF(),
                               gf.BoxcarSTF(), None]
 
-    def setup(self):
-        '''Customization of the snuffling.'''
-
-        self.set_name('Seismosizer')
-        self.add_parameter(
-            Param('Time', 'time', 0.0, -50., 50.))
-        # self.add_parameter(
-        #     Param('Latitude', 'lat', 0.0, -90., 90.))
-        # self.add_parameter(
-        #     Param('Longitude', 'lon', 0.0, -180., 180.))
-        self.add_parameter(
-            Param('North shift', 'north_km', 0.0, -50., 50.))
-        self.add_parameter(
-            Param('East shift', 'east_km', 0.0, -50., 50.))
-        self.add_parameter(
-            Param('Depth', 'depth_km', 10.0, 0.0, 600.0))
-        self.add_parameter(
-            Param('Magnitude', 'magnitude', 6.0, 0.0, 10.0))
-        self.add_parameter(
-            Param('Strike', 'strike', 0., -180., 180.))
-        self.add_parameter(
-            Param('Dip', 'dip', 90., 0., 90.))
-        self.add_parameter(
-            Param('Rake', 'rake', 0., -180., 180.))
-        self.add_parameter(
-            Param('Length', 'length', 0., 0., 1000*km))
-        self.add_parameter(
-            Param('Width', 'width', 0., 0., 500*km))
-        self.add_parameter(
-            Param('Nucleation X', 'nucleation_x', -1., -1., 1.))
-        self.add_parameter(
-            Param('Rupture velocity', 'velocity', 3500.0, 0.0, 5000.0))
-        self.add_parameter(
-            Param('STF duration', 'stf_duration', 0., 0., 20.))
-        self.add_parameter(
-            Choice('STF type', 'stf_type', self.stf_types[0], self.stf_types))
-        self.add_parameter(
-            Choice('GF Store', 'store_id',
-                   '<not loaded yet>', ['<not loaded yet>']))
-        self.add_parameter(
-            Choice('Waveform type', 'waveform_type', 'Displacement [m]',
-                   ['Displacement [m]',
-                    'Displacement [nm]',
-                    'Velocity [m/s]',
-                    'Velocity [nm/s]',
-                    'Acceleration [m/s^2]',
-                    'Acceleration [nm/s^2]']))
-
-        self.add_trigger('Set Engine', self.set_engine)
-        self.add_trigger('Set Params from Event', self.mechanism_from_event)
-        self.add_trigger('Add Stores', self.add_store)
-
-        self.store_ids = None
-        self.offline_config = None
-        self._engine = None
+    def get_source(self, event):
+        raise NotImplementedError()
 
     def panel_visibility_changed(self, bool):
         if bool:
@@ -159,23 +106,7 @@ class Seismosizer(Snuffling):
             for cha in 'NEZ':
                 s2c[ns].add(('', cha))
 
-        source = gf.RectangularSource(
-            time=event.time+self.time,
-            lat=event.lat,
-            lon=event.lon,
-            north_shift=self.north_km*km,
-            east_shift=self.east_km*km,
-            depth=self.depth_km*km,
-            magnitude=self.magnitude,
-            strike=self.strike,
-            dip=self.dip,
-            rake=self.rake,
-            length=self.length,
-            width=self.width,
-            nucleation_x=self.nucleation_x,
-            velocity=self.velocity,
-            stf=self.get_stf())
-
+        source = self.get_source(event)
         source.regularize()
 
         m = EventMarker(source.pyrocko_event())
@@ -238,7 +169,7 @@ class Seismosizer(Snuffling):
         req.regularize()
 
         try:
-            resp = self.get_engine().process(req)
+            resp = self.get_engine().process(req, nthreads=0)
         except (gf.meta.OutOfBounds, gf.store_ext.StoreExtError)as e:
             self.fail(e)
 
@@ -301,6 +232,242 @@ class Seismosizer(Snuffling):
         return 'config' in os.listdir(directory)
 
 
+class DCSource(Seismosizer):
+
+    def setup(self):
+        '''Customization of the snuffling.'''
+
+        self.set_name('Seismosizer: DCSource')
+        self.add_parameter(
+            Param('Time', 'time', 0.0, -50., 50.))
+        # self.add_parameter(
+        #     Param('Latitude', 'lat', 0.0, -90., 90.))
+        # self.add_parameter(
+        #     Param('Longitude', 'lon', 0.0, -180., 180.))
+        self.add_parameter(
+            Param('North shift', 'north_km', 0.0, -50., 50.))
+        self.add_parameter(
+            Param('East shift', 'east_km', 0.0, -50., 50.))
+        self.add_parameter(
+            Param('Depth', 'depth_km', 10.0, 0.0, 600.0))
+        self.add_parameter(
+            Param('Magnitude', 'magnitude', 6.0, 0.0, 10.0))
+        self.add_parameter(
+            Param('Strike', 'strike', 0., -180., 180.))
+        self.add_parameter(
+            Param('Dip', 'dip', 90., 0., 90.))
+        self.add_parameter(
+            Param('Rake', 'rake', 0., -180., 180.))
+        self.add_parameter(
+            Param('STF duration', 'stf_duration', 0., 0., 20.))
+        self.add_parameter(
+            Choice('STF type', 'stf_type', self.stf_types[0], self.stf_types))
+        self.add_parameter(
+            Choice('GF Store', 'store_id',
+                   '<not loaded yet>', ['<not loaded yet>']))
+        self.add_parameter(
+            Choice('Waveform type', 'waveform_type', 'Displacement [m]',
+                   ['Displacement [m]',
+                    'Displacement [nm]',
+                    'Velocity [m/s]',
+                    'Velocity [nm/s]',
+                    'Acceleration [m/s^2]',
+                    'Acceleration [nm/s^2]']))
+
+        self.add_trigger('Set Engine', self.set_engine)
+        self.add_trigger('Set Params from Event', self.mechanism_from_event)
+        self.add_trigger('Add Stores', self.add_store)
+
+        self.store_ids = None
+        self.offline_config = None
+        self._engine = None
+
+    def get_source(self, event):
+        return gf.DCSource(
+            time=event.time+self.time,
+            lat=event.lat,
+            lon=event.lon,
+            north_shift=self.north_km*km,
+            east_shift=self.east_km*km,
+            depth=self.depth_km*km,
+            magnitude=self.magnitude,
+            strike=self.strike,
+            dip=self.dip,
+            rake=self.rake,
+            stf=self.get_stf())
+
+
+class RectangularSource(Seismosizer):
+
+    def setup(self):
+        '''Customization of the snuffling.'''
+
+        self.set_name('Seismosizer: RectangularSource')
+        self.add_parameter(
+            Param('Time', 'time', 0.0, -50., 50.))
+        # self.add_parameter(
+        #     Param('Latitude', 'lat', 0.0, -90., 90.))
+        # self.add_parameter(
+        #     Param('Longitude', 'lon', 0.0, -180., 180.))
+        self.add_parameter(
+            Param('North shift', 'north_km', 0.0, -50., 50.))
+        self.add_parameter(
+            Param('East shift', 'east_km', 0.0, -50., 50.))
+        self.add_parameter(
+            Param('Depth', 'depth_km', 10.0, 0.0, 600.0))
+        self.add_parameter(
+            Param('Magnitude', 'magnitude', 6.0, 0.0, 10.0))
+        self.add_parameter(
+            Param('Strike', 'strike', 0., -180., 180.))
+        self.add_parameter(
+            Param('Dip', 'dip', 90., 0., 90.))
+        self.add_parameter(
+            Param('Rake', 'rake', 0., -180., 180.))
+        self.add_parameter(
+            Param('Length', 'length', 10.*km, .1*km, 100*km))
+        self.add_parameter(
+            Param('Width', 'width', 5.*km, .1*km, 50*km))
+        self.add_parameter(
+            Param('Nucleation X', 'nucleation_x', 0., -1., 1.))
+        self.add_parameter(
+            Param('Nucleation Y', 'nucleation_y', 0., -1., 1.))
+        self.add_parameter(
+            Param('Rupture velocity', 'velocity', 3500.0, 0.0, 5000.0))
+        self.add_parameter(
+            Param('STF duration', 'stf_duration', 0., 0., 20.))
+        self.add_parameter(
+            Choice('STF type', 'stf_type', self.stf_types[0], self.stf_types))
+        self.add_parameter(
+            Choice('GF Store', 'store_id',
+                   '<not loaded yet>', ['<not loaded yet>']))
+        self.add_parameter(
+            Choice('Waveform type', 'waveform_type', 'Displacement [m]',
+                   ['Displacement [m]',
+                    'Displacement [nm]',
+                    'Velocity [m/s]',
+                    'Velocity [nm/s]',
+                    'Acceleration [m/s^2]',
+                    'Acceleration [nm/s^2]']))
+
+        self.add_trigger('Set Engine', self.set_engine)
+        self.add_trigger('Set Params from Event', self.mechanism_from_event)
+        self.add_trigger('Add Stores', self.add_store)
+
+        self.store_ids = None
+        self.offline_config = None
+        self._engine = None
+
+    def get_source(self, event):
+        return gf.RectangularSource(
+            time=event.time+self.time,
+            lat=event.lat,
+            lon=event.lon,
+            north_shift=self.north_km*km,
+            east_shift=self.east_km*km,
+            depth=self.depth_km*km,
+            magnitude=self.magnitude,
+            strike=self.strike,
+            dip=self.dip,
+            rake=self.rake,
+            length=self.length,
+            width=self.width,
+            nucleation_x=self.nucleation_x,
+            nucleation_y=self.nucleation_y,
+            velocity=self.velocity,
+            stf=self.get_stf())
+
+
+class PseudoDynamicRuptureSource(Seismosizer):
+
+    def setup(self):
+        '''Customization of the snuffling.'''
+
+        self.set_name('Seismosizer: PseudoDynamicRupture')
+        self.add_parameter(
+            Param('Time', 'time', 0.0, -50., 50.))
+        # self.add_parameter(
+        #     Param('Latitude', 'lat', 0.0, -90., 90.))
+        # self.add_parameter(
+        #     Param('Longitude', 'lon', 0.0, -180., 180.))
+        self.add_parameter(
+            Param('North shift', 'north_km', 0.0, -50., 50.))
+        self.add_parameter(
+            Param('East shift', 'east_km', 0.0, -50., 50.))
+        self.add_parameter(
+            Param('Depth', 'depth_km', 10.0, 0.0, 600.0))
+        self.add_parameter(
+            Param('Magnitude', 'magnitude', 6.0, 0.0, 10.0))
+        self.add_parameter(
+            Param('Strike', 'strike', 0., -180., 180.))
+        self.add_parameter(
+            Param('Dip', 'dip', 90., 0., 90.))
+        self.add_parameter(
+            Param('Rake', 'rake', 0., -180., 180.))
+        self.add_parameter(
+            Param('Length', 'length', 10.*km, .1*km, 100*km))
+        self.add_parameter(
+            Param('Width', 'width', 5.*km, .1*km, 50*km))
+        self.add_parameter(
+            Param('Nucleation X', 'nucleation_x', 0., -1., 1.))
+        self.add_parameter(
+            Param('Nucleation Y', 'nucleation_y', 0., -1., 1.))
+        self.add_parameter(
+            Param('Gamma', 'gamma', 0.8, 0.5, 1.5))
+        self.add_parameter(
+            Param('nx', 'nx', 5, 1, 20))
+        self.add_parameter(
+            Param('ny', 'ny', 5, 1, 20))
+        self.add_parameter(
+            Param('STF duration', 'stf_duration', 0., 0., 20.))
+        self.add_parameter(
+            Choice('STF type', 'stf_type', self.stf_types[0], self.stf_types))
+        self.add_parameter(
+            Choice('GF Store', 'store_id',
+                   '<not loaded yet>', ['<not loaded yet>']))
+        self.add_parameter(
+            Choice('Waveform type', 'waveform_type', 'Displacement [m]',
+                   ['Displacement [m]',
+                    'Displacement [nm]',
+                    'Velocity [m/s]',
+                    'Velocity [nm/s]',
+                    'Acceleration [m/s^2]',
+                    'Acceleration [nm/s^2]']))
+
+        self.add_trigger('Set Engine', self.set_engine)
+        self.add_trigger('Set Params from Event', self.mechanism_from_event)
+        self.add_trigger('Add Stores', self.add_store)
+
+        self.store_ids = None
+        self.offline_config = None
+        self._engine = None
+
+    def get_source(self, event):
+        source = gf.PseudoDynamicRupture(
+            time=event.time + self.time,
+            lat=event.lat,
+            lon=event.lon,
+            nx=int(self.nx),
+            ny=int(self.ny),
+            north_shift=self.north_km*km,
+            east_shift=self.east_km*km,
+            depth=self.depth_km*km,
+            magnitude=self.magnitude,
+            strike=self.strike,
+            dip=self.dip,
+            rake=self.rake,
+            length=self.length,
+            width=self.width,
+            nucleation_x=self.nucleation_x,
+            nucleation_y=self.nucleation_y,
+            gamma=self.gamma,
+            stf=self.get_stf(),
+
+            nthreads=5,
+            pure_shear=True)
+
+        return source
+
+
 def __snufflings__():
     '''Returns a list of snufflings to be exported by this module.'''
-    return [Seismosizer()]
+    return [DCSource(), RectangularSource(), PseudoDynamicRuptureSource()]

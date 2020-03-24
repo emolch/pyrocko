@@ -269,11 +269,26 @@ class OkadaSource(AnalyticalRectangularSource):
                 'north_shift', 'east_shift', 'depth',
                 'al1', 'al2', 'aw1', 'aw2']}
 
-        return [OkadaSource(
-            north_shift=coord[0], east_shift=coord[1],
-            depth=coord[2], al1=al1, al2=al2, aw1=aw1, aw2=aw2,
-            **kwargs)
-            for coord in source_points_rot], source_points
+        return (
+            [OkadaSubSource(
+                 parent=self,
+                 length_pos=src_point[0],
+                 width_pos=src_point[1],
+                 north_shift=coord[0],
+                 east_shift=coord[1],
+                 depth=coord[2],
+                 al1=al1, al2=al2, aw1=aw1, aw2=aw2, **kwargs)
+             for src_point, coord in zip(source_points, source_points_rot)],
+            source_points)
+
+
+class OkadaSubSource(OkadaSource):
+
+    def __init__(self, parent, width_pos, length_pos, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent = parent
+        self.length_pos = length_pos
+        self.width_pos = width_pos
 
 
 class DislocationInverter(object):

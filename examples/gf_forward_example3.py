@@ -97,8 +97,7 @@ fig.suptitle(
 
 # Shift the relative LOS displacements
 los = synth_disp['displacement.los']
-losrange = [(los.max(), los.min())]
-losmax = num.abs([num.min(losrange), num.max(losrange)]).max()
+losmax = num.abs(los).max()
 
 # Plot unwrapped LOS displacements
 ax = fig.axes[0]

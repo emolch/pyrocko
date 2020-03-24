@@ -248,7 +248,6 @@ mantle
             tractions=(1.e4, 0.e4, 0.),
             **source_params)
 
-        dyn_rupture.ensure_tractions()
         dyn_rupture.discretize_patches(store)
         slip = dyn_rupture.get_okada_slip()
         rake = num.arctan2(slip[:, 1].mean(), slip[:, 0].mean())

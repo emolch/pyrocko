@@ -220,6 +220,11 @@ class MyValueEdit(qw.QLineEdit):
             else:
                 t = 'off'
 
+        if t in ('off', 'below', 'above'):
+            self.setStyleSheet("font-style: italic;")
+        else:
+            self.setStyleSheet(None)
+
         self.setText(t)
 
 
@@ -244,7 +249,8 @@ class ValControl(qc.QObject):
             low_is_none=low_is_none,
             high_is_none=high_is_none,
             low_is_zero=low_is_zero)
-        self.lvalue.setFixedWidth(100)
+        self.lvalue.setFixedWidth(80)
+        self.lvalue.setAlignment(qc.Qt.AlignRight)
         self.slider = MySlider(qc.Qt.Horizontal)
         self.slider.setSizePolicy(
             qw.QSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Minimum))

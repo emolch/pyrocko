@@ -1285,10 +1285,10 @@ static store_error_t store_calc_static(
             idelay_floor = (int) floor(delay/deltat);
             idelay_ceil = (int) ceil(delay/deltat);
             if (!inlimits(idelay_floor) || !inlimits(idelay_ceil))
-                err += BAD_REQUEST;
+                err |= BAD_REQUEST;
 
             if (interpolation == MULTILINEAR) {
-                err += mscheme->vicinity(
+                err |= mscheme->vicinity(
                     mapping,
                     &source_coords[isource*5],
                     &receiver_coords[ireceiver*5],
@@ -1304,7 +1304,7 @@ static store_error_t store_calc_static(
                                 continue;
 
                             irecord = irecord_bases[iip] + cscheme->igs[icomponent][isummand];
-                            err += store_get(store, irecord, &trace);
+                            err |= store_get(store, irecord, &trace);
                             if (trace.is_zero)
                                 continue;
 
@@ -1322,7 +1322,7 @@ static store_error_t store_calc_static(
                     }
                 }
             } else if (interpolation == NEAREST_NEIGHBOR) {
-                err += mscheme->irecord(
+                err |= mscheme->irecord(
                     mapping,
                     &source_coords[isource*5],
                     &receiver_coords[ireceiver*5],
@@ -1336,7 +1336,7 @@ static store_error_t store_calc_static(
                             continue;
 
                         irecord = irecord_bases[0] + cscheme->igs[icomponent][isummand];
-                        err += store_get(store, irecord, &trace);
+                        err |= store_get(store, irecord, &trace);
                         if (trace.is_zero)
                             continue;
 
@@ -1361,7 +1361,7 @@ static store_error_t store_calc_static(
     Py_END_ALLOW_THREADS
 
     if (err != SUCCESS)
-        return BAD_REQUEST;
+        return err;
     return SUCCESS;
 }
 
