@@ -226,6 +226,7 @@ class MyValueEdit(qw.QLineEdit):
 class ValControl(qc.QObject):
 
     valchange = qc.pyqtSignal(object, int)
+    max_change_rate = 30  # max changes per second
 
     def __init__(
             self,
@@ -262,7 +263,10 @@ class ValControl(qc.QObject):
         self.lvalue.edited.connect(
                      self.edited)
 
+        self.type = None
         self.mute = False
+
+        self._lastchange = None
 
     def widgets(self):
         return self.lname, self.lvalue, self.slider
@@ -272,9 +276,15 @@ class ValControl(qc.QObject):
             return 0
 
         a = math.log(self.ma/self.mi) / 10000.
-        return self.mi*math.exp(a*svalue)
+        value = self.mi*math.exp(a*svalue)
+        if self.type is not None:
+            value = self.type(value)
+        return value
 
     def v2s(self, value):
+        if self.type is not None:
+            value = self.type(value)
+
         if value == 0 or self.mi == 0:
             return 0
 
@@ -336,18 +346,26 @@ class ValControl(qc.QObject):
         self.lvalue.blockSignals(False)
         self.mute = False
 
+    def set_tracking(self, tracking):
+        self.slider.setTracking(tracking)
+
+    def set_type(self, value_type):
+        self.type = value_type
+
     def get_value(self):
         return self.cur
 
     def slided(self, val):
         if self.cursl != val:
             self.cursl = val
-            self.cur = self.s2v(self.cursl)
+            cur = self.s2v(self.cursl)
 
-            self.lvalue.blockSignals(True)
-            self.lvalue.setValue(self.cur)
-            self.lvalue.blockSignals(False)
-            self.fire_valchange()
+            if cur != self.cur:
+                self.cur = cur
+                self.lvalue.blockSignals(True)
+                self.lvalue.setValue(self.cur)
+                self.lvalue.blockSignals(False)
+                self.fire_valchange()
 
     def edited(self, val):
         if self.cur != val:
@@ -362,6 +380,13 @@ class ValControl(qc.QObject):
             self.fire_valchange()
 
     def fire_valchange(self):
+        if self._lastchange:
+            t = time.time()
+            dt = t - self._lastchange
+            if dt < 1./self.max_change_rate:
+                return
+            self._lastchange = t
+
         if self.mute:
             return
 
@@ -383,9 +408,14 @@ class ValControl(qc.QObject):
 class LinValControl(ValControl):
 
     def s2v(self, svalue):
-        return svalue/10000. * (self.ma-self.mi) + self.mi
+        value = svalue/10000. * (self.ma-self.mi) + self.mi
+        if self.type is not None:
+            value = self.type(value)
+        return value
 
     def v2s(self, value):
+        if self.type is not None:
+            value = self.type(value)
         if self.ma == self.mi:
             return 0
         return int(round((value-self.mi)/(self.ma-self.mi) * 10000.))
