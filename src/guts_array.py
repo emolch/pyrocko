@@ -152,25 +152,26 @@ class Array(Object):
         def validate_extra(self, val):
             if not isinstance(val, num.ndarray):
                 raise ValidationError(
-                    'object is not of type numpy.ndarray: %s' % type(val))
+                    'object %s is not of type numpy.ndarray: %s' % (
+                        self.xname(), type(val)))
             if self.dtype is not None and self.dtype != val.dtype:
                 raise ValidationError(
-                    'array not of required type: need %s, got %s' % (
-                        self.dtype, val.dtype))
+                    'array %s not of required type: need %s, got %s' % (
+                        self.xname(), self.dtype, val.dtype))
 
             if self.shape is not None:
                 la, lb = len(self.shape), len(val.shape)
                 if la != lb:
                     raise ValidationError(
-                        'array dimension mismatch: need %i, got %i' % (
-                            la, lb))
+                        'array %s dimension mismatch: need %i, got %i' % (
+                            self.xname(), la, lb))
 
                 for a, b in zip(self.shape, val.shape):
                     if a is not None:
                         if a != b:
                             raise ValidationError(
-                                'array shape mismatch: need %s, got: %s' % (
-                                    self.shape, val.shape))
+                                'array %s shape mismatch: need %s, got: %s' % (
+                                    self.xname(), self.shape, val.shape))
 
         def to_save(self, val):
             if self.serialize_as == 'table':
