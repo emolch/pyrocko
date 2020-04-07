@@ -16,7 +16,6 @@ from pyrocko import config, util
 
 def parse_3tup(s):
     m = re.match(r'^\(([^,]+),([^,]*),([^,]*)\)$', s)
-    print(m)
     if m:
         return [float(m.group(1)) if m.group(1) else None for i in range(3)]
     else:
