@@ -4,13 +4,13 @@
 # ---|P------/S----------~Lg----------
 import numpy as num
 import logging
-from threadpoolctl import threadpool_limits
 
 from pyrocko import moment_tensor as mt
 import pyrocko.guts as guts
 from pyrocko.guts import Float, String, Timestamp
 from pyrocko.model import Location
 from pyrocko.modelling import okada_ext
+from pyrocko.util import get_threadpool_limits
 
 guts_prefix = 'modelling'
 
@@ -652,6 +652,8 @@ class DislocationInverter(object):
 
         if stress_field.ndim == 2:
             stress_field = stress_field.ravel()
+
+        threadpool_limits = get_threadpool_limits()
 
         with threadpool_limits(limits=nthreads, user_api='blas'):
             disloc_est[idx] = num.linalg.multi_dot([num.linalg.inv(

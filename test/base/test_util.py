@@ -248,6 +248,12 @@ class UtilTestCase(unittest.TestCase):
             assert k in d
             assert d[k] == dwant[k]
 
+    def test_threadpoolctl_or_dummy(self):
+        threadpool_limits = util.get_threadpool_limits()
+
+        with threadpool_limits(limits=1, user_api='blas'):
+            pass
+
 
 if __name__ == "__main__":
     util.setup_logging('test_util', 'info')

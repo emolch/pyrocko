@@ -2503,6 +2503,28 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         self.nucleation_y__ = nucleation_y
 
     @property
+    def nucleation(self):
+        nucl_x, nucl_y = self.nucleation_x, self.nucleation_y
+
+        if (nucl_x is None) or (nucl_y is None):
+            return None
+
+        assert nucl_x.shape[0] == nucl_y.shape[0]
+
+        return num.concatenate(
+            (nucl_x[:, num.newaxis], nucl_y[:, num.newaxis]), axis=1)
+
+    @nucleation.setter
+    def nucleation(self, nucleation):
+        if isinstance(nucleation, list):
+            nucleation = num.array([*nucleation])
+
+        assert nucleation.shape[1] == 2
+
+        self.nucleation_x = nucleation[:, 0]
+        self.nucleation_y = nucleation[:, 1]
+
+    @property
     def nucleation_time(self):
         return self.nucleation_time__
 
@@ -2542,7 +2564,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             assert tractions.shape[1] == 3
             self.tractions__ = tractions
 
-        else:
+        elif tractions is not None:
             raise AttributeError(
                 'tractions is of incompatible type %s' % type(tractions))
 
@@ -2701,7 +2723,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         nx += 1
         ny += 1
 
-        points_xy = num.empty((nx * ny, 2))
+        points_xy = num.zeros((nx * ny, 2))
         points_xy[:, 0] = num.repeat(num.linspace(-1., 1., nx), ny)
         points_xy[:, 1] = num.tile(num.linspace(-1., 1., ny), nx)
 
@@ -2737,7 +2759,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
     def discretize_time(
             self, store, interpolation='nearest_neighbor',
-            times=None, *args, **kwargs):
+            vr=None, times=None, *args, **kwargs):
 
         '''
         Get rupture start time for discrete points on source plane
@@ -2747,6 +2769,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :type store: :py:class:`pyrocko.gf.store.Store`
         :param target: Target information
         :type target: optional, :py:class:`pyrocko.gf.target.Target`
+        :param vr: Array, containing rupture user defined rupture velocity
+            values
+        :type vr: optional, :py:class:`numpy.ndarray`
         :param times: Array, containing zeros, where rupture is starting and
             otherwise -1, where time will be calculated. If not given, rupture
             starts at nucleation_x, nucleation_y.
@@ -2765,8 +2790,15 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         nx, ny, delta, points, points_xy = self._discretize_points(
             store, cs='xyz')
 
-        vr = self._discretize_rupture_v(store, interpolation, points)\
-            .reshape(nx, ny)
+        if vr is None:
+            vr = self._discretize_rupture_v(store, interpolation, points)\
+                .reshape(nx, ny)
+        elif vr.shape != tuple((nx, ny)):
+            vr = self._discretize_rupture_v(store, interpolation, points)\
+                .reshape(nx, ny)
+            logger.warn(
+                'Given rupture velocities are not in right shape. Therefore'
+                ' standard rupture velocity array is used.')
 
         def initialize_times():
             nucl_x, nucl_y = self.nucleation_x, self.nucleation_y
@@ -2776,7 +2808,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                     'nucleation coordinates have different shape.')
 
             dist_points = num.array([
-                num.linalg.norm(points_xy - num.array([x, y]), axis=1)
+                num.linalg.norm(points_xy - num.array([x, y]).ravel(), axis=1)
                 for x, y in zip(nucl_x, nucl_y)])
             nucl_indices = num.argmin(dist_points, axis=1)
 
@@ -2923,12 +2955,15 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         else:
             interpolation = target.interpolation
 
-        self.discretize_patches(store, interpolation)
-        self.calc_coef_mat()
+        if not self.patches:
+            self.discretize_patches(store, interpolation)
+
+        if self.coef_mat is None:
+            self.calc_coef_mat()
 
         delta_slip, times = self.get_delta_slip(store)
         ntimes = times.size
-        npatches = self.nx * self.ny
+        npatches = len(self.patches)
 
         times += self.time
         times = num.tile(times, npatches).reshape(npatches, -1)
@@ -3138,7 +3173,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         if not dt:
             raise AttributeError('Please give a GF store or set dt.')
 
-        npatches = self.nx * self.ny
+        npatches = len(self.patches)
         times = self.get_patch_attribute('time') - self.time
 
         calc_times = num.arange(0., times.max() + dt, dt)
