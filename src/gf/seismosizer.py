@@ -1728,7 +1728,6 @@ class RectangularExplosionSource(ExplosionSource):
     #             return latlon
     #         else:
                 # return latlon[:, ::-1]
-<<<<<<< HEAD
 
     def get_nucleation_abs_coord(self, cs='xy'):
 
@@ -1741,8 +1740,6 @@ class RectangularExplosionSource(ExplosionSource):
                                    lon=self.lon, north_shift=self.north_shift,
                                    east_shift=self.east_shift, cs=cs)
         return coords
-=======
->>>>>>> sparrow: draft geometry refactor
 
 
 class DCSource(SourceWithMagnitude):
