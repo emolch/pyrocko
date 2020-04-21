@@ -134,23 +134,40 @@ def oa_to_array(objects, attribute):
 
 
 def eventtags_to_array(events, tag_ind):
+    n_tags = num.array([len(ev.tags) for ev in events])
+    evts_all_tags = num.arange(len(events))[n_tags != 0]
+    ev0 = events[evts_all_tags[0]]
 
-    if events[0].tags[tag_ind].find(':') > -1:
-        header = '_'.join(['tag', events[0].tags[tag_ind].split(':')[0]])
+    if ev0.tags[tag_ind].find(':') > -1:
+        header = '_'.join(['tag', ev0.tags[tag_ind].split(':')[0]])
         value_ind = 1
     else:
         header = 'tag_%i' % (tag_ind + 1)
         value_ind = 0
 
     try:
-        float(events[0].tags[tag_ind].split(':')[value_ind])
+        float(ev0.tags[tag_ind].split(':')[value_ind])
         dtype = num.float
     except ValueError:
         dtype = num.string_
 
-    return header, num.array(
-        [ev.tags[tag_ind].split(':')[value_ind] for ev in events],
-        dtype=dtype)
+    out_array = num.ones_like(n_tags) * num.nan
+    out_array[evts_all_tags] = num.array([
+        events[iev].tags[tag_ind].split(':')[value_ind]
+        for iev in evts_all_tags], dtype=dtype)
+
+    return header, out_array
+
+
+def eventextras_to_array(events, extra):
+    dtype = num.string_
+    if type(events[0].extras[extra]) is float:
+        dtype = num.float
+    elif type(events[0].extras[extra]) is int:
+        dtype = num.int64
+
+    return events[0].extras[extra], num.array([
+        ev.extras[extra] for ev in events], dtype=dtype)
 
 
 def events_to_table(events):
@@ -171,9 +188,41 @@ def events_to_table(events):
         tab.add_col(table.Header(k, unit), oa_to_array(events, k))
 
     if events:
-        for i in range(len(events[0].tags)):
+        n_tags = num.array([len(ev.tags) for ev in events])
+        evts_all_tags = num.arange(len(events))[n_tags != 0]
+
+        if num.unqiue(n_tags).shape[0] > 1:
+            msg = 'Not all events have equal number of tags.'
+            if num.unique(n_tags).shape[0] == 2 and num.min(n_tags) == 0:
+                logger.warn(msg + ' Zero length lists are filled with NaNs.')
+            else:
+                raise IndexError(
+                    msg + ' Several non-zero shapes detected. Please check.')
+
+        for i in range(len(events[evts_all_tags[0]].tags)):
             header, values = eventtags_to_array(events, i)
             tab.add_col(table.Header(header), values)
+
+        n_extras = num.array([len(ev.extras) for ev in events])
+        evts_all_extras = num.arange(len(events))[n_extras != 0]
+
+        if num.unqiue(n_extras).shape[0] > 1:
+            msg = 'Not all events have equal number of extras.'
+            if num.unique(n_tags).shape[0] == 2 and num.min(n_tags) == 0:
+                logger.warn(msg + ' Zero length lists are filled with NaNs.')
+            else:
+                raise IndexError(
+                    msg + ' Several non-zero shapes detected. Please check.')
+
+        for i in range(len(events[evts_all_extras[0]].extras)):
+            header, values = eventextras_to_array(events, i)
+            tab.add_col(table.Header(header), values)
+
+
+        if events[0].extras:
+            for i in events[0].extras:
+                header, values = eventextras_to_array(events, i)
+                tab.add_col(table.Header(header), values)
 
     return tab
 
