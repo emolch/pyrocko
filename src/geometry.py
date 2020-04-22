@@ -12,6 +12,7 @@ from pyrocko import orthodrome as od
 d2r = num.pi/180.
 r2d = 1.0 / d2r
 
+
 def arr_vertices(obj):
     a = num.array(obj, dtype=num.float)
     assert len(a.shape) == 2
