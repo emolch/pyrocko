@@ -19,8 +19,8 @@ guts_prefix = 'sparrow'
 
 def inormalize(x, imin, imax):
 
-    xmin = num.min(x)
-    xmax = num.max(x)
+    xmin = num.nanmin(x)
+    xmax = num.nanmax(x)
     if xmin == xmax:
         xmin -= 0.5
         xmax += 0.5
