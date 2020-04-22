@@ -59,7 +59,7 @@ class GUITest(unittest.TestCase):
         if no_gui:  # nosetests runs this even when class is has @skip
             return
 
-        from pyrocko.gui import snuffler as sm
+        from pyrocko.gui.snuffler import snuffler as sm
 
         cls.snuffler = sm.get_snuffler_instance()
 
