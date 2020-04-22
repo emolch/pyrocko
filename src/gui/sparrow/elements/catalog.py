@@ -136,6 +136,10 @@ def oa_to_array(objects, attribute):
 def eventtags_to_array(events, tab):
     n_tags = num.array([len(ev.tags) for ev in events])
     evts_all_tags = num.arange(len(events))[n_tags != 0]
+
+    if evts_all_tags.shape[0] == 0:
+        return tab
+
     ev0 = events[evts_all_tags[0]]
 
     if num.unique(n_tags).shape[0] > 1:
@@ -175,6 +179,10 @@ def eventtags_to_array(events, tab):
 def eventextras_to_array(events, tab):
     n_extras = num.array([len(ev.extras) for ev in events])
     evts_all_extras = num.arange(len(events))[n_extras != 0]
+
+    if evts_all_extras.shape[0] == 0:
+        return tab
+
     ev0 = events[evts_all_extras[0]]
 
     if num.unique(n_extras).shape[0] > 1:
