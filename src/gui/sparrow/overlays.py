@@ -1,3 +1,8 @@
+import numpy  as num
+import vtk
+
+from .. import vtk_util
+
 class Overlay(object):
 
     def __init__(self):
@@ -29,7 +34,7 @@ class TimeRangeOverlay(Overlay):
 
         size_x, size_y = renwin.GetSize()
         cx = size_x / 2.0
-        cy = size_y / 2.0
+        # cy = size_y / 2.0
 
         vertices = num.array([
             [cx - 100., cx - 100., 0.0],

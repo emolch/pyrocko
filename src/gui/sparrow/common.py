@@ -87,60 +87,60 @@ qfiledialog_options = qw.QFileDialog.DontUseNativeDialog | \
 
 
 def _paint_cpt_rect(painter, cpt, rect):
-        rect.adjust(+5, +2, -5, -2)
+    rect.adjust(+5, +2, -5, -2)
 
-        rect_cpt = copy.deepcopy(rect)
-        rect_cpt.setWidth(int(rect.width() * 0.9) - 2)
+    rect_cpt = copy.deepcopy(rect)
+    rect_cpt.setWidth(int(rect.width() * 0.9) - 2)
 
-        rect_c_nan = copy.deepcopy(rect)
-        rect_c_nan.setLeft(rect.left() + rect_cpt.width() + 4.)
-        rect_c_nan.setWidth(int(rect.width() * 0.1) - 2)
+    rect_c_nan = copy.deepcopy(rect)
+    rect_c_nan.setLeft(rect.left() + rect_cpt.width() + 4.)
+    rect_c_nan.setWidth(int(rect.width() * 0.1) - 2)
 
-        levels = num.zeros(len(cpt.levels) * 2 + 4)
-        colors = num.ones((levels.shape[0], 4)) * 255
+    levels = num.zeros(len(cpt.levels) * 2 + 4)
+    colors = num.ones((levels.shape[0], 4)) * 255
 
-        for il, level in enumerate(cpt.levels):
-            levels[il*2+2] = level.vmin + (
-                level.vmax - level.vmin) / rect_cpt.width()  # ow interp errors
-            levels[il*2+3] = level.vmax
+    for il, level in enumerate(cpt.levels):
+        levels[il*2+2] = level.vmin + (
+            level.vmax - level.vmin) / rect_cpt.width()  # ow interp errors
+        levels[il*2+3] = level.vmax
 
-            colors[il*2+2, :3] = level.color_min
-            colors[il*2+3, :3] = level.color_max
+        colors[il*2+2, :3] = level.color_min
+        colors[il*2+3, :3] = level.color_max
 
-        level_range = levels[-3] - levels[2]
-        levels[0], levels[1] = levels[2] - level_range * 0.05, levels[2]
-        levels[-2], levels[-1] = levels[-3], levels[-3] + level_range * 0.05
+    level_range = levels[-3] - levels[2]
+    levels[0], levels[1] = levels[2] - level_range * 0.05, levels[2]
+    levels[-2], levels[-1] = levels[-3], levels[-3] + level_range * 0.05
 
-        if cpt.color_below:
-            colors[:2, :3] = cpt.color_below
-        else:
-            colors[:2] = (0, 0, 0, 0)
+    if cpt.color_below:
+        colors[:2, :3] = cpt.color_below
+    else:
+        colors[:2] = (0, 0, 0, 0)
 
-        if cpt.color_above:
-            colors[-2:, :3] = cpt.color_above
-        else:
-            colors[-2:] = (0, 0, 0, 0)
+    if cpt.color_above:
+        colors[-2:, :3] = cpt.color_above
+    else:
+        colors[-2:] = (0, 0, 0, 0)
 
-        levels_interp = num.linspace(levels[0], levels[-1], rect_cpt.width())
-        interpolator = interp1d(levels, colors.T)
+    levels_interp = num.linspace(levels[0], levels[-1], rect_cpt.width())
+    interpolator = interp1d(levels, colors.T)
 
-        colors_interp = interpolator(
-            levels_interp).T.astype(num.uint8).tobytes()
+    colors_interp = interpolator(
+        levels_interp).T.astype(num.uint8).tobytes()
 
-        colors_interp = num.tile(
-            colors_interp, rect_cpt.height())
+    colors_interp = num.tile(
+        colors_interp, rect_cpt.height())
 
-        img = qg.QImage(
-            colors_interp, rect_cpt.width(), rect_cpt.height(),
-            qg.QImage.Format_RGBA8888)
+    img = qg.QImage(
+        colors_interp, rect_cpt.width(), rect_cpt.height(),
+        qg.QImage.Format_RGBA8888)
 
-        painter.drawImage(rect_cpt, img)
+    painter.drawImage(rect_cpt, img)
 
-        c = cpt.color_nan
-        qcolor_nan = qg.QColor(*c if c is not None else (0, 0, 0))
-        qcolor_nan.setAlpha(255 if c is not None else 0)
+    c = cpt.color_nan
+    qcolor_nan = qg.QColor(*c if c is not None else (0, 0, 0))
+    qcolor_nan.setAlpha(255 if c is not None else 0)
 
-        painter.fillRect(rect_c_nan, qcolor_nan)
+    painter.fillRect(rect_c_nan, qcolor_nan)
 
 
 class CPTStyleDelegate(qw.QItemDelegate):

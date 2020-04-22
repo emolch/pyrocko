@@ -101,7 +101,7 @@ class CPTHandler(Element):
             self._parent, caption, options=common.qfiledialog_options))
 
         if fns:
-            self.load_cpt_file(self, fns[0])
+            self.load_cpt_file(fns[0])
 
     def load_cpt_file(self, path):
         cpt_name = 'USR' + os.path.basename(path).split('.')[0]

@@ -5,6 +5,6 @@
 
 from __future__ import absolute_import, print_function, division
 
-from . import main
-from . import state
-from . import elements
+from . import main  # noqa
+from . import state  # noqa
+from . import elements  # noqa

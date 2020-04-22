@@ -464,7 +464,6 @@ class LocationRecipe(Recipe):
 
     def set_depth_offset(self, depth_offset):
         self.depth_offset = depth_offset
-        
 
     def _add_rows_handler(self, table, nrows_added):
         Recipe._add_rows_handler(self, table, nrows_added)

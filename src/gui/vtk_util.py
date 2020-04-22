@@ -229,7 +229,7 @@ class TrimeshPipe(object):
         prop.SetDiffuseColor(0.5, 0.5, 0.5)
         prop.SetSpecularColor(1.0, 1.0, 1.0)
         prop.BackfaceCullingOn()  # solves problems at sphere horizon but
-                                  # disables seeing topo from below.
+                                # disables seeing topo from below.
 
         # prop.EdgeVisibilityOn()
         # prop.SetInterpolationToGouraud()
@@ -321,7 +321,8 @@ class OutlinesPipe(object):
             points = num.concatenate(
                 (latlon, depth.reshape(len(depth), 1)),
                 axis=1)
-            points = num.concatenate((points, points[0].reshape(1, -1)), axis=0)
+            points = num.concatenate(
+                (points, points[0].reshape(1, -1)), axis=0)
 
             lines.append(points)
 

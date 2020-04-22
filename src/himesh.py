@@ -92,7 +92,7 @@ class HiMesh(Object):
         self.levels = self.make_levels()
 
     def make_levels(self):
-        root = None
+        # root = None
         level = None
         levels = []
         for vertices, faces in icosphere.iter_icospheres(
