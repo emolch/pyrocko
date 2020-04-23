@@ -19,7 +19,7 @@ from pyrocko import pile
 from pyrocko.plot import gmtpy
 from pyrocko import orthodrome
 
-from pyrocko.gui import snuffler
+from pyrocko.gui.snuffler import snuffler
 from pyrocko.dataset import topo
 
 
