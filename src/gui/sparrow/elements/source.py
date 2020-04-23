@@ -64,6 +64,7 @@ for source_cls in [gf.RectangularSource]:
     for prop in source_cls.T.properties:
         proxy_source_cls.T.add_property(prop.name, prop)
 
+ProxyRectangularSource = vars()['ProxyRectangularSource']  # silence flake8
 
 ProxyRectangularSource._name = 'RectangularSource'
 
