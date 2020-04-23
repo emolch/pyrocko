@@ -249,7 +249,7 @@ class CPTHandler(Element):
         self._cpt_scale_lineedit = le
 
 
-def _lineedit_to_cptscale(cpt_state, widget):
+def _lineedit_to_cptscale(widget, cpt_state):
     s = str(widget.text())
     s = s.replace(',', ' ')
 
