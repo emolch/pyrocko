@@ -50,19 +50,21 @@ class Fault(object):
 
         for attr, attr_type in self.__fields__.items():
             if attr in props:
-                if not props[attr]:
+                if props[attr] is None:
                     continue
 
-                if attr_type is float:
+                if isinstance(props[attr], attr_type):
+                    v = props[attr]
+
+                elif attr_type is float:
                     if re.match(r'^\(?(([ \-0-9,.]|nan)*)\)$', props[attr]):
                         v = parse_3tup(props[attr])[0]
                     else:
                         v = float(props[attr])
 
-                elif attr_type is str:
-                    v = props[attr]
                 elif attr_type is int:
                     v = int(props[attr])
+
                 else:
                     v = None
 
