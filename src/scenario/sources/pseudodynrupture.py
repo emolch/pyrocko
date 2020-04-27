@@ -15,7 +15,7 @@ km = 1e3
 guts_prefix = 'pf.scenario'
 
 
-class RectangularSourceGenerator(SourceGenerator):
+class PseudoDynamicRuptureGenerator(SourceGenerator):
     depth_min = Float.T(
         default=0.0)
     depth_max = Float.T(
@@ -31,6 +31,14 @@ class RectangularSourceGenerator(SourceGenerator):
         optional=True)
     depth = Float.T(
         optional=True)
+    nx = Int.T(
+        optional=True)
+    ny = Int.T(
+        optional=True)
+    nucleation_x = Float.T(
+        optional=True)
+    nucleation_y = Float.T(
+        optional=True)
 
     width = Float.T(
         optional=True)
@@ -42,6 +50,8 @@ class RectangularSourceGenerator(SourceGenerator):
         time = rstate.uniform(self.time_min, self.time_max)
         lat, lon = self.get_latlon(ievent)
         depth = rstate.uniform(self.depth_min, self.depth_max)
+        nucleation_x = self.nucleation_x or rstate.uniform(-1., 1.)
+        nucleation_y = self.nucleation_y or rstate.uniform(-1., 1.)
 
         magnitude = self.draw_magnitude(rstate)
         moment = moment_tensor.magnitude_to_moment(magnitude)
@@ -60,14 +70,14 @@ class RectangularSourceGenerator(SourceGenerator):
         else:
             if None in (self.strike, self.dip, self.rake):
                 raise ValueError(
-                    'RectangularSourceGenerator: '
+                    'PseudoDynamicRuptureGenerator: '
                     'strike, dip, rake must be used in combination.')
 
             strike = self.strike
             dip = self.dip
             rake = self.rake
 
-        source = gf.RectangularSource(
+        source = gf.PseudoDynamicRupture(
             time=float(time),
             lat=float(lat),
             lon=float(lon),
@@ -79,6 +89,10 @@ class RectangularSourceGenerator(SourceGenerator):
             dip=float(dip),
             rake=float(rake),
             magnitude=magnitude,
+            nucleation_x=float(nucleation_x),
+            nucleation_y=float(nucleation_y),
+            nx=self.nx,
+            ny=self.ny,
             decimation_factor=self.decimation_factor)
 
         return source

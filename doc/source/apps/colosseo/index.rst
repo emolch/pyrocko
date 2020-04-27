@@ -112,13 +112,96 @@ The scenario is built from a YAML configuration file, which can look like this:
 
 
 Start the forward model
----------------------------
+-----------------------
 
 Start filling the scenario with forward modelled data:
 
 .. code-block:: sh
 
     colosseo fill my_scenario
+
+
+Seismic source models
+---------------------
+
+
+Double-couple source
+********************
+
+See also :class:`~pyrocko.gf.seismosizer.DCSource`.
+
+.. code-block :: yaml
+  --- !pf.scenario.DCSourceGenerator
+  # How often the are we rolling the dice for this model
+  ntries: 10
+  # Number of DCSources to generate
+  nevents: 2
+  avoid_water: false
+  time_min: 2017-01-01 00:00:00
+  time_max: 2017-01-03 00:00:00
+  magnitude_min: 4.0
+  magnitude_max: 6.0
+  depth_min: 0.0
+  depth_max: 30000.0
+  # b-value for Gutenberg-Richter magnitude distribution.
+  b_value: 1.
+
+Rectangular fault plane
+***********************
+
+See also :class:`~pyrocko.gf.seismosizer.RectangularSource`.
+
+.. code-block :: yaml
+  --- !pf.scenario.RectangularSourceGenerator
+  # How often the are we rolling the dice for this model
+  ntries: 10
+  # Number of DCSources to generate
+  nevents: 2
+  avoid_water: false
+  time_min: 2017-01-01 00:00:00
+  time_max: 2017-01-03 00:00:00
+  magnitude_min: 4.0
+  depth_min: 0.0
+  depth_max: 5000.0
+  # Dimensions of the fault, if not given random dimensions after Mai and Berozza (2000)
+  # are assumed
+  length: 4000.
+  width: 2000.
+  # Orientation of the plane, optional
+  strike: 90.
+  dip: 34.
+  rake: 150.
+  # Decimation of sub-sources
+  decimation_factor: 4
+
+Pseudo dynamic rupture
+**********************
+
+See also :class:`~pyrocko.gf.seismosizer.PseudoDynamicRupture`.
+
+.. code-block :: yaml
+  --- !pf.scenario.PseudoDynamicRuptureGenerator
+  # How often the are we rolling the dice for this model
+  ntries: 10
+  # Number of DCSources to generate
+  nevents: 2
+  avoid_water: false
+  time_min: 2017-01-01 00:00:00
+  time_max: 2017-01-03 00:00:00
+  magnitude_min: 4.0
+  depth_min: 0.0
+  depth_max: 5000.0
+  decimation_factor: 4
+  # Dimensions of the fault, if not given random dimensions after Mai and Berozza (2000)
+  # are assumed
+  length: 4000.
+  width: 2000.
+  # Orientation of the plane, optional
+  strike: 90.
+  dip: 34.
+  rake: 150.
+  # Decimation of sub-sources
+  decimation_factor: 4
 
 
 The final scenario
