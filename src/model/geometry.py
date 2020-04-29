@@ -166,8 +166,7 @@ class Geometry(Object):
             self.properties.add_col(name, values.reshape(-1,))
         elif (values.ndim == 2) and (self.times is not None):
             assert values.shape[1] == self.times.shape[0]
-            sub_headers = tuple(['{}'.format(i) for i in self.times])
-            self.properties.add_col((name, '', sub_headers), values)
+            self.properties.add_col(name, values)
         else:
             raise AttributeError(
                 'Please give either 1D array or the associated times first.')
