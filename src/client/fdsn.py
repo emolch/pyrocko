@@ -440,6 +440,7 @@ def station(
             lst.append(' '.join((network, station, location, channel,
                                  sdatetime(tmin), sdatetime(tmax))))
 
+        print(lst)
         post = '\n'.join(lst)
         params = dict(post=post.encode())
 
