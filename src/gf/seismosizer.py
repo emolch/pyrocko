@@ -3121,7 +3121,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             patch1 du_Strike t2, patch1 du_Dip t2, patch1 du_Tensile t2,
             patch2 du_Strike t2, ...];
             corner times, for which delta slip is computed
-        :rtype: :py:class:`numpy.ndarray`, ``(n_sources * 3, n_times)``
+        :rtype: :py:class:`numpy.ndarray`, ``(n_sources, 3, n_times)``
                 :py:class:`numpy.ndarray`, ``(n_times, 1)``
         '''
         if store and dt:

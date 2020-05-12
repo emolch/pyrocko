@@ -2,13 +2,16 @@
 import logging
 
 import os
+import os.path as op
 
 import numpy as num
 from scipy.interpolate import RegularGridInterpolator as scrgi
 
-from matplotlib import cm
+from matplotlib import cm, pyplot as plt
 
 from pyrocko import gmtpy, moment_tensor as pmt, orthodrome as pod, util
+from pyrocko.plot import (mpl_init, mpl_margins, mpl_papersize, mpl_color,
+                          AutoScaler)
 from pyrocko.plot.automap import Map
 from pyrocko.gf import PseudoDynamicRupture
 from pyrocko.gf.seismosizer import map_anchor
@@ -87,8 +90,6 @@ def make_colormap(
         above vmax.
     :param space: optional, bool
     '''
-
-    from pyrocko.plot import AutoScaler
 
     scaler = AutoScaler(mode='min-max')
     scale = scaler.make_scale((vmin, vmax))
@@ -173,6 +174,32 @@ def xy_to_latlon(source, x, y):
     easting = num.sin(strike) * l + num.cos(dip) * num.cos(strike) * w
 
     return pod.ne_to_latlon(s.lat, s.lon, northing, easting)
+
+
+def xy_to_lw(source, x, y):
+    '''
+    Convert x and y relative coordinates on extended ruptures into length width
+
+    :param source: Extended source class, on which the given points are located
+    :type source: :py:class:`pyrocko.gf.seismosizer.RectangularSource` or
+        :py:class:`pyrocko.gf.seismosizer.PseudoDynamicRupture`
+    :param x: Relative point coordinates along strike (range: -1:1)
+    :type x: float or :py:class:`numpy.ndarray`
+    :param y: Relative downdip point coordinates (range: -1:1)
+    :type y: float or :py:class:`numpy.ndarray`
+
+    :returns: length and downdip width [m] of the given points from the anchor
+    :rtype: tuple of float
+    '''
+
+    l, w = source.length, source.width
+
+    ax, ay = map_anchor[source.anchor]
+
+    lengths = (x - ax) / 2. * l
+    widths = (y - ay) / 2. * w
+
+    return lengths, widths
 
 
 cbar_anchor = {
@@ -390,10 +417,6 @@ class RuptureMap(Map):
         :rtype: :py:class:`numpy.ndarray`, :py:class:`numpy.ndarray`
         '''
 
-        source = self.source
-
-        l, w = source.length, source.width
-
         x, y = num.unique(x), num.unique(y)
         dx, dy = x[1] - x[0], y[1] - y[0]
 
@@ -405,12 +428,7 @@ class RuptureMap(Map):
             raise ValueError('Regular grid with constant spacing needed.'
                              ' Please check the y coordinates.')
 
-        ax, ay = map_anchor[source.anchor]
-
-        lengths = (x - ax) / 2. * l
-        widths = (y - ay) / 2. * w
-
-        return lengths, widths
+        return xy_to_lw(self.source, x, y)
 
     def _tile_to_lw(self, ref_lat, ref_lon,
                     north_shift=0., east_shift=0., strike=0.):
@@ -532,7 +550,7 @@ class RuptureMap(Map):
 
     def patch_data_to_grid(self, data, *args, **kwargs):
         '''
-        Generate a grid file based on patch wise data.
+        Generate a grid file based on regular patch wise data.
 
         :param data: Patchwise data grid array
         :type data: :py:class:`numpy.ndarray`
@@ -651,21 +669,21 @@ class RuptureMap(Map):
             *self.jxyr + args,
             **kwargs)
 
-    def draw_colorbar(self, cmap, title='', anchor='top_right', **kwargs):
+    def draw_colorbar(self, cmap, clabel='', anchor='top_right', **kwargs):
         '''
         Draw a colorbar based on a existing colormap
 
         :param cmap: Name of the colormap, which shall be used. A .cpt-file
             "my_<cmap>.cpt" must exist
         :type cmap: string
-        :param title: Title of the colorbar
-        :type title: optional, string
-        :param anchor: Placement of the colorbar. Combine 'top', 'centre' and
+        :param clabel: Title of the colorbar
+        :type clabel: optional, string
+        :param anchor: Placement of the colorbar. Combine 'top', 'center' and
             'bottom' with 'left', None for middle and 'right'
         :type anchor: optional, string
         '''
 
-        b_string, c_string = 'af+l%s' % title, 'my_%s.cpt' % cmap
+        b_string, c_string = 'af+l%s' % clabel, 'my_%s.cpt' % cmap
         a_str = cbar_anchor[anchor]
 
         if kwargs:
@@ -700,14 +718,16 @@ class RuptureMap(Map):
 
         kwargs['cmap'] = kwargs.get('cmap', 'afmhot_r')
 
-        make_colormap(num.min(data), num.max(data),
-                      cmap=kwargs['cmap'], space=True)
+        if not op.exists('my_%s.cpt' % kwargs['cmap']):
+            make_colormap(num.min(data), num.max(data),
+                          cmap=kwargs['cmap'], space=True)
+            cpt = kwargs['cmap']
 
         tmp_grd_file = 'tmpdata.grd'
         self.patch_data_to_grid(data, tmp_grd_file)
         self.draw_image(tmp_grd_file, **kwargs)
 
-        clear_temp(gridfiles=[tmp_grd_file], cpts=[kwargs['cmap']])
+        clear_temp(gridfiles=[tmp_grd_file], cpts=[cpt])
 
     def draw_patch_parameter(self, attribute, **kwargs):
         '''
@@ -735,11 +755,11 @@ class RuptureMap(Map):
         else:
             data = source.get_patch_attribute(attribute)
 
-        factor = 1. if 'title' in kwargs else cbar_helper[a]['factor']
+        factor = 1. if 'clabel' in kwargs else cbar_helper[a]['factor']
         data *= factor
 
-        kwargs['title'] = kwargs.get(
-            'title',
+        kwargs['clabel'] = kwargs.get(
+            'clabel',
             '%s [%s]' % (a, cbar_helper[a]['unit']))
 
         self.draw_dynamic_data(data, **kwargs)
@@ -751,8 +771,6 @@ class RuptureMap(Map):
         :param store: Greens function store, which is used for time calculation
         :type store: :py:class:`pyrocko.gf.store.Store`
         '''
-
-        from pyrocko.plot import AutoScaler
 
         scaler = AutoScaler(mode='0-max', approx_ticks=8)
 
@@ -828,3 +846,402 @@ class RuptureMap(Map):
             self.source, self.source.nucleation_x, self.source.nucleation_y)
 
         self.draw_point(nlat, nlon, **kwargs)
+
+    def draw_dislocation(self, time=None, component='', **kwargs):
+        disl = self.source.get_okada_slip(time=time)
+
+        c2disl = dict([('x', 0), ('y', 1), ('z', 2)])
+
+        if component:
+            data = disl[:, c2disl[component]]
+        else:
+            data = num.linalg.norm(disl, axis=1)
+
+        kwargs['clabel'] = kwargs.get(
+            'clabel', 'u%s [m]' % (component))
+
+        self.draw_dynamic_data(data, **kwargs)
+
+    def draw_dislocation_contour(self, time=None, component='', **kwargs):
+        disl = self.source.get_okada_slip(time=time)
+
+        c2disl = dict([('x', 0), ('y', 1), ('z', 2)])
+
+        if component:
+            data = disl[:, c2disl[component]]
+        else:
+            data = num.linalg.norm(disl, axis=1)
+
+        scaler = AutoScaler(mode='min-max', approx_ticks=7)
+        scale = scaler.make_scale([num.min(data), num.max(data)])
+
+        kwargs['anot_int'] = kwargs.get('anot_int', scale[2] * 2.)
+        kwargs['contour_int'] = kwargs.get('contour_int', scale[2])
+        kwargs['unit'] = kwargs.get('unit', ' m')
+        kwargs['L'] = kwargs.get('L', '%g/%g' % (
+            num.min(data) - 1., num.max(data) + 1.))
+        kwargs['G'] = kwargs.get('G', 'n2/3c')
+
+        tmp_grd_file = 'tmpdata.grd'
+        self.patch_data_to_grid(data, tmp_grd_file)
+        self.draw_contour(tmp_grd_file, **kwargs)
+
+        clear_temp(gridfiles=[tmp_grd_file], cpts=[])
+
+    # def animate_time_series(
+    #         self,
+    #         variable,
+    #         file_prefix,
+    #         dt=None,
+    #         store=None,
+    #         **kwargs):
+
+    #     v = variable
+
+    #     if v == 'moment_rate':
+    #         data, times = self.source.get_moment_rate(dt=dt, store=store)
+    #     elif 'dislocation' in v or 'slip_rate' == v:
+    #         ddisloc, times = self.source.get_delta_slip(dt=dt, store=store)
+    #     else:
+    #         raise ValueError('No dynamic data for given variable %s found' % v)
+
+    #     dt = times[1] - times[0]
+
+    #     if v == 'dislocation':
+    #         data = num.linalg.norm(num.cumsum(ddisloc, axis=2), axis=1)
+    #     elif v == 'dislocation_x':
+    #         data = num.cumsum(ddisloc, axis=2)[:, 0, :]
+    #     elif v == 'dislocation_y':
+    #         data = num.cumsum(ddisloc, axis=2)[:, 1, :]
+    #     elif v == 'dislocation_z':
+    #         data = num.cumsum(ddisloc, axis=2)[:, 2, :]
+    #     elif v == 'slip_rate':
+    #         data = num.linalg.norm(ddisloc, axis=1) / dt
+
+    #     kwargs['cmap'] = kwargs.get('cmap', 'afmhot_r')
+    #     make_colormap(num.min(data), num.max(data),
+    #                   cmap=kwargs['cmap'], space=True)
+
+
+class RuptureView(object):
+    def __init__(self, source=None, fontsize=12, figsize=None):
+        self.source__ = source
+        self._axes = None
+
+        if figsize is None:
+            figsize = mpl_papersize('halfletter', 'landscape')
+
+        self._figsize = figsize
+
+        mpl_init(fontsize=fontsize)
+        self._fontsize = fontsize
+
+        self._fig = None
+        self._axes = None
+
+    @property
+    def source(self):
+        '''
+        PseudoDynamicRupture whose attributes are plotted.
+
+        Note, that source.patches attribute needs to be calculated
+        :type source: :py:class:`pyrocko.gf.seismosizer.PseudoDynamicRupture`
+        '''
+
+        if self.source__ is None:
+            raise SourceError('No source given. Please define it!')
+
+        if not isinstance(self.source__, PseudoDynamicRupture):
+            raise SourceError('This function is only capable for a source of'
+                              ' type: %s' % type(PseudoDynamicRupture()))
+
+        if not self.source__.patches:
+            raise TypeError('No source patches are defined. Please run'
+                            '\"discretize_patches\" on your source')
+
+        return self.source__
+
+    @source.setter
+    def source(self, source):
+        self.source__ = source
+
+    def _setup(self, title='', xlabel='', ylabel='', aspect=1., **kwargs):
+        if self._fig is not None and self._axes is not None:
+            return
+
+        self._fig = plt.figure(figsize=self._figsize)
+
+        if self._figsize[0] < 6. or self._figsize[1] < 4.:
+            typ = 'smallfig'
+            labelpos = mpl_margins(
+                self._fig,
+                left=5.,
+                right=3.5,
+                top=1.,
+                bottom=4.,
+                units=self._fontsize)
+        else:
+            typ = 'bigfig'
+            labelpos = mpl_margins(
+                self._fig,
+                left=7.,
+                right=6.,
+                top=5.,
+                bottom=8.,
+                units=self._fontsize)
+
+        self._axes = plt.gcf().add_subplot(1, 1, 1, aspect=aspect)
+
+        if typ == 'smallfig':
+            labelpos(self._axes, 0.5, 1.5)
+        else:
+            labelpos(self._axes, 2., 2.5)
+
+        if self._axes is not None:
+            self._axes.set_title(title)
+            self._axes.grid(True)
+            self._axes.set_xlabel(xlabel)
+            self._axes.set_ylabel(ylabel)
+
+    def _draw_image(self, x, y, data, *args, **kwargs):
+        if self._axes is not None:
+            if 'extent' not in kwargs:
+                kwargs['extent'] = [
+                    num.min(x), num.max(x),
+                    num.max(y), num.min(y)]
+
+            im = self._axes.imshow(
+                data,
+                interpolation='none',
+                *args,
+                **kwargs)
+
+            del kwargs['extent']
+            if 'aspect' in kwargs:
+                del kwargs['aspect']
+
+            plt.colorbar(
+                im, shrink=0.9, pad=0.03, aspect=15., *args, **kwargs)
+
+    def _draw_contour(self, x, y, data, clevel=None, *args, **kwargs):
+        if self._axes is not None:
+            if clevel is None:
+                scaler = AutoScaler(mode='min-max')
+                scale = scaler.make_scale([num.min(data), num.max(data)])
+
+                clevel = num.arange(scale[0], scale[1] + scale[2], scale[2])
+
+            if isinstance(clevel, float) or isinstance(clevel, int):
+                clevel = [clevel]
+
+            cont = self._axes.contour(
+                x,
+                y,
+                data,
+                clevel,
+                linewidth=3.5,
+                *args,
+                **kwargs)
+
+            self._axes.clabel(
+                cont,
+                clevel[::2],
+                inline=1,
+                fmt='%g',
+                inline_spacing=15,
+                rightside_up=True,
+                *args,
+                **kwargs)
+
+    def draw_point(self, x, y, *args, **kwargs):
+        if self._axes is not None:
+            kwargs['c'] = kwargs.get('c', mpl_color('scarletred2'))
+            kwargs['s'] = kwargs.get('s', 100.)
+
+            self._axes.scatter(x, y, *args, **kwargs)
+
+    def draw_dynamic_data(self, data, filename=None, dpi=100., **kwargs):
+        '''
+        Draw an image of any data gridded on the patches e.g dislocation
+
+        :param data: Patchwise data grid array
+        :type data: :py:class:`numpy.ndarray`
+        '''
+
+        anchor_x, anchor_y = map_anchor[self.source.anchor]
+
+        x, y = xy_to_lw(
+            self.source, num.array([-1., 1.]), num.array([-1., 1.]))
+
+        x *= m2km
+        y *= m2km
+
+        data = data.reshape(self.source.ny, self.source.nx, order='F')
+
+        kwargs['cmap'] = kwargs.get('cmap', 'afmhot_r')
+
+        setup_kwargs = {}
+        setup_kwargs['xlabel'] = kwargs.get('xlabel', 'along strike [km]')
+        setup_kwargs['ylabel'] = kwargs.get('ylabel', 'down dip [km]')
+        setup_kwargs['title'] = kwargs.get('title', '')
+        setup_kwargs['aspect'] = kwargs.get('aspect', 1)
+
+        kwargs = dict([k for k in kwargs.items() if k[0] not in
+                       ['xlabel', 'ylabel', 'title']])
+
+        self._setup(**setup_kwargs)
+        self._draw_image(x=x, y=y, data=data, **kwargs)
+
+    def draw_patch_parameter(self, attribute, **kwargs):
+        '''
+        Draw an image of a chosen patch attribute e.g traction
+
+        :param attribute: Patch attribute, which is plotted. All patch
+            attributes can be taken (see doc of
+            :py:class:`pyrocko.modelling.okada.OkadaSource) and also
+            'traction', 'tx', 'ty' or 'tz' to display the length or the single
+            components of the traction vector
+        :type attribute: string
+        '''
+
+        a = attribute
+        source = self.source
+
+        if a == 'traction':
+            data = num.linalg.norm(source.tractions, axis=1)
+        elif a == 'tx':
+            data = source.tractions[:, 0]
+        elif a == 'ty':
+            data = source.tractions[:, 1]
+        elif a == 'tz':
+            data = source.tractions[:, 2]
+        else:
+            data = source.get_patch_attribute(attribute)
+
+        factor = 1. if 'label' in kwargs else cbar_helper[a]['factor']
+        data *= factor
+
+        kwargs['label'] = kwargs.get(
+            'label',
+            '%s [%s]' % (a, cbar_helper[a]['unit']))
+
+        return self.draw_dynamic_data(data=data, **kwargs)
+
+    def draw_time_contour(self, store, axes=None, **kwargs):
+        '''
+        Draw high resolved contour lines of the rupture front propgation time
+
+        :param store: Greens function store, which is used for time calculation
+        :type store: :py:class:`pyrocko.gf.store.Store`
+        '''
+
+        _, points_xy, _, times = self.source.discretize_time(store)
+
+        scaler = AutoScaler(mode='min-max', approx_ticks=8)
+        scale = scaler.make_scale([num.min(times), num.max(times)])
+
+        clevel = num.arange(scale[0] + scale[2], scale[1], scale[2])
+
+        x, y = xy_to_lw(self.source, points_xy[:, 0], points_xy[:, 1])
+
+        x *= m2km
+        y *= m2km
+
+        kwargs['colors'] = kwargs.get('colors', '#474747ff')
+        self._setup(**kwargs)
+
+        self._draw_contour(num.unique(x), num.unique(y), data=times.T,
+                           clevel=clevel, **kwargs)
+
+    def draw_nucleation_point(self, **kwargs):
+        '''
+        Plot the nucleation point onto the map
+        '''
+
+        nuc_x, nuc_y = self.source.nucleation_x, self.source.nucleation_y
+
+        x, y = xy_to_lw(self.source, nuc_x, nuc_y)
+
+        x *= m2km
+        y *= m2km
+
+        self._setup(**kwargs)
+        self.draw_point(x, y, marker='o', **kwargs)
+
+
+    def save_plot(self, filename, dpi=100.):
+        self._fig.savefig(filename=filename,
+                          dpi=dpi,
+                          bbox_inches='tight')
+        plt.cla()
+        plt.clf()
+        plt.close()
+
+        self._fig, self._axes = None, None
+
+    def show_plot(self):
+        plt.show()
+
+
+    # def animate_snapshots(self, **kwargs):
+    #     selected_indexes = self.list_view.selectedIndexes()
+    #     items = self.model.get_series(selected_indexes)
+
+    #     time_state = []
+    #     item_previous = None
+    #     t = 0.0
+    #     for i, item in enumerate(items):
+    #         item_next = getitem_or_none(items, i+1)
+    #         item_previous = getitem_or_none(items, i-1)
+
+    #         if isinstance(item, Snapshot):
+    #             time_state.append((t, item.state))
+    #             if item.effective_duration > 0:
+    #                 time_state.append((t+item.effective_duration, item.state))
+
+    #             t += item.effective_duration
+
+    #         elif isinstance(item, Transition):
+    #             if None not in (item_previous, item_next) \
+    #                     and item.effective_duration != 0.0:
+
+    #                 t += item.effective_duration
+
+    #         item_previous = item
+
+    #     if len(time_state) < 2:
+    #         return
+
+    #     ip = Interpolator(*zip(*time_state))
+
+    #     self.viewer.start_animation(
+    #         ip, output_path=kwargs.get('output_path', None))
+
+    # def render_movie(self):
+    #     try:
+    #         check_call(['ffmpeg', '-loglevel', 'panic'])
+    #     except CalledProcessError:
+    #         pass
+    #     except (TypeError, FileNotFoundError):
+    #         logger.warn(
+    #             'Package ffmpeg needed for movie rendering. Please install it '
+    #             '(e.g. on linux distr. via sudo apt-get ffmpeg.) and retry.')
+    #         return
+
+    #     caption = 'Export Movie'
+    #     fn_out, _ = fnpatch(qw.QFileDialog.getSaveFileName(
+    #         self, caption, 'movie.mp4',
+    #         options=common.qfiledialog_options))
+
+    #     if fn_out:
+    #         self.animate_snapshots(output_path=fn_out)
+
+
+__all__ = [
+    'make_colormap',
+    'clear_temp',
+    'xy_to_latlon',
+    'xy_to_lw',
+    'SourceError',
+    'RuptureMap',
+    'RuptureView']
