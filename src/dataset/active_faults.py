@@ -50,7 +50,7 @@ class Fault(object):
 
         for attr, attr_type in self.__fields__.items():
             if attr in props:
-                if not props[attr]:
+                if props[attr] is None or props[attr] is '':
                     continue
 
                 if isinstance(props[attr], attr_type):
