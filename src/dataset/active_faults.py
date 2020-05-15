@@ -57,9 +57,9 @@ class Fault(object):
                     v = props[attr]
 
                 elif attr_type is float:
-                    if re.match(r'^\(?(([ \-0-9,.]|nan)*)\)$', props[attr]):
+                    try:
                         v = parse_3tup(props[attr])[0]
-                    else:
+                    except TypeError:
                         v = float(props[attr])
 
                 elif attr_type is int:
