@@ -14,6 +14,7 @@ from .srtmgl3 import SRTMGL3, AuthenticationRequired  # noqa
 from .etopo1 import ETOPO1
 from .iceland_v2 import IcelandV2
 from . import dataset, tile
+from pyrocko.plot.cpt import get_cpt_path as cpt
 
 __doc__ = util.parse_md(__file__)
 
@@ -115,20 +116,6 @@ def make_all_missing_decimated():
     for dem in dems:
         if isinstance(dem, dataset.DecimatedTiledGlobalDataset):
             dem.make_all_missing()
-
-
-def cpt(name):
-    if os.path.exists(name):
-        return name
-
-    if not re.match(r'[A-Za-z0-9_]+', name):
-        raise Exception('invalid cpt name')
-
-    fn = util.data_file(os.path.join('colortables', '%s.cpt' % name))
-    if not os.path.exists(fn):
-        raise Exception('cpt file does not exist: %s' % fn)
-
-    return fn
 
 
 def comparison(region, dems=dems):

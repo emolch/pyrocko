@@ -20,12 +20,17 @@ from pyrocko.guts import (Object, Float, Bool, Int, Tuple, String, List,
 from pyrocko.guts_array import Array
 from pyrocko.dataset import topo
 from pyrocko import orthodrome as od
+from .cpt import (
+    get_cpt_path, CPT, CPTLevel, CPTParseError, read_cpt, write_cpt,
+    cpt_merge_wet_dry)
 from . import gmtpy
 
 try:
     newstr = unicode
 except NameError:
     newstr = str
+
+CPT, CPTLevel, CPTParseError
 
 points_in_region = od.points_in_region
 
@@ -540,7 +545,7 @@ class Map(Object):
         try:
             grdfile, ilumargs = self._prep_topo('ocean')
             gmt.pscoast(D=cres, S='c', A=minarea, *(JXY+R))
-            gmt.grdimage(grdfile, C=topo.cpt(self.topo_cpt_wet),
+            gmt.grdimage(grdfile, C=get_cpt_path(self.topo_cpt_wet),
                          *(ilumargs+JXY+R))
             gmt.pscoast(Q=True, *(JXY+R))
             self._have_topo_ocean = True
@@ -550,7 +555,7 @@ class Map(Object):
         try:
             grdfile, ilumargs = self._prep_topo('land')
             gmt.pscoast(D=cres, G='c', A=minarea, *(JXY+R))
-            gmt.grdimage(grdfile, C=topo.cpt(self.topo_cpt_dry),
+            gmt.grdimage(grdfile, C=get_cpt_path(self.topo_cpt_dry),
                          *(ilumargs+JXY+R))
             gmt.pscoast(Q=True, *(JXY+R))
             self._have_topo_land = True
@@ -558,8 +563,8 @@ class Map(Object):
             self._have_topo_land = False
 
     def _draw_topo_scale(self, label='Elevation [km]'):
-        dry = read_cpt(topo.cpt(self.topo_cpt_dry))
-        wet = read_cpt(topo.cpt(self.topo_cpt_wet))
+        dry = read_cpt(get_cpt_path(self.topo_cpt_dry))
+        wet = read_cpt(get_cpt_path(self.topo_cpt_wet))
         combi = cpt_merge_wet_dry(wet, dry)
         for level in combi.levels:
             level.vmin /= km
@@ -1323,227 +1328,6 @@ def split_region(region):
                 (-180., east-360., south, north)]
     else:
         return [region]
-
-
-class CPTLevel(Object):
-    vmin = Float.T()
-    vmax = Float.T()
-    color_min = Tuple.T(3, Float.T())
-    color_max = Tuple.T(3, Float.T())
-
-
-class CPT(Object):
-    color_below = Tuple.T(3, Float.T(), optional=True)
-    color_above = Tuple.T(3, Float.T(), optional=True)
-    color_nan = Tuple.T(3, Float.T(), optional=True)
-    levels = List.T(CPTLevel.T())
-
-    @property
-    def vmin(self):
-        if self.levels:
-            return self.levels[0].vmin
-        else:
-            return None
-
-    @property
-    def vmax(self):
-        if self.levels:
-            return self.levels[-1].vmax
-        else:
-            return None
-
-    def scale(self, vmin, vmax):
-        vmin_old, vmax_old = self.levels[0].vmin, self.levels[-1].vmax
-        for level in self.levels:
-            level.vmin = (level.vmin - vmin_old) / (vmax_old - vmin_old) * \
-                (vmax - vmin) + vmin
-            level.vmax = (level.vmax - vmin_old) / (vmax_old - vmin_old) * \
-                (vmax - vmin) + vmin
-
-    def discretize(self, nlevels):
-        colors = []
-        vals = []
-        for level in self.levels:
-            vals.append(level.vmin)
-            vals.append(level.vmax)
-            colors.append(level.color_min)
-            colors.append(level.color_max)
-
-        r, g, b = num.array(colors, dtype=float).T
-        vals = num.array(vals, dtype=float)
-
-        vmin, vmax = self.levels[0].vmin, self.levels[-1].vmax
-        x = num.linspace(vmin, vmax, nlevels+1)
-        rd = num.interp(x, vals, r)
-        gd = num.interp(x, vals, g)
-        bd = num.interp(x, vals, b)
-
-        levels = []
-        for ilevel in range(nlevels):
-            color = (
-                float(0.5*(rd[ilevel]+rd[ilevel+1])),
-                float(0.5*(gd[ilevel]+gd[ilevel+1])),
-                float(0.5*(bd[ilevel]+bd[ilevel+1])))
-
-            levels.append(CPTLevel(
-                vmin=x[ilevel],
-                vmax=x[ilevel+1],
-                color_min=color,
-                color_max=color))
-
-        cpt = CPT(
-            color_below=self.color_below,
-            color_above=self.color_above,
-            color_nan=self.color_nan,
-            levels=levels)
-
-        return cpt
-
-    def get_lut(self):
-        vs = []
-        colors = []
-        if self.color_below and self.levels:
-            vs.append(self.levels[0].vmin)
-            colors.append(self.color_below)
-
-        for level in self.levels:
-            vs.append(level.vmin)
-            vs.append(level.vmax)
-            colors.append(level.color_min)
-            colors.append(level.color_max)
-
-        if self.color_above and self.levels:
-            vs.append(self.levels[-1].vmax)
-            colors.append(self.color_above)
-
-        vs_lut = num.array(vs)
-        colors_lut = num.array(colors)
-        return vs_lut, colors_lut
-
-    def __call__(self, values):
-        vs_lut, colors_lut = self.get_lut()
-
-        colors = num.zeros((values.size, 3))
-        colors[:, 0] = num.interp(values, vs_lut, colors_lut[:, 0])
-        colors[:, 1] = num.interp(values, vs_lut, colors_lut[:, 1])
-        colors[:, 2] = num.interp(values, vs_lut, colors_lut[:, 2])
-
-        if self.color_nan:
-            cnan = num.zeros((1, 3))
-            cnan[0, :] = self.color_nan
-            colors[num.isnan(values), :] = cnan
-
-        return colors
-
-    @classmethod
-    def from_numpy(cls, colors):
-        nbins = colors.shape[0]
-        vs = num.linspace(0., 1., nbins)
-        cpt_data = num.hstack((num.atleast_2d(vs).T, colors))
-        return cls(
-            levels=[
-                CPTLevel(
-                    vmin=a[0],
-                    vmax=b[0],
-                    color_min=[255*x for x in a[1:]],
-                    color_max=[255*x for x in b[1:]])
-                for (a, b) in zip(cpt_data[:-1], cpt_data[1:])])
-
-
-class CPTParseError(Exception):
-    pass
-
-
-def read_cpt(filename):
-    with open(filename) as f:
-        color_below = None
-        color_above = None
-        color_nan = None
-        levels = []
-        try:
-            for line in f:
-                line = line.strip()
-                toks = line.split()
-
-                if line.startswith('#'):
-                    continue
-
-                elif line.startswith('B'):
-                    color_below = tuple(map(float, toks[1:4]))
-
-                elif line.startswith('F'):
-                    color_above = tuple(map(float, toks[1:4]))
-
-                elif line.startswith('N'):
-                    color_nan = tuple(map(float, toks[1:4]))
-
-                else:
-                    values = list(map(float, line.split()))
-                    vmin = values[0]
-                    color_min = tuple(values[1:4])
-                    vmax = values[4]
-                    color_max = tuple(values[5:8])
-                    levels.append(CPTLevel(
-                        vmin=vmin,
-                        vmax=vmax,
-                        color_min=color_min,
-                        color_max=color_max))
-
-        except Exception:
-            raise CPTParseError()
-
-    return CPT(
-        color_below=color_below,
-        color_above=color_above,
-        color_nan=color_nan,
-        levels=levels)
-
-
-def color_to_int(color):
-    return tuple(max(0, min(255, int(round(x)))) for x in color)
-
-
-def write_cpt(cpt, filename):
-    with open(filename, 'w') as f:
-        for level in cpt.levels:
-            f.write(
-                '%e %i %i %i %e %i %i %i\n' %
-                ((level.vmin, ) + color_to_int(level.color_min) +
-                 (level.vmax, ) + color_to_int(level.color_max)))
-
-        if cpt.color_below:
-            f.write('B %i %i %i\n' % color_to_int(cpt.color_below))
-
-        if cpt.color_above:
-            f.write('F %i %i %i\n' % color_to_int(cpt.color_above))
-
-        if cpt.color_nan:
-            f.write('N %i %i %i\n' % color_to_int(cpt.color_nan))
-
-
-def cpt_merge_wet_dry(wet, dry):
-    levels = []
-    for level in wet.levels:
-        if level.vmin < 0.:
-            if level.vmax > 0.:
-                level.vmax = 0.
-
-            levels.append(level)
-
-    for level in dry.levels:
-        if level.vmax > 0.:
-            if level.vmin < 0.:
-                level.vmin = 0.
-
-            levels.append(level)
-
-    combi = CPT(
-        color_below=wet.color_below,
-        color_above=dry.color_above,
-        color_nan=dry.color_nan,
-        levels=levels)
-
-    return combi
 
 
 if __name__ == '__main__':
