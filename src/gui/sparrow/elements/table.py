@@ -8,7 +8,7 @@ import copy
 import numpy as num
 
 from pyrocko.guts import Bool, Float, String, StringChoice
-from pyrocko.gui.vtk_util import ScatterPipe
+from pyrocko.gui.vtk_util import ScatterPipe, BeachballPipe
 from pyrocko.gui.qt_compat import qw, qc
 
 from . import base
@@ -18,7 +18,7 @@ guts_prefix = 'sparrow'
 km = 1e3
 
 
-def inormalize(x, imin, imax):
+def inormalize(x, imin, imax, discrete=True):
 
     xmin = num.nanmin(x)
     xmax = num.nanmax(x)
@@ -29,10 +29,16 @@ def inormalize(x, imin, imax):
     rmin = imin - 0.5
     rmax = imax + 0.5
 
-    return num.clip(
-        num.round(
-            rmin + (x - xmin) * ((rmax-rmin) / (xmax - xmin))).astype(num.int),
-        imin, imax)
+    if discrete:
+        return num.clip(
+            num.round(
+                rmin + (x - xmin) * (
+                    (rmax-rmin) / (xmax - xmin))).astype(num.int),
+            imin, imax)
+    else:
+        return num.clip(
+            rmin + (x - xmin) * ((rmax-rmin) / (xmax - xmin)),
+            imin, imax)
 
 
 def string_to_sorted_idx(values):
@@ -47,7 +53,7 @@ def string_to_sorted_idx(values):
 
 
 class SymbolChoice(StringChoice):
-    choices = ['point', 'sphere']
+    choices = ['point', 'sphere', 'beachball']
 
 
 class TableState(base.ElementState):
@@ -86,10 +92,8 @@ class TableElement(base.Element):
         upd = self.update
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'symbol')
         state.add_listener(upd, 'size')
         state.add_listener(upd, 'depth_offset')
-        state.add_listener(upd, 'color_parameter')
 
         upd_alpha = self.update_alpha
         self._listeners.append(upd_alpha)
@@ -100,7 +104,9 @@ class TableElement(base.Element):
 
         upd_s = self.update_sizes
         self._listeners.append(upd_s)
+        state.add_listener(upd_s, 'symbol')
         state.add_listener(upd_s, 'size_parameter')
+        state.add_listener(upd_s, 'color_parameter')
 
     def unbind_state(self):
 
@@ -116,7 +122,7 @@ class TableElement(base.Element):
         self._parent.add_panel(
             self.get_name(), self._get_controls(), visible=True)
 
-        update_alpha = self.update_alpha
+        update_alpha = self._update_alpha
         self._listeners.append(update_alpha)
         self._parent.state.add_listener(update_alpha, 'tmin')
         self._parent.state.add_listener(update_alpha, 'tmax')
@@ -160,6 +166,91 @@ class TableElement(base.Element):
 
             self._pipes = None
 
+    def _init_pipes_scatter(self):
+        state = self._state
+        points = self._table.get_col('xyz')
+        self._pipes = []
+        self._pipe_maps = []
+        if state.size_parameter:
+            sizes = self._table.get_col(state.size_parameter)
+            isizes = inormalize(
+                sizes, self._isize_min, self._isize_max)
+
+            for i in range(self._isize_min, self._isize_max+1):
+                b = isizes == i
+                p = ScatterPipe(points[b].copy())
+                self._pipes.append(p)
+                self._pipe_maps.append(b)
+        else:
+            self._pipes.append(
+                ScatterPipe(points))
+            self._pipe_maps.append(
+                num.ones(points.shape[0], dtype=num.bool))
+
+    def _init_pipes_beachball(self):
+        state = self._state
+        self._pipes = []
+
+        tab = self._table
+
+        positions = tab.get_col('xyz')
+
+        if tab.has_col('m6'):
+            m6s = tab.get_col('m6')
+        else:
+            m6s = num.zeros((tab.get_nrows(), 6))
+            m6s[:, 3] = 1.0
+
+        if state.size_parameter:
+            sizes = tab.get_col(state.size_parameter)
+        else:
+            sizes = num.ones(tab.get_nrows())
+
+        if state.color_parameter:
+            values = self._table.get_col(state.color_parameter)
+        else:
+            values = num.zeros(tab.get_nrows())
+
+        rsizes = inormalize(
+            sizes, self._isize_min, self._isize_max, discrete=False) * 0.005
+
+        pipe = BeachballPipe(positions, m6s, rsizes, values, self._parent.ren)
+        self._pipes = [pipe]
+
+    def _update_pipes_scatter(self):
+        state = self._state
+        for i, p in enumerate(self._pipes):
+            self._parent.add_actor(p.actor)
+            p.set_size(state.size * (self._isize_min + i)**1.3)
+
+        if state.color_parameter:
+            values = self._table.get_col(state.color_parameter)
+
+            if num.issubdtype(values.dtype, num.string_):
+                values = string_to_sorted_idx(values)
+
+            self.cpt_handler._values = values
+            self.cpt_handler.update_cpt()
+
+            cpt = copy.deepcopy(
+                self.cpt_handler._cpts[self._state.cpt.cpt_name])
+            colors2 = cpt(values)
+            colors2 = colors2 / 255.
+
+            for m, p in zip(self._pipe_maps, self._pipes):
+                p.set_colors(colors2[m, :])
+
+        for p in self._pipes:
+            p.set_symbol(state.symbol)
+
+    def _update_pipes_beachball(self):
+        state = self._state
+
+        p = self._pipes[0]
+
+        self._parent.add_actor(p.actor)
+        p.set_size_factor(state.size * 0.005)
+
     def update(self, *args):
         state = self._state
         if self._pipes is not None and self._istate != self._istate_view:
@@ -172,57 +263,26 @@ class TableElement(base.Element):
 
         else:
             if self._istate != self._istate_view and self._table:
-                points = self._table.get_col('xyz')
-
-                self._pipes = []
-                self._pipe_maps = []
-                if state.size_parameter:
-                    sizes = self._table.get_col(state.size_parameter)
-                    isizes = inormalize(
-                        sizes, self._isize_min, self._isize_max)
-
-                    for i in range(self._isize_min, self._isize_max+1):
-                        b = isizes == i
-                        p = ScatterPipe(points[b].copy())
-                        self._pipes.append(p)
-                        self._pipe_maps.append(b)
+                if state.symbol == 'beachball':
+                    self._init_pipes_beachball()
                 else:
-                    self._pipes.append(
-                        ScatterPipe(points))
-                    self._pipe_maps.append(
-                        num.ones(points.shape[0], dtype=num.bool))
+                    self._init_pipes_scatter()
 
                 self._istate_view = self._istate
 
             if self._pipes is not None:
-                for i, p in enumerate(self._pipes):
-                    self._parent.add_actor(p.actor)
-                    p.set_size(state.size * (self._isize_min + i)**1.3)
+                if state.symbol == 'beachball':
+                    self._update_pipes_beachball()
+                else:
+                    self._update_pipes_scatter()
 
-                if state.color_parameter:
-                    values = self._table.get_col(state.color_parameter)
-
-                    if num.issubdtype(values.dtype, num.string_):
-                        values = string_to_sorted_idx(values)
-
-                    self.cpt_handler._values = values
-                    self.cpt_handler.update_cpt()
-
-                    cpt = copy.deepcopy(
-                        self.cpt_handler._cpts[self._state.cpt.cpt_name])
-                    colors2 = cpt(values)
-                    colors2 = colors2 / 255.
-
-                    for m, p in zip(self._pipe_maps, self._pipes):
-                        p.set_colors(colors2[m, :])
-
-                for p in self._pipes:
-                    p.set_symbol(state.symbol)
-
-        self.update_alpha()  # TODO: only if needed?
+        self._update_alpha()  # TODO: only if needed?
         self._parent.update_view()
 
     def update_alpha(self, *args, mask=None):
+        if self._state.symbol == 'beachball':
+            return
+
         if self._pipes is None:
             return
 

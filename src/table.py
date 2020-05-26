@@ -505,3 +505,18 @@ class EventRecipe(LocationRecipe):
         LocationRecipe.__init__(self)
         self._register_required_col(Header(name='time', unit='s'))
         self._register_required_col(Header(name='magnitude'))
+
+
+class MomentTensorRecipe(Recipe):
+
+    def __init__(self):
+        Recipe.__init__(self)
+        self.m6_header = Header(name='m6', sub_headers=[
+            SubHeader(name='Mnn', unit='Nm'),
+            SubHeader(name='Mee', unit='Nm'),
+            SubHeader(name='Mdd', unit='Nm'),
+            SubHeader(name='Mne', unit='Nm'),
+            SubHeader(name='Mnd', unit='Nm'),
+            SubHeader(name='Med', unit='Nm')])
+
+        self._register_required_col(self.m6_header)

@@ -357,6 +357,112 @@ class Viewer(qw.QMainWindow):
 
         self.closing = False
 
+        # #####
+        # from pyrocko import table
+        # import operator
+        #
+        # def oa_to_array(objects, attribute):
+        #     return num.fromiter(
+        #         map(operator.attrgetter(attribute), objects),
+        #         num.float,
+        #         len(objects))
+        #
+        # def eventtags_to_array(events, tag_ind):
+        #
+        #     if events[0].tags[tag_ind].find(':') > -1:
+        #         header = '_'.join(
+        #             ['tag', events[0].tags[tag_ind].split(':')[0]])
+        #         value_ind = 1
+        #     else:
+        #         header = 'tag_%i' % (tag_ind + 1)
+        #         value_ind = 0
+        #
+        #     try:
+        #         float(events[0].tags[tag_ind].split(':')[value_ind])
+        #         dtype = num.float
+        #     except ValueError:
+        #         dtype = num.string_
+        #
+        #     return header, num.array(
+        #         [ev.tags[tag_ind].split(':')[value_ind] for ev in events],
+        #         dtype=dtype)
+        #
+        # def events_to_table(events):
+        #     c5 = num.zeros((len(events), 5))
+        #     m6 = num.zeros((len(events), 6))
+        #
+        #     for i, ev in enumerate(events):
+        #         c5[i, :] = (
+        #             ev.lat, ev.lon, ev.north_shift, ev.east_shift, ev.depth)
+        #
+        #         if ev.moment_tensor:
+        #             m6[i, :] = ev.moment_tensor.m6()
+        #
+        #     tab = table.Table()
+        #
+        #     loc_rec = table.LocationRecipe()
+        #     tab.add_recipe(loc_rec)
+        #     tab.add_col(loc_rec.c5_header, c5)
+        #
+        #     for k, unit in [
+        #             ('time', 's'),
+        #             ('magnitude', None)]:
+        #
+        #         tab.add_col(table.Header(k, unit), oa_to_array(events, k))
+        #
+        #     if events:
+        #         for i in range(len(events[0].tags)):
+        #             header, values = eventtags_to_array(events, i)
+        #             tab.add_col(table.Header(header), values)
+        #
+        #     mt_rec = table.MomentTensorRecipe()
+        #     tab.add_recipe(mt_rec)
+        #     tab.add_col(mt_rec.m6_header, m6)
+        #
+        #     return tab
+        #
+        # from pyrocko import model
+        # events = model.load_events('events.txt')
+        # tab = events_to_table(events)
+        #
+        # positions = tab.get_col('xyz')
+        #
+        # m6s = tab.get_col('m6')
+        # # m6s = num.zeros_like(m6s)
+        # # m6s[:, 3] = 1.0
+        # sizes = (tab.get_col('magnitude') / 8.0)**2
+        #
+        # # from pyrocko import orthodrome as od
+        #
+        # # n = 5
+        # # latlons = num.zeros((n,2))
+        # # latlons[:, 1] = num.zeros(n)
+        # # latlons[:, 0] = num.linspace(-90., 90., n)
+        # #
+        # # m6s = num.zeros((n,6))
+        # # # m6s[:, 0] = 1.0
+        # # # m6s[:, 1] = -1.0
+        # # # m6s[:, 3] = 1.0
+        # # m6s[:, 3] = 1.0
+        #
+        # # sizes = num.ones(n)
+        #
+        # # positions = od.latlon_to_xyz(latlons)
+        #
+        # depths = tab.get_col('depth')
+        #
+        # bp = vtk_util.BeachballPipe(
+        #     positions,
+        #     m6s,
+        #     sizes,
+        #     depths,
+        #     self.ren)
+        #
+        # self.bp = bp
+        #
+        # self.add_actor(bp.actor)
+        # #####
+
     def export_image(self):
 
         caption = 'Export Image'
