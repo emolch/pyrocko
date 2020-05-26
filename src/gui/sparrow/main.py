@@ -142,7 +142,7 @@ class MyDockWidget(qw.QDockWidget):
 
 
 class Viewer(qw.QMainWindow):
-    def __init__(self, use_depth_peeling=True):
+    def __init__(self, use_depth_peeling=True, events=None):
         qw.QMainWindow.__init__(self)
 
         self._planetradius = cake.earthradius
@@ -314,6 +314,11 @@ class Viewer(qw.QMainWindow):
         #      elements.CatalogState(
         #     selection=elements.FileCatalogSelection(paths=['japan.dat'])))
         #     selection=elements.FileCatalogSelection(paths=['excerpt.dat'])))
+
+        if events:
+            self.state.elements.append(
+                elements.CatalogState(
+                    selection=elements.MemoryCatalogSelection(events=events)))
 
         self.timer = qc.QTimer(self)
         self.timer.timeout.connect(self.periodical)
