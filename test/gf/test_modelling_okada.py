@@ -144,30 +144,42 @@ class OkadaTestCase(unittest.TestCase):
         @benchmark.labeled('okada_inv')
         def calc():
             return DislocationInverter.get_coef_mat(
-                source_disc, nthreads=1)
+                source_disc, nthreads=6)
 
         @benchmark.labeled('okada_inv_single')
         def calc_bulk():
             return DislocationInverter.get_coef_mat_single(
-                source_disc, nthreads=1)
+                source_disc, nthreads=6)
 
         @benchmark.labeled('okada_slow')
         def calc_slow():
             return DislocationInverter.get_coef_mat_slow(
-                source_disc, nthreads=1)
+                source_disc, nthreads=6)
 
         res1 = calc()
-        res1 = calc()
-        res2 = calc_bulk()
-        res3 = calc_slow()
+        # res1 = calc()
+        # res2 = calc_bulk()
+        # res3 = calc_slow()
 
-        num.testing.assert_equal(res1, res2)
-        num.testing.assert_equal(res2, res3)
+        @benchmark.labeled('mat_inversion')
+        def inv():
+            num.linalg.inv(num.dot(res1.T, res1))
+
+        res = res1.copy()
+        @benchmark.labeled('mat_inversion_sparse')
+        def inv_sparse():
+            res[res < 1e-2s] = 0.
+            num.linalg.inv(num.dot(res.T, res))
+
+        inv()
+        inv_sparse()
+        # num.testing.assert_equal(res1, res2)
+        # num.testing.assert_equal(res2, res3)
         print(benchmark)
 
     def test_okada_rotate_sdn(self):
-        nlength = 50
-        nwidth = 10
+        nlength = 35
+        nwidth = 25
 
         al1 = -40.
         al2 = -al1

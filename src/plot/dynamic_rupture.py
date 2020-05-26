@@ -1,4 +1,4 @@
-#/usr/bin/python3
+#!/usr/bin/python3
 import logging
 
 import os
@@ -16,10 +16,11 @@ from pyrocko.gf.seismosizer import map_anchor
 logger = logging.getLogger('pyrocko.plot.dynamic_rupture')
 
 
-km2m = 1000.
-m2km = 1. / km2m
+km = 1e3
+
 d2m = 111180.
 m2d = 1. / d2m
+
 d2r = num.pi / 180.
 r2d = 1. / d2r
 
@@ -221,6 +222,7 @@ cbar_helper = {
 
 
 fonttype = 'Helvetica'
+
 
 def _make_gmt_conf(fontcolor, size):
     '''
