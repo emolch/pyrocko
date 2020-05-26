@@ -251,6 +251,18 @@ class CatalogSelection(Object):
     pass
 
 
+class MemoryCatalogSelection(CatalogSelection):
+
+    def __init__(self, events=None):
+        if events is None:
+            events = []
+
+        self._events = events
+
+    def get_table(self):
+        return events_to_table(self._events)
+
+
 class FileCatalogSelection(CatalogSelection):
     paths = List.T(String.T())
 
@@ -480,6 +492,7 @@ class CatalogElement(TableElement):
 __all__ = [
     'CatalogSelection',
     'FileCatalogSelection',
+    'MemoryCatalogSelection',
     'CatalogElement',
     'CatalogState',
 ]
