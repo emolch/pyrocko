@@ -11,8 +11,10 @@ import vtk
 
 from vtk.util.numpy_support import \
     numpy_to_vtk as numpy_to_vtk_, get_vtk_array_type
+from vtk.util import vtkAlgorithm as va
 
-from pyrocko import geometry, cake
+from pyrocko import geometry, cake, orthodrome as od
+from pyrocko.plot import cpt as pcpt
 from pyrocko.color import Color
 
 logger = logging.getLogger('pyrocko.gui.vtk_util')
@@ -36,8 +38,7 @@ def numpy_to_vtk_colors(a):
     return c
 
 
-def cpt_to_vtk_lookuptable(cpt):
-    n = 1024
+def cpt_to_vtk_lookuptable(cpt, n=1024):
     lut = vtk.vtkLookupTable()
     lut.Allocate(n, n)
     values = num.linspace(cpt.vmin, cpt.vmax, n)
@@ -183,6 +184,197 @@ class ScatterPipe(object):
             self._symbol = symbol
 
 
+class PointDataInjector(va.VTKAlgorithm):
+    def __init__(self, scalars):
+        va.VTKAlgorithm.__init__(
+            self,
+            nInputPorts=1, inputType='vtkPolyData',
+            nOutputPorts=1, outputType='vtkPolyData')
+
+        self.scalars = scalars
+
+    def RequestData(self, vtkself, request, inInfo, outInfo):
+        inp = self.GetInputData(inInfo, 0, 0)
+        out = self.GetOutputData(outInfo, 0)
+        out.ShallowCopy(inp)
+        out.GetPointData().SetScalars(self.scalars)
+
+        return 1
+
+
+def lighten(c, f):
+    return tuple(255.-(255.-x)*f for x in c)
+
+
+class BeachballPipe(object):
+
+    def __init__(
+            self, positions, m6s, sizes, depths, ren,
+            level=3,
+            face='backside',
+            lighting=False):
+
+        from pyrocko import moment_tensor, icosphere
+
+        # cpt tricks
+
+        cpt = pcpt.get_cpt('global_event_depth_2')
+        cpt2 = pcpt.CPT()
+        for ilevel, clevel in enumerate(cpt.levels):
+
+            cpt_data = [
+                (-1.0, ) + lighten(clevel.color_min, 0.2),
+                (-0.05, ) + lighten(clevel.color_min, 0.2),
+                (0.05, ) + clevel.color_min,
+                (1.0, ) + clevel.color_min]
+
+            cpt2.levels.extend(
+                pcpt.CPTLevel(
+                    vmin=a[0] + ilevel * 2.0,
+                    vmax=b[0] + ilevel * 2.0,
+                    color_min=a[1:],
+                    color_max=b[1:])
+                for (a, b) in zip(cpt_data[:-1], cpt_data[1:]))
+
+        def depth_to_ilevel(cpt, depth):
+            for ilevel, clevel in enumerate(cpt.levels):
+                if depth < clevel.vmax:
+                    return ilevel
+
+            return len(cpt.levels) - 1
+
+        # source
+
+        vertices, faces = icosphere.sphere(
+            level, 'icosahedron', 'kind1', radius=1.0,
+            triangulate=False)
+
+        p_vertices = vtk.vtkPoints()
+        p_vertices.SetNumberOfPoints(vertices.shape[0])
+        p_vertices.SetData(numpy_to_vtk(vertices))
+
+        pd = vtk.vtkPolyData()
+        pd.SetPoints(p_vertices)
+
+        cells = faces_to_cells(faces)
+
+        pd.SetPolys(cells)
+
+        # positions
+
+        p_positions = vtk.vtkPoints()
+        p_positions.SetNumberOfPoints(positions.shape[0])
+        p_positions.SetData(numpy_to_vtk(positions))
+
+        pd_positions = vtk.vtkPolyData()
+        pd_positions.SetPoints(p_positions)
+        pd_positions.GetPointData().SetScalars(numpy_to_vtk(sizes))
+
+        latlons = od.xyz_to_latlon(positions)
+
+        # glyph
+
+        glyph = vtk.vtkGlyph3D()
+        glyph.ScalingOn()
+        glyph.SetScaleModeToScaleByScalar()
+        glyph.SetSourceData(pd)
+
+        if True:
+            glyph.SetInputData(pd_positions)
+            glyph.SetScaleFactor(0.005)
+        else:
+            pd_distance_scaler = vtk.vtkDistanceToCamera()
+            pd_distance_scaler.SetInputData(pd_positions)
+            pd_distance_scaler.SetRenderer(ren)
+            pd_distance_scaler.SetScreenSize(10)
+
+            glyph.SetInputConnection(pd_distance_scaler.GetOutputPort())
+            glyph.SetInputArrayToProcess(
+                0, 0, 0,
+                vtk.vtkDataObject.FIELD_ASSOCIATION_POINTS, "DistanceToCamera")
+
+        self.glyph = glyph
+
+        nvertices = vertices.shape[0]
+        amps = num.zeros(m6s.shape[0] * nvertices)
+        for i, m6 in enumerate(m6s):
+            m = moment_tensor.symmat6(*m6).A
+            m /= num.linalg.norm(m) / num.sqrt(2.0)
+            (ep, en, et), m_evecs = num.linalg.eigh(m)
+            if num.linalg.det(m_evecs) < 0.:
+                m_evecs *= -1.
+            vp, vn, vt = m_evecs.T
+            to_e = num.vstack((vn, vt, vp))
+
+            xyz_to_ned_00 = num.array([
+                        [0., 0., 1.],
+                        [0., 1., 0.],
+                        [-1., 0., 0.]])
+
+            zero_to_latlon = od.rot_to_00(*latlons[i])
+
+            rot = num.dot(num.dot(to_e, xyz_to_ned_00), zero_to_latlon)
+
+            vecs_e = num.dot(rot, vertices.T).T
+
+            rtp = geometry.xyz2rtp(vecs_e)
+
+            atheta, aphi = rtp[:, 1], rtp[:, 2]
+            amps_this = ep * num.cos(atheta)**2 + (
+                en * num.cos(aphi)**2 +
+                et * num.sin(aphi)**2) * num.sin(atheta)**2
+
+            amps_this = num.clip(amps_this, -0.9, 0.9) \
+                + depth_to_ilevel(cpt, depths[i]) * 2
+
+            amps[i*nvertices:(i+1)*nvertices] = amps_this
+
+        vamps = numpy_to_vtk(amps)
+
+        glyph.Update()
+
+        pd_injector = PointDataInjector(vamps)
+
+        pd_injector_pa = vtk.vtkPythonAlgorithm()
+        pd_injector_pa.SetPythonObject(pd_injector)
+
+        pd_injector_pa.SetInputConnection(glyph.GetOutputPort())
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.ScalarVisibilityOn()
+        mapper.InterpolateScalarsBeforeMappingOn()
+
+        mapper.SetInputConnection(pd_injector_pa.GetOutputPort())
+        mapper.Update()
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+
+        self.prop = actor.GetProperty()
+        self.set_lighting(lighting)
+        self.set_face(face)
+
+        lut = cpt_to_vtk_lookuptable(cpt2, n=10000)
+        mapper.SetUseLookupTableScalarRange(True)
+        mapper.SetLookupTable(lut)
+
+        self.actor = actor
+
+    def set_face(self, face='backside'):
+        if face == 'backside':
+            self.prop.FrontfaceCullingOn()
+            self.prop.BackfaceCullingOff()
+        elif face == 'frontside':
+            self.prop.FrontfaceCullingOff()
+            self.prop.BackfaceCullingOn()
+
+    def set_lighting(self, lighting=False):
+        self.prop.SetLighting(lighting)
+
+    def set_size_factor(self, factor):
+        self.glyph.SetScaleFactor(factor)
+
+
 def faces_to_cells(faces):
     cells = vtk.vtkCellArray()
 
@@ -238,7 +430,6 @@ class TrimeshPipe(object):
             prop.BackfaceCullingOn()
         else:
             prop.BackfaceCullingOff()
-        # solves probs at sphere horizon but disables seeing topo from below.
 
         # prop.EdgeVisibilityOn()
         # prop.SetInterpolationToGouraud()
