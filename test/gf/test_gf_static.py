@@ -273,6 +273,45 @@ mantle
 
         num.testing.assert_allclose(down_rect, down_dyn)
 
+    def test_pseudo_dyn_performance(self):
+        engine = gf.LocalEngine(store_dirs=[self.get_store_dir('pscmp')])
+        # store = engine.get_store('psgrn_pscmp_test')
+        ntargets = 250
+        interpolation = 'nearest_neighbor'
+
+        def calc_dyn_rupt(nx=4, ny=4):
+            from pyrocko.plot.dynamic_rupture import RuptureMap
+            dyn_rupture = gf.PseudoDynamicRupture(
+                nx=nx, ny=ny,
+                tractions=(1.e4, 0.4e4, 0.1),
+                north_shift=2*km,
+                east_shift=2*km,
+                depth=6.5*km,
+                width=10.*km,
+                length=40*km,
+                dip=random.uniform(0., 90.),
+                strike=random.uniform(-180., 180.),
+                magnitude=7.,
+                anchor='top',
+                decimation_factor=4)
+
+            static_target = gf.StaticTarget(
+                north_shifts=(random.rand(ntargets)-.5) * 25. * km,
+                east_shifts=(random.rand(ntargets)-.5) * 25. * km,
+                tsnapshot=20,
+                interpolation=interpolation)
+
+            t = time.time()
+            # dyn_rupture.discretize_patches(store)
+            engine.process(dyn_rupture, static_target)
+            map = RuptureMap(source=dyn_rupture, lat=0., lon=0., radius=40*km)
+            map.draw_patch_parameter('traction')
+            map.save('/tmp/test.pdf')
+            return dyn_rupture.nx*dyn_rupture.ny, time.time() - t
+
+        for n in (10, 20, 30):
+            npatches, t = calc_dyn_rupt(n, n)
+
     @staticmethod
     def plot_static_los_result(result):
         import matplotlib.pyplot as plt
