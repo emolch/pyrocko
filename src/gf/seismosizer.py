@@ -29,6 +29,7 @@ from pyrocko.model import Location
 from pyrocko.modelling import OkadaSource, DislocationInverter
 
 from . import meta, store, ws
+from .tractions import TractionField, HomogeneousTractions
 from .targets import Target, StaticTarget, SatelliteTarget
 
 pjoin = os.path.join
@@ -2421,21 +2422,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         optional=True,
         help='List of all boundary elements/sub faults/fault patches')
 
-    tractions__ = Array.T(
-        optional=True,
-        help='Stress field the source is exposed to in [Pa].'
-             'Float will initialize an isotrop stress field for'
-             ' sigma_strike, sigma_dip_up, sigma_normal.'
-             'Tuple of (sigma_strike, sigma_dip_up, sigma_normal) will'
-             'initialize a homogenous stress field for all patches.'
-             'Array of traction vectors per source patch (size = nx*ny, 3)'
-             ' source patch (order: ['
-             ' [src1_stress_strike, src1_stress_dip_up, src1_stress_tensile],'
-             ' [src2_stress_strike, ...]])'
-             'When parameters magnitude or slip are defined, tractions will be'
-             'normalized to accomodate the desired energy release.',
-        dtype=num.float,
-        shape=(None, 3))
+    tractions = TractionField.T(
+        default=HomogeneousTractions.D(),
+        help='Traction field the rupture plane is exposed to.')
 
     coef_mat = Array.T(
         optional=True,
@@ -2536,37 +2525,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         self.nucleation_time__ = nucleation_time
 
-    @property
-    def tractions(self):
-        if self.tractions__ is None:
-            logger.warn(
-                'no traction field given, assuming uniform traction 1.0 Pa')
-            return num.full((self.nx*self.ny, 3), 1.)
-        else:
-            return self.tractions__
-
-    @tractions.setter
-    def tractions(self, tractions):
-        if self.rake is not None:
-            tractions = (num.cos(self.rake*d2r), num.sin(self.rake*d2r), 0.)
-
-        if isinstance(tractions, float):
-            logger.info('Assuming uniform traction %.1f Pa', tractions)
-            self.tractions__ = num.full((self.nx * self.ny, 3), tractions)
-
-        elif isinstance(tractions, tuple):
-            assert len(tractions) == 3
-            self.tractions__ = num.tile(tractions, self.nx*self.ny)\
-                .reshape(-1, 3)
-
-        elif isinstance(tractions, num.ndarray):
-            assert tractions.ndim == 2
-            assert tractions.shape[1] == 3
-            self.tractions__ = tractions
-
-        elif tractions is not None:
-            raise AttributeError(
-                'tractions is of incompatible type %s' % type(tractions))
+    def get_tractions(self):
+        return self.tractions.get_tractions(self.nx, self.ny, self.patches)
 
     def base_key(self):
         return SourceWithDerivedMagnitude.base_key(self) + (
@@ -2662,7 +2622,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
     def pyrocko_moment_tensor(self, store=None, target=None):
         # TODO: Now this should be slip, then it depends on the store.
         # TODO: default to tractions is store is not given?
-        tractions = self.tractions.mean(axis=0)
+        tractions = self.get_tractions()
+        tractions = tractions.mean(axis=0)
         rake = num.arctan2(tractions[1], tractions[0])  # arctan2(dip, slip)
 
         return pmt.MomentTensor(
@@ -2840,7 +2801,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         return points, points_xy, vr, times
 
     def discretize_patches(
-            self, store, interpolation='nearest_neighbor', grid_shape=(),
+            self, store=None, interpolation='nearest_neighbor', grid_shape=(),
             *args, **kwargs):
 
         '''
@@ -3102,6 +3063,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             raise ValueError(
                 'Please discretize the source first (discretize_patches())')
         npatches = len(self.patches)
+        tractions = self.get_tractions()
 
         if time is None:
             time = self.get_patch_attribute('time').max()
@@ -3109,14 +3071,14 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         if self.coef_mat is None:
             self.calc_coef_mat()
 
-        if self.tractions.shape != (npatches, 3):
+        if tractions.shape != (npatches, 3):
             raise AttributeError(
                 'The traction vector is of invalid shape.'
                 ' Required shape is (npatches, 3)')
 
         times = self.get_patch_attribute('time') - self.time
         relevant_sources = num.nonzero(times <= time)[0]
-        disloc_est = num.zeros_like(self.tractions)
+        disloc_est = num.zeros_like(tractions)
 
         if relevant_sources.size == 0:
             return disloc_est
@@ -3126,7 +3088,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         indices_disl[2::3] += 2
 
         disloc_est[relevant_sources] = DislocationInverter.get_disloc_lsq(
-            stress_field=self.tractions[relevant_sources, :].ravel(),
+            stress_field=tractions[relevant_sources, :].ravel(),
             coef_mat=self.coef_mat[indices_disl, :][:, indices_disl],
             pure_shear=self.pure_shear, nthreads=self.nthreads,
             **kwargs)

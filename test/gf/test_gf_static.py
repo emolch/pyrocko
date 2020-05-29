@@ -245,7 +245,10 @@ mantle
 
         dyn_rupture = gf.PseudoDynamicRupture(
             nx=4, ny=4,
-            tractions=(1.e4, 0.e4, 0.),
+            tractions=gf.tractions.HomogeneousTractions(
+                t_strike=1.e4,
+                t_dip=0.e4,
+                t_normal=0.),
             **source_params)
 
         dyn_rupture.discretize_patches(store)
@@ -283,7 +286,10 @@ mantle
             from pyrocko.plot.dynamic_rupture import RuptureMap
             dyn_rupture = gf.PseudoDynamicRupture(
                 nx=nx, ny=ny,
-                tractions=(1.e4, 0.4e4, 0.1),
+                tractions=gf.tractions.HomogeneousTractions(
+                    t_strike=1.e4,
+                    t_dip=0.4e4,
+                    t_normal=0.1),
                 north_shift=2*km,
                 east_shift=2*km,
                 depth=6.5*km,
