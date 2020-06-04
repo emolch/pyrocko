@@ -2,7 +2,7 @@ import numpy as num
 import os
 
 from pyrocko import moment_tensor, model
-from pyrocko.gui.snuffling import Snuffling, Param, Choice, EventMarker
+from pyrocko.gui.snuffling import Snuffling, Param, Choice, EventMarker, Switch
 from pyrocko import gf
 
 km = 1000.
@@ -421,6 +421,10 @@ class PseudoDynamicRuptureSource(Seismosizer):
             Param('STF duration', 'stf_duration', 0., 0., 20.))
         self.add_parameter(
             Choice('STF type', 'stf_type', self.stf_types[0], self.stf_types))
+
+        self.add_parameter(Switch(
+            'Tapered tractions', 'tapered', True))
+
         self.add_parameter(
             Choice('GF Store', 'store_id',
                    '<not loaded yet>', ['<not loaded yet>']))
@@ -442,6 +446,18 @@ class PseudoDynamicRuptureSource(Seismosizer):
         self._engine = None
 
     def get_source(self, event):
+        tr = gf.tractions
+        tractions = tr.TractionComposition(
+            components=[
+                tr.HomogeneousTractions(
+                    t_strike=1.,
+                    t_dip=1.,
+                    t_normal=1.),
+            ])
+
+        if self.tapered:
+            tractions.add_component(tr.RectangularTaper())
+
         source = gf.PseudoDynamicRupture(
             time=event.time + self.time,
             lat=event.lat,
@@ -461,6 +477,7 @@ class PseudoDynamicRuptureSource(Seismosizer):
             nucleation_y=self.nucleation_y,
             gamma=self.gamma,
             stf=self.get_stf(),
+            tractions=tractions,
 
             nthreads=5,
             pure_shear=True)

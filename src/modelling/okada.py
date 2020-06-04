@@ -36,9 +36,6 @@ class AnalyticalSource(Location):
         help='Rupture velocity',
         optional=True)
 
-    def __init__(self, **kwargs):
-        Location.__init__(self, **kwargs)
-
     @property
     def northing(self):
         return self.north_shift
@@ -256,7 +253,7 @@ class OkadaSource(AnalyticalRectangularSource):
         source_points[:, 1] -= self.aw2
 
         rotmat = num.asarray(
-            mt.euler_to_matrix(self.dip * d2r, self.strike * d2r, 0.))
+            mt.euler_to_matrix(self.dip*d2r, self.strike*d2r, 0.))
 
         source_points_rot = num.dot(rotmat.T, source_points.T).T
         source_points_rot[:, 0] += self.northing
@@ -270,7 +267,7 @@ class OkadaSource(AnalyticalRectangularSource):
                 'al1', 'al2', 'aw1', 'aw2']}
 
         return (
-            [OkadaSubSource(
+            [OkadaPatch(
                  parent=self,
                  length_pos=src_point[0],
                  width_pos=src_point[1],
@@ -282,7 +279,7 @@ class OkadaSource(AnalyticalRectangularSource):
             source_points)
 
 
-class OkadaSubSource(OkadaSource):
+class OkadaPatch(OkadaSource):
 
     def __init__(self, parent, width_pos, length_pos, *args, **kwargs):
         super().__init__(*args, **kwargs)

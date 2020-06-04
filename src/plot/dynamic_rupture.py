@@ -1073,8 +1073,8 @@ class RuptureView(object):
         x, y = xy_to_lw(
             self.source, num.array([-1., 1.]), num.array([-1., 1.]))
 
-        x *= m2km
-        y *= m2km
+        x /= km
+        y /= km
 
         data = data.reshape(self.source.ny, self.source.nx, order='F')
 

@@ -144,7 +144,7 @@ class RheologicTaper(AbstractTractionField):
             return depths[:, num.newaxis]
 
 
-def plot_tractions(tractions, nx=50, ny=30, depth=10*km, component='strike'):
+def plot_tractions(tractions, nx=15, ny=12, depth=10*km, component='strike'):
     import matplotlib.pyplot as plt
     from pyrocko.modelling.okada import OkadaSource
 
@@ -152,14 +152,10 @@ def plot_tractions(tractions, nx=50, ny=30, depth=10*km, component='strike'):
         lat=0.,
         lon=0.,
         depth=depth,
+        al1=-20*km, al2=20*km,
+        aw1=-15*km, aw2=15*km,
 
-        strike=120.,
-        dip=0.,
-        rake=90.,
-        al1=20*km,
-        al2=20*km,
-        aw1=15*km,
-        aw2=15*km,
+        strike=120., dip=90., rake=90.,
         slip=5.)
 
     patches, _ = source.discretize(nx, ny)
@@ -179,7 +175,7 @@ if __name__ == '__main__':
         components=[
             UniformTractions(traction=45e3),
             RectangularTaper(),
-            RheologicTaper(begin=1.*km, end=9.*km)
+            RheologicTaper(begin=10.*km, end=30.*km)
         ])
 
     plot_tractions(tractions)
