@@ -71,6 +71,7 @@ class TiledGlobalDataset(object):
         return self.covers(region) and dmin <= d <= dmax
 
     def download_file(self, url, fpath, username=None, password=None):
+        # TODO: Add logstring
         util.download_file(
             url, fpath, username, password,
             status_callback=get_download_callback(

@@ -1314,17 +1314,22 @@ class DiscretizedMTSource(DiscretizedSource):
         return sources
 
     def moments(self):
-        n = self.nelements
-        moments = num.zeros(n)
-        for i in range(n):
-            m = moment_tensor.symmat6(*self.m6s[i])
-            m_evals = num.linalg.eigh(m)[0]
+        moments = num.array(
+            [num.linalg.eigvalsh(moment_tensor.symmat6(*m6))
+             for m6 in self.m6s])
+        return num.linalg.norm(moments, axis=1) / num.sqrt(2.)
 
-            # incorrect for non-dc sources: !!!!
-            m0 = num.linalg.norm(m_evals)/math.sqrt(2.)
-            moments[i] = m0
+    def get_moment_rate(self, deltat=None):
+        moments = self.moments()
 
-        return moments
+        duration = self.times.max() - self.times.min()
+        nbins = math.ceil(duration / deltat)
+
+        mom_rate, mom_times = num.histogram(
+            self.times, bins=nbins, weights=moments)
+
+        mom_times = mom_times[:-1] + deltat
+        return mom_rate, mom_times
 
     def centroid(self):
         from pyrocko.gf.seismosizer import MTSource

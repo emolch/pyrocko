@@ -29,7 +29,7 @@ from pyrocko.model import Location
 from pyrocko.modelling import OkadaSource, DislocationInverter
 
 from . import meta, store, ws
-from .tractions import TractionField, HomogeneousTractions
+from .tractions import TractionField, HomogeneousTractions, DirectedTractions
 from .targets import Target, StaticTarget, SatelliteTarget
 
 pjoin = os.path.join
@@ -38,6 +38,7 @@ guts_prefix = 'pf'
 
 d2r = math.pi / 180.
 r2d = 180. / math.pi
+km = 1e3
 
 logger = logging.getLogger('pyrocko.gf.seismosizer')
 
@@ -165,6 +166,7 @@ def discretize_rect_source(deltas, deltat, time, north, east, depth,
                            anchor, velocity=None, stf=None,
                            nucleation_x=None, nucleation_y=None,
                            decimation_factor=1, pointsonly=False,
+                           plane_coords=False,
                            aggressive_oversampling=False):
 
     if stf is None:
@@ -204,9 +206,11 @@ def discretize_rect_source(deltas, deltat, time, north, east, depth,
     points[:, 0] -= anch_x * 0.5 * length
     points[:, 1] -= anch_y * 0.5 * width
 
+    if plane_coords:
+        return points, dl, dw, nl, nw
+
     rotmat = num.asarray(
         pmt.euler_to_matrix(dip * d2r, strike * d2r, 0.0))
-
     points = num.dot(rotmat.T, points.T).T
 
     points[:, 0] += north
@@ -260,7 +264,7 @@ def check_rect_source_discretisation(points2, nl, nw, store):
         interpolation='multilinear')
 
     min_wavelength = vs_profile * (store.config.deltat * 2)
-    if not num.all(min_wavelength > distances/2):
+    if not num.all(min_wavelength > distances / 2):
         return False
     return True
 
@@ -301,11 +305,11 @@ def from_plane_coords(
 
     for x_plane, y_plane in zip(x_plane_coords, y_plane_coords):
         points = num.array(
-            [[-0.5 * ln*x_plane, -0.5 * wd*y_plane, 0.],
-             [0.5 * ln*x_plane, -0.5 * wd*y_plane, 0.],
-             [0.5 * ln*x_plane, 0.5 * wd*y_plane, 0.],
-             [-0.5 * ln*x_plane, 0.5 * wd*y_plane, 0.],
-             [-0.5 * ln*x_plane, -0.5 * wd*y_plane, 0.]])
+            [[-0.5 * ln * x_plane, -0.5 * wd * y_plane, 0.],
+             [0.5 * ln * x_plane, -0.5 * wd * y_plane, 0.],
+             [0.5 * ln * x_plane, 0.5 * wd * y_plane, 0.],
+             [-0.5 * ln * x_plane, 0.5 * wd * y_plane, 0.],
+             [-0.5 * ln * x_plane, -0.5 * wd * y_plane, 0.]])
 
         anch_x, anch_y = map_anchor[anchor]
         points[:, 0] -= anch_x * 0.5 * length
@@ -1091,8 +1095,8 @@ class ResonatorSTF(STF):
         tmin = math.floor(tmin_stf / deltat) * deltat
         tmax = math.ceil(tmax_stf / deltat) * deltat
         times = util.arange2(tmin, tmax, deltat)
-        amplitudes = num.exp(-(times-tref)/self.duration) \
-            * num.sin(2.0 * num.pi * self.frequency * (times-tref))
+        amplitudes = num.exp(-(times - tref) / self.duration) \
+            * num.sin(2.0 * num.pi * self.frequency * (times - tref))
 
         return times, amplitudes
 
@@ -1137,7 +1141,7 @@ class Source(Location, Cloneable):
           >>> from pyrocko import gf
           >>> s = gf.DCSource()
           >>> s.update(strike=66., dip=33.)
-          >>> print s
+          >>> print(s)
           --- !pf.DCSource
           depth: 0.0
           time: 1970-01-01 00:00:00
@@ -1852,7 +1856,8 @@ class VLVDSource(SourceWithDerivedMagnitude):
         m_iso = self.volume_change * \
             self.get_moment_to_volume_change_ratio(store, target)
 
-        m_iso = pmt.symmat6(m_iso, m_iso, m_iso, 0., 0., 0.,) * math.sqrt(2./3)
+        m_iso = pmt.symmat6(m_iso, m_iso, m_iso, 0.,
+                            0., 0.,) * math.sqrt(2. / 3)
 
         m = pmt.to6(m_clvd) + pmt.to6(m_iso)
         return m
@@ -1968,7 +1973,7 @@ class MTSource(Source):
         else:
             if ev.magnitude is not None:
                 mom = pmt.magnitude_to_moment(ev.magnitude)
-                v = math.sqrt(2./3.) * mom
+                v = math.sqrt(2. / 3.) * mom
                 d.update(m6=(v, v, v, 0., 0., 0.))
 
         d.update(kwargs)
@@ -2364,11 +2369,11 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         help='dip angle in [deg], measured downward from horizontal')
 
     length = Float.T(
-        default=0.,
+        default=10. * km,
         help='length of rectangular source area [m]')
 
     width = Float.T(
-        default=0.,
+        default=5. * km,
         help='width of rectangular source area [m]')
 
     anchor = StringChoice.T(
@@ -2442,7 +2447,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         help='List of all boundary elements/sub faults/fault patches')
 
     tractions = TractionField.T(
-        default=HomogeneousTractions.D(),
+        optional=True,
         help='Traction field the rupture plane is exposed to.')
 
     coef_mat = Array.T(
@@ -2557,13 +2562,18 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         self.nucleation_time__ = nucleation_time
 
     def get_tractions(self):
-        return self.tractions.get_tractions(self.nx, self.ny, self.patches)
+        if self.rake is not None:
+            tractions = DirectedTractions(rake=self.rake)
+        else:
+            tractions = self.tractions
+        return tractions.get_tractions(self.nx, self.ny, self.patches)
 
     def base_key(self):
         return SourceWithDerivedMagnitude.base_key(self) + (
             self.magnitude,
             self.strike,
             self.dip,
+            self.rake,
             self.length,
             self.width,
             float(self.nucleation_x.mean()),
@@ -2573,6 +2583,12 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             self.pure_shear)
 
     def check_conflicts(self):
+        if self.tractions and self.rake:
+            raise AttributeError(
+                'tractions and rake are mutually exclusive')
+        if self.tractions is None and self.rake is None:
+            self.rake = 0.
+
         if self.magnitude is not None and self.slip is not None:
             raise DerivedMagnitudeError(
                 'definition of slip and magnitude is mutually exclusive')
@@ -2697,8 +2713,22 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             (latlondepth) and coordinates (xy on fault) for discrete points
         :rtype: int, int, :py:class:`numpy.ndarray`, :py:class:`numpy.ndarray`
         '''
+        anch_x, anch_y = map_anchor[self.anchor]
 
-        vs_min = store.config.earthmodel_1d.min(get='vs')
+        npoints = int(self.width // km) + 1
+        points = num.zeros((npoints, 3))
+        points[:, 1] = num.linspace(-1., 1., npoints)
+        points[:, 1] = (points[:, 1] - anch_y) * self.width/2
+
+        rotmat = num.asarray(
+            pmt.euler_to_matrix(self.dip*d2r, self.strike*d2r, 0.0))
+        points = num.dot(rotmat.T, points.T).T
+        points[:, 2] += self.depth
+
+        vs_min = store.config.get_vs(
+            self.lat, self.lon, points,
+            interpolation='nearest_neighbor')
+        vs_min = max(vs_min.min(), .5*km)
 
         delta = self.eikonal_decimation * num.min([
             num.min(store.config.deltat * vs_min / 2.),
@@ -2712,17 +2742,21 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             delta = self.length / nx
             ny = int(num.floor(self.width / delta)) + 1
 
+        nx = nx if nx > self.nx else self.nx
+        ny = ny if ny > self.ny else self.ny
+
         nx += 1
         ny += 1
 
         points_xy = num.zeros((nx * ny, 2))
         points_xy[:, 0] = num.repeat(num.linspace(-1., 1., nx), ny)
         points_xy[:, 1] = num.tile(num.linspace(-1., 1., ny), nx)
-
-        return nx, ny, delta, self.points_on_source(
+        points = self.points_on_source(
             points_x=points_xy[:, 0],
             points_y=points_xy[:, 1],
-            **kwargs), points_xy
+            **kwargs)
+
+        return nx, ny, delta, points, points_xy
 
     def _discretize_rupture_v(self, store, interpolation='nearest_neighbor',
                               points=None):
@@ -2752,7 +2786,6 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
     def discretize_time(
             self, store, interpolation='nearest_neighbor',
             vr=None, times=None, *args, **kwargs):
-
         '''
         Get rupture start time for discrete points on source plane
 
@@ -2778,16 +2811,14 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             :py:class:`numpy.ndarray`, ``(n_points_dip, n_points_strike)``,
             :py:class:`numpy.ndarray`, ``(n_points_dip, n_points_strike)``
         '''
-
         nx, ny, delta, points, points_xy = self._discretize_points(
             store, cs='xyz')
 
-        if vr is None:
+        if vr is None or vr.shape != tuple((nx, ny)):
             vr = self._discretize_rupture_v(store, interpolation, points)\
                 .reshape(nx, ny)
-        elif vr.shape != tuple((nx, ny)):
-            vr = self._discretize_rupture_v(store, interpolation, points)\
-                .reshape(nx, ny)
+
+        if vr.shape != tuple((nx, ny)):
             logger.warn(
                 'Given rupture velocities are not in right shape. Therefore'
                 ' standard rupture velocity array is used.')
@@ -2814,7 +2845,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                         'Nucleation coordinates and times have different '
                         'shapes')
 
-            t = num.full(nx*ny, -1.)
+            t = num.full(nx * ny, -1.)
             t[nucl_indices] = nucl_times
             return t.reshape(nx, ny)
 
@@ -2832,7 +2863,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         return points, points_xy, vr, times
 
     def get_vr_time_interpolators(
-            self, store, interpolation='nearest_neighbor',
+            self, store, interpolation='multilinear',
             *args, **kwargs):
 
         interp_map = {'multilinear': 'linear', 'nearest_neighbor': 'nearest'}
@@ -2840,7 +2871,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             raise TypeError(
                 'Interpolation method %s not available' % interpolation)
 
-        if not self._interpolators.get(interpolation, None):
+        if not self._interpolators.get(interpolation, False):
             _, points_xy, vr, times = self.discretize_time(
                 store=store, *args, **kwargs)
 
@@ -2858,13 +2889,11 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                 RegularGridInterpolator(
                     (points_xy[::ny, 0], points_xy[:ny, 1]), vr,
                     method=interp_map[interpolation]))
-
         return self._interpolators[interpolation]
 
     def discretize_patches(
             self, store=None, interpolation='nearest_neighbor', grid_shape=(),
             *args, **kwargs):
-
         '''
         Get rupture start time and OkadaSource elements for discrete centre
         points on source plane and stores them in the patches-attribute
@@ -2897,8 +2926,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         def get_lame(*a, **kw):
             shear_mod = store.config.get_shear_moduli(*a, **kw)
             lamb = store.config.get_vp(*a, **kw)**2 \
-                * store.config.get_rho(*a, **kw) - 2.*shear_mod
-            return shear_mod, lamb / (2. * (lamb+shear_mod))
+                * store.config.get_rho(*a, **kw) - 2. * shear_mod
+            return shear_mod, lamb / (2. * (lamb + shear_mod))
 
         shear_mod, poisson = get_lame(
             self.lat, self.lon,
@@ -2966,108 +2995,132 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         if self.coef_mat is None:
             self.calc_coef_mat()
 
-        # TODO: times starts at [deltat, ...] and not 0.!
-        delta_slip, times = self.get_delta_slip(store)
-        ntimes = times.size
-        npatches = len(self.patches)
+        delta_slip, slip_times = self.get_delta_slip(store)
+        npatches = self.nx * self.ny
+        ntimes = slip_times.size
 
-        times += self.time
-        times = num.tile(times, npatches).reshape(npatches, -1)
+        anch_x, anch_y = map_anchor[self.anchor]
 
-        slip_strike = delta_slip[:, 0::3, :].squeeze(axis=1)
-        slip_dip = delta_slip[:, 1::3, :].squeeze(axis=1)
-        slip_norm = delta_slip[:, 2::3, :].squeeze(axis=1)
+        pln = self.length / self.nx
+        pwd = self.width / self.ny
 
-        slip_shear = num.sqrt(slip_strike**2 + slip_dip**2)
+        patch_coords = num.array([
+            (p.length_pos, p.width_pos)
+            for p in self.patches]).reshape(self.nx, self.ny, 2)
+
+        # boundary condition is zero-slip
+        slip_grid = num.zeros((self.nx + 2, self.ny + 2, ntimes + 1, 3))
+        slip_grid[1:-1, 1:-1, 1:, :] = \
+            delta_slip.reshape(self.nx, self.ny, ntimes, 3)
+
+        coords_x = num.empty(self.nx + 2)
+        coords_x[1:-1] = patch_coords[:, 0, 0]
+        coords_x[0] = coords_x[1] - pln / 2
+        coords_x[-1] = coords_x[-2] + pln / 2
+
+        coords_y = num.empty(self.ny + 2)
+        coords_y[1:-1] = patch_coords[0, :, 1]
+        coords_y[0] = coords_y[1] - pwd / 2
+        coords_y[-1] = coords_y[-2] + pwd / 2
+
+        slip_interp = RegularGridInterpolator(
+            (coords_x, coords_y, num.concatenate(([0.], slip_times))),
+            slip_grid)
+
+        # discretize basesources
+        mindeltagf = min(tuple(
+            (self.length / self.nx, self.width / self.ny,
+             *store.config.deltas)))
+
+        nl = int((1. / self.decimation_factor) *
+                 num.ceil(pln / mindeltagf)) + 1
+        nw = int((1. / self.decimation_factor) *
+                 num.ceil(pwd / mindeltagf)) + 1
+        nsrc_patch = int(nl * nw)
+        dl = pln / nl
+        dw = pwd / nw
+
+        patch_area = dl * dw
+
+        xl = num.linspace(-0.5 * (pln - dl), 0.5 * (pln - dl), nl)
+        xw = num.linspace(-0.5 * (pwd - dw), 0.5 * (pwd - dw), nw)
+
+        base_coords = num.zeros((nsrc_patch, 3), dtype=num.float)
+        base_coords[:, 0] = num.tile(xl, nw)
+        base_coords[:, 1] = num.repeat(xw, nl)
+        base_coords = num.tile(base_coords, (npatches, 1))
+
+        center_coords = num.zeros((npatches, 3))
+        center_coords[:, 0] = num.repeat(
+            num.arange(self.nx) * pln + pln / 2, self.ny) - self.length / 2
+        center_coords[:, 1] = num.tile(
+            num.arange(self.ny) * pwd + pwd / 2, self.nx) - self.width / 2
+
+        base_coords -= center_coords.repeat(nsrc_patch, axis=0)
+        nbaselocs = base_coords.shape[0]
+
+        base_interp = base_coords.repeat(ntimes, axis=0)
+
+        base_times = num.tile(slip_times, nbaselocs)
+        base_interp[:, 0] -= anch_x * self.length / 2
+        base_interp[:, 1] -= anch_y * self.width / 2
+        base_interp[:, 2] = base_times
+
+        nbasesrcs = base_interp.shape[0]
+        delta_slip = slip_interp(base_interp).reshape(nbaselocs, ntimes, 3)
+
+        if False:
+            try:
+                import matplotlib.pyplot as plt
+                coords = base_coords.copy()
+                norm = num.sum(num.linalg.norm(delta_slip, axis=2), axis=1)
+                plt.scatter(coords[:, 0], coords[:, 1], c=norm)
+                plt.show()
+            except AttributeError:
+                pass
+
+        base_interp[:, 2] = 0.
+        rotmat = num.asarray(
+            pmt.euler_to_matrix(self.dip * d2r, self.strike * d2r, 0.0))
+        base_interp = num.dot(rotmat.T, base_interp.T).T
+        base_interp[:, 0] += self.north_shift
+        base_interp[:, 1] += self.east_shift
+        base_interp[:, 2] += self.depth
+
+        slip_strike = delta_slip[:, :, 0].ravel()
+        slip_dip = delta_slip[:, :, 1].ravel()
+        slip_norm = delta_slip[:, :, 2].ravel()
+
+        slip_shear = num.linalg.norm([slip_strike, slip_dip], axis=0)
         slip_rake = num.arctan2(slip_dip, slip_strike)
 
-        if self.slip is not None:
-            norm = num.linalg.norm(delta_slip.sum(axis=2), axis=1).max()
-            slip_shear *= self.slip / norm
-            slip_norm *= self.slip / norm
-
-        patch_area = self.patches[0].area
-        strikes = self.get_patch_attribute('strike')
-        dips = self.get_patch_attribute('dip')
-
-        # FIXIT: Can we use the store's lambda and mu here?
         lamb = num.mean(self.get_patch_attribute('lamb'))
         mu = num.mean(self.get_patch_attribute('shearmod'))
 
         def patch2m6(strike, dip, rake, du_s, du_n):
             rotmat = pmt.euler_to_matrix(dip, strike, -rake)
             momentmat = num.array(
-                [[lamb*du_n, 0.,        -mu*du_s],
-                 [0.,        lamb*du_n, 0.],
-                 [-mu*du_s,  0.,        (lamb+2.*mu)*du_n]])
-            momentmat *= patch_area
+                [[lamb * du_n, 0., -mu * du_s],
+                 [0., lamb * du_n, 0.],
+                 [-mu * du_s, 0., (lamb + 2. * mu) * du_n]])
             return pmt.to6(rotmat.T * momentmat * rotmat)
 
         m6s = num.array([
             patch2m6(
-                strikes[ip]*d2r, dips[ip]*d2r, rake=slip_rake[ip, it],
-                du_s=slip_shear[ip, it], du_n=slip_norm[ip, it])
-            for ip in range(npatches)
-            for it in range(ntimes)]).reshape(npatches, ntimes, 6)
+                self.strike * d2r, self.dip * d2r, rake=slip_rake[im],
+                du_s=slip_shear[im], du_n=slip_norm[im])
+            for im in range(nbasesrcs)])
+        m6s *= patch_area
 
         if self.magnitude is not None:
             moment = pmt.magnitude_to_moment(self.magnitude)
-            # TODO: can we get the patch moment cheaper from patch2m6?
-            patch_mom = num.array(
-                [num.linalg.eigvalsh(pmt.symmat6(*m6))
-                 for m6 in m6s.reshape(-1, 6)])
-            patch_mom = num.linalg.norm(patch_mom, axis=1) / num.sqrt(2.)
-            m6s *= moment / patch_mom.sum()
 
-        # Projection onto GFStore spacing
-        deltas = tuple(
-            (self.length/self.nx, self.width/self.ny, *store.config.deltas))
+            m6s_cum = m6s.copy()
+            m6s_cum[3:] *= 2.
+            cum_mom = num.linalg.norm(m6s, axis=1).sum()
 
-        gf_patches = []
-        for p in self.patches:
-            # FIXIT: discretize w/o discretize_rect_source, and rotate once!
-            rect_points, *_ = discretize_rect_source(
-                deltas, store.config.deltat,
-                p.time, p.north_shift, p.east_shift, p.depth,
-                p.strike, p.dip, p.length, p.width,
-                decimation_factor=self.decimation_factor,
-                anchor='center', pointsonly=True,
-                aggressive_oversampling=self.aggressive_oversampling)
-            gf_patches.append(rect_points)
-
-        gf_patch_npoints = num.array(
-            [gf_patch.shape[0] for gf_patch in gf_patches], dtype=num.intp)
-
-        # Scale moment tensors
-        m6s /= gf_patch_npoints[:, num.newaxis, num.newaxis]
-        m6s = m6s.repeat(gf_patch_npoints, axis=0)
-
-        gf_patches_arr = num.array(gf_patches).reshape(-1, 3)
-
-        # Rotate the fault plane onto the surface (local x-y coord system)
-        gf_patches_plane = gf_patches_arr.copy()
-        rotmat = num.asarray(
-            pmt.euler_to_matrix(-self.dip*d2r, -self.strike*d2r, 0.))
-        gf_patches_plane[:, 0] -= self.north_shift
-        gf_patches_plane[:, 1] -= self.east_shift
-        gf_patches_plane[:, 2] -= self.depth
-
-        # FIXIT: if discretized once we do not need this rotation
-        gf_patches_plane = num.dot(rotmat.T, gf_patches_plane.T).T
-
-        *_, time_interpolator, _ = self.get_vr_time_interpolators(store)
-        times_patches = num.array(
-            [p.time for p in self.patches]).repeat(
-            gf_patch_npoints, axis=0)
-        times_interp = times_patches + \
-            (time_interpolator(gf_patches_arr[:, :2]) - times_patches)
-        times_gf = times.repeat(gf_patch_npoints, axis=0) - \
-            times_interp[:, num.newaxis]
-
-        # Old, blocky implementation
-        # times_gf = times.repeat(gf_patch_npoints, axis=0)
-
-        gf_points = gf_patches_arr.repeat(ntimes, axis=0)
+            if cum_mom != 0.:
+                m6s *= moment / cum_mom
 
         dl = num.abs([self.patches[0].al1, self.patches[0].al2]).sum()
         dw = num.abs([self.patches[0].aw1, self.patches[0].aw2]).sum()
@@ -3075,20 +3128,15 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         ds = meta.DiscretizedMTSource(
             lat=self.lat,
             lon=self.lon,
-            times=times_gf.ravel(),
-            north_shifts=gf_points[:, 0],
-            east_shifts=gf_points[:, 1],
-            depths=gf_points[:, 2],
-            m6s=m6s.reshape(-1, 6),
+            times=base_times + self.time,
+            north_shifts=base_interp[:, 0],
+            east_shifts=base_interp[:, 1],
+            depths=base_interp[:, 2],
+            m6s=m6s,
             dl=dl,
             dw=dw,
             nl=self.nx,
             nw=self.ny)
-
-        # Debug stuff
-        total_slip = num.linalg.norm(delta_slip.sum(axis=2), axis=1)
-        ds.slip = total_slip.repeat(gf_patch_npoints*ntimes, axis=0)
-        ds.time = times_gf
 
         return ds
 
@@ -3123,7 +3171,6 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         return num.array([getattr(p, attr) for p in self.patches])
 
     def get_okada_slip(self, time=None, scale_slip=True, **kwargs):
-
         '''
         Get slip per subfault patch for given time after rupture start
 
@@ -3154,41 +3201,40 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                 'The traction vector is of invalid shape.'
                 ' Required shape is (npatches, 3)')
 
-        patch_activation = num.zeros(npatches)
-
         times = self.get_patch_attribute('time') - self.time
         relevant_sources = num.nonzero(times <= time)[0]
         disloc_est = num.zeros_like(tractions)
 
         if self.smooth_rupture:
+            patch_activation = num.zeros(npatches)
+
             nx, ny, times, vr, time_interpolator, vr_interpolator = \
                 self.get_vr_time_interpolators(store)
 
-            points_x = time_interpolator.grid[0]
-            points_y = time_interpolator.grid[1]
+            # Getting the native Eikonal grid, bit hackish
+            points_x = num.round(time_interpolator.grid[0], decimals=2)
+            points_y = num.round(time_interpolator.grid[1], decimals=2)
             times_eikonal = time_interpolator.values
 
             for ip, p in enumerate(self.patches):
                 ul = (p.length_pos + p.al1, p.width_pos + p.aw1)
                 lr = (p.length_pos + p.al2, p.width_pos + p.aw2)
 
-                idx_length, *_ = num.where(
-                    (ul[0] <= points_x) & (points_x < lr[0]))
-                idx_width, *_ = num.where(
-                    (points_y >= ul[1]) & (points_y < lr[1]))
+                idx_length, *_ = num.where((
+                    points_x >= ul[0]) & (points_x <= lr[0]))
+                idx_width, *_ = num.where((
+                    points_y >= ul[1]) & (points_y <= lr[1]))
 
-                times_patch = times_eikonal[idx_length[0]:idx_length[-1],
-                                            idx_width[0]:idx_width[-1]]
+                times_patch = times_eikonal[num.ix_(idx_length, idx_width)]
                 patch_activation[ip] = \
                     (times_patch <= time).sum() / times_patch.size
 
             relevant_sources = num.nonzero(patch_activation > 0.)[0]
-            tractions *= patch_activation[:, num.newaxis]
 
         if relevant_sources.size == 0:
             return disloc_est
 
-        indices_disl = num.repeat(relevant_sources*3, 3)
+        indices_disl = num.repeat(relevant_sources * 3, 3)
         indices_disl[1::3] += 1
         indices_disl[2::3] += 2
 
@@ -3198,12 +3244,15 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             pure_shear=self.pure_shear, nthreads=self.nthreads,
             **kwargs)
 
-        if self.slip and scale_slip:
-            disloc_est *= self.slip / num.linalg.norm(disloc_est, axis=1).max()
+        if self.smooth_rupture:
+            disloc_est *= patch_activation[:, num.newaxis]
+
+        if scale_slip and self.slip:
+            disloc_est *= self.slip / disloc_est.max()
 
         return disloc_est
 
-    def get_delta_slip(self, store=None, dt=None, **kwargs):
+    def get_delta_slip(self, store=None, dt=None, delta=True, **kwargs):
         '''
         Get slip change inverted from OkadaSources depending on store deltat
 
@@ -3241,23 +3290,32 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             raise AttributeError('Please give a GF store or set dt.')
 
         npatches = len(self.patches)
-        times = self.get_patch_attribute('time') - self.time
 
-        calc_times = num.arange(0., times.max() + dt, dt)
-        delta_disloc_est = num.zeros((npatches, 3, calc_times.size))
+        *_, time_interpolator, _ = self.get_vr_time_interpolators(store)
+        tmax = time_interpolator.values.max()
+
+        calc_times = num.arange(0., tmax + dt, dt)
+        disloc_est = num.zeros((npatches, calc_times.size, 3))
 
         for itime, t in enumerate(calc_times):
-            delta_disloc_est[:, :, itime] = self.get_okada_slip(
+            disloc_est[:, itime, :] = self.get_okada_slip(
                 time=t, **kwargs)
+
+        if self.slip:
+            norm = num.linalg.norm(disloc_est, axis=2).max()
+            disloc_est *= self.slip / norm
+
+        if not delta:
+            return disloc_est, calc_times
 
         # if we have only one timestep there is no gradient
         if calc_times.size > 1:
-            delta_disloc_est = num.diff(delta_disloc_est, axis=2)
+            disloc_est = num.diff(disloc_est, axis=1)
             calc_times = calc_times[1:]
 
-        return delta_disloc_est, calc_times
+        return disloc_est, calc_times
 
-    def get_moment_rate(self, *args, **kwargs):
+    def get_moment_rate_patches(self, *args, **kwargs):
         '''
         Get scalar seismic moment rate for each boundary element individually
 
@@ -3273,14 +3331,23 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :rtype: :py:class:`numpy.ndarray`, ``(n_sources, n_times)``
                 :py:class:`numpy.ndarray`, ``(n_times, 1)``
         '''
-        ddisloc_est, calc_times = self.get_delta_slip(*args, **kwargs)
+        ddisloc_est, calc_times = self.get_delta_slip(
+            *args, scale_slip=False, **kwargs)
         dt = calc_times[1] - calc_times[0]
 
         slip_change = num.linalg.norm(ddisloc_est, axis=1) / dt
         shear_mod = num.mean(self.get_patch_attribute('shearmod'))
-        dA = num.array([p.length*p.width for p in self.patches])
+        dA = num.array([p.length * p.width for p in self.patches])
 
         return shear_mod * slip_change * dA[:, num.newaxis], calc_times
+
+    def get_moment_rate(self, store, deltat=None):
+        if not deltat:
+            deltat = store.config.deltat
+        return self.discretize_basesource(store).get_moment_rate(deltat)
+
+    def get_seismic_energy(self, store):
+        mom_rate, mom_times = self.get_moment_rate(store)
 
     def get_source_moment_rate(self, *args, **kwargs):
         '''
@@ -4201,7 +4268,7 @@ def process_dynamic_timeseries(work, psources, ptargets, engine, nthreads=0):
 
                 try:
                     result = engine._post_process_dynamic(
-                            seismogram, source, target)
+                        seismogram, source, target)
                 except SeismosizerError as e:
                     result = e
 

@@ -4,6 +4,8 @@ from pyrocko.guts import Object, Float, List, StringChoice
 
 logger = logging.getLogger('pyrocko.gf.tractions')
 km = 1e3
+d2r = num.pi/180.
+r2d = 180./num.pi
 
 
 def tukey_window(N, alpha):
@@ -83,13 +85,13 @@ class UniformTractions(TractionField):
 
 
 class HomogeneousTractions(TractionField):
-    t_strike = Float.T(
+    strike = Float.T(
         default=1.,
         help='Tractions in strike direction [Pa]')
-    t_dip = Float.T(
+    dip = Float.T(
         default=1.,
         help='Traction in dip direction (up) [Pa]')
-    t_normal = Float.T(
+    normal = Float.T(
         default=1.,
         help='Traction in normal direction [Pa]')
 
@@ -97,8 +99,29 @@ class HomogeneousTractions(TractionField):
         npatches = nx * ny
 
         return num.tile(
-            (self.t_strike, self.t_dip, self.t_normal), npatches) \
+            (self.strike, self.dip, self.normal), npatches) \
             .reshape(-1, 3)
+
+
+class DirectedTractions(TractionField):
+    rake = Float.T(
+        default=0.,
+        help='rake angle in [deg], '
+             'measured counter-clockwise from right-horizontal '
+             'in on-plane view. Rake is translated into homogenous tractions '
+             'in strike and up-dip direction.')
+    traction = Float.T(
+        default=1.,
+        help='Traction in rake direction [Pa]')
+
+    def get_tractions(self, nx, ny, patches=None):
+        npatches = nx * ny
+
+        strike = num.cos(self.rake*d2r) * self.traction
+        dip = num.sin(self.rake*d2r) * self.traction
+        normal = 0.
+
+        return num.tile((strike, dip, normal), npatches).reshape(-1, 3)
 
 
 class RectangularTaper(AbstractTractionField):
@@ -119,12 +142,12 @@ class RectangularTaper(AbstractTractionField):
         raise AttributeError('unknown type %s' % self.type)
 
 
-class RheologicTaper(AbstractTractionField):
-    begin = Float.T(
+class DepthTaper(AbstractTractionField):
+    depth_start = Float.T(
         help='Depth where the taper begins [km]')
 
-    end = Float.T(
-        help='Depth where taper ends [km]')
+    depth_stop = Float.T(
+        help='Depth where taper stops, and drops to 0. [km]')
 
     type = StringChoice.T(
         choices=('linear', ),
@@ -132,12 +155,12 @@ class RheologicTaper(AbstractTractionField):
         help='Type of the taper, default "linear"')
 
     def get_tractions(self, nx, ny, patches):
-        assert self.end > self.begin
+        assert self.depth_stop > self.depth_start
         depths = num.array([p.depth for p in patches])
 
         if self.type == 'linear':
-            slope = self.end - self.begin
-            depths -= self.end
+            slope = self.depth_stop - self.depth_start
+            depths -= self.depth_stop
             depths /= -slope
             depths[depths > 1.] = 1.
             depths[depths < 0.] = 0.
@@ -175,7 +198,7 @@ if __name__ == '__main__':
         components=[
             UniformTractions(traction=45e3),
             RectangularTaper(),
-            RheologicTaper(begin=10.*km, end=30.*km)
+            DepthTaper(depth_start=10.*km, depth_stop=30.*km)
         ])
 
     plot_tractions(tractions)

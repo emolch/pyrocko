@@ -152,6 +152,7 @@ Rectangular fault plane
 See also :class:`~pyrocko.gf.seismosizer.RectangularSource`.
 
 .. code-block :: yaml
+
   --- !pf.scenario.RectangularSourceGenerator
   # How often the are we rolling the dice for this model
   ntries: 10
@@ -180,6 +181,7 @@ Pseudo dynamic rupture
 See also :class:`~pyrocko.gf.seismosizer.PseudoDynamicRupture`.
 
 .. code-block :: yaml
+
   --- !pf.scenario.PseudoDynamicRuptureGenerator
   # How often the are we rolling the dice for this model
   ntries: 10

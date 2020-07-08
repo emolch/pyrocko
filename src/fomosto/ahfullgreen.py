@@ -11,7 +11,7 @@ import math
 import signal
 
 from pyrocko import trace, cake, gf
-from pyrocko.ahfullgreen import add_seismogram, Impulse
+from pyrocko.ahfullgreen import add_seismogram, Impulse, Gauss
 from pyrocko.moment_tensor import MomentTensor, symmat6
 
 km = 1000.
@@ -72,7 +72,7 @@ def make_traces(material, source_mech, deltat, norths, easts,
             material.vp, material.vs, material.rho, material.qp, material.qs,
             x, f, m6, 'displacement',
             deltat, tmin, outx, outy, outz,
-            stf=Impulse())
+            stf=Gauss(tau=1.))
 
         for i_comp, o in enumerate((outx, outy, outz)):
             comp = components[i_comp]

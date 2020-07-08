@@ -168,7 +168,7 @@ class OkadaTestCase(unittest.TestCase):
         res = res1.copy()
         @benchmark.labeled('mat_inversion_sparse')
         def inv_sparse():
-            res[res < 1e-2s] = 0.
+            res[res < 1e-2] = 0.
             num.linalg.inv(num.dot(res.T, res))
 
         inv()
@@ -339,11 +339,12 @@ class OkadaTestCase(unittest.TestCase):
         source_coords[:, 1] += ref_east
         source_coords[:, 2] += ref_depth
 
-        num.testing.assert_equal(
+        num.testing.assert_allclose(
             source_coords,
             num.array([
                 [src.north_shift, src.east_shift, src.depth]
-                for src in source_disc]))
+                for src in source_disc]),
+            rtol=1e1)
 
         if show_plot:
             import matplotlib.pyplot as plt
@@ -363,7 +364,7 @@ class OkadaTestCase(unittest.TestCase):
     def test_okada_gf_fill(self):
         ref_north = 0.
         ref_east = 0.
-        ref_depth = 100000.
+        ref_depth = 100*km
 
         nlength = 10
         nwidth = 10
@@ -402,7 +403,7 @@ class OkadaTestCase(unittest.TestCase):
 
         gf = DislocationInverter.get_coef_mat(
             source_list, pure_shear=pure_shear)
-        gf2 = DislocationInverter.get_coef_mat_bulk(
+        gf2 = DislocationInverter.get_coef_mat_single(
             source_list, pure_shear=pure_shear)
 
         assert num.linalg.slogdet(num.dot(gf.T, gf)) != (0., num.inf)

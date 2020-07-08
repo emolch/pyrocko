@@ -23,6 +23,11 @@ class PseudoDynamicRuptureGenerator(SourceGenerator):
     decimation_factor = Int.T(
         default=4)
 
+    slip_min = Float.T(
+        optional=True)
+    slip_max = Float.T(
+        optional=True)
+
     strike = Float.T(
         optional=True)
     dip = Float.T(
@@ -32,8 +37,10 @@ class PseudoDynamicRuptureGenerator(SourceGenerator):
     depth = Float.T(
         optional=True)
     nx = Int.T(
+        default=5,
         optional=True)
     ny = Int.T(
+        default=5,
         optional=True)
     nucleation_x = Float.T(
         optional=True)
@@ -50,15 +57,30 @@ class PseudoDynamicRuptureGenerator(SourceGenerator):
         time = rstate.uniform(self.time_min, self.time_max)
         lat, lon = self.get_latlon(ievent)
         depth = rstate.uniform(self.depth_min, self.depth_max)
-        nucleation_x = self.nucleation_x or rstate.uniform(-1., 1.)
-        nucleation_y = self.nucleation_y or rstate.uniform(-1., 1.)
+        nucleation_x = self.nucleation_x if self.nucleation_x is not None \
+            else rstate.uniform(-1., 1.)
+        nucleation_y = self.nucleation_y if self.nucleation_y is not None \
+            else rstate.uniform(-1., 1.)
 
         magnitude = self.draw_magnitude(rstate)
-        moment = moment_tensor.magnitude_to_moment(magnitude)
+        slip = None
 
-        # After Mai and Beroza (2000)
-        length = num.exp(-6.27 + 0.4*num.log(moment))
-        width = num.exp(-4.24 + 0.32*num.log(moment))
+        # After K. Thingbaijam et al. (2017) - Tab. 1, Normal faulting
+        def scale_from_mag(magnitude, a, b):
+            return 10**(a + b*magnitude)
+
+        def scale_from_slip(slip, a, b):
+            return 10**((num.log10(slip) - a) / b)
+
+        length = scale_from_mag(magnitude, a=-1.722, b=0.485)
+        width = scale_from_mag(magnitude, a=-0.829, b=0.323)
+
+        if self.slip_min is not None and self.slip_max is not None:
+            slip = rstate.uniform(self.slip_min, self.slip_max)
+            # After K. Thingbaijam et al. (2017) - Tab. 2, Normal faulting
+            length = scale_from_slip(slip, a=-2.302, b=1.302)
+            width = scale_from_slip(slip, a=-3.698, b=2.512)
+            magnitude = None
 
         length = length if not self.length else self.length
         width = width if not self.width else self.width
@@ -89,11 +111,13 @@ class PseudoDynamicRuptureGenerator(SourceGenerator):
             dip=float(dip),
             rake=float(rake),
             magnitude=magnitude,
+            slip=slip,
             nucleation_x=float(nucleation_x),
             nucleation_y=float(nucleation_y),
             nx=self.nx,
             ny=self.ny,
-            decimation_factor=self.decimation_factor)
+            decimation_factor=self.decimation_factor,
+            smooth_rupture=True)
 
         return source
 

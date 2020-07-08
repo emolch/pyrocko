@@ -75,9 +75,10 @@ class WhiteNoiseGenerator(WaveformNoiseGenerator):
 
 class WaveformGenerator(TargetGenerator):
 
-    station_generator = StationGenerator.T(
-        default=RandomStationGenerator.D(),
-        help='The StationGenerator for creating the stations.')
+    station_generators = List.T(
+        StationGenerator.T(),
+        default=[RandomStationGenerator.D()],
+        help='List of StationGenerators.')
 
     noise_generator = WaveformNoiseGenerator.T(
         default=WhiteNoiseGenerator.D(),
@@ -155,7 +156,16 @@ class WaveformGenerator(TargetGenerator):
         return self._piles[apath]
 
     def get_stations(self):
-        return self.station_generator.get_stations()
+        stations = []
+        for station_generator in self.station_generators:
+            stations.extend(station_generator.get_stations())
+        return stations
+
+    def get_distance_range(self, sources):
+        distances = num.array(
+            [sg.get_distance_range(sources)
+             for sg in self.station_generators])
+        return (distances[:, 0].min(), distances[:, 1].max())
 
     def get_targets(self):
         if self._targets:
@@ -203,7 +213,7 @@ class WaveformGenerator(TargetGenerator):
         return self._targets
 
     def get_time_range(self, sources):
-        dmin, dmax = self.station_generator.get_distance_range(sources)
+        dmin, dmax = self.get_distance_range(sources)
 
         times = num.array([source.time for source in sources],
                           dtype=num.float)
@@ -228,7 +238,7 @@ class WaveformGenerator(TargetGenerator):
         return deltats
 
     def get_useful_time_increment(self, engine, sources):
-        _, dmax = self.station_generator.get_distance_range(sources)
+        _, dmax = self.get_distance_range(sources)
         tinc = dmax / self.vmin_cut + 2.0 / self.fmin
 
         deltats = set(self.get_codes_to_deltat(engine, sources).values())
@@ -237,7 +247,7 @@ class WaveformGenerator(TargetGenerator):
         return tinc
 
     def get_relevant_sources(self, sources, tmin, tmax):
-        dmin, dmax = self.station_generator.get_distance_range(sources)
+        dmin, dmax = self.get_distance_range(sources)
         trange = tmax - tmin
         tmax_pad = trange + tmax + dmin / self.vmax_cut
         tmin_pad = tmin - (dmax / self.vmin_cut + trange)
@@ -445,13 +455,16 @@ class WaveformGenerator(TargetGenerator):
         path_responses = op.join(path, 'meta')
         util.ensuredir(path_responses)
 
-        fn_stationxml = op.join(path_responses, 'stations.xml')
-        if op.exists(fn_stationxml):
-            return
+        fn_stationxml = op.join(path_responses, 'waveform_response.xml')
+        i = 0
+        while op.exists(fn_stationxml):
+            fn_stationxml = op.join(
+                path_responses, 'waveform_response-%s.xml' % i)
+            i += 1
 
         logger.debug('Writing waveform meta information to StationXML...')
 
-        stations = self.station_generator.get_stations()
+        stations = self.get_stations()
         sxml = stationxml.FDSNStationXML.from_pyrocko_stations(stations)
 
         sunit = {

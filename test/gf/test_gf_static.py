@@ -246,9 +246,9 @@ mantle
         dyn_rupture = gf.PseudoDynamicRupture(
             nx=4, ny=4,
             tractions=gf.tractions.HomogeneousTractions(
-                t_strike=1.e4,
-                t_dip=0.e4,
-                t_normal=0.),
+                strike=1.e4,
+                dip=1.e4,
+                normal=0.),
             **source_params)
 
         dyn_rupture.discretize_patches(store)

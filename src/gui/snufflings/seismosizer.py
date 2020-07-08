@@ -446,18 +446,6 @@ class PseudoDynamicRuptureSource(Seismosizer):
         self._engine = None
 
     def get_source(self, event):
-        tr = gf.tractions
-        tractions = tr.TractionComposition(
-            components=[
-                tr.HomogeneousTractions(
-                    t_strike=1.,
-                    t_dip=1.,
-                    t_normal=1.),
-            ])
-
-        if self.tapered:
-            tractions.add_component(tr.RectangularTaper())
-
         source = gf.PseudoDynamicRupture(
             time=event.time + self.time,
             lat=event.lat,
@@ -477,10 +465,10 @@ class PseudoDynamicRuptureSource(Seismosizer):
             nucleation_y=self.nucleation_y,
             gamma=self.gamma,
             stf=self.get_stf(),
-            tractions=tractions,
 
             nthreads=5,
-            pure_shear=True)
+            pure_shear=True,
+            smooth_rupture=False)
 
         return source
 

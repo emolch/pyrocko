@@ -1029,7 +1029,6 @@ static store_error_t store_calc_timeseries(
     float64_t ws_this[cscheme->ncomponents*cscheme->nsummands_max];
     uint64_t irecord_bases[VICINITY_NIP_MAX];
     float64_t weights_ip[VICINITY_NIP_MAX];
-    float64_t weights_sum;
 
     nsummands_max = cscheme->nsummands_max;
     nip = mscheme->vicinity_nip;
@@ -1047,7 +1046,7 @@ static store_error_t store_calc_timeseries(
             shared (store, source_coords, ms, delays, receiver_coords, \
                     cscheme, mscheme, mapping, interpolation, nip, results, nsources, nsummands_max) \
             private (isource, iip, icomponent, isummand, nsummands, irecord_bases, weights_ip, ws_this, \
-                     delay, weight, idelay_floor, idelay_ceil, irecord, trace, result, err, weights_sum) \
+                     delay, weight, idelay_floor, idelay_ceil, irecord, trace, result, err) \
             num_threads (nthreads)
         {
         #pragma omp for schedule (dynamic)
@@ -1061,13 +1060,6 @@ static store_error_t store_calc_timeseries(
                 &ms[isource*cscheme->nsource_terms],
                 &receiver_coords[ireceiver*5],
                 ws_this);
-
-            weights_sum = 0.;
-            for (iip=0; iip<cscheme->ncomponents*cscheme->nsummands_max; iip++)
-                weights_sum += ws_this[iip];
-
-            if (weights_sum == 0.)
-                continue;
 
             delay = delays[isource];
             idelay_floor = (int) floor(delay/deltat);
