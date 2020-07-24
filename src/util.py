@@ -2117,8 +2117,7 @@ def make_iload_family(iload_fh, doc_fmt='FMT', doc_yielded_objects='FMT'):
 
     def iload_glob(pattern, **kwargs):
 
-        fns = glob.glob(pattern)
-        for fn in fns:
+        for fn in glob.iglob(pattern):
             for cr in iload_filename(fn, **kwargs):
                 yield cr
 
