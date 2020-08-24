@@ -14,7 +14,7 @@ import shutil
 import numpy as num
 from scipy.interpolate import RegularGridInterpolator as scrgi
 
-from matplotlib import cm, pyplot as plt
+from matplotlib import cm, pyplot as plt, patheffects
 
 from pyrocko import gmtpy, orthodrome as pod
 from pyrocko.plot import (mpl_init, mpl_margins, mpl_papersize, mpl_color,
@@ -1065,6 +1065,7 @@ class RuptureView(object):
 
         self._fig = None
         self._axes = None
+        self._is_1d = False
 
     @property
     def source(self):
@@ -1208,15 +1209,24 @@ class RuptureView(object):
                 *args,
                 **kwargs)
 
-            self._axes.clabel(
+            plt.setp(cont.collections, path_effects=[
+                patheffects.withStroke(linewidth=2.0, foreground="beige"),
+                patheffects.Normal()])
+
+            clabels = self._axes.clabel(
                 cont,
                 clevel[::2],
                 inline=1,
                 fmt='%g' + '%s' % unit,
                 inline_spacing=15,
                 rightside_up=True,
+                use_clabeltext=True,
                 *args,
                 **kwargs)
+
+            plt.setp(clabels, path_effects=[
+                patheffects.withStroke(linewidth=1.25, foreground="beige"),
+                patheffects.Normal()])
 
     def draw_points(self, length, width, *args, **kwargs):
         ''' Draw a point onto the figure.
@@ -1424,7 +1434,7 @@ class RuptureView(object):
             length, width, data=data, clevel=clevel, unit='m', **kwargs)
 
     def draw_source_dynamics(
-            self, variable, store, dt=None, *args, **kwargs):
+            self, variable, store, deltat=None, *args, **kwargs):
         ''' Display dynamic source parameter
 
         Fast inspection possibility for the cumulative moment and the source
@@ -1438,16 +1448,16 @@ class RuptureView(object):
         :type variable: string
         :param store: Greens function store, whose store.config.deltat defines
             the time increment between two parameter snapshots. If store is not
-            given, the time increment is defined is taken from dt.
+            given, the time increment is defined is taken from deltat.
         :type store: :py:class:`pyrocko.gf.store.Store`
-        :param dt: Time increment between two parameter snapshots. If not
-            given, store.config.deltat is used to define dt
-        :type dt: optional, float
+        :param deltat: Time increment between two parameter snapshots. If not
+            given, store.config.deltat is used to define deltat
+        :type deltat: optional, float
         '''
 
         v = variable
 
-        data, times = self.source.get_moment_rate(store=store, deltat=dt)
+        data, times = self.source.get_moment_rate(store=store, deltat=deltat)
 
         if v in ('moment_rate', 'stf'):
             name, unit = 'dM/dt', 'Nm/s'
@@ -1461,9 +1471,10 @@ class RuptureView(object):
                     ylabel='%s / %.2g %s' % (name, num.max(data), unit),
                     aspect='auto')
         self._draw_scatter(x=times, y=data/num.max(data), *args, **kwargs)
+        self._is_1d = True
 
     def draw_boundary_element_dynamics(
-            self, variable, nx, ny, store=None, dt=None, *args, **kwargs):
+            self, variable, nx, ny, store=None, deltat=None, *args, **kwargs):
         ''' Display dynamic boundary element / patch parameter
 
         Fast inspection possibility for different dynamic parameter for a
@@ -1479,11 +1490,11 @@ class RuptureView(object):
         :type nx: int
         :param store: Greens function store, whose store.config.deltat defines
             the time increment between two parameter snapshots. If store is not
-            given, the time increment is defined is taken from dt.
+            given, the time increment is defined is taken from deltat.
         :type store: optional, :py:class:`pyrocko.gf.store.Store`
-        :param dt: Time increment between two parameter snapshots. If not
-            given, store.config.deltat is used to define dt
-        :type dt: optional, float
+        :param deltat: Time increment between two parameter snapshots. If not
+            given, store.config.deltat is used to define deltat
+        :type deltat: optional, float
         '''
 
         v = variable
@@ -1493,41 +1504,45 @@ class RuptureView(object):
         m = re.match(r'dislocation_([xyz])', v)
 
         if v in ('moment_rate', 'cumulative_moment', 'moment'):
-            data, times = source.get_moment_rate_patches(dt=dt)
+            data, times = source.get_moment_rate_patches(deltat=deltat)
         elif 'dislocation' in v or 'slip_rate' == v:
-            ddisloc, times = source.get_delta_slip(dt=dt)
+            ddisloc, times = source.get_delta_slip(deltat=deltat)
 
         if v == 'moment_rate':
-            data, times = source.get_moment_rate_patches(store=store, dt=dt)
+            data, times = source.get_moment_rate_patches(
+                store=store, deltat=deltat)
             name, unit = 'dM/dt', 'Nm/s'
         elif v == 'cumulative_moment' or v == 'moment':
-            data, times = source.get_moment_rate_patches(store=store, dt=dt)
+            data, times = source.get_moment_rate_patches(
+                store=store, deltat=deltat)
             data = num.cumsum(data, axis=1)
             name, unit = 'M', 'Nm'
         elif v == 'slip_rate':
-            data, times = source.get_delta_slip(store=store, dt=dt)
-            data = num.linalg.norm(ddisloc, axis=1) / (times[1] - times[0])
+            data, times = source.get_delta_slip(store=store, deltat=deltat)
+            data = num.linalg.norm(ddisloc, axis=2) / (times[1] - times[0])
             name, unit = 'du/dt', 'm/s'
         elif v == 'dislocation':
-            data, times = source.get_delta_slip(store=store, dt=dt)
+            data, times = source.get_delta_slip(store=store, deltat=deltat)
             data = num.linalg.norm(num.cumsum(data, axis=2), axis=1)
             name, unit = 'du', 'm'
         elif m:
-            data, times = source.get_delta_slip(store=store, dt=dt)
+            data, times = source.get_delta_slip(store=store, deltat=deltat)
             data = num.cumsum(data, axis=2)[:, c2disl[m.group(1)], :]
             name, unit = 'du%s' % m.group(1), 'm'
         else:
             raise ValueError('No dynamic data for given variable %s found' % v)
-
-        dt = times[1] - times[0]
 
         self._setup(xlabel='time [s]',
                     ylabel='%s / %.2g %s' % (name, num.max(data), unit),
                     aspect='auto')
         self._draw_scatter(x=times, y=data[idx, :]/num.max(data),
                            *args, **kwargs)
+        self._is_1d = True
 
     def finalize(self):
+        if self._is_1d:
+            return
+
         ylim = self._axes.get_ylim()
         if ylim[0] < ylim[-1]:
             self._axes.set_ylim(ylim[::-1])
@@ -1557,7 +1572,7 @@ class RuptureView(object):
         self._clear_all()
 
 
-def render_movie(fn_path, output_path, dt=0.5):
+def render_movie(fn_path, output_path, deltat=0.5):
     ''' Generate a mp4 movie based on given png files using ffmpeg
 
     Render a movie based on a set of given .png files in fn_path. All files
@@ -1569,8 +1584,8 @@ def render_movie(fn_path, output_path, dt=0.5):
     :type fn_path: string
     :param output_path: Path and filename of the output .mp4 movie file
     :type output_path: string
-    :param dt: Time between individual frames (1 / framerate) [s]
-    :type dt: optional, float
+    :param deltat: Time between individual frames (1 / framerate) [s]
+    :type deltat: optional, float
 
     '''
     try:
@@ -1586,13 +1601,13 @@ def render_movie(fn_path, output_path, dt=0.5):
     try:
         check_call([
             'ffmpeg', '-hide_banner', '-loglevel', 'panic', '-y',
-            '-framerate', '%g' % (1/dt),
+            '-framerate', '%g' % (1/deltat),
             '-i', fn_path,
             '-c:v', 'libx264',
             '-preset', 'slow',
             '-crf', '17',
             '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=%d'
-            % int(num.round(1/dt)),
+            % int(num.round(1/deltat)),
             output_path])
 
         return True
@@ -1646,7 +1661,7 @@ def rupture_movie(
         fn_path='.',
         prefix='',
         plot_type='map',
-        dt=None,
+        deltat=None,
         store_images=False,
         render_as_gif=False,
         gif_loops=-1,
@@ -1662,7 +1677,7 @@ def rupture_movie(
     :param source: Pseudo dynamic rupture, for which the movie is produced
     :type source: :py:class:`pyrocko.gf.seismosizer.PseudoDynamicRupture`
     :param store: Greens function store, which is used for time calculation. If
-        dt is not given, it is taken from the store.config.deltat
+        deltat is not given, it is taken from the store.config.deltat
     :type store: :py:class:`pyrocko.gf.store.Store`
     :param variable: Dynamic parameter, which shall be plotted. Choose between
         'dislocation', 'dislocation_x' (along strike), 'dislocation_y'
@@ -1677,9 +1692,9 @@ def rupture_movie(
         :py:class:`pyrocko.plot.dynamic_rupture.RuptureMap or plane view using
         :py:class:`pyrocko.plot.dynamic_rupture.RuptureView)
     :type plot_type: optional, string
-    :param dt: Time between parameter snapshots. If not given,
-        store.config.deltat is used to define dt
-    :type dt: optional, float
+    :param deltat: Time between parameter snapshots. If not given,
+        store.config.deltat is used to define deltat
+    :type deltat: optional, float
     :param store_images: Choice to store the single .png parameter snapshots in
         fn_path or not.
     :type store_images: optional, bool
@@ -1702,18 +1717,18 @@ def rupture_movie(
     if not prefix:
         prefix = v
 
-    if dt is None:
-        dt = store.config.deltat
+    if deltat is None:
+        deltat = store.config.deltat
 
     if v == 'moment_rate':
-        data, times = source.get_moment_rate_patches(dt=dt)
+        data, times = source.get_moment_rate_patches(deltat=deltat)
         name, unit = 'dM/dt', 'Nm/s'
     elif 'dislocation' in v or 'slip_rate' == v:
-        ddisloc, times = source.get_delta_slip(dt=dt)
+        ddisloc, times = source.get_delta_slip(deltat=deltat)
     else:
         raise ValueError('No dynamic data for given variable %s found' % v)
 
-    dt = times[1] - times[0]
+    deltat = times[1] - times[0]
 
     m = re.match(r'dislocation_([xyz])', v)
     if m:
@@ -1723,7 +1738,7 @@ def rupture_movie(
         data = num.linalg.norm(num.cumsum(ddisloc, axis=1), axis=2)
         name, unit = 'du', 'm'
     elif v == 'slip_rate':
-        data = num.linalg.norm(ddisloc, axis=2) / dt
+        data = num.linalg.norm(ddisloc, axis=2) / deltat
         name, unit = 'du/dt', 'm/s'
 
     if plot_type == 'map':

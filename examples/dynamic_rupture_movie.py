@@ -63,7 +63,7 @@ dynamic_rupture.rupture_movie(
     store=store,
     variable='dislocation',
     plot_type='view',
-    dt=2,
+    deltat=2,
     render_as_gif=True)
 
 # And now the patch wise moment rate as an mp4 plotted on a map
@@ -72,7 +72,7 @@ dynamic_rupture.rupture_movie(
     store=store,
     variable='moment_rate',
     plot_type='map',
-    dt=2,
+    deltat=2,
     lat=-21.,
     lon=32.,
     radius=15000.,

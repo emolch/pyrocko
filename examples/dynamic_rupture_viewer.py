@@ -59,13 +59,13 @@ source.discretize_patches(store)
 # Initialize the viewer and display the seismic moment release of the source
 # over time with a sampling interval of 1 s
 viewer = dynamic_rupture.RuptureView(source=source)
-viewer.draw_source_dynamics(variable='moment', dt=1, store=store)
+viewer.draw_source_dynamics(variable='moment', deltat=1, store=store)
 viewer.show_plot()
 
 # Initialize the viewer and display the seismic moment release of one single
 # boundary element (patch) over time
 viewer = dynamic_rupture.RuptureView(source=source)
-viewer.draw_boundary_element_dynamics(variable='moment', nx=3, ny=3, dt=1)
+viewer.draw_boundary_element_dynamics(variable='moment', nx=3, ny=3, deltat=1)
 viewer.show_plot()
 
 # Initialize the viewer and display the traction vector length.

@@ -3270,7 +3270,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         return disloc_est
 
-    def get_delta_slip(self, store=None, dt=None, delta=True, **kwargs):
+    def get_delta_slip(self, store=None, deltat=None, delta=True, **kwargs):
         '''
         Get slip change inverted from OkadaSources depending on store deltat
 
@@ -3282,9 +3282,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             of the source). Its delta t [s] is used as time increment for slip
             difference calculation. Either dt or store should be given.
         :type store: optional, :py:class:`pyrocko.gf.store.Store`
-        :param dt: time increment for slip difference calculation [s]. Either
-            dt or store should be given.
-        :type dt: optional, float
+        :param deltat: time increment for slip difference calculation [s].
+            Either deltat or store should be given.
+        :type deltat: optional, float
 
         :return: displacement changes(du_strike, du_dip , du_tensile) for each
             source patch and time. order: [
@@ -3296,23 +3296,23 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :rtype: :py:class:`numpy.ndarray`, ``(n_sources, n_times, 3)``
                 :py:class:`numpy.ndarray`, ``(n_times, 1)``
         '''
-        if store and dt:
+        if store and deltat:
             raise AttributeError(
                 'Argument collision. '
-                'Please define only the store or the dt argument.')
+                'Please define only the store or the deltat argument.')
 
         if store:
-            dt = store.config.deltat
+            deltat = store.config.deltat
 
-        if not dt:
-            raise AttributeError('Please give a GF store or set dt.')
+        if not deltat:
+            raise AttributeError('Please give a GF store or set deltat.')
 
         npatches = len(self.patches)
 
         *_, time_interpolator, _ = self.get_vr_time_interpolators(store)
         tmax = time_interpolator.values.max()
 
-        calc_times = num.arange(0., tmax + dt, dt)
+        calc_times = num.arange(0., tmax + deltat, deltat)
         disloc_est = num.zeros((npatches, calc_times.size, 3))
 
         for itime, t in enumerate(calc_times):
