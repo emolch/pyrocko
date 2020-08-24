@@ -6,8 +6,8 @@ from pyrocko.plot import dislocation as displt
 d2r = num.pi / 180.
 km = 1000.
 
-# Set source parameter
-src_north, src_east, src_depth = 0. * km, 0. * km, 100. * km
+# Set source parameters
+src_north, src_east, src_depth = 20. * km, -45. * km, 10. * km
 
 length_total = 50. * km
 width_total = 15. * km
@@ -24,7 +24,7 @@ source = OkadaSource(
     lat=0., lon=0., north_shift=src_north, east_shift=src_east,
     depth=src_depth,
     al1=al1, al2=al2, aw1=aw1, aw2=aw2,
-    strike=45., dip=90., rake=90.,
+    strike=66., dip=45., rake=90.,
     slip=1., opening=0., poisson=0.25, shearmod=32.0e9)
 
 source_discretized, _ = source.discretize(nlength, nwidth)
@@ -44,7 +44,8 @@ source_disl = num.array([
     patch.source_disloc() for patch in source_discretized])
 result = okada_ext.okada(
     source_patch, source_disl, receiver_coords,
-    source.lamb, source.shearmod, 0)
+    source.lamb, source.shearmod, nthreads=0, rotate_sdn=False,
+    stack_sources=True)
 
 # Plot
 displt.plot(result, receiver_coords, cmap='coolwarm', zero_center=True)

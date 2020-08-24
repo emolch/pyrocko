@@ -10,8 +10,10 @@ import os
 import math
 import signal
 
+from pyrocko.guts import Object
 from pyrocko import trace, cake, gf
-from pyrocko.ahfullgreen import add_seismogram, Impulse, Gauss
+from pyrocko.ahfullgreen import add_seismogram, AhfullgreenSTFImpulse, \
+    AhfullgreenSTF
 from pyrocko.moment_tensor import MomentTensor, symmat6
 
 km = 1000.
@@ -41,8 +43,12 @@ class AhfullgreenError(gf.store.StoreError):
     pass
 
 
+class AhfullgreenConfig(Object):
+    stf = AhfullgreenSTF.T(default=AhfullgreenSTFImpulse.D())
+
+
 def make_traces(material, source_mech, deltat, norths, easts,
-                source_depth, receiver_depth):
+                source_depth, receiver_depth, stf):
 
     if isinstance(source_mech, MomentTensor):
         m6 = source_mech.m6()
@@ -72,7 +78,7 @@ def make_traces(material, source_mech, deltat, norths, easts,
             material.vp, material.vs, material.rho, material.qp, material.qs,
             x, f, m6, 'displacement',
             deltat, tmin, outx, outy, outz,
-            stf=Gauss(tau=1.))
+            stf=stf)
 
         for i_comp, o in enumerate((outx, outy, outz)):
             comp = components[i_comp]
@@ -100,6 +106,8 @@ class AhfullGFBuilder(gf.builder.Builder):
 
         gf.builder.Builder.__init__(
             self, self.store.config, step, block_size=block_size, force=force)
+
+        self.ahfullgreen_config = self.store.get_extra('ahfullgreen')
 
     def cleanup(self):
         self.store.close()
@@ -158,7 +166,8 @@ class AhfullGFBuilder(gf.builder.Builder):
             rawtraces = make_traces(
                 self.store.config.earthmodel_1d.require_homogeneous(),
                 source_mech, 1.0/self.store.config.sample_rate,
-                distances, num.zeros_like(distances), sz, rz)
+                distances, num.zeros_like(distances), sz, rz,
+                self.ahfullgreen_config.stf)
 
             interrupted = []
 
@@ -218,6 +227,8 @@ def init(store_dir, variant):
 
     store_id = os.path.basename(os.path.realpath(store_dir))
 
+    ahfullgreen = AhfullgreenConfig()
+
     config = gf.meta.ConfigTypeA(
         id=store_id,
         ncomponents=10,
@@ -241,7 +252,7 @@ def init(store_dir, variant):
 
     config.validate()
     return gf.store.Store.create_editables(
-        store_dir, config=config)
+        store_dir, config=config, extra={'ahfullgreen': ahfullgreen})
 
 
 def build(store_dir, force=False, nworkers=None, continue_=False, step=None,

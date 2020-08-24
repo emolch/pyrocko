@@ -34,7 +34,7 @@ source_discretized, _ = source.discretize(nlength, nwidth)
 receiver_coords = num.array([
     src.source_patch()[:3] for src in source_discretized])
 
-# Create Stress drop (traction) array
+# Create stress drop (traction) array with spatial varying traction vectors
 dstress = -1.5e6
 stress_comp = 1
 
@@ -50,10 +50,11 @@ for il in range(nlength):
                 (iw > 2 and iw < nwidth - 4):
             stress_field[idx + stress_comp] = dstress / 4.
 
+# Invert for dislocation on source plane based on given stress field
 disloc_est = DislocationInverter.get_disloc_lsq(
-    stress_field, source_list=source_discretized)
+    stress_field, source_list=source_discretized, nthreads=0)
 
-
+# Plot
 displt.plot(
     disloc_est.reshape(npoints, 3),
     receiver_coords,

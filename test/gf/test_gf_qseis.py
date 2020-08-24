@@ -239,6 +239,8 @@ mantle
         store_id_qseis = 'homogeneous_qseis'
         store_id_ahfull = 'homogeneous_ahfull'
 
+        ahconf = ahfullgreen.AhfullgreenConfig()
+
         qsconf = qseis.QSeisConfig()
         qsconf.qseis_version = '2006a'
 
@@ -338,7 +340,7 @@ mantle
         self.tempdirs.append(store_dir_ahfull)
 
         gf.store.Store.create_editables(
-            store_dir_ahfull, config=config)
+            store_dir_ahfull, config=config, extra={'ahfullgreen': ahconf})
 
         store = gf.store.Store(store_dir_ahfull, 'r')
         store.make_ttt()

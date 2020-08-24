@@ -166,6 +166,7 @@ class OkadaTestCase(unittest.TestCase):
             num.linalg.inv(num.dot(res1.T, res1))
 
         res = res1.copy()
+
         @benchmark.labeled('mat_inversion_sparse')
         def inv_sparse():
             res[res < 1e-2] = 0.

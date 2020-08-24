@@ -55,6 +55,7 @@ def extend_1d_coordinate_array(array):
 
     return out
 
+
 def extend_2d_data_array(array):
     '''
     Extend 2D data array for gridded data, that grid corners are plotted
@@ -72,6 +73,7 @@ def extend_2d_data_array(array):
 
     return out
 
+
 def tile_to_length_width(m, ref_lat, ref_lon):
     '''
     Transform grid tile (lat, lon) to easting, northing for data interpolation
@@ -87,6 +89,7 @@ def tile_to_length_width(m, ref_lat, ref_lon):
 
     return num.hstack((
         grid_easting.reshape(-1, 1), grid_northing.reshape(-1, 1)))
+
 
 def data_to_grid(m, x, y, data):
     '''

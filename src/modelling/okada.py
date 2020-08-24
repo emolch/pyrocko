@@ -314,7 +314,7 @@ class DislocationInverter(object):
             or additionally include opening, default False.
         :type pure_shear: optional, bool
         :param rotate_sdn: Rotation towards strike, dip, normal, default True.
-        :type pure_shear: optional, bool
+        :type rotate_sdn: optional, bool
         :param nthreads: Number of threads, default 1
         :type nthreads: optional, int
 
@@ -410,7 +410,11 @@ class DislocationInverter(object):
             :py:class:`pyrocko.modelling.OkadaSource`
         :param pure_shear: Flag, if also opening mode shall be taken into
             account (False) or the fault is described as pure shear (True).
-        :type pure_shear: optional, Bool
+        :type pure_shear: optional, bool
+        :param rotate_sdn: Rotation towards strike, dip, normal, default True.
+        :type rotate_sdn: optional, bool
+        :param nthreads: Number of threads, default 1
+        :type nthreads: optional, int
 
         :return: coefficient matrix for all sources
         :rtype: :py:class:`numpy.ndarray`,
@@ -505,7 +509,11 @@ class DislocationInverter(object):
             :py:class:`pyrocko.modelling.OkadaSource`
         :param pure_shear: Flag, if also opening mode shall be taken into
             account (False) or the fault is described as pure shear (True).
-        :type pure_shear: optional, Bool
+        :type pure_shear: optional, bool
+        :param rotate_sdn: Rotation towards strike, dip, normal, default True.
+        :type rotate_sdn: optional, bool
+        :param nthreads: Number of threads, default 1
+        :type nthreads: optional, int
 
         :return: coefficient matrix for all sources
         :rtype: :py:class:`numpy.ndarray`,

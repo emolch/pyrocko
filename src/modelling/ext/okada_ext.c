@@ -853,10 +853,37 @@ static okada_error_t dc3d_flexi(
         int rot_sdn) {
 
     /*
-     * Wrapper for dc3d function
-     * Is applied on single source-receiver pair
-     * source is arbitrary oriented
-    */
+     *   Wrapper for dc3d function
+     *   It is applied on single source-receiver pair for an arbitrary oriented source
+     *   Displacement and strain at depth due to buried finite fault in a
+     *    semiinfinite medium.
+     *
+     *    Input:
+     *
+     *      alpha:       medium constant  (lambda + myu)/(lambda + 2*myu)
+     *      nr, er, zr:  coordinate of observing point north, east, down [m]
+     *      ns, es, zs:  coordinate of source plane reference point north, east, down [m]
+     *      strike:      strike-angle (degree)
+     *      dip:         dip-angle (degree)
+     *      al1, al2:    fault length range
+     *      aw1, aw2:    fault width range
+     *      disl1-disl3: strike-, dip-, tensile-dislocations
+     *      rot_sdn:     1, if displacements and derivatives are returned in strike-dip-
+     *                   tensile (normal), 0 for north-east-down
+     *    Output:
+     *
+     *      u[12]: displacement (units of disl) and derivatives
+     *             ((unit of disl) / (unit of nr, er, zr, ns, es, zs, al, aw)) as
+     *
+     *           [us, ud, un, uss, uds, uns, usd, udd, und, usn, udn, unn]
+     *              with rot_sdn = 1 and s-strike, d-down dip and n-normal
+     *           [un, ue, ud, unn, uen, udn, une, uee, ude, und, ued, udd]
+     *              with rot_sdn = 0 and n-north, e-east and d-down
+     *
+     *    Return value:
+     *
+     *      0 for success or error code
+     */
 
     double rotmat[3][3];
     double r[3], rrot[3];
@@ -874,11 +901,15 @@ static okada_error_t dc3d_flexi(
 
     rot_vec31(r, rotmat, rrot);
 
+    if (dr == 0.){
+        rrot[2] = 0.;
+    }
+
     if (dip == 90.) {
         dip -= 1E-2;
     }
     iret = dc3d(alpha, rrot[0], rrot[1], rrot[2], ds, dip, al1, al2, aw1, aw2, disl1, disl2, disl3, uokada);
-    
+
     /*
      * Back rotation of displacement and strain vector/tensor
      * with the transposed rotmat equals rotmat

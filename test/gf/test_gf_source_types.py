@@ -82,9 +82,9 @@ class GFSourceTypesTestCase(unittest.TestCase):
             nucleation_y=0.)
 
         pdr.tractions = gf.tractions.HomogeneousTractions(
-            t_strike=0.,
-            t_dip=0.,
-            t_normal=-.5e6)
+            strike=0.,
+            dip=0.,
+            normal=-.5e6)
 
         time = num.max(pdr.get_patch_attribute('time')) * 0.5
 

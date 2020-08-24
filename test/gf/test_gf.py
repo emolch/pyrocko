@@ -90,7 +90,7 @@ def _make_traces_homogeneous(
             material.vp, material.vs, material.rho, material.qp, material.qs,
             x, f, m6, 'displacement',
             deltat, tmin - (times[ielement] - toff), outx, outy, outz,
-            stf=ahfullgreen.Impulse())
+            stf=ahfullgreen.AhfullgreenSTFImpulse())
 
     for comp, o in zip(comps, (outx, outy, outz)):
         tr = trace.Trace(
@@ -1376,7 +1376,10 @@ class GFTestCase(unittest.TestCase):
         store_dir = mkdtemp(prefix=store_id)
         self.tempdirs.append(store_dir)
 
-        gf.store.Store.create_editables(store_dir, config=config)
+        conf = fomosto_ahfullgreen.AhfullgreenConfig()
+
+        gf.store.Store.create_editables(
+            store_dir, config=config, extra={'ahfullgreen': conf})
 
         store = gf.store.Store(store_dir, 'r')
         store.make_ttt()

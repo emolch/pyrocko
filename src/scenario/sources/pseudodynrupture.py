@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as num
 
 from pyrocko.guts import Float, Int
-from pyrocko import moment_tensor, gf
+from pyrocko import gf
 
 from .base import SourceGenerator
 

@@ -41,8 +41,9 @@ def draw(
             num.min(dislocation), num.max(dislocation)]))
         vmin = -vmax
     else:
-        vmax = num.max(dislocation)
         vmin = num.min(dislocation)
+        vmax = num.max(dislocation)
+
     scat = axes.scatter(
         coordinates[:, 1],
         coordinates[:, 0],

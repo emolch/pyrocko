@@ -93,7 +93,7 @@ mantle
             source_depth_max=20.*km,
             source_depth_delta=0.5*km,
             distance_min=0.*km,
-            distance_max=40.*km,
+            distance_max=70.*km,
             distance_delta=0.5*km,
             modelling_code_id='psgrn_pscmp.%s' % version,
             earthmodel_1d=mod,
@@ -287,9 +287,9 @@ mantle
             dyn_rupture = gf.PseudoDynamicRupture(
                 nx=nx, ny=ny,
                 tractions=gf.tractions.HomogeneousTractions(
-                    t_strike=1.e4,
-                    t_dip=0.4e4,
-                    t_normal=0.1),
+                    strike=1.e4,
+                    dip=0.4e4,
+                    normal=0.1),
                 north_shift=2*km,
                 east_shift=2*km,
                 depth=6.5*km,
@@ -310,7 +310,8 @@ mantle
             t = time.time()
             # dyn_rupture.discretize_patches(store)
             engine.process(dyn_rupture, static_target)
-            map = RuptureMap(source=dyn_rupture, lat=0., lon=0., radius=40*km)
+            map = RuptureMap(source=dyn_rupture, lat=0., lon=0., radius=40*km,
+                             width=20., height=20.)
             map.draw_patch_parameter('traction')
             map.save('/tmp/test.pdf')
             return dyn_rupture.nx*dyn_rupture.ny, time.time() - t
