@@ -298,6 +298,7 @@ def _make_gmt_conf(fontcolor, size):
         MAP_TICK_LENGTH_SECONDARY='%gc' % (tick_size * 3),
         FONT_ANNOT_PRIMARY='%s-Bold,%s' % (font, color),
         FONT_LABEL='%s-Bold,%s' % (font, color),
+        FONT_TITLE='%s-Bold,%s' % (font, color),
         PS_CHAR_ENCODING='ISOLatin1+',
         MAP_FRAME_TYPE='fancy',
         FORMAT_GEO_MAP='D',
@@ -324,6 +325,7 @@ class RuptureMap(Map):
             margins=None,
             topo_cpt_wet='light_sea_uniform',
             topo_cpt_dry='light_land_uniform',
+            show_cities=False,
             *args, **kwargs):
 
         size = (width, height)
@@ -338,6 +340,9 @@ class RuptureMap(Map):
                      gmt_config=gmt_config,
                      topo_cpt_dry=topo_cpt_dry, topo_cpt_wet=topo_cpt_wet,
                      *args, **kwargs)
+
+        if show_cities:
+            self.draw_cities()
 
         self.source = source
         self._fontcolor = fontcolor
@@ -731,7 +736,7 @@ class RuptureMap(Map):
         kwargs['C'] = 'my_%s.cpt' % cmap
         a_str = cbar_anchor[anchor]
 
-        w = self.width / 4.
+        w = self.width / 3.
         h = w / 10.
 
         lgap = rgap = w / 10.
@@ -775,17 +780,29 @@ class RuptureMap(Map):
             *self.jxyr,
             **kwargs)
 
-    def draw_dynamic_data(self, data, **kwargs):
+    def draw_dynamic_data(self, data, original_patch_indices=None, **kwargs):
         '''
         Draw an image of any data gridded on the patches e.g dislocation
 
         :param data: Patchwise data grid array
         :type data: :py:class:`numpy.ndarray`
+        :param original_patch_indices: If the source has been recalculated and
+            manually manipulated (patches, coef_mat etc.), then give here a
+            boolean array indicating the position of the remaining patches on
+            the original patch grid. False is interpreted as no data, True is
+            replaced by the patch data.
+        :type original_patch_indices: optional,
+            :py:class:`numpy.ndarray` of bool ``(source.nx, source.ny)``
         '''
+
+        plot_data = data
+        if original_patch_indices is not None:
+            plot_data = num.zeros(original_patch_indices.shape)
+            plot_data[original_patch_indices] = data
 
         kwargs['cmap'] = kwargs.get('cmap', 'afmhot_r')
 
-        clim = kwargs.get('clim', [num.min(data), num.max(data)])
+        clim = kwargs.get('clim', [num.min(plot_data), num.max(plot_data)])
         if kwargs.get('clim'):
             del kwargs['clim']
 
@@ -796,7 +813,7 @@ class RuptureMap(Map):
             cpt = [kwargs['cmap']]
 
         tmp_grd_file = 'tmpdata.grd'
-        self.patch_data_to_grid(data, tmp_grd_file)
+        self.patch_data_to_grid(plot_data, tmp_grd_file)
         self.draw_image(tmp_grd_file, **kwargs)
 
         clear_temp(gridfiles=[tmp_grd_file], cpts=cpt)
@@ -842,12 +859,14 @@ class RuptureMap(Map):
 
         :param store: Greens function store, which is used for time calculation
         :type store: :py:class:`pyrocko.gf.store.Store`
+        :param clevel: List of times, for which contour lines are drawn
+        :type clevel: optional, list of float
         '''
 
+        _, _, _, _, points_xy = self.source._discretize_points(store, cs='xyz')
+        _, _, times, _, _, _ = self.source.get_vr_time_interpolators(store)
+
         scaler = AutoScaler(mode='0-max', approx_ticks=8)
-
-        _, points_xy, _, times = self.source.discretize_time(store)
-
         scale = scaler.make_scale([num.min(times), num.max(times)])
 
         if clevel:
@@ -872,7 +891,7 @@ class RuptureMap(Map):
 
         clear_temp(gridfiles=[tmp_grd_file], cpts=[])
 
-    def draw_point(self, lats, lons, symbol='point', size=None, **kwargs):
+    def draw_points(self, lats, lons, symbol='point', size=None, **kwargs):
         '''
         Draw points at given locations
 
@@ -919,7 +938,7 @@ class RuptureMap(Map):
         nlat, nlon = xy_to_latlon(
             self.source, self.source.nucleation_x, self.source.nucleation_y)
 
-        self.draw_point(nlat, nlon, **kwargs)
+        self.draw_points(nlat, nlon, **kwargs)
 
     def draw_dislocation(self, time=None, component='', **kwargs):
         ''' Draw dislocation onto map at any time
@@ -946,7 +965,8 @@ class RuptureMap(Map):
 
         self.draw_dynamic_data(data, **kwargs)
 
-    def draw_dislocation_contour(self, time=None, component='', **kwargs):
+    def draw_dislocation_contour(
+            self, time=None, component='', clevel=[], **kwargs):
         ''' Draw dislocation contour onto map at any time
 
         For a given time (if time is None, tmax is used) and given component
@@ -957,6 +977,8 @@ class RuptureMap(Map):
         :param component: Dislocation component, which shall be plotted: x -
             along strike, y - along updip, z - normal. If '' is given, the
             length of the dislocation vector is plotted
+        :param clevel: List of times, for which contour lines are drawn
+        :type clevel: optional, list of float
         '''
 
         disl = self.source.get_okada_slip(time=time)
@@ -969,11 +991,23 @@ class RuptureMap(Map):
         scaler = AutoScaler(mode='min-max', approx_ticks=7)
         scale = scaler.make_scale([num.min(data), num.max(data)])
 
-        kwargs['anot_int'] = kwargs.get('anot_int', scale[2] * 2.)
-        kwargs['contour_int'] = kwargs.get('contour_int', scale[2])
+        if clevel:
+            if len(clevel) > 1:
+                kwargs['anot_int'] = num.min(num.diff(clevel))
+            else:
+                kwargs['anot_int'] = clevel[0]
+
+            kwargs['contour_int'] = kwargs['anot_int']
+            kwargs['L'] = '%g/%g' % (
+                num.min(clevel) - kwargs['contour_int'],
+                num.max(clevel) + kwargs['contour_int'])
+        else:
+            kwargs['anot_int'] = kwargs.get('anot_int', scale[2] * 2.)
+            kwargs['contour_int'] = kwargs.get('contour_int', scale[2])
+            kwargs['L'] = kwargs.get('L', '%g/%g' % (
+                num.min(data) - 1., num.max(data) + 1.))
+
         kwargs['unit'] = kwargs.get('unit', ' m')
-        kwargs['L'] = kwargs.get('L', '%g/%g' % (
-            num.min(data) - 1., num.max(data) + 1.))
         kwargs['G'] = kwargs.get('G', 'n2/3c')
 
         tmp_grd_file = 'tmpdata.grd'
@@ -1015,18 +1049,19 @@ class RuptureMap(Map):
 
 class RuptureView(object):
     _patches_to_lw = RuptureMap._patches_to_lw
+    figsize = mpl_papersize('halfletter', 'landscape')
+    fontsize = 12.
 
-    def __init__(self, source=None, fontsize=12, figsize=None):
+    def __init__(self, source=None, figsize=None, fontsize=None):
         self.source__ = source
         self._axes = None
 
-        if figsize is None:
-            figsize = mpl_papersize('halfletter', 'landscape')
+        if figsize is not None:
+            self.figsize = figsize
 
-        self._figsize = figsize
-
-        mpl_init(fontsize=fontsize)
-        self._fontsize = fontsize
+        if fontsize is not None:
+            self.fontsize = fontsize
+            mpl_init(fontsize=self.fontsize)
 
         self._fig = None
         self._axes = None
@@ -1060,9 +1095,9 @@ class RuptureView(object):
         if self._fig is not None and self._axes is not None:
             return
 
-        self._fig = plt.figure(figsize=self._figsize)
+        self._fig = plt.figure(figsize=self.figsize)
 
-        if self._figsize[0] < 6. or self._figsize[1] < 4.:
+        if self.figsize[0] < 6. or self.figsize[1] < 4.:
             typ = 'smallfig'
             labelpos = mpl_margins(
                 self._fig,
@@ -1070,7 +1105,7 @@ class RuptureView(object):
                 right=3.5,
                 top=1.,
                 bottom=4.,
-                units=self._fontsize)
+                units=self.fontsize)
         else:
             typ = 'bigfig'
             labelpos = mpl_margins(
@@ -1079,7 +1114,7 @@ class RuptureView(object):
                 right=6.,
                 top=5.,
                 bottom=8.,
-                units=self._fontsize)
+                units=self.fontsize)
 
         self._axes = plt.gcf().add_subplot(1, 1, 1, aspect=aspect)
 
@@ -1093,6 +1128,13 @@ class RuptureView(object):
             self._axes.grid(True)
             self._axes.set_xlabel(xlabel)
             self._axes.set_ylabel(ylabel)
+
+    def _clear_all(self):
+        plt.cla()
+        plt.clf()
+        plt.close()
+
+        self._fig, self._axes = None, None
 
     def _draw_scatter(self, x, y, *args, **kwargs):
         kwargs['linewidth'] = kwargs.get('linewidth', 0)
@@ -1130,11 +1172,15 @@ class RuptureView(object):
                 del kwargs['aspect']
             if 'clim' in kwargs:
                 del kwargs['clim']
+            if 'cmap' in kwargs:
+                del kwargs['cmap']
 
             plt.colorbar(
                 im, shrink=0.9, pad=0.03, aspect=15., *args, **kwargs)
 
-    def _draw_contour(self, x, y, data, clevel=None, *args, **kwargs):
+    def _draw_contour(self, x, y, data, clevel=None, unit='', *args, **kwargs):
+        self._setup(**kwargs)
+
         if self._axes is not None:
             if clevel is None:
                 scaler = AutoScaler(mode='min-max')
@@ -1152,7 +1198,7 @@ class RuptureView(object):
                 y,
                 data,
                 clevel,
-                linewidth=3.5,
+                linewidths=1.5,
                 *args,
                 **kwargs)
 
@@ -1160,13 +1206,13 @@ class RuptureView(object):
                 cont,
                 clevel[::2],
                 inline=1,
-                fmt='%g',
+                fmt='%g' + '%s' % unit,
                 inline_spacing=15,
                 rightside_up=True,
                 *args,
                 **kwargs)
 
-    def draw_point(self, length, width, *args, **kwargs):
+    def draw_points(self, length, width, *args, **kwargs):
         ''' Draw a point onto the figure.
 
         Args and kwargs can be defined according to matplotlib.pyplot.scatter
@@ -1179,17 +1225,29 @@ class RuptureView(object):
         '''
 
         if self._axes is not None:
-            kwargs['c'] = kwargs.get('c', mpl_color('scarletred2'))
+            kwargs['color'] = kwargs.get('color', mpl_color('scarletred2'))
             kwargs['s'] = kwargs.get('s', 100.)
 
             self._axes.scatter(length, width, *args, **kwargs)
 
-    def draw_dynamic_data(self, data, **kwargs):
+    def draw_dynamic_data(self, data, original_patch_indices=None, **kwargs):
         ''' Draw an image of any data gridded on the patches e.g dislocation
 
         :param data: Patchwise data grid array
         :type data: :py:class:`numpy.ndarray`
+        :param original_patch_indices: If the source has been recalculated and
+            manually manipulated (patches, coef_mat etc.), then give here a
+            boolean array indicating the position of the remaining patches on
+            the original patch grid. False is interpreted as no data, True is
+            replaced by the patch data.
+        :type original_patch_indices: optional,
+            :py:class:`numpy.ndarray` of bool ``(source.nx, source.ny)``
         '''
+
+        plot_data = data
+        if original_patch_indices is not None:
+            plot_data = num.zeros(original_patch_indices.shape)
+            plot_data[original_patch_indices] = data
 
         anchor_x, anchor_y = map_anchor[self.source.anchor]
 
@@ -1199,7 +1257,7 @@ class RuptureView(object):
         length /= km
         width /= km
 
-        data = data.reshape(self.source.ny, self.source.nx, order='F')
+        data = plot_data.reshape(self.source.ny, self.source.nx, order='F')
 
         kwargs['cmap'] = kwargs.get('cmap', 'afmhot_r')
 
@@ -1259,12 +1317,13 @@ class RuptureView(object):
         :type clevel: optional, list
         '''
 
-        _, points_xy, _, times = self.source.discretize_time(store)
+        _, _, _, _, points_xy = self.source._discretize_points(store, cs='xyz')
+        _, _, times, _, _, _ = self.source.get_vr_time_interpolators(store)
 
         scaler = AutoScaler(mode='min-max', approx_ticks=8)
         scale = scaler.make_scale([num.min(times), num.max(times)])
 
-        if not clevel:
+        if len(clevel) == 0:
             clevel = num.arange(scale[0] + scale[2], scale[1], scale[2])
 
         length, width = xy_to_lw(self.source, points_xy[:, 0], points_xy[:, 1])
@@ -1273,10 +1332,9 @@ class RuptureView(object):
         width /= km
 
         kwargs['colors'] = kwargs.get('colors', '#474747ff')
-        self._setup(**kwargs)
 
         self._draw_contour(num.unique(length), num.unique(width), data=times.T,
-                           clevel=clevel, **kwargs)
+                           clevel=clevel, unit='s', **kwargs)
 
     def draw_nucleation_point(self, **kwargs):
         ''' Draw the nucleation point onto the map
@@ -1289,7 +1347,7 @@ class RuptureView(object):
         length /= km
         width /= km
 
-        self.draw_point(length, width, marker='o', **kwargs)
+        self.draw_points(length, width, marker='o', **kwargs)
 
     def draw_dislocation(self, time=None, component='', **kwargs):
         ''' Draw dislocation onto map at any time
@@ -1342,7 +1400,7 @@ class RuptureView(object):
         scaler = AutoScaler(mode='min-max', approx_ticks=7)
         scale = scaler.make_scale([num.min(data), num.max(data)])
 
-        if not clevel:
+        if len(clevel) == 0:
             clevel = num.arange(scale[0] + scale[2], scale[1], scale[2])
 
         anchor_x, anchor_y = map_anchor[self.source.anchor]
@@ -1356,10 +1414,11 @@ class RuptureView(object):
         kwargs['colors'] = kwargs.get('colors', '#474747ff')
 
         self._setup(**kwargs)
-        self._draw_contour(length, width, data=data, clevel=clevel, **kwargs)
+        self._draw_contour(
+            length, width, data=data, clevel=clevel, unit='m', **kwargs)
 
     def draw_source_dynamics(
-            self, variable, store=None, dt=None, *args, **kwargs):
+            self, variable, store, dt=None, *args, **kwargs):
         ''' Display dynamic source parameter
 
         Fast inspection possibility for the cumulative moment and the source
@@ -1374,7 +1433,7 @@ class RuptureView(object):
         :param store: Greens function store, whose store.config.deltat defines
             the time increment between two parameter snapshots. If store is not
             given, the time increment is defined is taken from dt.
-        :type store: optional, :py:class:`pyrocko.gf.store.Store`
+        :type store: :py:class:`pyrocko.gf.store.Store`
         :param dt: Time increment between two parameter snapshots. If not
             given, store.config.deltat is used to define dt
         :type dt: optional, float
@@ -1474,17 +1533,15 @@ class RuptureView(object):
         self._fig.savefig(fname=filename,
                           dpi=dpi,
                           bbox_inches='tight')
-        plt.cla()
-        plt.clf()
-        plt.close()
 
-        self._fig, self._axes = None, None
+        self._clear_all()
 
     def show_plot(self):
         ''' Show plot for visual inspection
         '''
 
         plt.show()
+        self._clear_all()
 
 
 def render_movie(fn_path, output_path, dt=0.5):
@@ -1507,22 +1564,28 @@ def render_movie(fn_path, output_path, dt=0.5):
         check_call(['ffmpeg', '-loglevel', 'panic'])
     except CalledProcessError:
         pass
-    except (TypeError):
+    except (TypeError, IOError):
         logger.warn(
             'Package ffmpeg needed for movie rendering. Please install it '
             '(e.g. on linux distr. via sudo apt-get ffmpeg.) and retry.')
-        return
+        return False
 
-    check_call([
-        'ffmpeg', '-y',
-        '-framerate', '%g' % (1/dt),
-        '-i', fn_path,
-        '-c:v', 'libx264',
-        '-preset', 'slow',
-        '-crf', '17',
-        '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=%d'
-        % int(num.round(1/dt)),
-        output_path])
+    try:
+        check_call([
+            'ffmpeg', '-hide_banner', '-loglevel', 'panic', '-y',
+            '-framerate', '%g' % (1/dt),
+            '-i', fn_path,
+            '-c:v', 'libx264',
+            '-preset', 'slow',
+            '-crf', '17',
+            '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=%d'
+            % int(num.round(1/dt)),
+            output_path])
+
+        return True
+    except CalledProcessError as e:
+        logger.warn(e)
+        return False
 
 
 def render_gif(fn, output_path, loops=-1):
@@ -1543,18 +1606,24 @@ def render_gif(fn, output_path, loops=-1):
         check_call(['ffmpeg', '-loglevel', 'panic'])
     except CalledProcessError:
         pass
-    except (TypeError):
+    except (TypeError, IOError):
         logger.warn(
             'Package ffmpeg needed for movie rendering. Please install it '
             '(e.g. on linux distr. via sudo apt-get ffmpeg.) and retry.')
-        return
+        return False
 
-    check_call([
-        'ffmpeg', '-i',
-        fn,
-        '-filter_complex', 'palettegen[v1];[0:v][v1]paletteuse',
-        '-loop', '%d' % loops,
-        output_path])
+    try:
+        check_call([
+            'ffmpeg', '-hide_banner', '-loglevel', 'panic', '-i',
+            fn,
+            '-filter_complex', 'palettegen[v1];[0:v][v1]paletteuse',
+            '-loop', '%d' % loops,
+            output_path])
+
+        return True
+    except CalledProcessError as e:
+        logger.warn(e)
+        return False
 
 
 def rupture_movie(
@@ -1568,7 +1637,6 @@ def rupture_movie(
         store_images=False,
         render_as_gif=False,
         gif_loops=-1,
-        original_patch_indices=None,
         **kwargs):
     ''' Generate a movie based on a given source for dynamic parameter
 
@@ -1608,13 +1676,6 @@ def rupture_movie(
     :param gif_loops: If render_as_gif is True, a gif with gif_loops number of
         loops (repetitions) is returned. -1 is no repetition, 0 infinite.
     :type gif_loops: optional, integer
-    :param original_patch_indices: If the source has been recalculated and
-        manually manipulated (patches, coef_mat etc.), then give here a boolean
-        array indicating the position of the remaining patches on the original
-        patch grid. False is interpreted as no data, True is replaced by the
-        patch data.
-    :type original_patch_indices: optional,
-        :py:class:`numpy.ndarray` of bool ``(source.nx, source.ny)``
     '''
 
     v = variable
@@ -1649,7 +1710,7 @@ def rupture_movie(
         data = num.linalg.norm(num.cumsum(ddisloc, axis=1), axis=2)
         name, unit = 'du', 'm'
     elif v == 'slip_rate':
-        data = num.linalg.norm(ddisloc, axis=1) / dt
+        data = num.linalg.norm(ddisloc, axis=2) / dt
         name, unit = 'du/dt', 'm/s'
 
     if plot_type == 'map':
@@ -1659,7 +1720,7 @@ def rupture_movie(
 
     attrs_base = [n for n in dir(plt_base)
                   if not n.startswith('_') and not n.endswith('_') and not
-                  callable(n)]
+                  callable(getattr(plt_base, n))]
 
     kwargs_base = dict([k for k in kwargs.items() if k[0] in attrs_base])
     kwargs_plt = dict([k for k in kwargs.items() if k[0] not in kwargs_base])
@@ -1684,10 +1745,6 @@ def rupture_movie(
         for it, (t, ft) in enumerate(zip(times, fns_temp)):
             plot_data = data[:, it]
 
-            if original_patch_indices is not None:
-                plot_data = num.zeros(original_patch_indices.shape)
-                plot_data[original_patch_indices] = data[:, it]
-
             plt = plt_base(source=source, **kwargs_base)
             plt.draw_dynamic_data(plot_data,
                                   **kwargs_plt)
@@ -1696,15 +1753,19 @@ def rupture_movie(
             plt.save(ft)
 
         fn_mp4 = op.join(temp_path, 'movie.mp4')
-        render_movie(fn_temp_path, output_path=fn_mp4)
+        return_code = render_movie(fn_temp_path, output_path=fn_mp4)
 
-        if render_as_gif:
+        if render_as_gif and return_code:
             render_gif(fn=fn_mp4, output_path=op.join(
                 fn_path, '%s_%s_gif.gif' % (prefix, plot_type)),
                 loops=gif_loops)
-        else:
+
+        elif return_code:
             shutil.move(fn_mp4, op.join(
                 fn_path, '%s_%s_movie.mp4' % (prefix, plot_type)))
+
+        else:
+            logger.error('Could not perform ffmpeg movie generation. Exit')
 
         if store_images:
             fns = [op.join(fn_path, '%s_%s_%g.png' % (prefix, plot_type, t))

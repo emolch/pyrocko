@@ -29,7 +29,7 @@ from pyrocko.model import Location
 from pyrocko.modelling import OkadaSource, DislocationInverter
 
 from . import meta, store, ws
-from .tractions import TractionField, HomogeneousTractions, DirectedTractions
+from .tractions import TractionField, DirectedTractions
 from .targets import Target, StaticTarget, SatelliteTarget
 
 pjoin = os.path.join
@@ -201,6 +201,19 @@ def discretize_rect_source(deltas, deltat, time, north, east, depth,
     points[:, 0] = num.tile(xl, nw)
     points[:, 1] = num.repeat(xw, nl)
 
+    if nucleation_x is not None:
+        dist_x = num.abs(nucleation_x - points[:, 0])
+    else:
+        dist_x = num.zeros(n)
+
+    if nucleation_y is not None:
+        dist_y = num.abs(nucleation_y - points[:, 1])
+    else:
+        dist_y = num.zeros(n)
+
+    dist = num.sqrt(dist_x**2 + dist_y**2)
+    times = dist / velocity
+
     anch_x, anch_y = map_anchor[anchor]
 
     points[:, 0] -= anch_x * 0.5 * length
@@ -219,19 +232,6 @@ def discretize_rect_source(deltas, deltat, time, north, east, depth,
 
     if pointsonly:
         return points, dl, dw, nl, nw
-
-    if nucleation_x is not None:
-        dist_x = num.abs(nucleation_x - points[:, 0])
-    else:
-        dist_x = num.zeros(n)
-
-    if nucleation_y is not None:
-        dist_y = num.abs(nucleation_y - points[:, 1])
-    else:
-        dist_y = num.zeros(n)
-
-    dist = num.sqrt(dist_x**2 + dist_y**2)
-    times = dist / velocity
 
     xtau, amplitudes = stf.discretize_t(deltat, time)
     nt = xtau.size
@@ -2365,7 +2365,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         help='strike direction in [deg], measured clockwise from north')
 
     dip = Float.T(
-        default=90.0,
+        default=0.0,
         help='dip angle in [deg], measured downward from horizontal')
 
     length = Float.T(
@@ -2709,9 +2709,11 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             of the source)
         :type store: :py:class:`pyrocko.gf.store.Store`
 
-        :return: Number of points in strike and dip direction, coordinates
-            (latlondepth) and coordinates (xy on fault) for discrete points
-        :rtype: int, int, :py:class:`numpy.ndarray`, :py:class:`numpy.ndarray`
+        :return: Number of points in strike and dip direction, distance between
+            adjacent points, coordinates (latlondepth) and coordinates
+            (xy on fault) for discrete points
+        :rtype: int, int, float, :py:class:`numpy.ndarray`,
+            :py:class:`numpy.ndarray`
         '''
         anch_x, anch_y = map_anchor[self.anchor]
 
@@ -2875,6 +2877,14 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             _, points_xy, vr, times = self.discretize_time(
                 store=store, *args, **kwargs)
 
+            if self.length <= 0.:
+                raise ValueError(
+                    'length must be larger then 0. not %g' % self.length)
+
+            if self.width <= 0.:
+                raise ValueError(
+                    'width must be larger then 0. not %g' % self.width)
+
             nx, ny = times.shape
             anch_x, anch_y = map_anchor[self.anchor]
 
@@ -2940,8 +2950,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             north_shift=self.north_shift, east_shift=self.east_shift,
             depth=self.depth,
             al1=al1, al2=al2, aw1=aw1, aw2=aw2,
-            poisson=poisson,
-            shearmod=shear_mod,
+            poisson=poisson[0],
+            shearmod=shear_mod[0],
             opening=kwargs.get('opening', 0.))
 
         if not (self.nx and self.ny):
@@ -3122,8 +3132,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             if cum_mom != 0.:
                 m6s *= moment / cum_mom
 
-        dl = num.abs([self.patches[0].al1, self.patches[0].al2]).sum()
-        dw = num.abs([self.patches[0].aw1, self.patches[0].aw2]).sum()
+        dl = -self.patches[0].al1 + self.patches[0].al2
+        dw = -self.patches[0].aw1 + self.patches[0].aw2
 
         ds = meta.DiscretizedMTSource(
             lat=self.lat,
@@ -3150,7 +3160,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                 'Source patches are needed. Please calculate them first.')
 
         self.coef_mat = DislocationInverter.get_coef_mat(
-            self.patches, nthreads=self.nthreads)
+            self.patches, nthreads=self.nthreads, pure_shear=self.pure_shear)
 
     def get_patch_attribute(self, attr):
         '''
@@ -3190,8 +3200,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         npatches = len(self.patches)
         tractions = self.get_tractions()
 
+        time_patch = time
         if time is None:
-            time = self.get_patch_attribute('time').max()
+            time_patch = self.get_patch_attribute('time').max()
 
         if self.coef_mat is None:
             self.calc_coef_mat()
@@ -3202,7 +3213,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                 ' Required shape is (npatches, 3)')
 
         times = self.get_patch_attribute('time') - self.time
-        relevant_sources = num.nonzero(times <= time)[0]
+        relevant_sources = num.nonzero(times <= time_patch)[0]
         disloc_est = num.zeros_like(tractions)
 
         if self.smooth_rupture:
@@ -3215,6 +3226,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             points_x = num.round(time_interpolator.grid[0], decimals=2)
             points_y = num.round(time_interpolator.grid[1], decimals=2)
             times_eikonal = time_interpolator.values
+
+            if time is None:
+                time = times_eikonal.max()
 
             for ip, p in enumerate(self.patches):
                 ul = (p.length_pos + p.al1, p.width_pos + p.aw1)
@@ -3248,7 +3262,15 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             disloc_est *= patch_activation[:, num.newaxis]
 
         if scale_slip and self.slip:
-            disloc_est *= self.slip / disloc_est.max()
+            disloc_est_max = num.linalg.norm(
+                DislocationInverter.get_disloc_lsq(
+                    stress_field=tractions.ravel(),
+                    coef_mat=self.coef_mat,
+                    pure_shear=self.pure_shear, nthreads=self.nthreads,
+                    **kwargs), axis=1).max()
+
+            if disloc_est_max != 0.:
+                disloc_est *= self.slip / disloc_est_max
 
         return disloc_est
 
@@ -3275,7 +3297,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             patch1 du_Strike t2, patch1 du_Dip t2, patch1 du_Tensile t2,
             patch2 du_Strike t2, ...];
             corner times, for which delta slip is computed
-        :rtype: :py:class:`numpy.ndarray`, ``(n_sources, 3, n_times)``
+        :rtype: :py:class:`numpy.ndarray`, ``(n_sources, n_times, 3)``
                 :py:class:`numpy.ndarray`, ``(n_times, 1)``
         '''
         if store and dt:
@@ -3299,7 +3321,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         for itime, t in enumerate(calc_times):
             disloc_est[:, itime, :] = self.get_okada_slip(
-                time=t, **kwargs)
+                time=t, scale_slip=False, **kwargs)
 
         if self.slip:
             norm = num.linalg.norm(disloc_est, axis=2).max()
@@ -3331,41 +3353,51 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :rtype: :py:class:`numpy.ndarray`, ``(n_sources, n_times)``
                 :py:class:`numpy.ndarray`, ``(n_times, 1)``
         '''
-        ddisloc_est, calc_times = self.get_delta_slip(
-            *args, scale_slip=False, **kwargs)
+        ddisloc_est, calc_times = self.get_delta_slip(*args, **kwargs)
         dt = calc_times[1] - calc_times[0]
 
-        slip_change = num.linalg.norm(ddisloc_est, axis=1) / dt
+        slip_rate = num.linalg.norm(ddisloc_est, axis=2) / dt
         shear_mod = num.mean(self.get_patch_attribute('shearmod'))
         dA = num.array([p.length * p.width for p in self.patches])
 
-        return shear_mod * slip_change * dA[:, num.newaxis], calc_times
+        mom_rate = shear_mod * slip_rate * dA[:, num.newaxis]
+
+        if self.magnitude is not None:
+            moment = pmt.magnitude_to_moment(self.magnitude)
+            cum_mom = mom_rate.sum() * dt
+
+            if cum_mom != 0.:
+                mom_rate *= moment / cum_mom
+
+        return mom_rate, calc_times
 
     def get_moment_rate(self, store, deltat=None):
-        if not deltat:
-            deltat = store.config.deltat
-        return self.discretize_basesource(store).get_moment_rate(deltat)
-
-    def get_seismic_energy(self, store):
-        mom_rate, mom_times = self.get_moment_rate(store)
-
-    def get_source_moment_rate(self, *args, **kwargs):
         '''
-        Get seismic source moment rate for the total source
+        Get seismic source moment rate for the total source (STF)
 
-        Arguments and keyword arguments needed for self.get_okada_slip.
+        :param store: Greens function database (needs to cover whole region of
+            of the source). Its delta t [s] is used as time increment for slip
+            difference calculation. Either dt or store should be given.
+        :type store: optional, :py:class:`pyrocko.gf.store.Store`
+        :param deltat: time increment for slip difference calculation [s].
+            Either deltat or store should be given.
+        :type deltat: optional, float
 
-        :return: seismic moment rate for each
-            time. order: [
+        :return: seismic moment rate for each time.
+            order: [
             moment_rate t1,
             moment_rate t2, ...];
             corner times, for which moment rate is computed based on slip rate
         :rtype: :py:class:`numpy.ndarray`, ``(n_times, 1)``
                 :py:class:`numpy.ndarray`, ``(n_times, 1)``
         '''
+        if not deltat:
+            deltat = store.config.deltat
+        return self.discretize_basesource(store).get_moment_rate(deltat)
 
-        moment_rate, moment_times = self.get_moment_rate(*args, **kwargs)
-        return num.sum(moment_rate, axis=0), moment_times
+    def get_seismic_energy(self, store):
+        mom_rate, mom_times = self.get_moment_rate(store)
+        # TODO complete or delete
 
 
 class DoubleDCSource(SourceWithMagnitude):
@@ -4128,6 +4160,7 @@ class HorizontalVectorRule(Rule):
         if nonzero(sa):
             data = data + base_seismogram[e].data * sa
 
+<<<<<<< HEAD
         if self.differentiate:
             deltat = base_seismogram[e].deltat
             data = util.diff_fd(self.differentiate, 4, deltat, data)
@@ -4135,6 +4168,8 @@ class HorizontalVectorRule(Rule):
         if self.integrate:
             raise NotImplementedError('Integration is not implemented yet.')
 
+=======
+>>>>>>> 7ee89e76... seismosizer, gf.meta, dynamic_rupture plot: bugfixes
         return data
 
 
@@ -4147,12 +4182,7 @@ class ScalarRule(Rule):
         return (self.c, )
 
     def apply_(self, target, base_seismogram):
-        data = base_seismogram[self.c].data.copy()
-        deltat = base_seismogram[self.c].deltat
-        if self.differentiate:
-            data = util.diff_fd(self.differentiate, 4, deltat, data)
-
-        return data
+        return base_seismogram[self.c].data.copy()
 
 
 class StaticDisplacement(Rule):

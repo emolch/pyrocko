@@ -1,6 +1,7 @@
 import logging
 import numpy as num
-from pyrocko.guts import Object, Float, List, StringChoice
+from pyrocko.guts import Object, Float, List, StringChoice, Int
+from pyrocko.guts_array import Array
 
 logger = logging.getLogger('pyrocko.gf.tractions')
 km = 1e3
@@ -122,6 +123,144 @@ class DirectedTractions(TractionField):
         normal = 0.
 
         return num.tile((strike, dip, normal), npatches).reshape(-1, 3)
+
+
+class SelfSimilarTractions(TractionField):
+    '''
+    Traction model following Power & Tullis (1991)
+
+    The traction vectors are calculated as a sum of 2D-cosines with a constant
+    amplitude / wavelength ratio. The wavenumber kx and ky are constant for
+    each cosine function. The rank defines the maximum wavenumber used for
+    summation. So, e.g. a rank of 3 will lead to a summation of cosines with
+    kx = ky in (1, 2, 3).
+    Each cosine has an associated phases, which defines both the phase shift
+    and also the shift from the rupture plane centre.
+    Finally the summed cosines are translated into shear tractions based on the
+    rake and normalized with traction_max.
+
+    '''
+    rank = Int.T(
+        default=1,
+        help='maximum summed cosine wavenumber/spatial frequency.')
+
+    rake = Float.T(
+        default=0.,
+        help='rake angle in [deg], '
+             'measured counter-clockwise from right-horizontal '
+             'in on-plane view. Rake is translated into homogenous tractions '
+             'in strike and up-dip direction.')
+
+    traction_max = Float.T(
+        default=1.,
+        help='maximum traction vector length [Pa]')
+
+    phases = Array.T(
+        optional=True,
+        dtype=num.float,
+        shape=(None,),
+        help='phase shift of the cosines in [rad].')
+
+    def get_phases(self):
+        if self.phases is not None:
+            if self.phases.shape[0] == self.rank:
+                return self.phases
+
+        return (num.random.random(self.rank) * 2. - 1.) * num.pi
+
+    def get_tractions(self, nx, ny, patches=None):
+        z = num.zeros((ny, nx))
+        phases = self.get_phases()
+
+        for i in range(1, self.rank+1):
+            x = num.linspace(-i*num.pi, i*num.pi, nx) + i*phases[i-1]
+            y = num.linspace(-i*num.pi, i*num.pi, ny) + i*phases[i-1]
+            x, y = num.meshgrid(x, y)
+            r = num.sqrt(x**2 + y**2)
+            z += 1. / i * num.cos(r + phases[i-1])
+
+        t = num.zeros((nx*ny, 3))
+        t[:, 0] = num.cos(self.rake*d2r) * z.ravel(order='F')
+        t[:, 1] = num.sin(self.rake*d2r) * z.ravel(order='F')
+
+        t *= self.traction_max / num.max(num.linalg.norm(t, axis=1))
+
+        return t
+
+
+class FractalTractions(TractionField):
+    no_rstate = Int.T(
+        default=None,
+        optional=True,
+        help='index of the numpy random state used. If None, an arbitrary '
+             'random state is initialized.')
+
+    rake = Float.T(
+        default=0.,
+        help='rake angle in [deg], '
+             'measured counter-clockwise from right-horizontal '
+             'in on-plane view. Rake is translated into homogenous tractions '
+             'in strike and up-dip direction.')
+
+    traction_max = Float.T(
+        default=1.,
+        help='maximum traction vector length[Pa]')
+
+    _data = None
+
+    def _get_data(self, nx, ny):
+        if self._data is None:
+            rstate = num.random.RandomState(self.no_rstate)
+            self._data = rstate.rand(nx, ny)
+
+        return self._data
+
+    def get_tractions(self, nx, ny, patches=None):
+        if patches is None:
+            raise AttributeError(
+                'patches needs to be given for this traction field')
+
+        dx = -patches[0].al1 + patches[0].al2
+        dy = -patches[0].aw1 + patches[0].aw2
+
+        # Create random data and get spectrum and power spectrum
+        data = self._get_data(nx, ny)
+        spec = num.fft.fftshift(num.fft.fft2(data))
+        power_spec = (num.abs(spec)/spec.size)**2
+
+        # Get 0-centered wavenumbers (k_rad == 0.) is in the centre
+        kx = num.fft.fftshift(num.fft.fftfreq(nx, d=dx))
+        ky = num.fft.fftshift(num.fft.fftfreq(ny, d=dy))
+        k_rad = num.sqrt(ky[:, num.newaxis]**2 + kx[num.newaxis, :]**2)
+
+        # Define wavenumber bins
+        k_bins = num.arange(0, num.max(k_rad), num.max(k_rad)/10.)
+
+        # Set amplitudes within wavenumber bins to power spec * 1 / k_max
+        amps = num.zeros(k_rad.shape)
+        amps[k_rad == 0.] = 1.
+
+        for i in range(k_bins.size-1):
+            k_min = k_bins[i]
+            k_max = k_bins[i+1]
+            r = num.logical_and(k_rad > k_min, k_rad <= k_max)
+            amps[r] = power_spec.T[r]
+            amps = num.sqrt(amps * data.size * num.pi * 4)
+
+        amps[k_rad > k_bins.max()] = power_spec.ravel()[num.argmax(power_spec)]
+
+        # Multiply spectrum by amplitudes and inverse fft into demeaned noise
+        spec *= amps.T
+
+        tractions = num.abs(num.fft.ifft2(spec))
+        tractions -= num.mean(tractions)
+        tractions *= self.traction_max / num.max(num.abs(tractions))
+
+        t = num.zeros((nx * ny, 3))
+        t[:, 0] = num.cos(self.rake*d2r) * tractions.ravel(order='C')
+        t[:, 1] = num.sin(self.rake*d2r) * tractions.ravel(order='C')
+
+        return t
 
 
 class RectangularTaper(AbstractTractionField):

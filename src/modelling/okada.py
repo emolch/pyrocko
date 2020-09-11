@@ -677,8 +677,8 @@ class DislocationInverter(object):
 
         with threadpool_limits(limits=nthreads, user_api='blas'):
             try:
-                disloc_est[idx] = num.linalg.multi_dot([num.linalg.inv(
-                    num.dot(coef_mat_in.T, coef_mat_in)),
+                disloc_est[idx] = num.linalg.multi_dot([
+                    num.linalg.inv(num.dot(coef_mat_in.T, coef_mat_in)),
                     coef_mat_in.T,
                     stress_field[idx]])
             except num.linalg.LinAlgError as e:

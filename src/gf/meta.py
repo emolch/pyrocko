@@ -1322,13 +1322,18 @@ class DiscretizedMTSource(DiscretizedSource):
     def get_moment_rate(self, deltat=None):
         moments = self.moments()
 
-        duration = self.times.max() - self.times.min()
-        nbins = math.ceil(duration / deltat)
+        t_min = self.times.min()
 
-        mom_rate, mom_times = num.histogram(
-            self.times, bins=nbins, weights=moments)
+        duration = self.times.max() - t_min
+        nbins = math.ceil(duration / deltat) + 1
+        bins = num.arange(t_min, nbins*deltat+t_min, deltat)
 
-        mom_times = mom_times[:-1] + deltat
+        mom, mom_times = num.histogram(
+            self.times, bins=bins, weights=moments)
+
+        mom_rate = mom / deltat
+        mom_times = mom_times[:-1] + (deltat - t_min)
+
         return mom_rate, mom_times
 
     def centroid(self):
