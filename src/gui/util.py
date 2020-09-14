@@ -1097,3 +1097,236 @@ class PixmapFrame(qw.QLabel):
             filename, _ = qw.QFileDialog.getSaveFileName(
                 self.parent(), caption='save as')
         self.pixmap.save(filename)
+
+
+class Projection(object):
+    def __init__(self):
+        self.xr = 0., 1.
+        self.ur = 0., 1.
+
+    def set_in_range(self, xmin, xmax):
+        if xmax == xmin:
+            xmax = xmin + 1.
+
+        self.xr = xmin, xmax
+
+    def get_in_range(self):
+        return self.xr
+
+    def set_out_range(self, umin, umax):
+        if umax == umin:
+            umax = umin + 1.
+
+        self.ur = umin, umax
+
+    def get_out_range(self):
+        return self.ur
+
+    def __call__(self, x):
+        umin, umax = self.ur
+        xmin, xmax = self.xr
+        return umin + (x-xmin)*((umax-umin)/(xmax-xmin))
+
+    def clipped(self, x):
+        umin, umax = self.ur
+        xmin, xmax = self.xr
+        return min(umax, max(umin, umin + (x-xmin)*((umax-umin)/(xmax-xmin))))
+
+    def rev(self, u):
+        umin, umax = self.ur
+        xmin, xmax = self.xr
+        return xmin + (u-umin)*((xmax-xmin)/(umax-umin))
+
+
+class NoData(Exception):
+    pass
+
+
+class RangeEdit(qw.QFrame):
+
+    rangeChanged = qc.pyqtSignal()
+
+    def __init__(self, parent=None):
+        qw.QFrame.__init__(self, parent)
+        self.setFrameStyle(qw.QFrame.StyledPanel | qw.QFrame.Plain)
+        # self.setBackgroundRole(qg.QPalette.Button)
+        # self.setAutoFillBackground(True)
+        poli = qw.QSizePolicy(
+            qw.QSizePolicy.Expanding,
+            qw.QSizePolicy.Fixed)
+
+        self.setSizePolicy(poli)
+        self.setMinimumSize(100, 24)
+        self.projection = Projection()
+        self._default_data_range = (0., 1.)
+
+        self._size_hint = qw.QPushButton().sizeHint()
+
+        self._tmin = 0.25
+        self._tmax = 0.75
+
+        self._need_initial_range = True
+
+        self._track_start = None
+        self._track_trange = None
+        self._provider = None
+
+    def set_default_data_range(self, tmin, tmax):
+        self._default_data_range = (tmin, tmax)
+
+    def set_data_provider(self, provider):
+        self._provider = provider
+
+    def set_data_name(self, name):
+        self._data_name = name
+
+    def sizeHint(self):
+        return self._size_hint
+
+    def get_data_range(self):
+        if self._provider:
+            vals = []
+            for data in self._provider.iter_data(self._data_name):
+                vals.append(data.min())
+                vals.append(data.max())
+
+            if vals:
+                return min(vals), max(vals)
+            else:
+                raise NoData()
+
+    def get_histogram(self):
+        umin_w, umax_w = self.projection.get_out_range()
+        tmin_w, tmax_w = self.projection.get_in_range()
+        nbins = int(umax_w - umin_w)
+        counts = num.zeros(nbins, dtype=num.int)
+        if self._provider:
+            nprocessed = 0
+            for data in self._provider.iter_data(self._data_name):
+                ibins = ((data - tmin_w) * (nbins / (tmax_w - tmin_w))) \
+                    .astype(num.int)
+                num.clip(ibins, 0, nbins-1, ibins)
+                counts += num.bincount(ibins, minlength=nbins)
+                nprocessed += 1
+
+            if nprocessed == 0:
+                self._need_initial_range = True
+
+        histogram = counts * 24 // (num.max(counts[1:-1]) or 1)
+        bitmap = num.zeros((24, nbins), dtype=num.bool)
+        for i in range(24):
+            bitmap[23-i, :] = histogram > i
+
+        bitmap = num.packbits(bitmap, axis=1, bitorder='little')
+
+        return qg.QBitmap.fromData(
+            qc.QSize(nbins, 24),
+            bitmap.tobytes(),
+            qg.QImage.Format_MonoLSB)
+
+    def drawit(self, painter):
+        self.projection.set_out_range(0., self.width())
+
+        vmin = 0
+        vmax = self.height()
+
+        palette = self.palette()
+
+        umin_w, umax_w = self.projection.get_out_range()
+        umin = self.projection(self._tmin)
+        umax = self.projection(self._tmax)
+
+        rect_w = qc.QRectF(umin_w, vmin, float(umax_w-umin_w), vmax-vmin)
+        rect = qc.QRectF(umin, vmin, float(umax-umin), vmax-vmin)
+
+        # style = self.style()
+
+        # option = qw.QStyleOptionFrame()
+        # option.initFrom(self)
+        # option.state = qw.QStyle.State_Sunken
+        # style.drawPrimitive(
+        # qw.QStyle.PE_FrameLineEdit, option, painter, self)
+
+        fill_brush = palette.brush(qg.QPalette.AlternateBase)
+        painter.fillRect(rect_w, fill_brush)
+
+        fill_brush = palette.brush(qg.QPalette.Base)
+        painter.fillRect(rect, fill_brush)
+
+        frame_pen = qg.QPen(palette.color(qg.QPalette.ButtonText))
+        painter.setPen(frame_pen)
+        painter.drawRect(rect)
+        painter.drawRect(rect_w)
+
+        painter.drawPixmap(0, 0, self.get_histogram())
+
+    def set_range(self, tmin, tmax):
+        if None in (tmin, tmax):
+            tmin = 0.0
+            tmax = 1.0
+        elif tmin == tmax:
+            tmin -= 0.5
+            tmax += 0.5
+
+        self.projection.set_in_range(tmin, tmax)
+        self.rangeChanged.emit()
+
+    def get_range(self):
+        return self.projection.get_in_range()
+
+    def update_data_range(self):
+        if self._need_initial_range:
+            try:
+                self.projection.set_in_range(*self.get_data_range())
+                self._need_initial_range = False
+            except NoData:
+                self.projection.set_in_range(*self._default_data_range)
+                self._need_initial_range = True
+
+    def paintEvent(self, paint_ev):
+        painter = qg.QPainter(self)
+
+        painter.setRenderHint(qg.QPainter.Antialiasing)
+
+        self.update_data_range()
+
+        self.drawit(painter)
+        qw.QFrame.paintEvent(self, paint_ev)
+
+    def mousePressEvent(self, mouse_ev):
+        self.update_data_range()
+        # point = self.mapFromGlobal(mouse_ev.globalPos())
+
+        if mouse_ev.button() == qc.Qt.LeftButton:
+            self._track_start = mouse_ev.x(), mouse_ev.y()
+            self._track_trange = self.projection.get_in_range()
+
+        self.update()
+
+    def mouseReleaseEvent(self, mouse_ev):
+        if self._track_start:
+            self.update()
+
+        self._track_start = None
+        self._track_trange = None
+
+    def mouseMoveEvent(self, mouse_ev):
+        point = self.mapFromGlobal(mouse_ev.globalPos())
+
+        if self._track_start is not None:
+            x0, y0 = self._track_start
+            dx = (point.x() - x0)/float(self.width())
+            dy = (point.y() - y0)/float(self.height())
+
+            tmin0, tmax0 = self._track_trange
+
+            scale = math.exp(-dy)
+            dtr = scale * (tmax0-tmin0) - (tmax0-tmin0)
+            frac = x0/float(self.width())
+            dt = dx*(tmax0-tmin0)*scale
+
+            self.set_range(
+                tmin0 - dt - dtr*frac,
+                tmax0 - dt + dtr*(1.-frac))
+
+            self.update()
