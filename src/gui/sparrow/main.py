@@ -24,9 +24,9 @@ from pyrocko import guts
 from pyrocko import geonames
 from pyrocko import moment_tensor as pmt
 
-from pyrocko.gui.util import Progressbars
+from pyrocko.gui.util import Progressbars, RangeEdit
 from pyrocko.gui.qt_compat import qw, qc, use_pyqt5, fnpatch
-from pyrocko.gui import vtk_util
+# from pyrocko.gui import vtk_util
 
 from . import common, light, snapshots
 
@@ -38,7 +38,6 @@ if use_pyqt5:  # noqa
     from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 else:
     from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-
 
 from pyrocko import geometry
 from . import state as vstate, elements
@@ -145,7 +144,8 @@ class Viewer(qw.QMainWindow):
     def __init__(self, use_depth_peeling=True, events=None):
         qw.QMainWindow.__init__(self)
 
-        self._planetradius = cake.earthradius
+        self.planet_radius = cake.earthradius
+        self.feature_radius_min = cake.earthradius - 1000. * km
 
         self._panel_togglers = {}
         self._actors = set()
@@ -201,6 +201,7 @@ class Viewer(qw.QMainWindow):
         self.state = vstate.ViewerState()
         self.gui_state = vstate.ViewerGuiState()
 
+        self.data_providers = []
         self.listeners = []
         self.elements = {}
 
@@ -328,7 +329,6 @@ class Viewer(qw.QMainWindow):
         self._animation_saver = None
 
         self.closing = False
-        # self.test_overlay()
 
     def export_image(self):
 
@@ -500,45 +500,6 @@ class Viewer(qw.QMainWindow):
         for estate, element in self._elements.items():
             if estate not in self.state.elements:
                 element.unset_parent()
-
-    def test_overlay(self):
-
-        size_x, size_y = self.renwin.GetSize()
-        cx = size_x / 2.0
-        # cy = size_y / 2.0
-
-        vertices = num.array([
-            [cx - 100., cx - 100., 0.0],
-            [cx - 100., cx + 100., 0.0],
-            [cx + 100., cx + 100., 0.0],
-            [cx + 100., cx - 100., 0.0],
-            [cx - 100., cx - 100., 0.0]])
-
-        vpoints = vtk.vtkPoints()
-        vpoints.SetNumberOfPoints(vertices.shape[0])
-        vpoints.SetData(vtk_util.numpy_to_vtk(vertices))
-
-        faces = num.array([[0, 1, 2, 3]], dtype=num.int)
-        cells = vtk_util.faces_to_cells(faces)
-
-        pd = vtk.vtkPolyData()
-        pd.SetPoints(vpoints)
-        pd.SetLines(cells)
-
-        mapper = vtk.vtkPolyDataMapper2D()
-
-        vtk_util.vtk_set_input(mapper, pd)
-
-        act = vtk.vtkActor2D()
-        act.SetMapper(mapper)
-
-        prop = act.GetProperty()
-        prop.SetColor(1.0, 1.0, 1.0)
-        prop.SetOpacity(0.5)
-        prop.SetLineWidth(2.0)
-        # prop.EdgeVisibilityOn()
-
-        self.ren.AddActor2D(act)
 
     def add_actor_2d(self, actor):
         if actor not in self._actors_2d:
@@ -811,11 +772,11 @@ class Viewer(qw.QMainWindow):
         self.register_state_listener(update_render_settings)
         self.state.add_listener(update_render_settings, 'lighting')
 
-        layout.addWidget(qw.QLabel('T<sub>MIN</sub> UTC:'), 5, 0)
+        layout.addWidget(qw.QLabel('T<sub>MIN</sub>:'), 5, 0)
         le_tmin = qw.QLineEdit()
         layout.addWidget(le_tmin, 5, 1)
 
-        layout.addWidget(qw.QLabel('T<sub>MAX</sub> UTC:'), 6, 0)
+        layout.addWidget(qw.QLabel('T<sub>MAX</sub>:'), 6, 0)
         le_tmax = qw.QLineEdit()
         layout.addWidget(le_tmax, 6, 1)
 
@@ -866,7 +827,25 @@ class Viewer(qw.QMainWindow):
         self.tmin_lineedit = le_tmin
         self.tmax_lineedit = le_tmax
 
-        layout.addWidget(ZeroFrame(), 7, 0, 1, 2)
+        range_edit = RangeEdit()
+        range_edit.set_data_provider(self)
+        range_edit.set_data_name('time')
+
+        def range_to_range_edit(state, widget):
+            widget.blockSignals(True)
+            widget.set_range(state.tmin, state.tmax)
+            widget.blockSignals(False)
+
+        def range_edit_to_range(widget, state):
+            self.state.tmin, self.state.tmax = widget.get_range()
+
+        self._state_bind(
+            ['tmin', 'tmax'], range_edit_to_range,
+            range_edit, [range_edit.rangeChanged], range_to_range_edit)
+
+        layout.addWidget(range_edit, 7, 0, 1, 2)
+
+        layout.addWidget(ZeroFrame(), 8, 0, 1, 2)
 
         return frame
 
@@ -886,7 +865,7 @@ class Viewer(qw.QMainWindow):
         def rtp2xyz(rtp):
             return geometry.rtp2xyz(rtp[num.newaxis, :])[0]
 
-        radius = 1.0 - self.state.depth / self._planetradius
+        radius = 1.0 - self.state.depth / self.planet_radius
 
         cam_rtp = num.array([
             radius+self.state.distance,
@@ -924,14 +903,20 @@ class Viewer(qw.QMainWindow):
         camera.SetFocalPoint(*foc)
         camera.SetViewUp(*up)
 
-        horizon = math.sqrt(max(0., num.sum(cam**2) - 1.0))
+        planet_horizon = math.sqrt(max(0., num.sum(cam**2) - 1.0))
 
-        if horizon == 0.0:
-            horizon = 2.0 + self.state.distance
+        feature_horizon = math.sqrt(max(0., num.sum(cam**2) - (self.feature_radius_min / self.planet_radius)**2))
 
-        horizon = max(0.5, horizon)
+        # if horizon == 0.0:
+        #     horizon = 2.0 + self.state.distance
 
-        camera.SetClippingRange(0.0001, horizon)
+        #clip_dist = max(min(self.state.distance*5., max(1.0, num.sqrt(num.sum(cam**2)))), feature_horizon) # , math.sqrt(num.sum(cam**2)))
+        clip_dist = max(1.0, feature_horizon) # , math.sqrt(num.sum(cam**2)))
+        #clip_dist = feature_horizon
+
+        camera.SetClippingRange(0.0001, clip_dist)
+
+        self.camera_params = (cam, up, foc, planet_horizon, feature_horizon, clip_dist)
 
         self.update_view()
 
@@ -977,6 +962,19 @@ class Viewer(qw.QMainWindow):
         self.removeDockWidget(dockwidget)
         dockwidget.setParent(None)
         self.panels_menu.removeAction(self._panel_togglers[dockwidget])
+
+    def register_data_provider(self, provider):
+        if provider not in self.data_providers:
+            self.data_providers.append(provider)
+
+    def unregister_data_provider(self, provider):
+        if provider in self.data_providers:
+            self.data_providers.remove(provider)
+
+    def iter_data(self, name):
+        for provider in self.data_providers:
+            for data in provider.iter_data(name):
+                yield data
 
     def closeEvent(self, event):
         event.accept()

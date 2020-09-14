@@ -5,6 +5,7 @@
 
 from __future__ import absolute_import, print_function, division
 
+import numpy as num
 import vtk
 
 from pyrocko.guts import Bool, StringChoice, Float
@@ -31,6 +32,12 @@ class CoastlinesPipe(object):
     def __init__(self, resolution='low'):
 
         self.mapper = vtk.vtkDataSetMapper()
+        self.plane = vtk.vtkPlane()
+        self.plane.SetOrigin(0.0, 0.0, 0.0)
+        coll = vtk.vtkPlaneCollection()
+        coll.AddItem(self.plane)
+        self.mapper.SetClippingPlanes(coll)
+
         self._polyline_grid = {}
         self._opacity = 1.0
         self.set_resolution(resolution)
@@ -80,6 +87,10 @@ class CoastlinesPipe(object):
             self.prop.SetOpacity(opacity)
             self._opacity = opacity
 
+    def set_clipping_plane(self, origin, normal):
+        self.plane.SetOrigin(*origin)
+        self.plane.SetNormal(*normal)
+
 
 class CoastlinesState(ElementState):
     visible = Bool.T(default=True)
@@ -109,6 +120,7 @@ class CoastlinesElement(Element):
         state.add_listener(upd, 'visible')
         state.add_listener(upd, 'resolution')
         state.add_listener(upd, 'opacity')
+
         self._state = state
 
     def unbind_state(self):
@@ -118,7 +130,19 @@ class CoastlinesElement(Element):
         self._parent = parent
         self._parent.add_panel(
             self.get_name(), self._get_controls(), visible=True)
+
+        upd = self.update_clipping
+        self._listeners.append(upd)
+
+        self._parent.state.add_listener(upd, 'lat')
+        self._parent.state.add_listener(upd, 'lon')
+        self._parent.state.add_listener(upd, 'depth')
+        self._parent.state.add_listener(upd, 'distance')
+        self._parent.state.add_listener(upd, 'azimuth')
+        self._parent.state.add_listener(upd, 'dip')
+
         self.update()
+        self.update_clipping()
 
     def unset_parent(self):
         self.unbind_state()
@@ -148,6 +172,12 @@ class CoastlinesElement(Element):
             self._coastlines.set_opacity(state.opacity)
 
         self._parent.update_view()
+
+    def update_clipping(self, *args):
+        if self._state.visible and self._coastlines:
+            cam = self._parent.camera_params[0]
+            origin = cam / num.linalg.norm(cam)**2
+            self._coastlines.set_clipping_plane(origin, cam)
 
     def _get_controls(self):
         if not self._controls:

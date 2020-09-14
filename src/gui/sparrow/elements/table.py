@@ -114,7 +114,13 @@ class TableElement(base.Element):
         self._parent.state.add_listener(update_alpha, 'tmin')
         self._parent.state.add_listener(update_alpha, 'tmax')
 
+        self._parent.register_data_provider(self)
+
         self.update()
+
+    def iter_data(self, name):
+        if self._table and self._table.has_col(name):
+            yield self._table.get_col(name)
 
     def set_table(self, table):
         self._table = table
@@ -128,6 +134,8 @@ class TableElement(base.Element):
     def unset_parent(self):
         self.unbind_state()
         if self._parent:
+            self._parent.unregister_data_provider()
+
             self._clear_pipes()
 
             if self._controls:
