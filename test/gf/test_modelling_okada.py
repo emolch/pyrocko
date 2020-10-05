@@ -12,6 +12,7 @@ from ..common import Benchmark
 benchmark = Benchmark()
 
 d2r = num.pi / 180.
+r2d = 180. / num.pi
 km = 1000.
 
 
@@ -678,6 +679,43 @@ class OkadaTestCase(unittest.TestCase):
             add_subplot(fig, 3, 2, r'$\Delta u_{dip}$', 1, typ='scatter')
             add_subplot(fig, 3, 3, r'$\Delta u_{normal}$', 2, typ='scatter')
             plt.show()
+
+    def test_patch2m6(self):
+        rstate = num.random.RandomState(123)
+        nbasesrcs = 100
+        strike = 132.
+        dip = 13.
+        lamb = 12.
+        mu = 4.3
+
+        slip_rake = rstate.uniform(0., 2*num.pi, nbasesrcs)
+        slip_shear = rstate.uniform(0., 1., nbasesrcs)
+        slip_norm = rstate.uniform(0., 1., nbasesrcs)
+
+        m6s = okada_ext.patch2m6(
+            strikes=num.full(nbasesrcs, strike),
+            dips=num.full(nbasesrcs, dip),
+            rakes=slip_rake*r2d,
+            disl_shear=slip_shear,
+            disl_norm=slip_norm,
+            lamb=lamb,
+            mu=mu)
+
+        def patch2m6(strike, dip, rake, du_s, du_n):
+            rotmat = mt.euler_to_matrix(dip, strike, -rake)
+            momentmat = num.array(
+                [[lamb * du_n, 0.,          -mu * du_s],
+                 [0.,          lamb * du_n, 0.],
+                 [-mu * du_s,  0.,          (lamb + 2. * mu) * du_n]])
+            return mt.to6(rotmat.T * momentmat * rotmat)
+
+        m6s_old = num.array([
+            patch2m6(
+                strike * d2r, dip * d2r, rake=slip_rake[im],
+                du_s=slip_shear[im], du_n=slip_norm[im])
+            for im in range(nbasesrcs)])
+
+        num.testing.assert_almost_equal(m6s, m6s_old)
 
 
 if __name__ == '__main__':

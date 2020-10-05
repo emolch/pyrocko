@@ -26,7 +26,7 @@ from pyrocko import moment_tensor as pmt
 from pyrocko import trace, util, config, model, eikonal_ext
 from pyrocko.orthodrome import ne_to_latlon
 from pyrocko.model import Location
-from pyrocko.modelling import OkadaSource, DislocationInverter
+from pyrocko.modelling import OkadaSource, DislocationInverter, okada_ext
 
 from . import meta, store, ws
 from .tractions import TractionField, DirectedTractions
@@ -3107,19 +3107,15 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         lamb = num.mean(self.get_patch_attribute('lamb'))
         mu = num.mean(self.get_patch_attribute('shearmod'))
 
-        def patch2m6(strike, dip, rake, du_s, du_n):
-            rotmat = pmt.euler_to_matrix(dip, strike, -rake)
-            momentmat = num.array(
-                [[lamb * du_n, 0., -mu * du_s],
-                 [0., lamb * du_n, 0.],
-                 [-mu * du_s, 0., (lamb + 2. * mu) * du_n]])
-            return pmt.to6(rotmat.T * momentmat * rotmat)
+        m6s = okada_ext.patch2m6(
+            strikes=num.full(nbasesrcs, self.strike),
+            dips=num.full(nbasesrcs, self.dip),
+            rakes=slip_rake*r2d,
+            disl_shear=slip_shear,
+            disl_norm=slip_norm,
+            lamb=lamb,
+            mu=mu)
 
-        m6s = num.array([
-            patch2m6(
-                self.strike * d2r, self.dip * d2r, rake=slip_rake[im],
-                du_s=slip_shear[im], du_n=slip_norm[im])
-            for im in range(nbasesrcs)])
         m6s *= patch_area
 
         if self.magnitude is not None:

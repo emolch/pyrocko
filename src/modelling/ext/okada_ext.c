@@ -775,6 +775,31 @@ void rot_tensor33(
     }
 }
 
+void rot_tensor33_trans(
+        double tensin[3][3],
+        double rotmat[3][3],
+        double tensrot[3][3]) {
+
+    /*
+     * Apply Rotation on tensor
+     * Rotation of a 3x3 tensor with a 3x3 rotation matrix
+    */
+
+    int i, j, m, n;
+
+    for (i=0; i<3; i++) {
+        for (j=0; j<3; j++) {
+            tensrot[i][j] = 0.0;
+
+            for (m=0; m<3; m++){
+                for (n=0; n<3; n++){
+                    tensrot[i][j] += rotmat[m][i]*rotmat[n][j]*tensin[m][n];
+                }
+            }
+        }
+    }
+}
+
 
 void rot_u(
         double uin[12],
@@ -811,13 +836,13 @@ void rot_u(
     }
 }
 
-void euler_to_matrix(double alpha, double beta, double rotmat[3][3]) {
+void euler_to_matrix(double alpha, double beta, double gamma, double rotmat[3][3]) {
     double ca = cos(alpha);
     double cb = cos(beta);
-    double cg = 1.;
+    double cg = cos(gamma);
     double sa = sin(alpha);
     double sb = sin(beta);
-    double sg = 0.;
+    double sg = sin(gamma);
 
     rotmat[0][0] = cb*cg-ca*sb*sg;
     rotmat[0][1] = sb*cg+ca*cb*sg;
@@ -891,7 +916,7 @@ static okada_error_t dc3d_flexi(
     okada_error_t iret;
 
     /* rotmat rotates from NED to XYZ (as used by Okada 1992) */
-    euler_to_matrix((180.*D2R), strike*D2R, rotmat);
+    euler_to_matrix((180.*D2R), strike*D2R, 0., rotmat);
 
     /* calc and rotation of vector Source-Receiver r */
 
@@ -917,7 +942,7 @@ static okada_error_t dc3d_flexi(
 
     rot_u(uokada, rotmat, u);
     if (rot_sdn == 1) {
-        euler_to_matrix((dip + 180.)*D2R, strike*D2R, rotmat);
+        euler_to_matrix((dip + 180.)*D2R, strike*D2R, 0.,  rotmat);
         rot_u(u, rotmat, u);
     }
 
@@ -1091,7 +1116,8 @@ static PyObject* w_dc3d_flexi(PyObject *m, PyObject *args, PyObject *kwds) {
                     for(i=0; i<12; i++) {
                         output[irec*12+i] += uout[i];
                     }
-                } else {
+                }
+                else {
                     for(i=0; i<12; i++) {
                         output[isource*nrec*12 + irec*12+i] = uout[i];
                     }
@@ -1108,12 +1134,117 @@ static PyObject* w_dc3d_flexi(PyObject *m, PyObject *args, PyObject *kwds) {
 }
 
 
+static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
+    unsigned long nsources, isource, i;
+
+    PyObject *strike_arr, *dip_arr, *rake_arr, *disl_shear_arr, *disl_norm_arr, *output_arr;
+    npy_float64 *strike, *dip, *rake, *disl_shear, *disl_norm;
+    npy_float64 *output;
+    double lambda, mu;
+    double rotmat[3][3];
+    double mom_in[3][3];
+    double mom_out[3][3];
+
+    struct module_state *st = GETSTATE(m);
+
+    npy_intp shape_want[1];
+    npy_intp output_dims[3];
+    npy_intp output_ndims = 2;
+
+    static char *kwlist[] = {
+        "strikes", "dips", "rakes", "disl_shear", "disl_norm",
+        "lamb", "mu",
+        NULL
+    };
+
+    if (! PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOdd", kwlist, &strike_arr, &dip_arr, &rake_arr, &disl_shear_arr, &disl_norm_arr, &lambda, &mu)) {
+        PyErr_SetString(st->error, "usage: patch2m6(strikes, dips, rakes, disl_shear, disl_norm, lambda, mu)");
+        return NULL;
+    }
+
+    nsources = PyArray_SHAPE((PyArrayObject*) strike_arr)[0];
+    strike = PyArray_DATA((PyArrayObject*) strike_arr);
+    dip = PyArray_DATA((PyArrayObject*) dip_arr);
+    rake = PyArray_DATA((PyArrayObject*) rake_arr);
+    disl_shear = PyArray_DATA((PyArrayObject*) disl_shear_arr);
+    disl_norm = PyArray_DATA((PyArrayObject*) disl_norm_arr);
+
+    shape_want[0] = nsources;
+    if (! good_array(strike_arr, NPY_FLOAT64, 1, shape_want))
+        return NULL;
+
+    if (! good_array(dip_arr, NPY_FLOAT64, 1, shape_want))
+        return NULL;
+
+    if (! good_array(rake_arr, NPY_FLOAT64, 1, shape_want))
+        return NULL;
+
+    if (! good_array(disl_shear_arr, NPY_FLOAT64, 1, shape_want))
+        return NULL;
+
+    if (! good_array(disl_norm_arr, NPY_FLOAT64, 1, shape_want))
+        return NULL;
+
+    output_dims[0] = nsources;
+    output_dims[1] = 6;
+
+    output_arr = PyArray_EMPTY(output_ndims, output_dims, NPY_FLOAT64, 0);
+    output = PyArray_DATA((PyArrayObject*) output_arr);
+
+    // TODO: Use OpenMP
+    for (isource=0; isource<nsources; isource++){
+        euler_to_matrix(dip[isource]*D2R, strike[isource]*D2R, -rake[isource]*D2R, rotmat);
+
+        mom_in[0][0] = lambda * disl_norm[isource];
+        mom_in[0][1] = 0.;
+        mom_in[0][2] = -mu * disl_shear[isource];
+
+        mom_in[1][0] = 0.;
+        mom_in[1][1] = lambda * disl_norm[isource];
+        mom_in[1][2] = 0.;
+
+        mom_in[2][0] = -mu * disl_shear[isource];
+        mom_in[2][1] = 0.;
+        mom_in[2][2] = (lambda + 2. * mu) * disl_norm[isource];
+
+        rot_tensor33_trans(mom_in, rotmat, mom_out);
+
+        output[isource*6+0] = mom_out[0][0];
+        output[isource*6+1] = mom_out[1][1];
+        output[isource*6+2] = mom_out[2][2];
+        output[isource*6+3] = mom_out[0][1];
+        output[isource*6+4] = mom_out[0][2];
+        output[isource*6+5] = mom_out[1][2];
+
+/*      m6[0] = mom_out[0][0];
+        m6[1] = mom_out[1][1];
+        m6[2] = mom_out[2][2];
+        m6[3] = mom_out[0][1];
+        m6[4] = mom_out[0][2];
+        m6[5] = mom_out[1][2];
+
+        for(i=0; i<6; i++) {
+            output[isource*6+i] = m6[i];
+        }
+*/
+    }
+
+    return (PyObject*) output_arr;
+}
+
+
 static PyMethodDef okada_ext_methods[] = {
     {
         "okada",
         (PyCFunctionWithKeywords) w_dc3d_flexi,
         METH_VARARGS | METH_KEYWORDS,
         "Calculates the static displacement and its derivatives from Okada Source"
+    },
+    {
+        "patch2m6",
+        (PyCFunctionWithKeywords) w_patch2m6,
+        METH_VARARGS | METH_KEYWORDS,
+        "Converts shear and normal dislocation to rotated m6 moment tensor representations"
     },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };

@@ -1179,7 +1179,13 @@ class RuptureView(object):
                 im, shrink=0.9, pad=0.03, aspect=15., *args, **kwargs)
 
     def _draw_contour(self, x, y, data, clevel=None, unit='', *args, **kwargs):
-        self._setup(**kwargs)
+        setup_kwargs = {}
+        setup_kwargs['xlabel'] = kwargs.get('xlabel', 'along strike [km]')
+        setup_kwargs['ylabel'] = kwargs.get('ylabel', 'down dip [km]')
+        setup_kwargs['title'] = kwargs.get('title', '')
+        setup_kwargs['aspect'] = kwargs.get('aspect', 1)
+
+        self._setup(**setup_kwargs)
 
         if self._axes is not None:
             if clevel is None:
@@ -1521,6 +1527,11 @@ class RuptureView(object):
         self._draw_scatter(x=times, y=data[idx, :]/num.max(data),
                            *args, **kwargs)
 
+    def finalize(self):
+        ylim = self._axes.get_ylim()
+        if ylim[0] < ylim[-1]:
+            self._axes.set_ylim(ylim[::-1])
+
     def save(self, filename, dpi=100.):
         ''' Save plot
 
@@ -1530,6 +1541,7 @@ class RuptureView(object):
         :type dpi: float
         '''
 
+        self.finalize()
         self._fig.savefig(fname=filename,
                           dpi=dpi,
                           bbox_inches='tight')
@@ -1540,6 +1552,7 @@ class RuptureView(object):
         ''' Show plot for visual inspection
         '''
 
+        self.finalize()
         plt.show()
         self._clear_all()
 
