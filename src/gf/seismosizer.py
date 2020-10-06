@@ -3015,7 +3015,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         pwd = self.width / self.ny
 
         patch_coords = num.array([
-            (p.length_pos, p.width_pos)
+            (p.ix, p.iy)
             for p in self.patches]).reshape(self.nx, self.ny, 2)
 
         # boundary condition is zero-slip
@@ -3227,8 +3227,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                 time = times_eikonal.max()
 
             for ip, p in enumerate(self.patches):
-                ul = (p.length_pos + p.al1, p.width_pos + p.aw1)
-                lr = (p.length_pos + p.al2, p.width_pos + p.aw2)
+                ul = (p.ix + p.al1, p.iy + p.aw1)
+                lr = (p.ix + p.al2, p.iy + p.aw2)
 
                 idx_length, *_ = num.where((
                     points_x >= ul[0]) & (points_x <= lr[0]))

@@ -7,7 +7,7 @@ import logging
 
 from pyrocko import moment_tensor as mt
 import pyrocko.guts as guts
-from pyrocko.guts import Float, String, Timestamp
+from pyrocko.guts import Float, String, Timestamp, Int
 from pyrocko.model import Location
 from pyrocko.modelling import okada_ext
 from pyrocko.util import get_threadpool_limits
@@ -269,8 +269,8 @@ class OkadaSource(AnalyticalRectangularSource):
         return (
             [OkadaPatch(
                  parent=self,
-                 length_pos=src_point[0],
-                 width_pos=src_point[1],
+                 ix=src_point[0],
+                 iy=src_point[1],
                  north_shift=coord[0],
                  east_shift=coord[1],
                  depth=coord[2],
@@ -281,11 +281,12 @@ class OkadaSource(AnalyticalRectangularSource):
 
 class OkadaPatch(OkadaSource):
 
-    def __init__(self, parent, width_pos, length_pos, *args, **kwargs):
+    ix = Int.T(help='Relative index of the patch in x')
+    iy = Int.T(help='Relative index of the patch in y')
+
+    def __init__(self, *args, parent=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.parent = parent
-        self.length_pos = length_pos
-        self.width_pos = width_pos
 
 
 class DislocationInverter(object):
