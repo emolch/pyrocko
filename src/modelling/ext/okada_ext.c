@@ -1121,7 +1121,6 @@ static PyObject* w_dc3d_flexi(PyObject *m, PyObject *args, PyObject *kwds) {
                     for(i=0; i<12; i++) {
                         output[isource*nrec*12 + irec*12+i] = uout[i];
                     }
-                    // memcpy(output + isource*nrec*12 + irec*12, uout, size_rec);
                 }
             }
         }
@@ -1136,6 +1135,7 @@ static PyObject* w_dc3d_flexi(PyObject *m, PyObject *args, PyObject *kwds) {
 
 static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
     unsigned long nsources, isource, i;
+    // int nthreads;
 
     PyObject *strike_arr, *dip_arr, *rake_arr, *disl_shear_arr, *disl_norm_arr, *output_arr;
     npy_float64 *strike, *dip, *rake, *disl_shear, *disl_norm;
@@ -1151,13 +1151,18 @@ static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
     npy_intp output_dims[3];
     npy_intp output_ndims = 2;
 
+    // nthreads = 1;
+
     static char *kwlist[] = {
         "strikes", "dips", "rakes", "disl_shear", "disl_norm",
         "lamb", "mu",
+        // "nthreads",
         NULL
     };
 
-    if (! PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOdd", kwlist, &strike_arr, &dip_arr, &rake_arr, &disl_shear_arr, &disl_norm_arr, &lambda, &mu)) {
+    // if (! PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOdd|I", kwlist, &strike_arr, &dip_arr, &rake_arr, &disl_shear_arr, &disl_norm_arr, &lambda, &mu, &nthreads)) {
+    //     PyErr_SetString(st->error, "usage: patch2m6(strikes, dips, rakes, disl_shear, disl_norm, lambda, mu, nthreads=0)");
+    if (! PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOdd|I", kwlist, &strike_arr, &dip_arr, &rake_arr, &disl_shear_arr, &disl_norm_arr, &lambda, &mu)) {
         PyErr_SetString(st->error, "usage: patch2m6(strikes, dips, rakes, disl_shear, disl_norm, lambda, mu)");
         return NULL;
     }
@@ -1191,7 +1196,17 @@ static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
     output_arr = PyArray_EMPTY(output_ndims, output_dims, NPY_FLOAT64, 0);
     output = PyArray_DATA((PyArrayObject*) output_arr);
 
-    // TODO: Use OpenMP
+    // #if defined(_OPENMP)
+    //     Py_BEGIN_ALLOW_THREADS
+    //     if (nthreads <= 0)
+    //         nthreads = omp_get_num_procs();
+    //     #pragma omp parallel\
+    //         shared(nsources, lambda, mu, strike, dip, rake, disl_norm, disl_shear, output)\
+    //         private(mom_in, mom_out, isource)\
+    //         num_threads(nthreads)
+    //     {
+    //     #pragma omp for schedule(static)
+    // #endif
     for (isource=0; isource<nsources; isource++){
         euler_to_matrix(dip[isource]*D2R, strike[isource]*D2R, -rake[isource]*D2R, rotmat);
 
@@ -1215,19 +1230,11 @@ static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
         output[isource*6+3] = mom_out[0][1];
         output[isource*6+4] = mom_out[0][2];
         output[isource*6+5] = mom_out[1][2];
-
-/*      m6[0] = mom_out[0][0];
-        m6[1] = mom_out[1][1];
-        m6[2] = mom_out[2][2];
-        m6[3] = mom_out[0][1];
-        m6[4] = mom_out[0][2];
-        m6[5] = mom_out[1][2];
-
-        for(i=0; i<6; i++) {
-            output[isource*6+i] = m6[i];
-        }
-*/
     }
+    // #if defined(_OPENMP)
+    //     }
+    //     Py_END_ALLOW_THREADS
+    // #endif
 
     return (PyObject*) output_arr;
 }
