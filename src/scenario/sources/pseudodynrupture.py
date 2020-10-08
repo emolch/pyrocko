@@ -52,6 +52,9 @@ class PseudoDynamicRuptureGenerator(SourceGenerator):
     length = Float.T(
         optional=True)
 
+    gamma = Float.T(
+        optional=True)
+
     def get_source(self, ievent):
         rstate = self.get_rstate(ievent)
         time = rstate.uniform(self.time_min, self.time_max)
@@ -117,7 +120,8 @@ class PseudoDynamicRuptureGenerator(SourceGenerator):
             nx=self.nx,
             ny=self.ny,
             decimation_factor=self.decimation_factor,
-            smooth_rupture=True)
+            smooth_rupture=True,
+            gamma=self.gamma if self.gamma else None)
 
         return source
 
