@@ -1134,8 +1134,7 @@ static PyObject* w_dc3d_flexi(PyObject *m, PyObject *args, PyObject *kwds) {
 
 
 static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
-    unsigned long nsources, isource, i;
-    // int nthreads;
+    unsigned long nsources, isource;
 
     PyObject *strike_arr, *dip_arr, *rake_arr, *disl_shear_arr, *disl_norm_arr, *output_arr;
     npy_float64 *strike, *dip, *rake, *disl_shear, *disl_norm;
@@ -1151,19 +1150,16 @@ static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
     npy_intp output_dims[3];
     npy_intp output_ndims = 2;
 
-    // nthreads = 1;
+    int nthreads = 1;
 
     static char *kwlist[] = {
         "strikes", "dips", "rakes", "disl_shear", "disl_norm",
-        "lamb", "mu",
-        // "nthreads",
+        "lamb", "mu", "nthreads",
         NULL
     };
 
-    // if (! PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOdd|I", kwlist, &strike_arr, &dip_arr, &rake_arr, &disl_shear_arr, &disl_norm_arr, &lambda, &mu, &nthreads)) {
-    //     PyErr_SetString(st->error, "usage: patch2m6(strikes, dips, rakes, disl_shear, disl_norm, lambda, mu, nthreads=0)");
-    if (! PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOdd|I", kwlist, &strike_arr, &dip_arr, &rake_arr, &disl_shear_arr, &disl_norm_arr, &lambda, &mu)) {
-        PyErr_SetString(st->error, "usage: patch2m6(strikes, dips, rakes, disl_shear, disl_norm, lambda, mu)");
+    if (! PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOdd|I", kwlist, &strike_arr, &dip_arr, &rake_arr, &disl_shear_arr, &disl_norm_arr, &lambda, &mu, &nthreads)) {
+        PyErr_SetString(st->error, "usage: patch2m6(strikes, dips, rakes, disl_shear, disl_norm, lambda, mu, nthreads=1)");
         return NULL;
     }
 
@@ -1196,45 +1192,49 @@ static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
     output_arr = PyArray_EMPTY(output_ndims, output_dims, NPY_FLOAT64, 0);
     output = PyArray_DATA((PyArrayObject*) output_arr);
 
-    // #if defined(_OPENMP)
-    //     Py_BEGIN_ALLOW_THREADS
-    //     if (nthreads <= 0)
-    //         nthreads = omp_get_num_procs();
-    //     #pragma omp parallel\
-    //         shared(nsources, lambda, mu, strike, dip, rake, disl_norm, disl_shear, output)\
-    //         private(mom_in, mom_out, isource)\
-    //         num_threads(nthreads)
-    //     {
-    //     #pragma omp for schedule(static)
-    // #endif
-    for (isource=0; isource<nsources; isource++){
-        euler_to_matrix(dip[isource]*D2R, strike[isource]*D2R, -rake[isource]*D2R, rotmat);
+    // TODO: Test minimum n sources
+    if (nsources / nthreads <= 250)
+        nthreads = 1;
 
-        mom_in[0][0] = lambda * disl_norm[isource];
-        mom_in[0][1] = 0.;
-        mom_in[0][2] = -mu * disl_shear[isource];
+    #if defined(_OPENMP)
+        Py_BEGIN_ALLOW_THREADS
+        if (nthreads <= 0)
+            nthreads = omp_get_num_procs();
+        #pragma omp parallel\
+            shared(nsources, lambda, mu, strike, dip, rake, disl_norm, disl_shear, output)\
+            private(mom_in, mom_out, isource)\
+            num_threads(nthreads)
+        {
+        #pragma omp for schedule(static)
+    #endif
+        for (isource=0; isource<nsources; isource++){
+            euler_to_matrix(dip[isource]*D2R, strike[isource]*D2R, -rake[isource]*D2R, rotmat);
 
-        mom_in[1][0] = 0.;
-        mom_in[1][1] = lambda * disl_norm[isource];
-        mom_in[1][2] = 0.;
+            mom_in[0][0] = lambda * disl_norm[isource];
+            mom_in[0][1] = 0.;
+            mom_in[0][2] = -mu * disl_shear[isource];
 
-        mom_in[2][0] = -mu * disl_shear[isource];
-        mom_in[2][1] = 0.;
-        mom_in[2][2] = (lambda + 2. * mu) * disl_norm[isource];
+            mom_in[1][0] = 0.;
+            mom_in[1][1] = lambda * disl_norm[isource];
+            mom_in[1][2] = 0.;
 
-        rot_tensor33_trans(mom_in, rotmat, mom_out);
+            mom_in[2][0] = -mu * disl_shear[isource];
+            mom_in[2][1] = 0.;
+            mom_in[2][2] = (lambda + 2. * mu) * disl_norm[isource];
 
-        output[isource*6+0] = mom_out[0][0];
-        output[isource*6+1] = mom_out[1][1];
-        output[isource*6+2] = mom_out[2][2];
-        output[isource*6+3] = mom_out[0][1];
-        output[isource*6+4] = mom_out[0][2];
-        output[isource*6+5] = mom_out[1][2];
-    }
-    // #if defined(_OPENMP)
-    //     }
-    //     Py_END_ALLOW_THREADS
-    // #endif
+            rot_tensor33_trans(mom_in, rotmat, mom_out);
+
+            output[isource*6+0] = mom_out[0][0];
+            output[isource*6+1] = mom_out[1][1];
+            output[isource*6+2] = mom_out[2][2];
+            output[isource*6+3] = mom_out[0][1];
+            output[isource*6+4] = mom_out[0][2];
+            output[isource*6+5] = mom_out[1][2];
+        }
+    #if defined(_OPENMP)
+        }
+        Py_END_ALLOW_THREADS
+    #endif
 
     return (PyObject*) output_arr;
 }

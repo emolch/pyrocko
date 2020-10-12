@@ -173,8 +173,7 @@ class OkadaSource(AnalyticalRectangularSource):
 
     @property
     def moment_magnitude(self):
-        '''
-        Moment magnitude from Seismic moment
+        ''' Moment magnitude from Seismic moment
 
         We assume :math:`M_\\mathrm{w} = {\\frac{2}{3}}\\log_{10}(M_0) - 10.7`
 
@@ -184,8 +183,7 @@ class OkadaSource(AnalyticalRectangularSource):
         return mt.moment_to_magnitude(self.seismic_moment)
 
     def source_patch(self):
-        '''
-        Build source information array for okada_ext.okada input
+        ''' Build source information array for okada_ext.okada input
 
         :return: array of the source data as input for okada_ext.okada
         :rtype: :py:class:`numpy.ndarray`, ``(1, 9)``
@@ -202,11 +200,10 @@ class OkadaSource(AnalyticalRectangularSource):
             self.aw2])
 
     def source_disloc(self):
-        '''
-        Build source dislocation for okada_ext.okada input
+        ''' Build source dislocation for okada_ext.okada input
 
         :return: array of the source dislocation data as input for
-        okada_ext.okada
+            okada_ext.okada
         :rtype: :py:class:`numpy.ndarray`, ``(1, 3)``
         '''
         return num.array([
@@ -215,8 +212,7 @@ class OkadaSource(AnalyticalRectangularSource):
             self.opening])
 
     def discretize(self, nlength, nwidth, *args, **kwargs):
-        '''
-        Discretize the given fault by ``nlength * nwidth`` fault patches
+        ''' Discretize the given fault by ``nlength * nwidth`` fault patches
 
         Discretizing the fault into several sub faults. ``nlength`` is
         number of points in strike direction, ``nwidth`` in down dip direction
@@ -227,7 +223,6 @@ class OkadaSource(AnalyticalRectangularSource):
         :type nlength: int
         :param nwidth: Number of discrete points in faults down-dip direction
         :type nwidth: int
-
         :return: Discrete fault patches
         :rtype: list of :py:class:`pyrocko.modelling.OkadaSource` objects
         '''
