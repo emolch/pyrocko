@@ -72,7 +72,7 @@ source = PseudoDynamicRupture(
     magnitude=mag,
     tractions=tractions.TractionComposition(components=[
         tractions.FractalTractions(
-            rake=0, no_rstate=None, traction_max=traction_ratio[0]),
+            rake=0, rseed=None, traction_max=traction_ratio[0]),
         tractions.DirectedTractions(
             rake=0, traction=1.)]))
 

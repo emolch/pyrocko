@@ -29,3 +29,10 @@
 
 .. automodule:: pyrocko.plot.directivity
     :members:
+
+
+``plot.dynamic_rupture``
+------------------------
+
+.. automodule:: pyrocko.plot.dynamic_rupture
+    :members:

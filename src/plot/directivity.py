@@ -267,6 +267,8 @@ def plot_directivity(
     nucl_depth = source.depth
     nucl_distance = distance
 
+    anch_x, anch_y = map_anchor[source.anchor]
+
     if hasattr(source, 'nucleation_x') and hasattr(source, 'nucleation_y'):
         try:
             iter(source.nucleation_x)

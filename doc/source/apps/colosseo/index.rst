@@ -131,6 +131,7 @@ Double-couple source
 See also :class:`~pyrocko.gf.seismosizer.DCSource`.
 
 .. code-block :: yaml
+
   --- !pf.scenario.DCSourceGenerator
   # How often the are we rolling the dice for this model
   ntries: 10

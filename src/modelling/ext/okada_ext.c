@@ -1192,14 +1192,14 @@ static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
     output_arr = PyArray_EMPTY(output_ndims, output_dims, NPY_FLOAT64, 0);
     output = PyArray_DATA((PyArrayObject*) output_arr);
 
-    // TODO: Test minimum n sources
-    if (nsources / nthreads <= 250)
-        nthreads = 1;
-
     #if defined(_OPENMP)
-        Py_BEGIN_ALLOW_THREADS
         if (nthreads <= 0)
             nthreads = omp_get_num_procs();
+        // TODO: Test minimum n sources
+        if (nsources / nthreads <= 250)
+            nthreads = 1;
+
+        Py_BEGIN_ALLOW_THREADS
         #pragma omp parallel\
             shared(nsources, lambda, mu, strike, dip, rake, disl_norm, disl_shear, output)\
             private(mom_in, mom_out, isource)\
@@ -1210,6 +1210,7 @@ static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
         for (isource=0; isource<nsources; isource++){
             euler_to_matrix(dip[isource]*D2R, strike[isource]*D2R, -rake[isource]*D2R, rotmat);
 
+            // Apparently it is faster when we always set the sparse indices to 0. ~10%
             mom_in[0][0] = lambda * disl_norm[isource];
             mom_in[0][1] = 0.;
             mom_in[0][2] = -mu * disl_shear[isource];
@@ -1243,15 +1244,13 @@ static PyObject* w_patch2m6(PyObject *m, PyObject *args, PyObject *kwds) {
 static PyMethodDef okada_ext_methods[] = {
     {
         "okada",
-        (PyCFunctionWithKeywords) w_dc3d_flexi,
-        METH_VARARGS | METH_KEYWORDS,
-        "Calculates the static displacement and its derivatives from Okada Source"
+        (PyCFunctionWithKeywords) w_dc3d_flexi, METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Calculates the static displacement and its derivatives from Okada Source")
     },
     {
         "patch2m6",
-        (PyCFunctionWithKeywords) w_patch2m6,
-        METH_VARARGS | METH_KEYWORDS,
-        "Converts shear and normal dislocation to rotated m6 moment tensor representations"
+        (PyCFunctionWithKeywords) w_patch2m6, METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Converts shear and normal dislocation to rotated m6 moment tensor representations")
     },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };

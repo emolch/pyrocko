@@ -65,7 +65,7 @@ viewer.show_plot()
 # Initialize the viewer and display the seismic moment release of one single
 # boundary element (patch) over time
 viewer = dynamic_rupture.RuptureView(source=source)
-viewer.draw_boundary_element_dynamics(variable='moment', nx=3, ny=3, deltat=1)
+viewer.draw_patch_dynamics(variable='moment', nx=3, ny=3, deltat=1)
 viewer.show_plot()
 
 # Initialize the viewer and display the traction vector length.

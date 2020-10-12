@@ -2030,19 +2030,19 @@ class RectangularSource(SourceWithDerivedMagnitude):
                  'bottom_left', 'bottom_right'],
         default='center',
         optional=True,
-        help='Anchor point for positioning the plane, can be: top, center or'
-             'bottom and also top_left, top_right,bottom_left,'
-             'bottom_right, center_left and center right')
+        help='Anchor point for positioning the plane, can be: ``top, center '
+             'bottom, top_left, top_right,bottom_left,'
+             'bottom_right, center_left, center right``.')
 
     nucleation_x = Float.T(
         optional=True,
         help='horizontal position of rupture nucleation in normalized fault '
-             'plane coordinates (-1 = left edge, +1 = right edge)')
+             'plane coordinates (``-1.`` = left edge, ``+1.`` = right edge)')
 
     nucleation_y = Float.T(
         optional=True,
         help='down-dip position of rupture nucleation in normalized fault '
-             'plane coordinates (-1 = upper edge, +1 = lower edge)')
+             'plane coordinates (``-1.`` = upper edge, ``+1.`` = lower edge)')
 
     velocity = Float.T(
         default=3500.,
@@ -2354,8 +2354,9 @@ class RectangularSource(SourceWithDerivedMagnitude):
 
 
 class PseudoDynamicRupture(SourceWithDerivedMagnitude):
-    '''
-    Merged Eikonal and Okada Source for quasi-dynamic rupture modeling
+    '''Merged Eikonal and Okada Source for quasi-dynamic rupture modeling.
+
+    Details are described in :doc:`/topics/pseudo-dynamic-rupture`.
     '''
 
     discretized_source_class = meta.DiscretizedMTSource
@@ -2381,35 +2382,35 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                  'bottom_left', 'bottom_right'],
         default='center',
         optional=True,
-        help='Anchor point for positioning the plane, can be: top, center or'
-             ' bottom and also top_left, top_right,bottom_left,'
-             ' bottom_right, center_left and center right')
+        help='Anchor point for positioning the plane, can be: ``top, center, '
+             ' bottom, top_left, top_right,bottom_left,'
+             ' bottom_right, center_left, center right``')
 
     nucleation_x__ = Array.T(
         default=num.array([0.]),
         dtype=num.float,
         serialize_as='list',
         help='horizontal position of rupture nucleation in normalized fault '
-             'plane coordinates (-1 = left edge, +1 = right edge)')
+             'plane coordinates (``-1.`` = left edge, ``+1.`` = right edge)')
 
     nucleation_y__ = Array.T(
         default=num.array([0.]),
         dtype=num.float,
         serialize_as='list',
         help='down-dip position of rupture nucleation in normalized fault '
-             'plane coordinates (-1 = upper edge, +1 = lower edge)')
+             'plane coordinates (``-1.`` = upper edge, ``+1.`` = lower edge)')
 
     nucleation_time__ = Array.T(
         optional=True,
         help='Time in [s] after origin, when nucleation points defined by '
-             'nucleation_x and nucleation_y shall rupture.',
+             '``nucleation_x`` and ``nucleation_y`` rupture.',
         dtype=num.float,
-        shape=(None,))
+        serialize_as='list')
 
     gamma = Float.T(
         default=0.8,
         help='scaling factor between S wave velocity and rupture velocity: '
-             'v_r = gamma * v_s')
+             r':math:`v_r = \gamma * v_s`')
 
     nx = Int.T(
         default=2,
@@ -2421,25 +2422,25 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
     magnitude = Float.T(
         optional=True,
-        help='moment magnitude Mw as in [Hanks and Kanamori, 1979]'
-             'Setting the moment magnitude the tractions/stress field'
-             'will be normalized to accomodate the desired moment magnitude.'
+        help='moment magnitude Mw as in [Hanks and Kanamori, 1979].'
+             ' Setting the moment magnitude the tractions/stress field'
+             ' will be normalized to accomodate the desired moment magnitude. '
              'Mutually exclusive with the slip parameter.')
 
     slip = Float.T(
         optional=True,
-        help='maximum slip of the rectangular source [m]'
-             'Setting the moment magnitude the tractions/stress field'
-             'will be normalized to accomodate the desired maximum slip.'
+        help='maximum slip of the rectangular source [m].'
+             ' Setting the moment magnitude the tractions/stress field'
+             ' will be normalized to accomodate the desired maximum slip. '
              'Mutually exclusive with the magnitude parameter.')
 
     rake = Float.T(
         optional=True,
-        help='rake angle in [deg], '
-             'measured counter-clockwise from right-horizontal '
-             'in on-plane view. Rake is translated into homogenous tractions '
-             'in strike and up-dip direction. Rake is mutually exclusive '
-             'with tractions parameter.')
+        help='rake angle in [deg],'
+             ' measured counter-clockwise from right-horizontal'
+             ' in on-plane view. Rake is translated into homogenous tractions'
+             ' in strike and up-dip direction. ``rake`` is mutually exclusive'
+             ' with tractions parameter.')
 
     patches = List.T(
         OkadaSource.T(),
@@ -2448,7 +2449,11 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
     tractions = TractionField.T(
         optional=True,
-        help='Traction field the rupture plane is exposed to.')
+        help='Traction field the rupture plane is exposed to. See the'
+             ':py:mod:`pyrocko.gf.tractions` module for more details. '
+             'If ``tractions=None`` and ``rake`` is given'
+             ' :py:class:`~pyrocko.gf.tractions.DirectedTractions` will'
+             ' be used.')
 
     coef_mat = Array.T(
         optional=True,
@@ -2473,14 +2478,14 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
     nthreads = Int.T(
         optional=True,
         default=1,
-        help='Number of threads for Okada forward modelling '
-             'and matrix inversion.'
+        help='Number of threads for Okada forward modelling, '
+             'matrix inversion and calculation of point subsources. '
              'Note: for small/medium matrices 1 thread is most efficient!')
 
     pure_shear = Bool.T(
         optional=True,
         default=False,
-        help='Calculate only shear tractions, and omit tensile tractions.')
+        help='Calculate only shear tractions and omit tensile tractions.')
 
     smooth_rupture = Bool.T(
         default=True,
@@ -2795,7 +2800,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             of the source)
         :type store: :py:class:`pyrocko.gf.store.Store`
         :param target: Target information
-        :type target: optional, :py:class:`pyrocko.gf.target.Target`
+        :type target: optional, :py:class:`pyrocko.gf.targets.Target`
         :param vr: Array, containing rupture user defined rupture velocity
             values
         :type vr: optional, :py:class:`numpy.ndarray`
@@ -3114,8 +3119,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             disl_shear=slip_shear,
             disl_norm=slip_norm,
             lamb=lamb,
-            mu=mu)
-            # nthreads=self.nthreads)
+            mu=mu,
+            nthreads=self.nthreads)
 
         m6s *= patch_area
 
@@ -3228,15 +3233,18 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                 time = times_eikonal.max()
 
             for ip, p in enumerate(self.patches):
-                ul = (p.ix + p.al1, p.iy + p.aw1)
-                lr = (p.ix + p.al2, p.iy + p.aw2)
+                ul = num.round((p.ix + p.al1, p.iy + p.aw1), decimals=2)
+                lr = num.round((p.ix + p.al2, p.iy + p.aw2), decimals=2)
 
-                idx_length, *_ = num.where((
-                    points_x >= ul[0]) & (points_x <= lr[0]))
-                idx_width, *_ = num.where((
-                    points_y >= ul[1]) & (points_y <= lr[1]))
+                idx_length = num.logical_and(
+                    points_x >= ul[0], points_x <= lr[0])
+                idx_width = num.logical_and(
+                    points_y >= ul[1], points_y <= lr[1])
 
                 times_patch = times_eikonal[num.ix_(idx_length, idx_width)]
+                if times_patch.size == 0:
+                    raise AttributeError('could not use smooth_rupture')
+
                 patch_activation[ip] = \
                     (times_patch <= time).sum() / times_patch.size
 
@@ -3253,6 +3261,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             stress_field=tractions[relevant_sources, :].ravel(),
             coef_mat=self.coef_mat[indices_disl, :][:, indices_disl],
             pure_shear=self.pure_shear, nthreads=self.nthreads,
+            epsilon=None,
             **kwargs)
 
         if self.smooth_rupture:
@@ -3264,6 +3273,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                     stress_field=tractions.ravel(),
                     coef_mat=self.coef_mat,
                     pure_shear=self.pure_shear, nthreads=self.nthreads,
+                    epsilon=None,
                     **kwargs), axis=1).max()
 
             if disloc_est_max != 0.:

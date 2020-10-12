@@ -62,8 +62,8 @@ rect_rupture = gf.RectangularSource(
 
 # Define a grid of targets
 # number in east and north directions
-ngrid = 40
-# ngrid = 90  # for better resolution
+# ngrid = 40
+ngrid = 90  # for better resolution
 
 # extension from origin in all directions
 obs_size = 10.*km
