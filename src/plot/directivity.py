@@ -312,15 +312,11 @@ def plot_directivity(
     strike_label = mt.strike1
     if hasattr(source, 'strike'):
         strike_label = source.strike
-<<<<<<< HEAD
 
     try:
         ax.set_rlabel_position(strike_label % 180.)
     except AttributeError:
         logger.warn('Old matplotlib version: cannot set label positions')
-=======
-    ax.set_rlabel_position(strike_label % 180.)
->>>>>>> fc47423f... directivity: merge from branch
 
     def r_fmt(v, p):
         if v < tbegin or v > tend:

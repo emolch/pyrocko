@@ -1531,9 +1531,11 @@ class RuptureView(Object):
         if self._is_1d:
             return
 
-        ylim = self._axes.get_ylim()
-        if ylim[0] < ylim[-1]:
-            self._axes.set_ylim(ylim[::-1])
+        length, width = xy_to_lw(
+            self.source, num.array([-1., 1.]), num.array([1., -1.]))
+
+        self._axes.set_xlim(length)
+        self._axes.set_ylim(width)
 
     def gcf(self):
         self.finalize()

@@ -25,8 +25,8 @@ dyn_rupture = gf.PseudoDynamicRupture(
     width=12*km,
     length=26*km,
 
-    nx=20,
-    ny=30,
+    nx=30,
+    ny=20,
 
     # Relative nucleation between -1. and 1.
     nucleation_x=-.6,

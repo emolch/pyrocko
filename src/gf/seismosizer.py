@@ -2741,23 +2741,27 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             num.min(store.config.deltat * vs_min / 2.),
             num.min(store.config.deltas)])
 
-        nx = int(num.floor(self.length / delta)) + 1
+        delta_l = self.length / self.nx
+        delta_w = self.width / self.ny
 
-        if self.length == self.width:
-            ny = nx
-        else:
-            delta = self.length / nx
-            ny = int(num.floor(self.width / delta)) + 1
+        delta = num.min([delta_l, delta_w, delta])
+        delta = delta_w / num.ceil(delta_w / delta)
 
-        nx = nx if nx > self.nx else self.nx
-        ny = ny if ny > self.ny else self.ny
+        nx = int(num.ceil(self.length / delta)) + 1
+        ny = int(num.ceil(self.width / delta)) + 1
 
-        nx += 1
-        ny += 1
+        rest_l = (nx-1)*delta - self.length
+        rest_w = (ny-1)*delta - self.width
+
+        lim_x = rest_l / self.length
+        lim_y = rest_w / self.width
 
         points_xy = num.zeros((nx * ny, 2))
-        points_xy[:, 0] = num.repeat(num.linspace(-1., 1., nx), ny)
-        points_xy[:, 1] = num.tile(num.linspace(-1., 1., ny), nx)
+        points_xy[:, 0] = num.repeat(
+            num.linspace(-1.-lim_x, 1.+lim_x, nx), ny)
+        points_xy[:, 1] = num.tile(
+            num.linspace(-1.-lim_y, 1.+lim_y, ny), nx)
+
         points = self.points_on_source(
             points_x=points_xy[:, 0],
             points_y=points_xy[:, 1],
@@ -4167,7 +4171,6 @@ class HorizontalVectorRule(Rule):
         if nonzero(sa):
             data = data + base_seismogram[e].data * sa
 
-<<<<<<< HEAD
         if self.differentiate:
             deltat = base_seismogram[e].deltat
             data = util.diff_fd(self.differentiate, 4, deltat, data)
@@ -4175,8 +4178,6 @@ class HorizontalVectorRule(Rule):
         if self.integrate:
             raise NotImplementedError('Integration is not implemented yet.')
 
-=======
->>>>>>> 7ee89e76... seismosizer, gf.meta, dynamic_rupture plot: bugfixes
         return data
 
 
