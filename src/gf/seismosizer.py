@@ -2738,7 +2738,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         vs_min = max(vs_min.min(), .5*km)
 
         delta = self.eikonal_decimation * num.min([
-            num.min(store.config.deltat * vs_min / 2.),
+            num.min(store.config.deltat * vs_min / 12.),
             num.min(store.config.deltas)])
 
         delta_l = self.length / self.nx
@@ -2750,17 +2750,14 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         nx = int(num.ceil(self.length / delta)) + 1
         ny = int(num.ceil(self.width / delta)) + 1
 
-        rest_l = (nx-1)*delta - self.length
-        rest_w = (ny-1)*delta - self.width
-
-        lim_x = rest_l / self.length
-        lim_y = rest_w / self.width
+        rem_l = (nx-1)*delta - self.length
+        lim_x = rem_l / self.length
 
         points_xy = num.zeros((nx * ny, 2))
         points_xy[:, 0] = num.repeat(
-            num.linspace(-1.-lim_x, 1.+lim_x, nx), ny)
+            num.linspace(-1.-lim_x/2., 1.+lim_x/2., nx), ny)
         points_xy[:, 1] = num.tile(
-            num.linspace(-1.-lim_y, 1.+lim_y, ny), nx)
+            num.linspace(-1., 1., ny), nx)
 
         points = self.points_on_source(
             points_x=points_xy[:, 0],
@@ -2871,6 +2868,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         eikonal_ext.eikonal_solver_fmm_cartesian(
             speeds=vr, times=times, delta=delta)
 
+        num.save('/tmp/eikonal', times)
+
         return points, points_xy, vr, times
 
     def get_vr_time_interpolators(
@@ -2930,7 +2929,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :type grid_shape: optional, tuple of int
         '''
         nx, ny, times, vr, time_interpolator, vr_interpolator = \
-            self.get_vr_time_interpolators(store, *args, **kwargs)
+            self.get_vr_time_interpolators(
+                store, *args,
+                interpolation=interpolation, **kwargs)
         anch_x, anch_y = map_anchor[self.anchor]
 
         al = self.length / 2.
@@ -3186,7 +3187,12 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                 'Source patches are needed. Please calculate them first.')
         return num.array([getattr(p, attr) for p in self.patches])
 
-    def get_okada_slip(self, time=None, scale_slip=True, **kwargs):
+    def get_okada_slip(
+            self,
+            time=None,
+            scale_slip=True,
+            interpolation='nearest_neighbor',
+            **kwargs):
         '''
         Get slip per subfault patch for given time after rupture start
 
@@ -3226,7 +3232,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             patch_activation = num.zeros(npatches)
 
             nx, ny, times, vr, time_interpolator, vr_interpolator = \
-                self.get_vr_time_interpolators(store)
+                self.get_vr_time_interpolators(
+                    store, interpolation=interpolation)
 
             # Getting the native Eikonal grid, bit hackish
             points_x = num.round(time_interpolator.grid[0], decimals=2)
@@ -3285,7 +3292,13 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         return disloc_est
 
-    def get_delta_slip(self, store=None, deltat=None, delta=True, **kwargs):
+    def get_delta_slip(
+            self,
+            store=None,
+            deltat=None,
+            delta=True,
+            interpolation='nearest_neighbor',
+            **kwargs):
         '''
         Get slip change inverted from OkadaSources depending on store deltat
 
@@ -3324,7 +3337,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         npatches = len(self.patches)
 
-        *_, time_interpolator, _ = self.get_vr_time_interpolators(store)
+        *_, time_interpolator, _ = self.get_vr_time_interpolators(
+            store, interpolation=interpolation)
         tmax = time_interpolator.values.max()
 
         calc_times = num.arange(0., tmax + deltat, deltat)
