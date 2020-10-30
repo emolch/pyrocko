@@ -2738,7 +2738,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         vs_min = max(vs_min.min(), .5*km)
 
         delta = self.eikonal_decimation * num.min([
-            num.min(store.config.deltat * vs_min / 12.),
+            store.config.deltat * vs_min / 12.,
             num.min(store.config.deltas)])
 
         delta_l = self.length / self.nx
@@ -2755,7 +2755,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         points_xy = num.zeros((nx * ny, 2))
         points_xy[:, 0] = num.repeat(
-            num.linspace(-1.-lim_x/2., 1.+lim_x/2., nx), ny)
+            num.linspace(-1.-lim_x, 1.+lim_x, nx), ny)
         points_xy[:, 1] = num.tile(
             num.linspace(-1., 1., ny), nx)
 
