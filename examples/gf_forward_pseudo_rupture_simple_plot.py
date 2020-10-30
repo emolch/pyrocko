@@ -22,8 +22,8 @@ dyn_rupture = gf.PseudoDynamicRupture(
     dip=89.,
     rake=88.,
 
-    width=12*km,
     length=26*km,
+    width=12*km,
 
     nx=30,
     ny=20,

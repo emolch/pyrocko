@@ -107,7 +107,7 @@ class ImportStationGenerator(StationGenerator):
                 for filename in self.stations_stationxml_paths:
                     sxml = stationxml.load_xml(filename=filename)
                     stations.extend(
-                        sxml.cko_stations())
+                        sxml.get_pyrocko_stations())
 
             if self.stations:
                 stations.extend(self.stations)

@@ -272,7 +272,7 @@ Use the method :py:meth:`pyrocko.plot.dynamic_rupture.RuptureView.draw_patch_dyn
     #    - 'moment_rate':                   subfault moment rate function
     #    - 'cumulative_moment', 'moment':   subfault summed moment function
     # of the rupture
-    plot.draw_patch_dynamics(variable='slip_rate', nx=20, ny=10, store=store)
+    plot.draw_patch_dynamics(variable='slip_rate', nx=15, ny=10, store=store)
     plot.show_plot()
 
 

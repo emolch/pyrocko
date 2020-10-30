@@ -21,8 +21,8 @@ dyn_rupture = gf.PseudoDynamicRupture(
     strike=43.,
     dip=89.,
 
-    width=12*km,
     length=26*km,
+    width=12*km,
     nucleation_x=-.6,
     nucleation_y=.3,
     # Relation between subsurface model s-wave velocity vs
@@ -33,8 +33,8 @@ dyn_rupture = gf.PseudoDynamicRupture(
     anchor='top',
     nthreads=5,
 
-    nx=40,
-    ny=30,
+    nx=30,
+    ny=20,
 
     # Tractions are in [Pa]. However here we are using relative tractions,
     # Resulting waveforms will be scaled to magnitude [Mw]

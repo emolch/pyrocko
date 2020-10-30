@@ -205,6 +205,9 @@ def xy_to_latlon(source, x, y):
     northing = num.cos(strike)*length - num.cos(dip) * num.sin(strike)*width
     easting = num.sin(strike)*length + num.cos(dip) * num.cos(strike)*width
 
+    northing += source.north_shift
+    easting += source.east_shift
+
     return pod.ne_to_latlon(s.lat, s.lon, northing, easting)
 
 
@@ -951,7 +954,7 @@ class RuptureMap(Map):
 
         self.draw_points(nlat, nlon, **kwargs)
 
-    def draw_dislocation(self, time=None, component=None, **kwargs):
+    def draw_dislocation(self, time=None, component='', **kwargs):
         ''' Draw dislocation onto map at any time
 
         For a given time (if ``time`` is ``None``, ``tmax`` is used)
@@ -1649,6 +1652,7 @@ def rupture_movie(
         source,
         store,
         variable='dislocation',
+        draw_time_contours=False,
         fn_path='.',
         prefix='',
         plot_type='map',
@@ -1675,7 +1679,10 @@ def rupture_movie(
         ``dislocation``, ``dislocation_x`` (along strike), ``dislocation_y``
         (along updip), ``dislocation_z`` (normal), ``slip_rate`` and
         ``moment_rate``, default ``dislocation``
-    :type variable: str
+    :type variable: optional, str
+    :param draw_time_contours: If True, corresponding isochrones are drawn on
+        the each plots
+    :type draw_time_contours: optional, bool
     :param fn_path: Absolut or relative path, where movie (and optional images)
         are stored
     :type fn_path: optional, str
@@ -1769,6 +1776,9 @@ def rupture_movie(
             plt = plt_base(source=source, **kwargs_base)
             plt.draw_dynamic_data(plot_data, **kwargs_plt)
             plt.draw_nucleation_point()
+
+            if draw_time_contours:
+                plt.draw_time_contour(store, clevel=[t])
 
             plt.save(ft)
 

@@ -2585,7 +2585,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             float(self.nucleation_y.mean()),
             self.decimation_factor,
             self.anchor,
-            self.pure_shear)
+            self.pure_shear,
+            self.gamma)
 
     def check_conflicts(self):
         if self.tractions and self.rake:
@@ -2735,16 +2736,17 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         vs_min = store.config.get_vs(
             self.lat, self.lon, points,
             interpolation='nearest_neighbor')
-        vs_min = max(vs_min.min(), .5*km)
+        vr_min = max(vs_min.min(), .5*km) * self.gamma
+
+        oversampling = 10.
+        delta_l = self.length / (self.nx * oversampling)
+        delta_w = self.width / (self.ny * oversampling)
 
         delta = self.eikonal_decimation * num.min([
-            store.config.deltat * vs_min / 12.,
-            num.min(store.config.deltas)])
+            store.config.deltat * vr_min / oversampling,
+            delta_l, delta_w,
+            *store.config.deltas])
 
-        delta_l = self.length / self.nx
-        delta_w = self.width / self.ny
-
-        delta = num.min([delta_l, delta_w, delta])
         delta = delta_w / num.ceil(delta_w / delta)
 
         nx = int(num.ceil(self.length / delta)) + 1
@@ -2823,6 +2825,10 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             store, cs='xyz')
 
         if vr is None or vr.shape != tuple((nx, ny)):
+            if vr:
+                logger.warn(
+                    'Given rupture velocities are not in right shape: '
+                    '(%i, %i), but needed is (%i, %i).' % (*vr.shape, nx, ny))
             vr = self._discretize_rupture_v(store, interpolation, points)\
                 .reshape(nx, ny)
 
@@ -2868,12 +2874,10 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         eikonal_ext.eikonal_solver_fmm_cartesian(
             speeds=vr, times=times, delta=delta)
 
-        num.save('/tmp/eikonal', times)
-
         return points, points_xy, vr, times
 
     def get_vr_time_interpolators(
-            self, store, interpolation='multilinear',
+            self, store, interpolation='nearest_neighbor',
             *args, **kwargs):
 
         interp_map = {'multilinear': 'linear', 'nearest_neighbor': 'nearest'}
@@ -3086,6 +3090,11 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         base_interp[:, 1] -= anch_y * self.width / 2
         base_interp[:, 2] = base_times
 
+        *_, time_interpolator, _ = self.get_vr_time_interpolators(
+            store, interpolation=interpolation)
+
+        time_eikonal_max = time_interpolator(base_interp[:, :2]).max()
+
         nbasesrcs = base_interp.shape[0]
         delta_slip = slip_interp(base_interp).reshape(nbaselocs, ntimes, 3)
 
@@ -3118,8 +3127,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         mu = num.mean(self.get_patch_attribute('shearmod'))
 
         m6s = okada_ext.patch2m6(
-            strikes=num.full(nbasesrcs, self.strike),
-            dips=num.full(nbasesrcs, self.dip),
+            strikes=num.full(nbasesrcs, self.strike, dtype=num.float),
+            dips=num.full(nbasesrcs, self.dip, dtype=num.float),
             rakes=slip_rake*r2d,
             disl_shear=slip_shear,
             disl_norm=slip_norm,
@@ -3141,6 +3150,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         dl = -self.patches[0].al1 + self.patches[0].al2
         dw = -self.patches[0].aw1 + self.patches[0].aw2
+
+        base_times[base_times > time_eikonal_max] = time_eikonal_max
 
         ds = meta.DiscretizedMTSource(
             lat=self.lat,
@@ -3313,6 +3324,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :param deltat: time increment for slip difference calculation [s].
             Either deltat or store should be given.
         :type deltat: optional, float
+        :param delta: If True, slip differences between two time steps are
+            given. If False, cumulative slip for all time steps
+        :type delta: optional, bool
 
         :return: displacement changes(du_strike, du_dip , du_tensile) for each
             source patch and time. order: [

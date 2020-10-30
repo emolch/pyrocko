@@ -94,10 +94,10 @@ class WaveformGenerator(TargetGenerator):
 
     vmin_cut = Float.T(
         default=2000.,
-        help='Minimum velocity to seismic velicty to consider in the model.')
+        help='Minimum velocity to seismic velocity to consider in the model.')
     vmax_cut = Float.T(
         default=8000.,
-        help='Maximum velocity to seismic velicty to consider in the model.')
+        help='Maximum velocity to seismic velocity to consider in the model.')
 
     fmin = Float.T(
         default=0.01,
