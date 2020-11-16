@@ -213,6 +213,12 @@ class Seismosizer(Snuffling):
                 'No source mechanism available for event %s. '
                 'Only setting location' % event.name)
 
+        if event.duration is not None:
+            self.set_parameter('stf_duration', event.duration)
+        else:
+            self.warn(
+                'No source duration available for event %s. ' % event.name)
+
         self.set_parameter('lat', event.lat)
         self.set_parameter('lon', event.lon)
         self.set_parameter('depth_km', event.depth/km)
