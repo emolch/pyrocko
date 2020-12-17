@@ -8,7 +8,8 @@ from __future__ import absolute_import, print_function, division
 import logging
 try:
     from kite import Scene
-except ImportError:
+except ImportError as e:
+    print(e)
     Scene = None
 
 from pyrocko import automap
@@ -41,7 +42,7 @@ class SceneTileAdapter(object):
 
     @property
     def data(self):
-        return self._scene.get_elevation()
+        return self._scene.displacement
 
 
 class KiteSceneElement(ElementState):
@@ -85,7 +86,7 @@ class KiteElement(Element):
         return 'Kite InSAR Scenes'
 
     def set_parent(self, parent):
-        if not Scene:
+        if Scene is None:
             qw.QMessageBox.warning(
                 parent, 'Import Error',
                 'Software package Kite is needed to display InSAR scenes!')
@@ -108,6 +109,9 @@ class KiteElement(Element):
             try:
                 scene = Scene.load(fname)
             except ImportError:
+                qw.QMessageBox.warning(
+                    self._parent, 'Import Error',
+                    'Could not load Kite scene from %s' % fname)
                 return
             logger.info('adding Kite scene %s', fname)
 
@@ -124,7 +128,7 @@ class KiteElement(Element):
         if self._state.visible:
 
             for scene_element in self._state.scenes:
-                print('drawing scene')
+                logger.info('drawing scene')
                 scene = scene_element.scene
 
                 if scene_element not in self._meshes:
@@ -133,7 +137,7 @@ class KiteElement(Element):
                         scene_tile,
                         cells_cache=None,
                         lut=cpt_displacement)
-                    mesh.set_values(scene.displacement.T)
+                    mesh.set_values(scene.displacement)
                     self._meshes[scene_element] = mesh
 
                 mesh = self._meshes[scene_element]
