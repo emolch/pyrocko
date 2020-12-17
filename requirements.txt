@@ -1,4 +1,4 @@
-numpy>=1.8
+numpy>=1.17.0
 scipy
 pyyaml
 matplotlib
