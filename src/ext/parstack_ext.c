@@ -1,29 +1,18 @@
 #define NPY_NO_DEPRECATED_API 7
 
-
 #include "Python.h"
 #include "numpy/arrayobject.h"
-
+#include "ext.h"
+#include "cuda/parstack.cuh"
+#include "cuda/utils.cuh"
 #include <stdlib.h>
+#include <stdio.h>
+#include <float.h>
 #if defined(_OPENMP)
     # include <omp.h>
 #endif
-#include <stdio.h>
-#include <float.h>
 
 #define CHUNKSIZE 10
-#define NBLOCK 64
-
-struct module_state {
-    PyObject *error;
-};
-
-#if PY_MAJOR_VERSION >= 3
-#define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
-#else
-#define GETSTATE(m) (&_state); (void) m;
-static struct module_state _state;
-#endif
 
 int parstack_config(
         size_t narrays,
@@ -31,59 +20,13 @@ int parstack_config(
         size_t *lengths,
         size_t nshifts,
         int32_t *shifts,
-        double *weights,
-        int method,
-        size_t *lengthout,
-        int32_t *offsetout);
-
-int parstack(
-        size_t narrays,
-        double **arrays,
-        int32_t *offsets,
-        size_t *lengths,
-        size_t nshifts,
-        int32_t *shifts,
-        double *weights,
-        int method,
-        size_t lengthout,
-        int32_t offsetout,
-        double *result,
-        int nparallel);
-
-
-int32_t min(int32_t a, int32_t b) {
-    return (a < b) ? a : b;
-}
-
-size_t smin(size_t a, size_t b) {
-    return (a < b) ? a : b;
-}
-
-int32_t max(int32_t a, int32_t b) {
-    return (a > b) ? a : b;
-}
-
-double dmax(double a, double b) {
-    return (a > b) ? a : b;
-}
-
-#define SUCCESS 0
-#define NODATA 1
-#define INVALID 2
-
-int parstack_config(
-        size_t narrays,
-        int32_t *offsets,
-        size_t *lengths,
-        size_t nshifts,
-        int32_t *shifts,
-        double *weights,
+        float *weights,
         int method,
         size_t *lengthout,
         int32_t *offsetout) {
 
-    (void)weights;  /* silence warnings */
-    (void)method;
+    UNUSED(weights);
+    UNUSED(method);
 
     if (narrays < 1) {
         return NODATA;
@@ -111,25 +54,26 @@ int parstack_config(
 
 int parstack(
         size_t narrays,
-        double **arrays,
+        float **arrays,
         int32_t *offsets,
         size_t *lengths,
         size_t nshifts,
         int32_t *shifts,
-        double *weights,
+        float *weights,
         int method,
         size_t lengthout,
         int32_t offsetout,
-        double *result,
-        int nparallel) {
-
-	(void) nparallel;
+        float *result,
+        impl_t impl,
+        int nparallel,
+        size_t target_block_threads,
+        char **err) {
     int32_t imin, istart, ishift;
     size_t iarray, nsamp, i;
-    double weight;
+    float weight;
     int chunk;
-    double *temp;
-    double m;
+    float *temp;
+    float m;
 
     if (narrays < 1) {
         return NODATA;
@@ -139,145 +83,213 @@ int parstack(
         return INVALID;
     }
 
+    int RET_CODE = SUCCESS;
+
     imin = offsetout;
     nsamp = lengthout;
 
     chunk = CHUNKSIZE;
 
-    Py_BEGIN_ALLOW_THREADS
-    if (method == 0) {
-	#if defined(_OPENMP)
-        #pragma omp parallel private(ishift, iarray, i, istart, weight) num_threads(nparallel)
-	#endif
+    Py_BEGIN_ALLOW_THREADS if (impl == IMPL_CUDA || impl == IMPL_CUDA_THRUST ||
+                               impl == IMPL_CUDA_ATOMIC) {
+#if defined(_CUDA)
+      if (!check_cuda_supported()) {
+        fprintf(stderr, "no CUDA capable GPU device available");
+        RET_CODE = ERROR;
+      } else {
+        RET_CODE = cuda_parstack(narrays, arrays, offsets, lengths, nshifts,
+                                 shifts, weights, (uint8_t)method, lengthout,
+                                 offsetout, result, impl, (uint8_t)nparallel,
+                                 target_block_threads, err);
+      }
+#else
+      fprintf(stderr, "pyrocko was compiled without CUDA support, please "
+                      "recompile with CUDA");
+      RET_CODE = ERROR;
+#endif
+    }
+    else {
+      if (method == 0) {
+#if defined(_OPENMP)
+#pragma omp parallel private(ishift, iarray, i, istart, weight)                \
+    num_threads(nparallel)
+#endif
         {
-
-	#if defined(_OPENMP)
-        #pragma omp for schedule(dynamic, chunk) nowait
-	#endif
-        for (ishift=0; ishift<(int32_t)nshifts; ishift++) {
-            for (iarray=0; iarray<narrays; iarray++) {
-                istart = offsets[iarray] + shifts[ishift*narrays + iarray];
-                weight = weights[ishift*narrays + iarray];
-                if (weight != 0.0) {
-                    for (i=(size_t)max(0, imin - istart); i<(size_t)max(0, min(nsamp - istart + imin, lengths[iarray])); i++) {
-                        result[ishift*nsamp + istart-imin+i] += arrays[iarray][i] * weight;
-                    }
+#if defined(_OPENMP)
+#pragma omp for schedule(dynamic, chunk) nowait
+#endif
+          for (ishift = 0; ishift < (int32_t)nshifts; ishift++) {
+            for (iarray = 0; iarray < narrays; iarray++) {
+              istart = offsets[iarray] + shifts[ishift * narrays + iarray];
+              weight = weights[ishift * narrays + iarray];
+              if (weight != 0.0) {
+                for (i = (size_t)max(0, imin - istart);
+                     i < (size_t)max(
+                             0, min(nsamp - istart + imin, lengths[iarray]));
+                     i++) {
+                  result[ishift * nsamp + istart - imin + i] +=
+                      arrays[iarray][i] * weight;
                 }
+              }
             }
+          }
         }
-        }
-
-    } else if (method == 1) {
-
-	#if defined(_OPENMP)
-        #pragma omp parallel private(ishift, iarray, i, istart, weight, temp, m)
-	#endif
-        {
-        temp = (double*)calloc(nsamp, sizeof(double));
-	#if defined(_OPENMP)
-        #pragma omp for schedule(dynamic,chunk) nowait
-	#endif
-        for (ishift=0; ishift<(int32_t)nshifts; ishift++) {
-            for (i=0; i<nsamp; i++) {
+      } else if (method == 1) {
+#if defined(_OPENMP)
+#pragma omp parallel private(ishift, iarray, i, istart, weight, temp, m)
+#endif
+          {
+            temp = (float*)calloc(nsamp, sizeof(float));
+#if defined(_OPENMP)
+#pragma omp for schedule(dynamic,chunk) nowait
+#endif
+            for (ishift=0; ishift<(int32_t)nshifts; ishift++) {
+              for (i=0; i<nsamp; i++) {
                 temp[i] = 0.0;
-            }
-            for (iarray=0; iarray<narrays; iarray++) {
+              }
+              for (iarray=0; iarray<narrays; iarray++) {
                 istart = offsets[iarray] + shifts[ishift*narrays + iarray];
                 weight = weights[ishift*narrays + iarray];
                 if (weight != 0.0) {
-                    for (i=(size_t)max(0, imin - istart); i<(size_t)max(0, min(nsamp - istart + imin, lengths[iarray])); i++) {
-                        temp[istart-imin+i] += arrays[iarray][i] * weight;
-                    }
+                  for (i=(size_t)max(0, imin - istart); i<(size_t)max(0, min(nsamp - istart + imin, lengths[iarray])); i++) {
+                    temp[istart-imin+i] += arrays[iarray][i] * weight;
+                  }
                 }
-            }
-            m = 0.;
-            for (i=0; i<nsamp; i++) {
+              }
+              m = 0.;
+              for (i=0; i<nsamp; i++) {
                 //m += temp[i]*temp[i];
-                m = dmax(m, temp[i]);
+                m = fmax(m, temp[i]);
+              }
+              result[ishift] = m;
             }
-            result[ishift] = m;
-        }
-        free(temp);
+            free(temp);
+          }
         }
     }
     Py_END_ALLOW_THREADS
-    return SUCCESS;
+    return RET_CODE;
 }
 
-
-int argmax(double *arrayin, uint32_t *arrayout, size_t nx, size_t ny, int nparallel){
-
-    size_t ix, iy, ix_offset, imax[NBLOCK];
-    double vmax[NBLOCK];
-	(void) nparallel;
-
-    Py_BEGIN_ALLOW_THREADS
-
-    #if defined(_OPENMP)
-        #pragma omp parallel private(iy, ix_offset, imax, vmax) num_threads(nparallel)
-    #endif
-        {
-
-    #if defined(_OPENMP)
-        #pragma omp for schedule(dynamic, 1) nowait
-    #endif
-    for (ix=0; ix<nx; ix+=NBLOCK){
-        for (ix_offset=0; ix_offset<smin(NBLOCK, nx-ix); ix_offset++) {
-            imax[ix_offset] = 0;
-            vmax[ix_offset] = DBL_MIN;
-        }
-        for (iy=0; iy<ny; iy++){
-            for (ix_offset=0; ix_offset<smin(NBLOCK, nx-ix); ix_offset++) {
-                if (arrayin[iy*nx + ix + ix_offset] > vmax[ix_offset]){
-                    vmax[ix_offset] = arrayin[iy*nx + ix + ix_offset];
-                    imax[ix_offset] = iy;
-                }
-            }
-        }
-        for (ix_offset=0; ix_offset<smin(NBLOCK, nx-ix); ix_offset++) {
-            arrayout[ix+ix_offset] = (uint32_t)imax[ix_offset];
-        }
-    }
-    }
-
-    Py_END_ALLOW_THREADS
-
-    return SUCCESS;
-}
-
-
-int good_array(PyObject* o, int typenum) {
+int good_array(char *name, PyObject* o, int typenum) {
+    int good = 0;
+    char *error;
     if (!PyArray_Check(o)) {
-        PyErr_SetString(PyExc_ValueError, "not a NumPy array" );
-        return 0;
+        error = "not a NumPy array";
+    }
+    else if (PyArray_TYPE((PyArrayObject*)o) != typenum) {
+        error = "array of unexpected type";
+    }
+    else if (!PyArray_ISCARRAY((PyArrayObject*)o)) {
+        error = "array is not contiguous or not well behaved";
+    } else {
+        good = 1;
     }
 
-    if (PyArray_TYPE((PyArrayObject*)o) != typenum) {
-        PyErr_SetString(PyExc_ValueError, "array of unexpected type");
-        return 0;
+    if (!good) {
+        size_t len = snprintf(NULL, 0, "%s: %s", name, error);
+        char *msg = malloc(len + 1);
+        snprintf(msg, len + 1, "%s: %s", name, error);
+        PyErr_SetString(PyExc_ValueError, msg);
+        free(msg);
     }
-
-    if (!PyArray_ISCARRAY((PyArrayObject*)o)) {
-        PyErr_SetString(PyExc_ValueError, "array is not contiguous or not well behaved");
-        return 0;
-    }
-
-    return 1;
+    return good;
 }
 
-static PyObject* w_parstack(PyObject *module, PyObject *args) {
+static PyObject *w_check_parstack_implementation_compatibility(PyObject *module,
+                                                               PyObject *args,
+                                                               PyObject *kwargs) {
+  struct module_state *st = GETSTATE(module);
+  int impl = IMPL_NP;
+  static char *kwlist[] = {"impl"};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|i", kwlist, &impl)) {
+    PyErr_SetString(st->error,
+                    "usage check_parstack_implementation_compatibility(impl)");
+    return NULL;
+  }
+  int compatible = 1;
+  if (impl == IMPL_CUDA || impl == IMPL_CUDA_THRUST ||
+      impl == IMPL_CUDA_ATOMIC) {
+#if defined(_CUDA)
+    char *err_msg = NULL;
+    int err = check_cuda_parstack_implementation_compatibility(
+        impl, &compatible, &err_msg);
+    if (err != 0) {
+      return handle_error("check_parstack_implementation_compatibility()", st,
+                          err_msg);
+    }
+#else
+    compatible = 0; // omp and numpy are compatible
+#endif
+  }
+  return Py_BuildValue("N", PyBool_FromLong(compatible));
+}
+
+static PyObject *w_calculate_parstack_kernel_parameters(PyObject *module,
+                                                        PyObject *args,
+                                                        PyObject *kwargs) {
+  struct module_state *st = GETSTATE(module);
+  size_t narrays, nshifts, nsamples, lengthout;
+  int32_t offsetout;
+  int impl = IMPL_CUDA;
+  size_t target_block_threads = 256;
+  size_t work_per_thread = 16;
+  size_t shared_memory_per_thread = sizeof(float);
+
+  static char *kwlist[] = {"narrays",
+                           "nshifts",
+                           "nsamples",
+                           "lengthout",
+                           "offsetout",
+                           "impl",
+                           "target_block_threads",
+                           "work_per_thread",
+                           "shared_memory_per_thread",
+                           NULL};
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwargs, "nnnni|innn", kwlist, &narrays, &nshifts, &nsamples,
+          &lengthout, &offsetout, &impl, &target_block_threads,
+          &work_per_thread, &shared_memory_per_thread)) {
+    PyErr_SetString(
+        st->error,
+        "usage calculate_parstack_kernel_parameters(narrays, nshifts, "
+        "nsamples, lengthout, offsetout, impl, target_block_threads, "
+        "work_per_thread, shared_memory_per_thread)");
+    return NULL;
+  }
+#if defined(_CUDA)
+  unsigned int grid[3] = {0, 0, 0};
+  unsigned int blocks[3] = {0, 0, 0};
+  size_t shared_memory;
+  char *err_msg = NULL;
+  int err = calculate_cuda_parstack_kernel_parameters(
+      impl, narrays, nshifts, nsamples, lengthout, offsetout,
+      target_block_threads, work_per_thread, shared_memory_per_thread, grid,
+      blocks, &shared_memory, &err_msg);
+  if (err != 0) {
+    return handle_error("calculate_parstack_kernel_parameters()", st, err_msg);
+  }
+  return Py_BuildValue("(III)(III)n", grid[0], grid[1], grid[2], blocks[0],
+                       blocks[1], blocks[2], shared_memory);
+#else
+  PyErr_SetString(st->error, "pyrocko was not compiled with CUDA support");
+  return NULL;
+#endif
+}
+
+static PyObject* w_parstack(PyObject *module, PyObject *args, PyObject *kwargs) {
 
     PyObject *arrays, *offsets, *shifts, *weights, *arr;
     PyObject *result;
-    int method, nparallel;
-    size_t narrays, nshifts, nweights;
+    int method, nparallel, impl;
+    size_t narrays, nshifts, nweights, target_block_threads;
     size_t *clengths;
     size_t lengthout;
     int32_t offsetout;
     int lengthout_arg;
     int32_t *coffsets, *cshifts;
-    double *cweights, *cresult;
-    double **carrays;
+    float *cweights, *cresult;
+    float **carrays;
     npy_intp array_dims[1];
     size_t i;
     int err;
@@ -286,19 +298,34 @@ static PyObject* w_parstack(PyObject *module, PyObject *args) {
     clengths = NULL;
     struct module_state *st = GETSTATE(module);
 
-    if (!PyArg_ParseTuple(args, "OOOOiiiOi", &arrays, &offsets, &shifts,
-                          &weights, &method, &lengthout_arg, &offsetout, &result, &nparallel)) {
+    static char *kwlist[] = {"arrays",
+                             "offsets",
+                             "shifts",
+                             "weights",
+                             "method",
+                             "lengthout",
+                             "offsetout",
+                             "result",
+                             "impl",
+                             "nparallel",
+                             "target_block_threads",
+                             NULL};
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwargs, "OOOO|iiiOiin", kwlist, &arrays, &offsets, &shifts,
+            &weights, &method, &lengthout_arg, &offsetout, &result, &impl,
+            &nparallel, &target_block_threads)) {
+      PyErr_SetString(
+          st->error,
+          "usage parstack(arrays, offsets, shifts, weights, method, lengthout, "
+          "offsetout, result, impl, nparallel, target_block_threads)");
 
-        PyErr_SetString(
-            st->error,
-            "usage parstack(arrays, offsets, shifts, weights, method, lengthout, offsetout, result, nparallel)" );
-
-        return NULL;
+      return NULL;
     }
-    if (!good_array(offsets, NPY_INT32)) return NULL;
-    if (!good_array(shifts, NPY_INT32)) return NULL;
-    if (!good_array(weights, NPY_DOUBLE)) return NULL;
-    if (result != Py_None && !good_array(result, NPY_DOUBLE)) return NULL;
+
+    if (!good_array("offsets", offsets, NPY_INT32)) return NULL;
+    if (!good_array("shifts", shifts, NPY_INT32)) return NULL;
+    if (!good_array("weights", weights, NPY_FLOAT32)) return NULL;
+    if (result != Py_None && !good_array("result", result, NPY_FLOAT32)) return NULL;
 
     coffsets = PyArray_DATA((PyArrayObject*)offsets);
     narrays = PyArray_SIZE((PyArrayObject*)offsets);
@@ -311,6 +338,12 @@ static PyObject* w_parstack(PyObject *module, PyObject *args) {
 
     nshifts /= narrays;
     nweights /= narrays;
+
+    if (impl != IMPL_CUDA && impl != IMPL_OMP && impl != IMPL_CUDA_THRUST &&
+        impl != IMPL_CUDA_ATOMIC) {
+      PyErr_SetString(st->error, "unknown implementation");
+      return NULL;
+    }
 
     if (nshifts != nweights) {
         PyErr_SetString(st->error, "weights.size != shifts.size" );
@@ -327,7 +360,7 @@ static PyObject* w_parstack(PyObject *module, PyObject *args) {
         return NULL;
     }
 
-    carrays = (double**)calloc(narrays, sizeof(double*));
+    carrays = (float**)calloc(narrays, sizeof(float*));
     if (carrays == NULL) {
         PyErr_SetString(st->error, "alloc failed");
         return NULL;
@@ -342,7 +375,7 @@ static PyObject* w_parstack(PyObject *module, PyObject *args) {
 
     for (i=0; i<narrays; i++) {
         arr = PyList_GetItem(arrays, i);
-        if (!good_array(arr, NPY_DOUBLE)) {
+        if (!good_array("array", arr, NPY_FLOAT32)) {
             free(carrays);
             free(clengths);
             return NULL;
@@ -378,12 +411,10 @@ static PyObject* w_parstack(PyObject *module, PyObject *args) {
         }
         Py_INCREF(result);
     } else {
-        result = PyArray_SimpleNew(1, array_dims, NPY_FLOAT64);
+        result = PyArray_SimpleNew(1, array_dims, NPY_FLOAT32);
         cresult = PyArray_DATA((PyArrayObject*)result);
 
-        for (i=0; i<(size_t)array_dims[0]; i++) {
-            cresult[i] = 0.0;
-        }
+        memset(cresult, 0, (size_t)array_dims[0] * sizeof(float));
 
         if (result == NULL) {
             free(carrays);
@@ -393,84 +424,35 @@ static PyObject* w_parstack(PyObject *module, PyObject *args) {
     }
     cresult = PyArray_DATA((PyArrayObject*)result);
 
+    char *err_msg = NULL;
     err = parstack(narrays, carrays, coffsets, clengths, nshifts, cshifts,
-                   cweights, method, lengthout, offsetout, cresult, nparallel);
-
-    if (err != 0) {
-        PyErr_SetString(st->error, "parstack() failed");
-        free(carrays);
-        free(clengths);
-        Py_DECREF(result);
-        return NULL;
-    }
+                   cweights, method, lengthout, offsetout, cresult, (impl_t)impl, nparallel, target_block_threads, &err_msg);
 
     free(carrays);
     free(clengths);
+
+    if (err != 0) {
+        Py_DECREF(result);
+        return handle_error("parstack()", st, err_msg);
+    }
     return Py_BuildValue("Ni", (PyObject *)result, offsetout);
 }
 
-static PyObject* w_argmax(PyObject *module, PyObject *args) {
-    PyObject *arrayin;
-    PyObject *result;
-    double *carrayin;
-    uint32_t *cresult;
-    npy_intp *shape, shapeout[1];
-    size_t i, ndim;
-    int err, nparallel;
-    struct module_state *st = GETSTATE(module);
-
-    if (!PyArg_ParseTuple(args, "Oi", &arrayin, &nparallel)) {
-        PyErr_SetString(st->error, "usage argmax(array)");
-        return NULL;
-    }
-
-    if (!good_array(arrayin, NPY_DOUBLE)) return NULL;
-
-    shape = PyArray_DIMS((PyArrayObject*)arrayin);
-    ndim = PyArray_NDIM((PyArrayObject*)arrayin);
-
-    if (ndim != 2){
-        PyErr_SetString(st->error, "array shape is not 2D");
-        return NULL;
-    }
-
-    carrayin = PyArray_DATA((PyArrayObject*)arrayin);
-
-    if ((size_t)shape[0] >= (size_t)UINT32_MAX) {
-        PyErr_SetString(st->error, "shape[0] must be smaller than 2^32");
-        return NULL;
-    }
-
-    shapeout[0] = shape[1];
-
-    result = PyArray_SimpleNew(1, shapeout, NPY_UINT32);
-    cresult = PyArray_DATA((PyArrayObject*)result);
-
-    for (i=0; i<(size_t)shapeout[0]; i++){
-        cresult[i] = 0;
-    }
-
-    err = argmax(carrayin, cresult, (size_t)shape[1], (size_t)shape[0], nparallel);
-
-    if(err != 0){
-        Py_DECREF(result);
-        return NULL;
-    }
-
-    return Py_BuildValue("N", (PyObject *)result);
-}
-
-
 static PyMethodDef ParstackMethods[] = {
-    {"parstack",  (PyCFunction) w_parstack, METH_VARARGS,
-        "Parallel weight-and-delay stacking" },
+    {"parstack", (PyCFunction)w_parstack, METH_VARARGS | METH_KEYWORDS,
+     "Parallel weight-and-delay stacking"},
 
-    {"argmax", (PyCFunction) w_argmax, METH_VARARGS,
-        "argmax of 2D numpy array along axis=0" },
+    {"check_parstack_implementation_compatibility",
+     (PyCFunction)w_check_parstack_implementation_compatibility, METH_VARARGS | METH_KEYWORDS,
+     "Checks parstack implementation compatibility"},
 
-    {NULL, NULL, 0, NULL}        /* Sentinel */
+    {"parstack_kernel_parameters",
+     (PyCFunctionWithKeywords)w_calculate_parstack_kernel_parameters,
+     METH_VARARGS | METH_KEYWORDS,
+     "Computes parstack kernel launch parameters"},
+
+    {NULL, NULL, 0, NULL} /* Sentinel */
 };
-
 
 #if PY_MAJOR_VERSION >= 3
 
@@ -483,8 +465,6 @@ static int parstack_ext_clear(PyObject *m) {
     Py_CLEAR(GETSTATE(m)->error);
     return 0;
 }
-
-
 
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
@@ -528,8 +508,21 @@ initparstack_ext(void)
         INITERROR;
     }
 
+    long cuda_compiled = 0;
+    #if defined(_CUDA)
+    cuda_compiled = 1;
+    #endif
+    if (PyModule_AddIntConstant(module, CUDA_COMPILED_FLAG, cuda_compiled) < 0) {
+        Py_DECREF(module);
+        INITERROR;
+    }
+
     Py_INCREF(st->error);
-    PyModule_AddObject(module, "ParstackExtError", st->error);
+    if (PyModule_AddObject(module, "ParstackExtError", st->error) < 0) {
+        Py_DECREF(module);
+        Py_DECREF(st->error);
+        INITERROR;
+    }
 
 #if PY_MAJOR_VERSION >= 3
     return module;

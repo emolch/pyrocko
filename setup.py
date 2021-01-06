@@ -1,13 +1,18 @@
 from __future__ import absolute_import, division, print_function
 import sys
 import os
+import re
+import glob
 import os.path as op
 import time
+import copy
 import shutil
 import tempfile
+import collections
 import numpy
 
-from distutils.sysconfig import get_python_inc
+import subprocess as sp
+from distutils.sysconfig import get_config_var, get_python_inc
 from setuptools import setup, Extension, Command
 from setuptools.command.build_py import build_py
 from setuptools.command.build_ext import build_ext
@@ -36,12 +41,8 @@ class NotInAGitRepos(Exception):
 def git_infos():
     '''Query git about sha1 of last commit and check if there are local \
        modifications.'''
-
-    from subprocess import Popen, PIPE
-    import re
-
     def q(c):
-        return Popen(c, stdout=PIPE).communicate()[0]
+        return sp.Popen(c, stdout=sp.PIPE).communicate()[0]
 
     if not op.exists('.git'):
         raise NotInAGitRepos()
@@ -55,13 +56,12 @@ def git_infos():
 
 
 def bash_completions_dir():
-    from subprocess import Popen, PIPE
-
     def q(c):
-        return Popen(c, stdout=PIPE).communicate()[0]
+        return sp.Popen(c, stdout=sp.PIPE).communicate()[0]
 
     try:
-        d = q(['pkg-config', 'bash-completion', '--variable=completionsdir'])
+        d = q(['pkg-config', 'bash-completion',
+               '--variable=completionsdir'])
         return d.strip().decode('utf-8')
     except Exception:
         return None
@@ -102,9 +102,8 @@ installed_date = %s
 
 
 def make_prerequisites():
-    from subprocess import check_call
     try:
-        check_call(['sh', 'prerequisites/prerequisites.sh'])
+        sp.check_call(['sh', 'prerequisites/prerequisites.sh'])
     except Exception:
         sys.exit('error: failed to build the included prerequisites with '
                  '"sh prerequisites/prerequisites.sh"')
@@ -159,7 +158,8 @@ def find_pyrocko_installs():
 
 def print_installs(found, file):
     print(
-        '\nsys.path configuration is: \n  %s\n' % '\n  '.join(sys.path),
+        '\nsys.path configuration is: \n  %s\n' % '\n  '.join(
+            sys.path),
         file=file)
 
     dates = sorted([xx[0] for xx in found])
@@ -289,8 +289,8 @@ class CustomInstallCommand(install):
                 and hasattr(self, 'install_scripts') \
                 and sys.executable:
 
-            target = os.path.join(self.install_scripts, 'pyrocko-python')
-            if os.path.exists(target):
+            target = op.join(self.install_scripts, 'pyrocko-python')
+            if op.exists(target):
                 os.unlink(target)
 
             os.symlink(sys.executable, target)
@@ -319,7 +319,8 @@ class CustomBuildPyCommand(build_py):
             ('pyrocko', 'css', ['pyrocko.io.css']),
             ('pyrocko', 'datacube', ['pyrocko.io.datacube']),
             ('pyrocko.fdsn', '__init__', []),
-            ('pyrocko.fdsn', 'enhanced_sacpz', ['pyrocko.io.enhanced_sacpz']),
+            ('pyrocko.fdsn', 'enhanced_sacpz',
+             ['pyrocko.io.enhanced_sacpz']),
             ('pyrocko.fdsn', 'station', ['pyrocko.io.stationxml']),
             ('pyrocko', 'gcf', ['pyrocko.io.gcf']),
             ('pyrocko', 'gse1', ['pyrocko.io.gse1']),
@@ -332,8 +333,10 @@ class CustomBuildPyCommand(build_py):
             ('pyrocko.fdsn', 'resp', ['pyrocko.io.resp']),
             ('pyrocko', 'sacio', ['pyrocko.io.sac']),
             ('pyrocko', 'segy', ['pyrocko.io.segy']),
-            ('pyrocko', 'seisan_response', ['pyrocko.io.seisan_response']),
-            ('pyrocko', 'seisan_waveform', ['pyrocko.io.seisan_waveform']),
+            ('pyrocko', 'seisan_response', [
+             'pyrocko.io.seisan_response']),
+            ('pyrocko', 'seisan_waveform', [
+             'pyrocko.io.seisan_waveform']),
             ('pyrocko', 'suds', ['pyrocko.io.suds']),
             ('pyrocko', 'yaff', ['pyrocko.io.yaff']),
             ('pyrocko', 'eventdata', ['pyrocko.io.eventdata']),
@@ -372,7 +375,7 @@ if pyrocko.grumpy:
             outfile = self.get_module_outfile(
                 self.build_lib, package.split('.'), compat_module)
 
-            dir = os.path.dirname(outfile)
+            dir = op.dirname(outfile)
             self.mkpath(dir)
             with open(outfile, 'w') as f:
                 f.write(module_code)
@@ -383,13 +386,172 @@ if pyrocko.grumpy:
         build_py.run(self)
 
 
-class CustomBuildExtCommand(build_ext):
+IS_WINDOWS = sys.platform == 'win32'
+
+
+def _find_cuda_home():
+    """Finds the CUDA install path."""
+    # Guess #1
+    cuda_home = os.environ.get(
+        'CUDA_HOME') or os.environ.get('CUDA_PATH')
+    if cuda_home is not None:
+        return cuda_home
+
+    # Guess #2
+    which = 'where' if IS_WINDOWS else 'which'
+    with open(os.devnull, 'w') as devnull:
+        try:
+            nvcc = sp.check_output([which, 'nvcc'],
+                                   stderr=devnull).decode().rstrip('\r\n')
+            cuda_home = op.dirname(op.dirname(nvcc))
+            if cuda_home is not None:
+                return cuda_home
+        except sp.CalledProcessError:
+            pass
+
+    # Guess #3
+    if IS_WINDOWS:
+        cuda_homes = glob.glob(
+            'C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v*.*')
+        if len(cuda_homes) > 0 and op.exists(cuda_homes[0]):
+            return cuda_homes[0]
+    else:
+        for common_install_path in ['/usr/local/cuda', '/usr/lib/cuda']:
+            if op.exists(common_install_path):
+                return common_install_path
+    return cuda_home
+
+
+def _check_for_cuda():
+    """Check whether the host system can compile CUDA kernels
+    """
+    libs, includes = [], []
+    CUDA_HOME = _find_cuda_home()
+    if not CUDA_HOME:
+        print("CUDA not found. Continuing your build without CUDA support...")
+        return False, None, libs, includes
+
+    CUDNN_HOME = os.environ.get(
+        'CUDNN_HOME') or os.environ.get('CUDNN_PATH')
+
+    if IS_WINDOWS:
+        lib_dir = 'lib/x64'
+    else:
+        lib_dir = 'lib64'
+    if (not op.exists(op.join(CUDA_HOME, lib_dir)) and
+            op.exists(op.join(CUDA_HOME, 'lib'))):
+        lib_dir = 'lib'
+
+    libs.append(op.join(CUDA_HOME, lib_dir))
+    if CUDNN_HOME is not None:
+        libs.append(op.join(CUDNN_HOME, lib_dir))
+
+    cuda_home_include = op.join(CUDA_HOME, 'include')
+    # if we have the Debian/Ubuntu packages for cuda, we get /usr as cuda home.
+    # but gcc doesn't like having /usr/include passed explicitly
+    if cuda_home_include != '/usr/include':
+        includes.append(cuda_home_include)
+    if CUDNN_HOME is not None:
+        includes.append(os.path.join(CUDNN_HOME, 'include'))
+
+    return True, op.join(CUDA_HOME, 'bin', 'nvcc'), libs, includes
+
+
+can_compile_cuda, cuda_nvcc, cuda_libs, cuda_includes = _check_for_cuda()
+
+
+class ProfileCudaCommand(Command):
+    description = '''profile cuda kernels using a given set of examples'''
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        if not can_compile_cuda:
+            sys.exit(
+                'cannot profile CUDA kernels without a CUDA installation')
+        try:
+            sp.check_call(
+                    ['make', '-C', 'src/ext/cuda', 'profile_parstack_visual'])
+            sp.check_call(
+                    ['make', '-C', 'src/ext/cuda', 'profile_minmax_visual'])
+        except Exception:
+            sys.exit((
+                'Fatal error: failed to profile CUDA kernels.\n\n',
+                'Make sure the CUDA driver and toolkit is properly installed ',
+                'on your system.\n',
+                'Make sure you run this command as root.\n',
+                'Make sure you have the visual profiler installed ',
+                '(e.g. apt install nvidia-visual-profiler).'))
+
+
+class CustomBuildExtCommand(build_ext, object):
+
+    def build_extensions(self):
+        # Register .cu and .cuh as valid source extensions.
+        self.compiler.src_extensions += ['.cu', '.cuh']
+        # Save the original _compile method for later.
+        if self.compiler.compiler_type == 'msvc':
+            self.compiler._cpp_extensions += ['.cu', '.cuh']
+            original_compile = self.compiler.compile
+        else:
+            original_compile = self.compiler._compile
+
+        def _is_cuda_file(path):
+            return op.splitext(path)[1] in ['.cu', '.cuh']
+
+        def unix_cuda_flags(cflags):
+            return ['--compiler-options', "'-fPIC'"] + \
+                cflags + _get_cuda_arch_flags(cflags)
+
+        def unix_wrap_single_compile(
+                obj, src, ext, cc_args, extra_postargs, pp_opts):
+            # Copy before we make any modifications.
+            cflags = copy.deepcopy(extra_postargs)
+            try:
+                original_compiler = self.compiler.compiler_so
+                if _is_cuda_file(src):  # or "nvcc" in cflags:
+                    if not can_compile_cuda:
+                        print(
+                            "skipping %s (CUDA toolkit is not installed)" %
+                            src)
+                        return
+                    _cuda_nvcc = cuda_nvcc
+                    if not isinstance(_cuda_nvcc, list):
+                        _cuda_nvcc = [_cuda_nvcc]
+                    self.compiler.set_executable(
+                        'compiler_so', _cuda_nvcc)
+                    if isinstance(cflags, dict):
+                        cflags = cflags['nvcc']
+                    cflags = unix_cuda_flags(cflags)
+                elif isinstance(cflags, dict):
+                    cflags = cflags['gcc']
+
+                if os.environ.get('PYROCKO_VERBOSE_BUILD', False):
+                    print(obj, src, ext, cc_args, cflags, pp_opts)
+                original_compile(
+                    obj, src, ext, cc_args, cflags, pp_opts)
+            finally:
+                # restore the original compiler
+                self.compiler.set_executable(
+                    'compiler_so', original_compiler)
+
+        if self.compiler.compiler_type == 'msvc':
+            raise NotImplementedError("windows not supported atm")
+
+        self.compiler._compile = unix_wrap_single_compile
+        build_ext.build_extensions(self)
+
     def run(self):
         make_prerequisites()
         build_ext.run(self)
 
 
-class CustomBuildAppCommand(build_ext):
+class CustomBuildAppCommand(build_ext, object):
     def run(self):
         self.make_app()
 
@@ -447,12 +609,10 @@ def _check_for_openmp():
     This routine is adapted from pynbody // yt.
     Thanks to Nathan Goldbaum and Andrew Pontzen.
     """
-    import distutils.sysconfig
-    import subprocess
 
     tmpdir = tempfile.mkdtemp(prefix='pyrocko')
     compiler = os.environ.get(
-      'CC', distutils.sysconfig.get_config_var('CC')).split()[0]
+        'CC', get_config_var('CC')).split()[0]
 
     # Attempt to compile a test script.
     # See http://openmp.org/wp/openmp-compilers/
@@ -469,10 +629,10 @@ int main() {
 
     try:
         with open(os.devnull, 'w') as fnull:
-            exit_code = subprocess.call([compiler, '-fopenmp', '-o%s'
-                                         % op.join(tmpdir, 'check_openmp'),
-                                        tmpfile],
-                                        stdout=fnull, stderr=fnull)
+            exit_code = sp.call([compiler, '-fopenmp', '-o%s'
+                                 % op.join(tmpdir, 'check_openmp'),
+                                 tmpfile],
+                                stdout=fnull, stderr=fnull)
     except OSError:
         exit_code = 1
     finally:
@@ -492,7 +652,8 @@ Some routines in pyrocko are parallelized using OpenMP and these will
 only run on one core with your current configuration.
 ''')
         if platform.uname()[0] == 'Darwin':
-            print('''Since you are running on Mac OS, it's likely that the problem here
+            print(
+                '''Since you are running on Mac OS, it's likely that the problem here
 is Apple's Clang, which does not support OpenMP at all. The easiest
 way to get around this is to download the latest version of gcc from
 here: http://hpc.sourceforge.net. After downloading, just point the
@@ -513,7 +674,6 @@ if _check_for_openmp():
 else:
     omp_arg = []
     omp_lib = []
-
 
 subpacknames = [
     'pyrocko.gf',
@@ -540,12 +700,177 @@ cmdclass = {
     'install': CustomInstallCommand,
     'build_py': CustomBuildPyCommand,
     # 'py2app': CustomBuildAppCommand,
+    'profile_cuda': ProfileCudaCommand,
     'build_ext': CustomBuildExtCommand,
     'check_multiple_install': CheckInstalls,
     'uninstall': Uninstall}
 
 if CustomBDistWheelCommand:
     cmdclass['bdist_wheel'] = CustomBDistWheelCommand
+
+
+def _get_cuda_arch_flags(cflags=None):
+    """ Determine CUDA arch compiler flags to use.
+    (e.g. "6.1" -> ``-gencode=arch=compute_61,code=sm_61``.
+    for "+PTX", ``-gencode=arch=compute_xx,code=compute_xx`` is added.
+    """
+    # user defined arch values (from `extra_compile_args`) take precedence
+    if cflags is not None:
+        for flag in cflags:
+            if 'arch' in flag:
+                return []
+
+    named_arches = collections.OrderedDict([
+        ('Kepler+Tesla', '3.7'),
+        ('Kepler', '3.5+PTX'),
+        ('Maxwell+Tegra', '5.3'),
+        ('Maxwell', '5.0;5.2+PTX'),
+        ('Pascal', '6.0;6.1+PTX'),
+        ('Volta', '7.0+PTX'),
+        ('Turing', '7.5+PTX'),
+        ('Ampere', '8.0+PTX'),
+    ])
+
+    supported_arches = ['3.5', '3.7', '5.0', '5.2', '5.3', '6.0', '6.1', '6.2',
+                        '7.0', '7.2', '7.5', '8.0']
+    valid_arch_strings = supported_arches + \
+        [s + "+PTX" for s in supported_arches]
+
+    # can be one or more architectures, e.g. "6.1" or "3.5;5.2;6.0;6.1;7.0+PTX"
+    arch_list = os.environ.get('CUDA_ARCH_LIST', None)
+
+    if not arch_list:
+        try:
+            import ctypes
+            libcudart = ctypes.CDLL('libcudart.so')
+
+            # see
+            # https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html
+            cudaDevAttrComputeCapabilityMajor = 75
+            cudaDevAttrComputeCapabilityMinor = 76
+
+            c_enum = ctypes.c_uint
+            libcudart.cudaDeviceGetAttribute.restype = c_enum
+            libcudart.cudaDeviceGetAttribute.argtypes = [
+                ctypes.POINTER(ctypes.c_int), c_enum, ctypes.c_int]
+
+            minor, major = ctypes.c_int(), ctypes.c_int()
+            device = 0  # for now, always detect the arch for gpu 0
+            libcudart.cudaDeviceGetAttribute(ctypes.byref(
+                major), cudaDevAttrComputeCapabilityMajor, device)
+            libcudart.cudaDeviceGetAttribute(ctypes.byref(
+                minor), cudaDevAttrComputeCapabilityMinor, device)
+            arch_list = ['%s.%s' % (major.value, minor.value)]
+        except OSError:
+            print((
+                "Note: calling libcudart.so to query the GPU device failed. ",
+                "Proceeding without specifying a CUDA build arch ..."))
+    else:
+        arch_list = arch_list.replace(' ', ';')
+        for named_arch, archval in named_arches.items():
+            arch_list = arch_list.replace(named_arch, archval)
+
+        arch_list = arch_list.split(';')
+
+    flags = []
+    for arch in arch_list:
+        if arch not in valid_arch_strings:
+            print(
+                "Warning: unknown CUDA arch (%s) or GPU not supported" %
+                (arch))
+            return flags
+        num = arch[0] + arch[2]
+        flags.append(
+            '-gencode=arch=compute_%s,code=sm_%s' % (num, num))
+        if arch.endswith('+PTX'):
+            flags.append(
+                '-gencode=arch=compute_%s,code=compute_%s' % (num, num))
+
+    return list(set(flags))
+
+
+def compile_with_cuda(ex, omp=False):
+    ex.extra_compile_args = {
+        'gcc': ['-Wextra', '-Wno-write-strings'],
+        'nvcc': [],
+    }
+    ex.libraries += ["stdc++", "cudart"]
+    ex.library_dirs += cuda_libs
+    ex.runtime_library_dirs += cuda_libs
+    ex.include_dirs += [op.join('src', 'ext', 'cuda')] + cuda_includes
+    ex.extra_compile_args['gcc'] += ['-D=_CUDA']
+    if os.environ.get('CUDA_DEBUG'):
+        ex.extra_compile_args['gcc'] += ['-D=CUDA_DEBUG', '-g']
+        ex.extra_compile_args['nvcc'] += ['-D=CUDA_DEBUG', '-g']
+    ex.extra_compile_args['nvcc'] += [
+        '-c',
+        '-O3',
+        '-lineinfo',
+        '-Xcompiler', '-rdynamic',
+        '--use_fast_math',
+        '--ptxas-options=-v',
+        '--compiler-options', "'-fPIC'",
+        '--compiler-options', "'-Wall'"
+    ]
+    if omp:
+        ex.extra_compile_args['gcc'] += omp_arg
+        ex.extra_compile_args['nvcc'] += [
+            '-Xcompiler', *omp_arg,
+        ]
+    return ex
+
+
+def minmax_ext():
+    ex = Extension(
+        'minmax_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_link_args=omp_lib,
+        extra_compile_args=omp_arg,
+        sources=[
+            op.join('src', 'ext', 'minmax_ext.c'),
+        ])
+    if can_compile_cuda:
+        ex = compile_with_cuda(ex, omp=True)
+        ex.sources += [
+            op.join('src', 'ext', 'cuda', 'utils.cu'),
+            op.join('src', 'ext', 'cuda', 'minmax.cu'),
+        ]
+    return ex
+
+
+def cuda_ext():
+    ex = Extension(
+        'cuda_ext',
+        include_dirs=[get_python_inc()],
+        sources=[
+            op.join('src', 'ext', 'cuda_ext.c'),
+        ])
+    if can_compile_cuda:
+        ex = compile_with_cuda(ex)
+        ex.sources += [
+            op.join('src', 'ext', 'cuda', 'utils.cu'),
+        ]
+    return ex
+
+
+def parstack_ext():
+    ex = Extension(
+        'parstack_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_link_args=omp_lib,
+        extra_compile_args=omp_arg,
+        sources=[
+            op.join('src', 'ext', 'parstack_ext.c'),
+        ])
+    if can_compile_cuda:
+        ex = compile_with_cuda(ex, omp=True)
+        ex.sources += [
+            op.join('src', 'ext', 'cuda', 'parstack.cu'),
+            op.join('src', 'ext', 'cuda', 'utils.cu'),
+            op.join('src', 'ext', 'cuda', 'minmax.cu'),
+        ]
+    return ex
+
 
 setup(
     cmdclass=cmdclass,
@@ -573,7 +898,7 @@ setup(
         'Topic :: Scientific/Engineering :: Visualization',
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Software Development :: Libraries :: Application Frameworks',
-        ],
+    ],
     keywords=[
         'seismology, waveform analysis, earthquake modelling, geophysics,'
         ' geophysical inversion'],
@@ -650,7 +975,8 @@ setup(
         Extension(
             'gf.store_ext',
             include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=['-D_FILE_OFFSET_BITS=64', '-Wextra'] + omp_arg,
+            extra_compile_args=[
+                '-D_FILE_OFFSET_BITS=64', '-Wextra'] + omp_arg,
             extra_link_args=[] + omp_lib,
             sources=[op.join('src', 'gf', 'ext', 'store_ext.c')]),
 
@@ -661,12 +987,9 @@ setup(
             extra_link_args=[] + omp_lib,
             sources=[op.join('src', 'ext', 'eikonal_ext.c')]),
 
-        Extension(
-            'parstack_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=['-Wextra'] + omp_arg,
-            extra_link_args=[] + omp_lib,
-            sources=[op.join('src', 'ext', 'parstack_ext.c')]),
+        parstack_ext(),
+        minmax_ext(),
+        cuda_ext(),
 
         Extension(
             'ahfullgreen_ext',
@@ -687,7 +1010,8 @@ setup(
             define_macros=[('HAVE_AVL_VERIFY', None),
                            ('AVL_FOR_PYTHON', None)],
             include_dirs=[get_python_inc()],
-            extra_compile_args=['-Wno-parentheses', '-Wno-uninitialized'],
+            extra_compile_args=[
+                '-Wno-parentheses', '-Wno-uninitialized'],
             extra_link_args=[] if sys.platform != 'sunos5' else ['-Wl,-x']),
     ],
 

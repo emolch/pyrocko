@@ -6,19 +6,31 @@ from __future__ import absolute_import
 import numpy as num
 
 from . import parstack_ext
+from . import cuda
 
 try:
     range = xrange
 except NameError:
     pass
 
+CUDA_COMPILED = parstack_ext.CUDA_COMPILED
 
-def parstack(arrays, offsets, shifts, weights, method,
+parstack_kernel_parameters = cuda.resolve_implementation_flag(
+        parstack_ext.parstack_kernel_parameters)
+
+check_parstack_implementation_compatibility = cuda.resolve_implementation_flag(
+        parstack_ext.check_parstack_implementation_compatibility)
+
+
+@cuda.resolve_implementation_flag
+def parstack(arrays, offsets, shifts, weights,
+             method=0,
              lengthout=-1,
              offsetout=0,
              result=None,
+             impl='openmp',
              nparallel=None,
-             impl='openmp'):
+             target_block_threads=256):
 
     if nparallel is None:
         import multiprocessing
@@ -32,14 +44,19 @@ def parstack(arrays, offsets, shifts, weights, method,
     assert weights.shape == (nshifts, narrays)
     weights = num.reshape(weights, (nshifts*narrays))
 
-    if impl == 'openmp':
-        parstack_impl = parstack_ext.parstack
-    elif impl == 'numpy':
+    parstack_impl = parstack_ext.parstack
+    if impl == cuda.IMPL_NP:
         parstack_impl = parstack_numpy
 
     result, offset = parstack_impl(
-        arrays, offsets, shifts, weights, method,
-        lengthout, offsetout, result, nparallel)
+        arrays, offsets, shifts, weights,
+        method=method,
+        lengthout=lengthout,
+        offsetout=offsetout,
+        result=result,
+        impl=impl,
+        nparallel=nparallel,
+        target_block_threads=target_block_threads)
 
     if method == 0:
         nsamps = result.size // nshifts
@@ -48,13 +65,12 @@ def parstack(arrays, offsets, shifts, weights, method,
     return result, offset
 
 
-def get_offset_and_length(arrays, offsets, shifts):
+def get_offset_and_length(arrays, lengths, offsets, shifts):
     narrays = offsets.size
     nshifts = shifts.size // narrays
     if shifts.ndim == 2:
         shifts = num.reshape(shifts, (nshifts*narrays))
 
-    lengths = num.array([a.size for a in arrays], dtype=num.int)
     imin = offsets[0] + shifts[0]
     imax = imin + lengths[0]
     for iarray in range(len(arrays)):
@@ -75,21 +91,26 @@ def parstack_numpy(
         lengthout,
         offsetout,
         result,
-        nparallel):
+        impl,
+        nparallel,
+        target_block_threads):
 
-    # nparallel is ignored here
+    # impl and nparallel are ignored here
 
     narrays = offsets.size
 
     lengths = num.array([a.size for a in arrays], dtype=num.int)
     if lengthout < 0:
-        imin, nsamp = get_offset_and_length(arrays, offsets, shifts)
+        imin, nsamp = get_offset_and_length(arrays, lengths, offsets, shifts)
     else:
         nsamp = lengthout
         imin = offsetout
 
     nshifts = shifts.size // narrays
-    result = num.zeros(nsamp*nshifts, dtype=num.float)
+    if result is None:
+        result = num.zeros(nsamp*nshifts, dtype=num.float32)
+    elif method == 0:
+        result = result.flatten()
 
     for ishift in range(nshifts):
         for iarray in range(narrays):
@@ -105,10 +126,3 @@ def parstack_numpy(
         return result, imin
     elif method == 1:
         return num.amax(result.reshape((nshifts, nsamp)), axis=1), imin
-
-
-def argmax(a, nparallel=1):
-    '''Same as numpys' argmax for 2 dimensional arrays along axis 0
-    but more memory efficient and twice as fast.'''
-
-    return parstack_ext.argmax(a, nparallel)

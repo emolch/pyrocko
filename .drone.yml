@@ -180,11 +180,34 @@ steps:
   pull: never
   commands:
   - python3 setup.py install -f
+  - bash -c "python3 -c $'import sys;\nimport pyrocko.cuda;\nsys.exit(not pyrocko.cuda.CUDA_DEBUG == 0);'"
+  - bash -c "python3 -c $'import sys;\nimport pyrocko.cuda;\nsys.exit(not pyrocko.cuda.CUDA_COMPILED == 0);'"
   - pip3 install utm
   - pip3 install git+https://github.com/pyrocko/kite
   - pip3 install obspy
   - python3 -m coverage run --parallel-mode -m nose test.base
   - for x in .coverage.* ; do mv $x $${x#.} ; done
+
+- name: tests-cuda
+  image: pyrocko-gpu-nest
+  pull: never
+  commands:
+  - python3 setup.py install -f
+  - bash -c "python3 -c $'import sys;\nimport pyrocko.cuda;\nsys.exit(not pyrocko.cuda.CUDA_DEBUG == 0);'"
+  - bash -c "python3 -c $'import sys;\nimport pyrocko.cuda;\nsys.exit(not pyrocko.cuda.CUDA_COMPILED > 0);'"
+  - pip3 install utm
+  - pip3 install git+https://github.com/pyrocko/kite
+  - pip3 install obspy
+  - python3 -m coverage run --parallel-mode -m nose test.base
+
+- name: compiles-cuda-debug
+  image: pyrocko-gpu-nest
+  pull: never
+  commands:
+  - python3 setup.py install -f
+  - bash -c "python3 -c $'import sys;\nimport pyrocko.cuda;\nsys.exit(not pyrocko.cuda.CUDA_DEBUG > 0);'"
+  environment:
+    CUDA_DEBUG: enabled
 
 - name: stage
   image: pyrocko-aux

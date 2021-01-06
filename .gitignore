@@ -3,6 +3,8 @@
 /doc/build/
 /pyrocko.egg-info/
 /src/info.py
+/src/ext/cuda/_build
+/src/ext/cuda/profiling/**/
 
 /evalresp-3.3.0/
 /libmseed/
@@ -18,14 +20,18 @@ __pycache__/
 /scratch/
 *.sublime-*
 /htmlcov/
-/.coverage
-/.coverage.*
+.coverage
+.coverage.*
+coverage.*
 *.log
 *.err_log
 .vagrant
+valgrind-python.supp
+Pipfile*
 
 /test/example_run_dir/
 /test/data/
+/test/benchmark/
 
 /maintenance/**/pyrocko.git/
 /maintenance/conda/miniconda?.sh
