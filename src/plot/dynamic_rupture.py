@@ -1064,6 +1064,22 @@ class RuptureMap(Map):
 
         clear_temp(gridfiles=tmp_grd_files, cpts=[])
 
+    def draw_top_edge(self, **kwargs):
+        '''Indicate rupture top edge on map
+        '''
+
+        outline = self.source.outline(cs='latlondepth')
+        top_edge = outline[:2, :]
+
+        kwargs = kwargs or {}
+        kwargs['W'] = kwargs.get(
+            'W', '%gp,%s' % (self._fontsize / 10., gmtpy.color('orange3')))
+
+        self.gmt.psxy(
+            in_columns=[top_edge[:, 1], top_edge[:, 0]],
+            *self.jxyr,
+            **kwargs)
+
 
 class RuptureView(Object):
     ''' Plot of attributes and results of the
@@ -1553,7 +1569,11 @@ class RuptureView(Object):
         :type dpi: int
         '''
         self.finalize()
-        self._fig.savefig(fname=filename, dpi=dpi, bbox_inches='tight')
+        try:
+            self._fig.savefig(fname=filename, dpi=dpi, bbox_inches='tight')
+        except TypeError:
+            self._fig.savefig(filename=filename, dpi=dpi, bbox_inches='tight')
+
         self._clear_all()
 
     def show_plot(self):
