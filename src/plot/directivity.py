@@ -314,7 +314,7 @@ def plot_directivity(
         strike_label = source.strike
 
     try:
-        ax.set_rlabel_position(strike_label % 180.)
+        ax.set_rlabel_position(strike_label % 180. - 180.)
     except AttributeError:
         logger.warn('Old matplotlib version: cannot set label positions')
 
