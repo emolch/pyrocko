@@ -65,7 +65,6 @@ class PlatesBoundsState(ElementState):
 
     def create(self):
         element = PlatesBoundsElement()
-        element.bind_state(self)
         return element
 
 
@@ -119,11 +118,11 @@ class PlatesBoundsElement(Element):
         self._plate_lines = []
 
     def bind_state(self, state):
+        Element.bind_state(self, state)
         self._listeners.append(
             state.add_listener(self.update, 'visible'))
         self._listeners.append(
             state.add_listener(self.update, 'opacity'))
-        self._state = state
 
     def unbind_state(self):
         self._listerners = []

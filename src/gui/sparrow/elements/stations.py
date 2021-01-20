@@ -89,7 +89,6 @@ class StationsState(ElementState):
 
     def create(self):
         element = StationsElement()
-        element.bind_state(self)
         return element
 
 
@@ -104,12 +103,12 @@ class StationsElement(Element):
         self._points = num.array([])
 
     def bind_state(self, state):
+        Element.bind_state(self, state)
         upd = self.update
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
         state.add_listener(upd, 'size')
         state.add_listener(upd, 'station_selection')
-        self._state = state
         self._current_selection = None
 
     def unbind_state(self):

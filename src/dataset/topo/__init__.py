@@ -12,6 +12,7 @@ import os.path as op
 from pyrocko import config, util
 from .srtmgl3 import SRTMGL3, AuthenticationRequired  # noqa
 from .etopo1 import ETOPO1
+from .iceland_v2 import IcelandV2
 from . import dataset, tile
 
 __doc__ = util.parse_md(__file__)
@@ -73,6 +74,23 @@ etopo1_d8 = dataset.DecimatedTiledGlobalDataset(
     ndeci=2,
     data_dir=op.join(topo_data_dir, 'ETOPO1_D8'))
 
+iceland_v2 = IcelandV2(
+    name='IcelandV2',
+    data_dir=op.join(topo_data_dir, 'IcelandV2'))
+
+iceland_v2_d2 = dataset.DecimatedTiledGlobalDataset(
+    name='IcelandV2_D2',
+    base=iceland_v2,
+    ndeci=2,
+    data_dir=op.join(topo_data_dir, 'IcelandV2_D2'))
+
+iceland_v2_d4 = dataset.DecimatedTiledGlobalDataset(
+    name='IcelandV2_D4',
+    base=iceland_v2_d2,
+    ndeci=2,
+    data_dir=op.join(topo_data_dir, 'IcelandV2_D4'))
+
+
 srtmgl3_all = [
     srtmgl3,
     srtmgl3_d2,
@@ -85,7 +103,12 @@ etopo1_all = [
     etopo1_d4,
     etopo1_d8]
 
-dems = srtmgl3_all + etopo1_all
+iceland_v2_all = [
+    iceland_v2,
+    iceland_v2_d2,
+    iceland_v2_d4]
+
+dems = srtmgl3_all + etopo1_all + iceland_v2_all
 
 
 def make_all_missing_decimated():
@@ -168,7 +191,7 @@ def select_dem_names(kind, dmin, dmax, region, mode='highest'):
 
     ok = []
     if kind == 'land':
-        for dem in srtmgl3_all[::step]:
+        for dem in iceland_v2_all[::step] + srtmgl3_all[::step]:
             if dem.is_suitable(region, dmin, dmax):
                 ok.append(dem.name)
                 break

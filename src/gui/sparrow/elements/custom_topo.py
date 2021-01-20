@@ -26,7 +26,6 @@ class CustomTopoState(TopoState):
 
     def create(self):
         element = CustomTopoElement()
-        element.bind_state(self)
         return element
 
 
@@ -45,21 +44,14 @@ class CustomTopoElement(Element):
         return 'Custom Topography'
 
     def bind_state(self, state):
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'exaggeration')
-        state.add_listener(upd, 'opacity')
-        state.add_listener(upd, 'smooth')
-        state.add_listener(upd, 'cpt')
-
-        state.add_listener(upd, 'path')
-
-        self._state = state
-
-    def unbind_state(self):
-        self._listeners.clear()
-        self._state = None
+        print('ZZZ', 'binding', id(state))
+        Element.bind_state(self, state)
+        self.register_state_listener3(self.update, state, 'visible')
+        self.register_state_listener3(self.update, state, 'exaggeration')
+        self.register_state_listener3(self.update, state, 'opacity')
+        self.register_state_listener3(self.update, state, 'smooth')
+        self.register_state_listener3(self.update, state, 'cpt')
+        self.register_state_listener3(self.update, state, 'path')
 
     def set_parent(self, parent):
         self._parent = parent
@@ -105,7 +97,10 @@ class CustomTopoElement(Element):
 
     def update(self, *args):
 
+
         visible = self._state.visible
+
+        print('xxx', self._state.opacity)
 
         self.update_cpt(self._state.cpt)
 

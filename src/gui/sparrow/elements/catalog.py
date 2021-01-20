@@ -357,7 +357,6 @@ class CatalogState(TableState):
 
     def create(self):
         element = CatalogElement()
-        element.bind_state(self)
         return element
 
 

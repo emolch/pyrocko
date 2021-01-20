@@ -156,9 +156,19 @@ def command_view(args):
             help='disable use of VTKs depth peeling (e.g. if the hardware '
                  'doesn\'t support it).')
 
+        parser.add_option(
+            '--snapshots',
+            dest='snapshots',
+            action='append',
+            default=[],
+            metavar='FILE',
+            help='load snapshots from FILE.')
+
     parser, options, args = cl_parse('view', args, setup)
 
-    pyrocko.sparrow(use_depth_peeling=options.use_depth_peeling)
+    pyrocko.sparrow(
+        use_depth_peeling=options.use_depth_peeling,
+        snapshots=options.snapshots)
 
 
 def command_version(args):

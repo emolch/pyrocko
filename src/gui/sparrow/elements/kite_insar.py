@@ -57,7 +57,6 @@ class KiteState(ElementState):
 
     def create(self):
         element = KiteElement()
-        element.bind_state(self)
         return element
 
     def add_scene(self, scene):
@@ -76,11 +75,11 @@ class KiteElement(Element):
         self._meshes = {}
 
     def bind_state(self, state):
+        Element.bind_state(self, state)
         self._listeners.append(
             state.add_listener(self.update, 'visible'))
         self._listeners.append(
             state.add_listener(self.update, 'scenes'))
-        self._state = state
 
     def get_name(self):
         return 'Kite InSAR Scenes'

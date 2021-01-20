@@ -37,12 +37,16 @@ def de_errorize(widget):
     widget.setStyleSheet('')
 
 
-def string_choices_to_combobox(cls):
+def strings_to_combobox(list_of_str):
     cb = qw.QComboBox()
-    for i, s in enumerate(cls.choices):
+    for i, s in enumerate(list_of_str):
         cb.insertItem(i, s)
 
     return cb
+
+
+def string_choices_to_combobox(cls):
+    return strings_to_combobox(cls.choices)
 
 
 def cover_region(lat, lon, delta, step=None, avoid_poles=False):

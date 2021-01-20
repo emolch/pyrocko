@@ -82,6 +82,7 @@ class TableElement(base.Element):
         self.cpt_handler = base.CPTHandler()
 
     def bind_state(self, state):
+        base.Element.bind_state(self, state)
         upd = self.update
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
@@ -100,8 +101,6 @@ class TableElement(base.Element):
         upd_s = self.update_sizes
         self._listeners.append(upd_s)
         state.add_listener(upd_s, 'size_parameter')
-
-        self._state = state
 
     def unbind_state(self):
 
@@ -143,7 +142,7 @@ class TableElement(base.Element):
     def unset_parent(self):
         self.unbind_state()
         if self._parent:
-            self._parent.unregister_data_provider()
+            self._parent.unregister_data_provider(self)
 
             self._clear_pipes()
 

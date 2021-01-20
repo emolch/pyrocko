@@ -28,7 +28,7 @@ from pyrocko.gui.util import Progressbars, RangeEdit
 from pyrocko.gui.qt_compat import qw, qc, use_pyqt5, fnpatch
 # from pyrocko.gui import vtk_util
 
-from . import common, light, snapshots
+from . import common, light, snapshots as snapshots_mod
 
 import vtk
 import vtk.qt
@@ -36,12 +36,11 @@ vtk.qt.QVTKRWIBase = 'QGLWidget'  # noqa
 
 if use_pyqt5:  # noqa
     from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-else:
+else:  # noqa
     from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
-from pyrocko import geometry
-from . import state as vstate, elements
-
+from pyrocko import geometry  # noqa
+from . import state as vstate, elements  # noqa
 
 logger = logging.getLogger('pyrocko.gui.sparrow.main')
 
@@ -141,7 +140,7 @@ class MyDockWidget(qw.QDockWidget):
 
 
 class Viewer(qw.QMainWindow):
-    def __init__(self, use_depth_peeling=True, events=None):
+    def __init__(self, use_depth_peeling=True, events=None, snapshots=None):
         qw.QMainWindow.__init__(self)
 
         self.planet_radius = cake.earthradius
@@ -168,6 +167,7 @@ class Viewer(qw.QMainWindow):
 
         menu = mbar.addMenu('Add')
         for name, estate in [
+                ('Icosphere', elements.IcosphereState()),
                 ('Stations', elements.StationsState()),
                 ('Topography', elements.TopoState()),
                 ('Custom Topography', elements.CustomTopoState()),
@@ -190,7 +190,11 @@ class Viewer(qw.QMainWindow):
 
             def wrap_add_element(estate):
                 def add_element(*args):
-                    self.state.elements.append(guts.clone(estate))
+                    new_element = guts.clone(estate)
+                    new_element.element_id = elements.random_id()
+                    self.state.elements.append(new_element)
+                    self.state.sort_elements()
+
                 return add_element
 
             mitem = qw.QAction(name, self)
@@ -200,6 +204,7 @@ class Viewer(qw.QMainWindow):
             menu.addAction(mitem)
 
         self.state = vstate.ViewerState()
+
         self.gui_state = vstate.ViewerGuiState()
 
         self.data_providers = []
@@ -231,10 +236,12 @@ class Viewer(qw.QMainWindow):
 
         self.add_panel(
             'Navigation',
-            self.controls(), visible=True, where=qc.Qt.RightDockWidgetArea)
+            self.controls(), visible=True,
+            where=qc.Qt.LeftDockWidgetArea)
 
+        snapshots_panel = self.snapshots_panel()
         self.add_panel(
-            'Snapshots', self.snapshots_panel(), visible=False,
+            'Snapshots', snapshots_panel, visible=False,
             where=qc.Qt.LeftDockWidgetArea)
 
         self.setCentralWidget(self.frame)
@@ -244,11 +251,12 @@ class Viewer(qw.QMainWindow):
         ren = vtk.vtkRenderer()
 
         # ren.SetBackground(0.15, 0.15, 0.15)
-        ren.SetBackground(0.0, 0.0, 0.0)
+        # ren.SetBackground(0.0, 0.0, 0.0)
         # ren.TwoSidedLightingOn()
         # ren.SetUseShadows(1)
 
         self._lighting = None
+        self._background = None
 
         self.ren = ren
         self.update_render_settings()
@@ -301,15 +309,19 @@ class Viewer(qw.QMainWindow):
         self.rotating = False
 
         self._elements = {}
+        self._elements_active = {}
 
         update_elements = self.update_elements
         self.register_state_listener(update_elements)
 
         self.state.add_listener(update_elements, 'elements')
         self.state.elements.append(elements.IcosphereState(
-            level=4, smooth=True))
-        self.state.elements.append(elements.GridState())
-        self.state.elements.append(elements.CoastlinesState())
+            element_id='icosphere', level=4, smooth=True))
+        self.state.elements.append(elements.GridState(
+            element_id='grid'))
+        self.state.elements.append(elements.CoastlinesState(
+            element_id='coastlines'))
+
         # self.state.elements.append(elements.StationsState())
         # self.state.elements.append(elements.SourceState())
         # self.state.elements.append(
@@ -321,6 +333,20 @@ class Viewer(qw.QMainWindow):
             self.state.elements.append(
                 elements.CatalogState(
                     selection=elements.MemoryCatalogSelection(events=events)))
+
+        self.state.sort_elements()
+
+        if snapshots:
+            snapshots_ = []
+            for obj in snapshots:
+                if isinstance(obj, str):
+                    snapshots_.extend(snapshots_mod.load_snapshots(obj))
+                else:
+                    snapshots.append(obj)
+
+            snapshots_panel.add_snapshots(snapshots_)
+            self.raise_panel(snapshots_panel)
+            snapshots_panel.goto_snapshot(1)
 
         self.timer = qc.QTimer(self)
         self.timer.timeout.connect(self.periodical)
@@ -373,6 +399,12 @@ class Viewer(qw.QMainWindow):
                 self.ren.AddLight(li)
 
             self._lighting = self.state.lighting
+
+        if self._background is None \
+                or self._background != self.state.background:
+
+            self.state.background.vtk_apply(self.ren)
+            self._background = self.state.background
 
         self.update_view()
 
@@ -474,8 +506,29 @@ class Viewer(qw.QMainWindow):
 
     def set_state(self, state):
         self.setUpdatesEnabled(False)
+
+        print('<<<<<<<<<<')
+
+        for tag, path, _ in self.state.diff(state):
+            print('diff', tag, path)
+
+        print('---')
+        for el in self.state.elements:
+            print('<  ', type(el).__name__, el.element_id, id(el))
+        print('---')
+        for el in state.elements:
+            print('>  ', type(el).__name__, el.element_id, id(el))
+        print('---')
+
         self.state.diff_update(state)
+
+        print('---')
+        for el in self.state.elements:
+            print('  ', type(el).__name__, el.element_id, id(el))
+        print('---')
+
         self.setUpdatesEnabled(True)
+        print('>>>>>>>>>>>>')
 
     def periodical(self):
         pass
@@ -493,14 +546,29 @@ class Viewer(qw.QMainWindow):
 
     def update_elements(self, path, value):
         for estate in self.state.elements:
-            if estate not in self._elements:
-                element = estate.create()
-                element.set_parent(self)
-                self._elements[estate] = element
+            if estate.element_id not in self._elements:
+                new_element = estate.create()
+                logger.debug('Creating "%s".' % type(new_element).__name__)
+                self._elements[estate.element_id] = new_element
 
-        for estate, element in self._elements.items():
-            if estate not in self.state.elements:
+            element = self._elements[estate.element_id]
+
+            if estate.element_id not in self._elements_active:
+                logger.debug('Adding "%s".' % type(element).__name__)
+                element.bind_state(estate)
+                element.set_parent(self)
+                self._elements_active[estate.element_id] = element
+
+        state_element_ids = [el.element_id for el in self.state.elements]
+        deactivate = []
+        for element_id, element in self._elements_active.items():
+            if element_id not in state_element_ids:
+                logger.debug('Removing "%s".' % type(element).__name__)
                 element.unset_parent()
+                deactivate.append(element_id)
+
+        for element_id in deactivate:
+            del self._elements_active[element_id]
 
     def add_actor_2d(self, actor):
         if actor not in self._actors_2d:
@@ -655,7 +723,7 @@ class Viewer(qw.QMainWindow):
         layout = qw.QGridLayout()
         frame.setLayout(layout)
 
-        layout.addWidget(qw.QLabel('Location:'), 0, 0)
+        layout.addWidget(qw.QLabel('Location'), 0, 0)
         le = qw.QLineEdit()
         layout.addWidget(le, 0, 1)
 
@@ -687,7 +755,7 @@ class Viewer(qw.QMainWindow):
         self.lat_lon_lineedit.returnPressed.connect(
             lambda *args: self.lat_lon_lineedit.selectAll())
 
-        layout.addWidget(qw.QLabel('Strike, Dip:'), 1, 0)
+        layout.addWidget(qw.QLabel('Strike, Dip'), 1, 0)
         le = qw.QLineEdit()
         layout.addWidget(le, 1, 1)
 
@@ -773,13 +841,29 @@ class Viewer(qw.QMainWindow):
         self.register_state_listener(update_render_settings)
         self.state.add_listener(update_render_settings, 'lighting')
 
-        layout.addWidget(qw.QLabel('T<sub>MIN</sub>:'), 5, 0)
-        le_tmin = qw.QLineEdit()
-        layout.addWidget(le_tmin, 5, 1)
+        # background
 
-        layout.addWidget(qw.QLabel('T<sub>MAX</sub>:'), 6, 0)
+        layout.addWidget(qw.QLabel('Background'), 5, 0)
+
+        cb = common.strings_to_combobox(
+            ['black', 'white', 'skyblue1 - white'])
+
+        layout.addWidget(cb, 5, 1)
+        vstate.state_bind_combobox_background(
+            self, self.state, 'background', cb)
+
+        self.register_state_listener(update_render_settings)
+        self.state.add_listener(update_render_settings, 'background')
+
+        # time
+
+        layout.addWidget(qw.QLabel('T<sub>MIN</sub>'), 6, 0)
+        le_tmin = qw.QLineEdit()
+        layout.addWidget(le_tmin, 6, 1)
+
+        layout.addWidget(qw.QLabel('T<sub>MAX</sub>'), 7, 0)
         le_tmax = qw.QLineEdit()
-        layout.addWidget(le_tmax, 6, 1)
+        layout.addWidget(le_tmax, 7, 1)
 
         def time_to_lineedit(state, attribute, widget):
             from pyrocko.util import time_to_str
@@ -844,14 +928,14 @@ class Viewer(qw.QMainWindow):
             ['tmin', 'tmax'], range_edit_to_range,
             range_edit, [range_edit.rangeChanged], range_to_range_edit)
 
-        layout.addWidget(range_edit, 7, 0, 1, 2)
+        layout.addWidget(range_edit, 8, 0, 1, 2)
 
-        layout.addWidget(ZeroFrame(), 8, 0, 1, 2)
+        layout.addWidget(ZeroFrame(), 9, 0, 1, 2)
 
         return frame
 
     def snapshots_panel(self):
-        return snapshots.SnapshotsPanel(self)
+        return snapshots_mod.SnapshotsPanel(self)
 
     def reset_strike_dip(self, *args):
         self.state.strike = 90.
@@ -906,18 +990,22 @@ class Viewer(qw.QMainWindow):
 
         planet_horizon = math.sqrt(max(0., num.sum(cam**2) - 1.0))
 
-        feature_horizon = math.sqrt(max(0., num.sum(cam**2) - (self.feature_radius_min / self.planet_radius)**2))
+        feature_horizon = math.sqrt(max(0., num.sum(cam**2) - (
+            self.feature_radius_min / self.planet_radius)**2))
 
         # if horizon == 0.0:
         #     horizon = 2.0 + self.state.distance
 
-        #clip_dist = max(min(self.state.distance*5., max(1.0, num.sqrt(num.sum(cam**2)))), feature_horizon) # , math.sqrt(num.sum(cam**2)))
-        clip_dist = max(1.0, feature_horizon) # , math.sqrt(num.sum(cam**2)))
-        #clip_dist = feature_horizon
+        # clip_dist = max(min(self.state.distance*5., max(
+        #    1.0, num.sqrt(num.sum(cam**2)))), feature_horizon)
+        # , math.sqrt(num.sum(cam**2)))
+        clip_dist = max(1.0, feature_horizon)  # , math.sqrt(num.sum(cam**2)))
+        # clip_dist = feature_horizon
 
-        camera.SetClippingRange(0.0001, clip_dist)
+        camera.SetClippingRange(max(clip_dist*0.001, clip_dist-3.0), clip_dist)
 
-        self.camera_params = (cam, up, foc, planet_horizon, feature_horizon, clip_dist)
+        self.camera_params = (
+            cam, up, foc, planet_horizon, feature_horizon, clip_dist)
 
         self.update_view()
 
@@ -925,7 +1013,7 @@ class Viewer(qw.QMainWindow):
             self, name, panel,
             visible=False,
             # volatile=False,
-            tabify=False,
+            tabify=True,
             where=qc.Qt.RightDockWidgetArea):
 
         dockwidget = MyDockWidget(name, self)
@@ -938,11 +1026,30 @@ class Viewer(qw.QMainWindow):
 
         dockwidget.setWidget(panel)
         panel.setParent(dockwidget)
+
+        dockwidgets = self.findChildren(MyDockWidget)
+        dws = [x for x in dockwidgets if self.dockWidgetArea(x) == where]
+
         self.addDockWidget(where, dockwidget)
+
+        nwrap = 3
+        if dws and len(dws) >= nwrap and tabify:
+            self.tabifyDockWidget(
+                dws[len(dws) - nwrap + len(dws) % nwrap], dockwidget)
 
         mitem = dockwidget.toggleViewAction()
         self._panel_togglers[dockwidget] = mitem
         self.panels_menu.addAction(mitem)
+        if visible:
+            dockwidget.setVisible(True)
+            dockwidget.setFocus()
+            dockwidget.raise_()
+
+    def raise_panel(self, panel):
+        dockwidget = panel.parent()
+        dockwidget.setVisible(True)
+        dockwidget.setFocus()
+        dockwidget.raise_()
 
     def toggle_panel_visibility(self):
         self.gui_state.panels_visible = not self.gui_state.panels_visible
@@ -1032,17 +1139,19 @@ def main(*args, **kwargs):
         app = App()
 
         try:
-            import qdarkstyle
-
-            if use_pyqt5:
-                app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-            else:
-                app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt())
+            import qdarkgraystyle
+            app.setStyleSheet(qdarkgraystyle.load_stylesheet())
+            # import qdarkstyle
+            #
+            # if use_pyqt5:
+            #     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+            # else:
+            #     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt())
 
         except ImportError:
             logger.info(
-                'Module qdarkstyle not available.\n'
-                'If wanted, install qdarkstyle with "pip install qdarkstyle".')
+                'Module qdarkgraystyle not available.\n'
+                'If wanted, install qdarkstyle with "pip install qdarkgraystyle".')
 
     win = Viewer(*args, **kwargs)
     app.set_main_window(win)
