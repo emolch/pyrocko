@@ -12,6 +12,7 @@ from pyrocko.guts import Bool, Float, Object, String
 
 from pyrocko import cake, geometry, gf
 from pyrocko.gui.qt_compat import qc, qw, fnpatch
+from pyrocko.gui.talkie import TalkieRoot
 
 from pyrocko.gui.vtk_util import \
     ArrowPipe, ColorbarPipe, PolygonPipe, ScatterPipe, OutlinesPipe
@@ -38,7 +39,7 @@ map_anchor = {
     'bottom_right': (1.0, 1.0)}
 
 
-class ProxySource(base.ElementState):
+class ProxySource(TalkieRoot):
     pass
 
 
@@ -127,7 +128,6 @@ class SourceState(base.ElementState):
 
     def create(self):
         element = SourceElement()
-        element.bind_state(self)
         return element
 
 
@@ -149,6 +149,7 @@ class SourceElement(base.Element):
         vstate.state_bind(self, self._state, *args, **kwargs)
 
     def bind_state(self, state):
+        base.Element.bind_state(self, state)
         upd = self.update
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
@@ -156,8 +157,6 @@ class SourceElement(base.Element):
         state.add_listener(upd, 'deltat')
         state.add_listener(upd, 'display_parameter')
         self.cpt_handler.bind_state(state.cpt, upd)
-
-        self._state = state
 
     def unbind_state(self):
         self._listeners = []
@@ -392,8 +391,8 @@ class SourceElement(base.Element):
                 sel = getattr(state, attribute)
 
                 widget.setText('%g' % sel)
-                if sel:
-                    widget.selectAll()
+                # if sel:
+                #     widget.selectAll()
 
             def lineedit_to_state(widget, state, attribute):
                 s = float(widget.text())

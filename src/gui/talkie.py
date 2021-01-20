@@ -146,8 +146,17 @@ class Talkie(Object):
     def diff_update(self, other, path=()):
         assert type(self) is type(other), '%s %s' % (type(self), type(other))
 
+        print('diff_update', path)
+
+        if type(self).__name__ == 'CustomTopoState':
+            print('yyy', id(self))
+            print(self)
+            print(self._listeners)
+
         for (s_prop, s_val), (o_prop, o_val) in zip(
                 self.T.ipropvals(self), other.T.ipropvals(other)):
+
+            print(s_prop.name)
 
             if not s_prop.multivalued:
                 if isinstance(s_val, Talkie) \
@@ -156,6 +165,7 @@ class Talkie(Object):
                     s_val.diff_update(o_val, path + (s_prop.name,))
                 else:
                     if not equal(s_val, o_val):
+                        print('SET!')
                         setattr(self, s_prop.name, clone(o_val))
             else:
                 if issubclass(s_prop.content_t.cls, Talkie):
@@ -250,7 +260,7 @@ class ListenerRef(object):
         self._ref_listener = ref_listener
 
     def release(self):
-        self._talkie_root.remove(self)
+        self._talkie_root.remove_listener(self)
 
 
 class TalkieRoot(Talkie):
@@ -269,7 +279,7 @@ class TalkieRoot(Talkie):
 
     def fire_event(self, path, value):
         path = '.'.join(path[::-1])
-        # print('fire_event:', path, value)
+        #print('fire_event:', path, value)
         parts = path.split('.')
         for i in range(len(parts)+1):
             subpath = '.'.join(parts[:i])
@@ -381,8 +391,8 @@ for method_name in ['reverse', 'sort']:
     def x():
         list_meth = getattr(list, method_name)
 
-        def meth(self, *args):
-            retval = list_meth(self, *args)
+        def meth(self, *args, **kwargs):
+            retval = list_meth(self, *args, **kwargs)
             self.fire([], self)
             return retval
 

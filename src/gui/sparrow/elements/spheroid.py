@@ -33,7 +33,6 @@ class SpheroidState(ElementState):
 
     def create(self):
         element = SpheroidElement()
-        element.bind_state(self)
         return element
 
 

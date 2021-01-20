@@ -271,7 +271,19 @@ class Color(SObject):
                 self.rgba = args
 
         else:
-            SObject.__init__(self, **kwargs)
+            SObject.__init__(self, init_props=False)
+            self.name__ = kwargs.get('name', None)
+            self.r__ = kwargs.get('r', 0.0)
+            self.g__ = kwargs.get('g', 0.0)
+            self.b__ = kwargs.get('b', 0.0)
+            self.a__ = kwargs.get('a', 1.0)
+
+    def __eq__(self, other):
+        return self.name__ == other.name__ \
+            and self.r__ == other.r__ \
+            and self.g__ == other.g__ \
+            and self.b__ == other.b__ \
+            and self.a__ == other.a__
 
     @property
     def name(self):
@@ -483,6 +495,18 @@ for name, color_dict in [
 
     for color in g_groups[-1].mapping.values():
         color.use_hex_name()
+
+
+def interpolate(a, b, blend, method='rgb'):
+    assert method == 'rgb'
+    assert 0.0 <= blend <= 1.0
+
+    c_rgba = tuple(
+        a * (1.0-blend) + b * blend
+        for (a, b) in zip(a.rgba, b.rgba))
+
+    return Color(*c_rgba)
+
 
 if __name__ == '__main__':
 

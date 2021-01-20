@@ -54,7 +54,6 @@ class VolcanoesState(ElementState):
 
     def create(self):
         element = VolcanoesElement()
-        element.bind_state(self)
         return element
 
 
@@ -67,11 +66,11 @@ class VolcanoesElement(Element):
         self._volcanoes = None
 
     def bind_state(self, state):
+        Element.bind_state(self, state)
         self._listeners.append(
             state.add_listener(self.update, 'visible'))
         self._listeners.append(
             state.add_listener(self.update, 'size'))
-        self._state = state
 
     def get_name(self):
         return 'Volcanoes'

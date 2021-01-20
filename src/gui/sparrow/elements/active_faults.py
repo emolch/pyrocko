@@ -49,7 +49,7 @@ fault_color_themes = {
 
 class ActiveFaultsState(ElementState):
     visible = Bool.T(default=True)
-    size = Float.T(default=3.0)
+    line_width = Float.T(default=1.0)
     color_by_slip_type = Bool.T(default=False)
 
     def create(self):
@@ -62,6 +62,7 @@ class FaultlinesPipe(object):
     def __init__(self, faults):
 
         self._opacity = 1.0
+        self._line_width = 1.0
         self._faults = faults
 
         slip_types = sorted(set(f.slip_type for f in faults.active_faults))
@@ -107,9 +108,17 @@ class FaultlinesPipe(object):
         opacity = float(opacity)
         if self._opacity != opacity:
             for actor in self._actors.values():
-                actor.getProperty().SetOpacity(opacity)
+                actor.GetProperty().SetOpacity(opacity)
 
             self._opacity = opacity
+
+    def set_line_width(self, width):
+        width = float(width)
+        if self._line_width != width:
+            for actor in self._actors.values():
+                actor.GetProperty().SetLineWidth(width)
+
+            self._line_width = width
 
     def get_actors(self):
         return [self._actors[slip_type] for slip_type in self._slip_types]
@@ -124,19 +133,12 @@ class ActiveFaultsElement(Element):
         self._pipe = None
         self._controls = None
         self._active_faults = None
-        self._listeners = []
 
     def bind_state(self, state):
-        self._listeners.append(
-            state.add_listener(self.update, 'visible'))
-        self._listeners.append(
-            state.add_listener(self.update, 'size'))
-        self._listeners.append(
-            state.add_listener(self.update, 'color_by_slip_type'))
-        self._state = state
-
-    def unbind_state(self):
-        self._listeners = []
+        Element.bind_state(self, state)
+        self.register_state_listener3(self.update, state, 'visible')
+        self.register_state_listener3(self.update, state, 'line_width')
+        self.register_state_listener3(self.update, state, 'color_by_slip_type')
 
     def get_name(self):
         return 'Active Faults'
@@ -178,6 +180,8 @@ class ActiveFaultsElement(Element):
         else:
             self._pipe.set_color_theme('uniform_light')
 
+        self._pipe.set_line_width(state.line_width)
+
         if state.visible:
             for actor in self._pipe.get_actors():
                 self._parent.add_actor(actor)
@@ -197,7 +201,7 @@ class ActiveFaultsElement(Element):
             layout.setAlignment(qc.Qt.AlignTop)
             frame.setLayout(layout)
 
-            layout.addWidget(qw.QLabel('Size'), 0, 0)
+            layout.addWidget(qw.QLabel('Line width'), 0, 0)
 
             slider = qw.QSlider(qc.Qt.Horizontal)
             slider.setSizePolicy(
@@ -208,7 +212,7 @@ class ActiveFaultsElement(Element):
             slider.setSingleStep(0.5)
             slider.setPageStep(1)
             layout.addWidget(slider, 0, 1)
-            state_bind_slider(self, self._state, 'size', slider)
+            state_bind_slider(self, self._state, 'line_width', slider)
 
             cb = qw.QCheckBox('Show')
             cb_color_slip_type = qw.QCheckBox('Color by slip type')

@@ -33,7 +33,6 @@ class HudState(ElementState):
 
     def create(self):
         element = HudElement()
-        element.bind_state(self)
         return element
 
 
@@ -79,6 +78,7 @@ class HudElement(Element):
         return 'HUD'
 
     def bind_state(self, state):
+        Element.bind_state(self, state)
         self._listeners.append(
             state.add_listener(self.update, 'visible'))
 
@@ -96,8 +96,6 @@ class HudElement(Element):
 
         self._listeners.append(
             state.add_listener(self.update_bindings, 'variables'))
-
-        self._state = state
 
     def unbind_state(self):
         self._listeners.clear()
@@ -128,7 +126,7 @@ class HudElement(Element):
             self._parent.update_view()
             self._parent = None
 
-    def update_bindings(self):
+    def update_bindings(self, *args):
         while self._listeners2:
             listener_ref = self._listeners2.pop()
             listener_ref.release()

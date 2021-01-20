@@ -10,6 +10,7 @@ import vtk
 
 from pyrocko.guts import Bool, StringChoice, Float
 from pyrocko.gui.qt_compat import qw, qc
+from pyrocko.color import Color
 
 
 from pyrocko.gui import vtk_util
@@ -40,6 +41,8 @@ class CoastlinesPipe(object):
 
         self._polyline_grid = {}
         self._opacity = 1.0
+        self._line_width = 1.0
+        self._color = Color('white')
         self.set_resolution(resolution)
 
         actor = vtk.vtkActor()
@@ -74,7 +77,7 @@ class CoastlinesPipe(object):
                 lines.append(poly.points)
 
             self._polyline_grid[resolution] = vtk_util.make_multi_polyline(
-                lines_latlon=lines, depth=-100.)
+                lines_latlon=lines, depth=-200.)
 
             if pb:
                 pb.set_status(mess, 100, can_abort=False)
@@ -87,6 +90,17 @@ class CoastlinesPipe(object):
             self.prop.SetOpacity(opacity)
             self._opacity = opacity
 
+    def set_color(self, color):
+        if self._color != color:
+            self.prop.SetDiffuseColor(color.rgb)
+            self._color = color
+
+    def set_line_width(self, width):
+        width = float(width)
+        if self._line_width != width:
+            self.prop.SetLineWidth(width)
+            self._line_width = width
+
     def set_clipping_plane(self, origin, normal):
         self.plane.SetOrigin(*origin)
         self.plane.SetNormal(*normal)
@@ -95,11 +109,12 @@ class CoastlinesPipe(object):
 class CoastlinesState(ElementState):
     visible = Bool.T(default=True)
     resolution = CoastlineResolutionChoice.T(default='low')
-    opacity = Float.T(default=0.3)
+    opacity = Float.T(default=0.4)
+    color = Color.T(default=Color.D('white'))
+    line_width = Float.T(default=1.0)
 
     def create(self):
         element = CoastlinesElement()
-        element.bind_state(self)
         return element
 
 
@@ -115,13 +130,14 @@ class CoastlinesElement(Element):
         return 'Coastlines'
 
     def bind_state(self, state):
+        Element.bind_state(self, state)
         upd = self.update
         self._listeners = [upd]
         state.add_listener(upd, 'visible')
         state.add_listener(upd, 'resolution')
         state.add_listener(upd, 'opacity')
-
-        self._state = state
+        state.add_listener(upd, 'color')
+        state.add_listener(upd, 'line_width')
 
     def unbind_state(self):
         self._listeners = []
@@ -170,6 +186,8 @@ class CoastlinesElement(Element):
             self._parent.add_actor(self._coastlines.actor)
             self._coastlines.set_resolution(state.resolution)
             self._coastlines.set_opacity(state.opacity)
+            self._coastlines.set_color(state.color)
+            self._coastlines.set_line_width(state.line_width)
 
         self._parent.update_view()
 
@@ -182,7 +200,8 @@ class CoastlinesElement(Element):
     def _get_controls(self):
         if not self._controls:
             from ..state import state_bind_combobox, \
-                state_bind_checkbox, state_bind_slider
+                state_bind_checkbox, state_bind_slider, \
+                state_bind_combobox_color
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
@@ -209,15 +228,38 @@ class CoastlinesElement(Element):
             state_bind_slider(
                 self, self._state, 'opacity', slider, factor=0.001)
 
+            # color
+
+            layout.addWidget(qw.QLabel('Color'), 2, 0)
+
+            cb = common.strings_to_combobox(
+                ['black', 'white'])
+
+            layout.addWidget(cb, 2, 1)
+            state_bind_combobox_color(
+                self, self._state, 'color', cb)
+
+            layout.addWidget(qw.QLabel('Line width'), 3, 0)
+
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            slider.setMinimum(0)
+            slider.setMaximum(100)
+            layout.addWidget(slider, 3, 1)
+            state_bind_slider(
+                self, self._state, 'line_width', slider, factor=0.1)
+
             cb = qw.QCheckBox('Show')
-            layout.addWidget(cb, 2, 0)
+            layout.addWidget(cb, 4, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
 
             pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 2, 1)
+            layout.addWidget(pb, 4, 1)
             pb.clicked.connect(self.remove)
 
-            layout.addWidget(qw.QFrame(), 3, 0, 1, 2)
+            layout.addWidget(qw.QFrame(), 5, 0, 1, 2)
 
         self._controls = frame
 

@@ -40,7 +40,6 @@ class GeometryState(base.ElementState):
 
     def create(self):
         element = GeometryElement()
-        element.bind_state(self)
         return element
 
 
@@ -109,6 +108,7 @@ class GeometryElement(base.Element):
             self._parent = None
 
     def bind_state(self, state):
+        base.Element.bind_state(self, state)
         upd = self.update
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
@@ -117,7 +117,6 @@ class GeometryElement(base.Element):
         state.add_listener(upd, 'time')
         state.add_listener(upd, 'opacity')
         self.cpt_handler.bind_state(state.cpt, upd)
-        self._state = state
 
     def unbind_state(self):
         for listener in self._listeners:

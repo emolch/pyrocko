@@ -6,6 +6,7 @@ from pyrocko.guts import Object, String, Float, Bytes, clone, \
     dump_all, load_all
 
 from pyrocko.gui.qt_compat import qw, qc, qg, get_em, fnpatch
+from pyrocko.color import Color
 from .state import ViewerState, Interpolator, interpolateables
 from vtk.util.numpy_support import vtk_to_numpy
 import vtk
@@ -22,9 +23,15 @@ def to_rect(r):
     return [float(x) for x in (r.left(), r.top(), r.width(), r.height())]
 
 
-def fit_to_rect(frame, size):
+def fit_to_rect(frame, size, halign='center', valign='center'):
     fl, ft, fw, fh = to_rect(frame)
     rw, rh = size.width(), size.height()
+
+    ft += 1
+    fh -= 1
+
+    fl += 1
+    fw -= 1
 
     fa = fh / fw
     ra = rh / rw
@@ -32,13 +39,24 @@ def fit_to_rect(frame, size):
     if fa <= ra:
         rh = fh
         rw = rh / ra
-        rl = fl + 0.5 * (fw - rw)
+        if halign == 'left':
+            rl = fl
+        elif halign == 'center':
+            rl = fl + 0.5 * (fw - rw)
+        elif halign == 'right':
+            rl = fl + fw - rw
+
         rt = ft
     else:
         rw = fw
         rh = rw * ra
         rl = fl
-        rt = ft + 0.5 * (fh - rh)
+        if valign == 'top':
+            rt = ft
+        elif valign == 'center':
+            rt = ft + 0.5 * (fh - rh)
+        elif valign == 'bottom':
+            rt = ft + fh - rh
 
     return qc.QRectF(rl, rt, rw, rh)
 
@@ -66,17 +84,33 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
         from .main import app
         item = self.model.get_item_or_none(index)
         em = get_em(painter)
+        frect = option.rect.adjusted(0., 0., 0., 0.)
         trect = option.rect.adjusted(em*0.5, em*0.5, -em*0.5, -em*0.5)
 
         if isinstance(item, Snapshot):
-            painter.fillRect(option.rect, qg.QBrush(qg.QColor(0, 0, 0)))
+
+            old_pen = painter.pen()
+            if option.state & qw.QStyle.State_Selected:
+                bg_brush = app.palette().brush(
+                    qg.QPalette.Active, qg.QPalette.Highlight)
+
+                fg_pen = qg.QPen(app.palette().color(
+                    qg.QPalette.Active, qg.QPalette.HighlightedText))
+
+                painter.fillRect(frect, bg_brush)
+                painter.setPen(fg_pen)
+
+            else:
+                bg_brush = app.palette().brush(
+                    qg.QPalette.Active, qg.QPalette.AlternateBase)
+
+                painter.fillRect(frect, bg_brush)
+
+            #painter.drawRect(frect)
             img = item.get_image()
             if img is not None:
-                prect = fit_to_rect(option.rect, img.size())
+                prect = fit_to_rect(frect, img.size(), halign='right')
                 painter.drawImage(prect, img)
-
-            painter.setBrush(app.palette().brush(
-                qg.QPalette.Disabled, qg.QPalette.Text))
 
             painter.drawText(
                 trect,
@@ -86,12 +120,10 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
             ed = item.effective_duration
             painter.drawText(
                 trect,
-                qc.Qt.AlignRight | qc.Qt.AlignTop,
-                '%.2f' % ed if ed != 0.0 else '')
+                qc.Qt.AlignLeft | qc.Qt.AlignBottom,
+                '%.2f s' % ed if ed != 0.0 else '')
 
-            if option.state & qw.QStyle.State_Selected:
-                painter.fillRect(
-                    option.rect, qg.QBrush(qg.QColor(255, 255, 255, 50)))
+            painter.setPen(old_pen)
 
         else:
             qw.QStyledItemDelegate.paint(self, painter, option, index)
@@ -106,13 +138,11 @@ class SnapshotListView(qw.QListView):
 
     def startDrag(self, supported):
         if supported & (qc.Qt.CopyAction | qc.Qt.MoveAction):
-            drag = qg.QDrag(self)
-            selected_indexes = self.selectedIndexes()
-            mime_data = self.model().mimeData(selected_indexes)
-            drag.setMimeData(mime_data)
-            drag.exec(qc.Qt.MoveAction)
-
-        qw.QListView.startDrag(self, supported)
+             drag = qg.QDrag(self)
+             selected_indexes = self.selectedIndexes()
+             mime_data = self.model().mimeData(selected_indexes)
+             drag.setMimeData(mime_data)
+             drag.exec(qc.Qt.MoveAction)
 
     def dropEvent(self, *args):
         mod = self.model()
@@ -127,9 +157,15 @@ class SnapshotListView(qw.QListView):
 
         smod = self.selectionModel()
         smod.clear()
+        scroll_index = None
         for index in indexes:
             if index is not None:
                 smod.select(index, qc.QItemSelectionModel.Select)
+                if scroll_index is None:
+                    scroll_index = index
+
+        if scroll_index is not None:
+            self.scrollTo(scroll_index)
 
         return result
 
@@ -328,26 +364,20 @@ class SnapshotsPanel(qw.QFrame):
         if fn:
             dump_all(items, filename=fn)
 
+    def add_snapshots(self, snapshots):
+        self.model.append_series(snapshots)
+
+    def load_snapshots(self, path):
+        items = load_snapshots(path)
+        self.add_snapshots(items)
+
     def import_snapshots(self):
         caption = 'Import Snapshots'
-        fn, _ = fnpatch(qw.QFileDialog.getOpenFileName(
+        path, _ = fnpatch(qw.QFileDialog.getOpenFileName(
             self, caption, options=common.qfiledialog_options))
 
-        if fn:
-            items = load_all(filename=fn)
-            for i in range(len(items)):
-                if not isinstance(
-                        items[i], (ViewerState, Snapshot, Transition)):
-
-                    logger.warn(
-                        'Only Snapshot, Transition and ViewerState objects '
-                        'are accepted. Object #%i from file %s ignored.'
-                        % (i, fn))
-
-                if isinstance(items[i], ViewerState):
-                    items[i] = Snapshot(items[i])
-
-            self.model.append_series(items)
+        if path:
+            self.load_snapshots(path)
 
 
 class Item(Object):
@@ -403,7 +433,11 @@ class Transition(Item):
         ed = self.effective_duration
         return '%s %s' % (
             'T' if self.animate else '',
-            '%.2f' % ed if ed != 0.0 else '')
+            '%.2f s' % ed if ed != 0.0 else '')
+
+    @property
+    def name(self):
+        return self.get_name()
 
 
 class SnapshotsModel(qc.QAbstractListModel):
@@ -631,3 +665,24 @@ class SnapshotsModel(qc.QAbstractListModel):
         self.endInsertRows()
 
         self.repair_transitions()
+
+
+def load_snapshots(path):
+    items = load_all(filename=path)
+    for i in range(len(items)):
+        if not isinstance(
+                items[i], (ViewerState, Snapshot, Transition)):
+
+            logger.warn(
+                'Only Snapshot, Transition and ViewerState objects '
+                'are accepted. Object #%i from file %s ignored.'
+                % (i, path))
+
+        if isinstance(items[i], ViewerState):
+            items[i] = Snapshot(items[i])
+
+    for item in items:
+        if isinstance(item, Snapshot):
+            item.state.sort_elements()
+
+    return items

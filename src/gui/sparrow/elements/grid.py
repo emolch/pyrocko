@@ -12,12 +12,15 @@ import vtk
 from pyrocko import util, plot
 from pyrocko.guts import Bool
 from pyrocko.gui.qt_compat import qw
+from pyrocko.color import Color
 
 
 from pyrocko.gui import vtk_util
 from .base import Element, ElementState
 from .. import common
 from pyrocko.geometry import r2d
+
+km = 1000.
 
 guts_prefix = 'sparrow'
 
@@ -51,7 +54,8 @@ class LatLonGrid(object):
             points[:, 1] = lon_major
             lines.append(points)
 
-        polyline_grid = vtk_util.make_multi_polyline(lines_latlon=lines)
+        polyline_grid = vtk_util.make_multi_polyline(
+            lines_latlon=lines, depth=-1.*km)
 
         mapper = vtk.vtkDataSetMapper()
         vtk_util.vtk_set_input(mapper, polyline_grid)
@@ -60,18 +64,26 @@ class LatLonGrid(object):
         actor.SetMapper(mapper)
 
         prop = actor.GetProperty()
-        prop.SetDiffuseColor(1, 1, 1)
-        prop.SetOpacity(0.1)
+        self.prop = prop
+
+        prop.SetOpacity(0.15)
+
+        self._color = None
+        self.set_color(Color('white'))
 
         self.actor = actor
 
+    def set_color(self, color):
+        if self._color is None or self._color != color:
+            self.prop.SetDiffuseColor(color.rgb)
+            self._color = color
 
 class GridState(ElementState):
     visible = Bool.T(default=True)
+    color = Color.T(default=Color.D('white'))
 
     def create(self):
         element = GridElement()
-        element.bind_state(self)
         return element
 
 
@@ -88,10 +100,11 @@ class GridElement(Element):
         return 'Grid'
 
     def bind_state(self, state):
+        Element.bind_state(self, state)
         upd = self.update
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
-        self._state = state
+        state.add_listener(upd, 'color')
 
     def set_parent(self, parent):
         self.parent = parent
@@ -127,21 +140,34 @@ class GridElement(Element):
                 1.0, stepsizes[0], stepsizes[1], pstate.lat, pstate.lon, delta)
             self.parent.add_actor(self._grid.actor)
 
+        if self._grid:
+            self._grid.set_color(state.color)
+
         self.parent.update_view()
 
     def _get_controls(self):
         if not self._controls:
-            from ..state import state_bind_checkbox
+            from ..state import state_bind_checkbox, state_bind_combobox_color
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
             frame.setLayout(layout)
 
+            # color
+
+            layout.addWidget(qw.QLabel('Color'), 0, 0)
+
+            cb = common.strings_to_combobox(
+                ['black', 'white'])
+
+            layout.addWidget(cb, 0, 1)
+            state_bind_combobox_color(self, self._state, 'color', cb)
+
             cb = qw.QCheckBox('Show')
-            layout.addWidget(cb, 0, 0)
+            layout.addWidget(cb, 1, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
 
-            layout.addWidget(qw.QFrame(), 1, 0)
+            layout.addWidget(qw.QFrame(), 2, 0)
 
         self._controls = frame
 

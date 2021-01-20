@@ -87,7 +87,6 @@ class TopoState(ElementState):
 
     def create(self):
         element = TopoElement()
-        element.bind_state(self)
         return element
 
 
@@ -113,6 +112,7 @@ class TopoElement(Element):
         return 'Topography'
 
     def bind_state(self, state):
+        Element.bind_state(self, state)
         upd = self.update
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
@@ -232,7 +232,9 @@ class TopoElement(Element):
                         (lon, lon+step, lat, lat+step))
 
                     for demname in dems_land[:1] + dems_ocean[:1]:
-                        mask_ocean = demname.startswith('SRTM')
+                        mask_ocean = demname.startswith('SRTM') \
+                            or demname.startswith('Iceland')
+
                         mask_land = demname.startswith('ETOPO') \
                             and (dems_land and dems_land[0] != demname)
 

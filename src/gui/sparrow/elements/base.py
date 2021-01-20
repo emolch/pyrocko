@@ -6,6 +6,7 @@
 from __future__ import absolute_import, print_function, division
 
 import os
+import base64
 
 import numpy as num
 
@@ -22,8 +23,19 @@ from .. import common
 from ..state import state_bind_combobox, state_bind
 
 
+def random_id():
+    return base64.urlsafe_b64encode(os.urandom(16)).decode('ascii')
+
+
 class ElementState(TalkieRoot):
-    pass
+
+    element_id = String.T()
+
+    def __init__(self, **kwargs):
+        if 'element_id' not in kwargs:
+            kwargs['element_id'] = random_id()
+
+        TalkieRoot.__init__(self, **kwargs)
 
 
 class Element(object):
@@ -34,6 +46,9 @@ class Element(object):
 
     def register_state_listener(self, listener):
         self._listeners.append(listener)  # keep listeners alive
+
+    def register_state_listener3(self, listener, state, path):
+        self.register_state_listener(state.add_listener(listener, path))
 
     def remove(self):
         if self._parent and self._state:
@@ -159,7 +174,7 @@ class CPTHandler(Element):
             self._cptscale_to_lineedit(self._state, le)
 
     def _cptscale_to_lineedit(self, state, widget):
-        sel = widget.selectedText() == widget.text()
+        # sel = widget.selectedText() == widget.text()
 
         crange = (None, None)
         if self._lookuptable is not None:
@@ -172,8 +187,8 @@ class CPTHandler(Element):
 
         widget.setText(fmt % crange)
 
-        if sel:
-            widget.selectAll()
+        # if sel:
+        #     widget.selectAll()
 
     def update_cpt(self):
         state = self._state
@@ -263,3 +278,10 @@ def _lineedit_to_cptscale(widget, cpt_state):
     except Exception:
         raise ValueError(
             'need two numerical values: <vmin>, <vmax>')
+
+
+__all__ = [
+    'Element',
+    'ElementState',
+    'random_id',
+]
