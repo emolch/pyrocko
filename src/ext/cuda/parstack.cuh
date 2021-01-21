@@ -9,24 +9,25 @@
 #endif
 
 EXTERNC typedef struct {
-  size_t narrays;
-  int32_t *offsets;
-  size_t *lengths;
-  size_t nshifts;
-  int32_t *shifts;
-  uint8_t method;
-  size_t lengthout;
-  int32_t offsetout;
-  impl_t impl;
-  uint8_t nparallel;
-  size_t target_block_threads;
-  char **err;
+    size_t narrays;
+    int32_t *offsets;
+    size_t *lengths;
+    size_t nshifts;
+    int32_t *shifts;
+    uint8_t method;
+    size_t lengthout;
+    int32_t offsetout;
+    impl_t impl;
+    uint8_t nparallel;
+    size_t target_block_threads;
+    char **err;
 } parstack_arguments_t;
 
+EXTERNC int cuda_parstack_float(float **arrays, float *weights, float *result,
+                                parstack_arguments_t args);
 
-EXTERNC int cuda_parstack_float(float **arrays, float *weights, float *result, parstack_arguments_t args);
-
-EXTERNC int cuda_parstack_double(double **arrays, double *weights, double *result, parstack_arguments_t args);
+EXTERNC int cuda_parstack_double(double **arrays, double *weights,
+                                 double *result, parstack_arguments_t args);
 
 EXTERNC int check_cuda_parstack_implementation_compatibility(impl_t impl,
                                                              int *compatible,

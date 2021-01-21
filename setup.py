@@ -60,8 +60,7 @@ def bash_completions_dir():
         return sp.Popen(c, stdout=sp.PIPE).communicate()[0]
 
     try:
-        d = q(['pkg-config', 'bash-completion',
-               '--variable=completionsdir'])
+        d = q(['pkg-config', 'bash-completion', '--variable=completionsdir'])
         return d.strip().decode('utf-8')
     except Exception:
         return None
@@ -158,8 +157,7 @@ def find_pyrocko_installs():
 
 def print_installs(found, file):
     print(
-        '\nsys.path configuration is: \n  %s\n' % '\n  '.join(
-            sys.path),
+        '\nsys.path configuration is: \n  %s\n' % '\n  '.join(sys.path),
         file=file)
 
     dates = sorted([xx[0] for xx in found])
@@ -319,8 +317,7 @@ class CustomBuildPyCommand(build_py):
             ('pyrocko', 'css', ['pyrocko.io.css']),
             ('pyrocko', 'datacube', ['pyrocko.io.datacube']),
             ('pyrocko.fdsn', '__init__', []),
-            ('pyrocko.fdsn', 'enhanced_sacpz',
-             ['pyrocko.io.enhanced_sacpz']),
+            ('pyrocko.fdsn', 'enhanced_sacpz', ['pyrocko.io.enhanced_sacpz']),
             ('pyrocko.fdsn', 'station', ['pyrocko.io.stationxml']),
             ('pyrocko', 'gcf', ['pyrocko.io.gcf']),
             ('pyrocko', 'gse1', ['pyrocko.io.gse1']),
@@ -333,10 +330,8 @@ class CustomBuildPyCommand(build_py):
             ('pyrocko.fdsn', 'resp', ['pyrocko.io.resp']),
             ('pyrocko', 'sacio', ['pyrocko.io.sac']),
             ('pyrocko', 'segy', ['pyrocko.io.segy']),
-            ('pyrocko', 'seisan_response', [
-             'pyrocko.io.seisan_response']),
-            ('pyrocko', 'seisan_waveform', [
-             'pyrocko.io.seisan_waveform']),
+            ('pyrocko', 'seisan_response', ['pyrocko.io.seisan_response']),
+            ('pyrocko', 'seisan_waveform', ['pyrocko.io.seisan_waveform']),
             ('pyrocko', 'suds', ['pyrocko.io.suds']),
             ('pyrocko', 'yaff', ['pyrocko.io.yaff']),
             ('pyrocko', 'eventdata', ['pyrocko.io.eventdata']),
@@ -428,7 +423,7 @@ def _check_for_cuda():
     libs, includes = [], []
     CUDA_HOME = _find_cuda_home()
     if not CUDA_HOME:
-        print("CUDA not found. Continuing your build without CUDA support...")
+        print('CUDA not found. Continuing your build without CUDA support...')
         return False, None, libs, includes
 
     CUDNN_HOME = os.environ.get(
@@ -505,7 +500,7 @@ class CustomBuildExtCommand(build_ext, object):
             return op.splitext(path)[1] in ['.cu', '.cuh']
 
         def unix_cuda_flags(cflags):
-            return ['--compiler-options', "'-fPIC'"] + \
+            return ['--compiler-options', '"-fPIC"'] + \
                 cflags + _get_cuda_arch_flags(cflags)
 
         def unix_wrap_single_compile(
@@ -514,10 +509,10 @@ class CustomBuildExtCommand(build_ext, object):
             cflags = copy.deepcopy(extra_postargs)
             try:
                 original_compiler = self.compiler.compiler_so
-                if _is_cuda_file(src):  # or "nvcc" in cflags:
+                if _is_cuda_file(src):  # or 'nvcc' in cflags:
                     if not can_compile_cuda:
                         print(
-                            "skipping %s (CUDA toolkit is not installed)" %
+                            'skipping %s (CUDA toolkit is not installed)' %
                             src)
                         return
                     _cuda_nvcc = cuda_nvcc
@@ -541,7 +536,7 @@ class CustomBuildExtCommand(build_ext, object):
                     'compiler_so', original_compiler)
 
         if self.compiler.compiler_type == 'msvc':
-            raise NotImplementedError("windows not supported atm")
+            raise NotImplementedError('Windows not supported at the moment.')
 
         self.compiler._compile = unix_wrap_single_compile
         build_ext.build_extensions(self)
@@ -612,7 +607,7 @@ def _check_for_openmp():
 
     tmpdir = tempfile.mkdtemp(prefix='pyrocko')
     compiler = os.environ.get(
-        'CC', get_config_var('CC')).split()[0]
+      'CC', get_config_var('CC')).split()[0]
 
     # Attempt to compile a test script.
     # See http://openmp.org/wp/openmp-compilers/
@@ -652,8 +647,7 @@ Some routines in pyrocko are parallelized using OpenMP and these will
 only run on one core with your current configuration.
 ''')
         if platform.uname()[0] == 'Darwin':
-            print(
-                '''Since you are running on Mac OS, it's likely that the problem here
+            print('''Since you are running on Mac OS, it's likely that the problem here
 is Apple's Clang, which does not support OpenMP at all. The easiest
 way to get around this is to download the latest version of gcc from
 here: http://hpc.sourceforge.net. After downloading, just point the
@@ -734,9 +728,9 @@ def _get_cuda_arch_flags(cflags=None):
     supported_arches = ['3.5', '3.7', '5.0', '5.2', '5.3', '6.0', '6.1', '6.2',
                         '7.0', '7.2', '7.5', '8.0']
     valid_arch_strings = supported_arches + \
-        [s + "+PTX" for s in supported_arches]
+        [s + '+PTX' for s in supported_arches]
 
-    # can be one or more architectures, e.g. "6.1" or "3.5;5.2;6.0;6.1;7.0+PTX"
+    # can be one or more architectures, e.g. '6.1' or '3.5;5.2;6.0;6.1;7.0+PTX'
     arch_list = os.environ.get('CUDA_ARCH_LIST', None)
 
     if not arch_list:
@@ -763,8 +757,8 @@ def _get_cuda_arch_flags(cflags=None):
             arch_list = ['%s.%s' % (major.value, minor.value)]
         except OSError:
             print((
-                "Note: calling libcudart.so to query the GPU device failed. ",
-                "Proceeding without specifying a CUDA build arch ..."))
+                'Note: calling libcudart.so to query the GPU device failed. ',
+                'Proceeding without specifying a CUDA build arch ...'))
     else:
         arch_list = arch_list.replace(' ', ';')
         for named_arch, archval in named_arches.items():
@@ -776,7 +770,7 @@ def _get_cuda_arch_flags(cflags=None):
     for arch in arch_list:
         if arch not in valid_arch_strings:
             print(
-                "Warning: unknown CUDA arch (%s) or GPU not supported" %
+                'Warning: unknown CUDA arch (%s) or GPU not supported' %
                 (arch))
             return flags
         num = arch[0] + arch[2]
@@ -794,7 +788,7 @@ def compile_with_cuda(ex, omp=False):
         'gcc': ['-Wextra', '-Wno-write-strings'],
         'nvcc': [],
     }
-    ex.libraries += ["stdc++", "cudart"]
+    ex.libraries += ['stdc++', 'cudart']
     ex.library_dirs += cuda_libs
     ex.runtime_library_dirs += cuda_libs
     ex.include_dirs += [op.join('src', 'ext', 'cuda')] + cuda_includes
@@ -808,8 +802,8 @@ def compile_with_cuda(ex, omp=False):
         '-lineinfo',
         '-Xcompiler', '-rdynamic',
         '--use_fast_math',
-        '--compiler-options', "'-fPIC'",
-        '--compiler-options', "'-Wall'"
+        '--compiler-options', '"-fPIC"',
+        '--compiler-options', '"-Wall"'
     ]
     if omp:
         ex.extra_compile_args['gcc'] += omp_arg
@@ -974,8 +968,7 @@ setup(
         Extension(
             'gf.store_ext',
             include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=[
-                '-D_FILE_OFFSET_BITS=64', '-Wextra'] + omp_arg,
+            extra_compile_args=['-D_FILE_OFFSET_BITS=64', '-Wextra'] + omp_arg,
             extra_link_args=[] + omp_lib,
             sources=[op.join('src', 'gf', 'ext', 'store_ext.c')]),
 
@@ -1003,14 +996,13 @@ setup(
             sources=[op.join('src', 'ext', 'orthodrome_ext.c')]),
 
         Extension(
-            "avl",
+            'avl',
             sources=[op.join('src', 'ext', 'pyavl-1.12', 'avl.c'),
                      op.join('src', 'ext', 'pyavl-1.12', 'avlmodule.c')],
             define_macros=[('HAVE_AVL_VERIFY', None),
                            ('AVL_FOR_PYTHON', None)],
             include_dirs=[get_python_inc()],
-            extra_compile_args=[
-                '-Wno-parentheses', '-Wno-uninitialized'],
+            extra_compile_args=['-Wno-parentheses', '-Wno-uninitialized'],
             extra_link_args=[] if sys.platform != 'sunos5' else ['-Wl,-x']),
     ],
 

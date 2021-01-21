@@ -29,13 +29,13 @@ _implementation_aliases = dict(
 
 def resolve_implementation_flag(func):
     def wrapper(*args, **kwargs):
-        if "impl" in kwargs:
-            impl = kwargs["impl"]
+        if 'impl' in kwargs:
+            impl = kwargs['impl']
             if isinstance(impl, str):
                 impl_flag = _implementation_aliases.get(impl.lower(), None)
                 if impl_flag is None:
-                    raise ValueError("unknown implementation: %s" % impl)
-                kwargs["impl"] = impl_flag
+                    raise ValueError('Unknown implementation: %s.' % impl)
+                kwargs['impl'] = impl_flag
         return func(*args, **kwargs)
 
     return wrapper

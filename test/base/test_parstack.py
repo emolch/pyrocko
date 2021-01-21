@@ -41,7 +41,8 @@ class ParstackTestCase(unittest.TestCase):
                     num.random.random(random.randint(5, 10)).astype(dtype)
                     for j in range(narrays)
                 ]
-                offsets = num.random.randint(-5, 6, size=narrays).astype(num.int32)
+                offsets = num.random.randint(
+                    -5, 6, size=narrays).astype(num.int32)
                 nshifts = random.randint(1, 10)
                 shifts = num.random.randint(
                     -5, 6, size=(nshifts, narrays)).astype(num.int32)
@@ -60,7 +61,8 @@ class ParstackTestCase(unittest.TestCase):
                             os.append(num.array(o))
 
                         for r in rs:
-                            num.testing.assert_almost_equal(r, rs[0], decimal=precision)
+                            num.testing.assert_almost_equal(
+                                r, rs[0], decimal=precision)
                         for o in os:
                             num.testing.assert_equal(o, os[0])
 
@@ -68,7 +70,8 @@ class ParstackTestCase(unittest.TestCase):
         print('testing %s ' % implementations, end='', flush=True)
         dtypes = [(num.float32, 5), (num.float64, 9)]
         for (dtype, precision), run in product(dtypes, range(runs)):
-            print("still going... (%s, %d/%d)" % (dtype.__name__, run + 1, runs))
+            print('still going (%s, %d/%d) ...' % (
+                dtype.__name__, run + 1, runs))
             narrays = random.randint(1, 5)
             arrays = [
                 num.random.random(random.randint(5, 10)).astype(dtype)
@@ -149,7 +152,8 @@ class ParstackTestCase(unittest.TestCase):
                     num.random.random(random.randint(5, 10)).astype(dtype)
                     for i in range(narrays)
                 ]
-                offsets = num.random.randint(-5, 6, size=narrays).astype(num.int32)
+                offsets = num.random.randint(
+                    -5, 6, size=narrays).astype(num.int32)
                 nshifts = random.randint(1, 10)
                 shifts = num.random.randint(
                     -5, 6, size=(nshifts, narrays)).astype(num.int32)
@@ -173,7 +177,8 @@ class ParstackTestCase(unittest.TestCase):
                                     impl=impl)
 
                                 num.testing.assert_almost_equal(
-                                    result, result1 * (k + 2.), decimal=precision)
+                                    result, result1 * (k + 2.),
+                                    decimal=precision)
 
     def _generate_random_samples(
             self, narrays, nshifts, nsamples,
@@ -196,7 +201,7 @@ class ParstackTestCase(unittest.TestCase):
 
     @require_cuda
     def test_performance(self, narrays=5000, nshifts=5000, nsamples=100):
-        impls_to_test = ["cuda", "cuda_atomic"]
+        impls_to_test = ['cuda', 'cuda_atomic']
         print('testing %s ' % impls_to_test, end='', flush=True)
         print(narrays, nshifts, nsamples)
         arrays, shifts, offsets, weights = self._generate_random_samples(
@@ -208,11 +213,11 @@ class ParstackTestCase(unittest.TestCase):
                 nparallel=multiprocessing.cpu_count(),
                 target_block_threads=256)
 
-        (r, o), t = measure(parstack, 1, *args, impl="openmp", **kwargs)
-        print("openmp time: %.6f" % t)
+        (r, o), t = measure(parstack, 1, *args, impl='openmp', **kwargs)
+        print('openmp time: %.6f' % t)
         for impl in impls_to_test:
             (r2, o2), t2 = measure(parstack, 1, *args, impl=impl, **kwargs)
-            print("%s time: %.6f" % (impl, t2))
+            print('%s time: %.6f' % (impl, t2))
             assert r.shape == r2.shape
             num.testing.assert_almost_equal(r, r2, decimal=4)
 
@@ -221,8 +226,11 @@ class ParstackTestCase(unittest.TestCase):
         for dtype, precision in [(num.float32, 5), (num.float64, 9)]:
             for setting in product(*[[100, 500, 5000] for _ in range(3)]):
                 narrays, nshifts, nsamples = setting
-                arrays, shifts, offsets, weights = self._generate_random_samples(
-                    narrays=narrays, nshifts=nshifts, nsamples=100, dtype=dtype)
+                arrays, shifts, offsets, weights = \
+                    self._generate_random_samples(narrays=narrays,
+                                                  nshifts=nshifts,
+                                                  nsamples=100,
+                                                  dtype=dtype)
                 lengths = num.array([a.size for a in arrays], dtype=num.int)
                 offsetout, lengthout = get_offset_and_length(
                     arrays, lengths, offsets, shifts)
@@ -232,27 +240,27 @@ class ParstackTestCase(unittest.TestCase):
                     narrays, nshifts, nsamples, lengthout, offsetout,
                     target_block_threads=256)
                 if verbose:
-                    print("----")
+                    print('----')
                     print(
-                        "problem size:",
+                        'problem size:',
                         setting,
-                        "grid:",
+                        'grid:',
                         grid,
-                        "blocks:",
+                        'blocks:',
                         blocks,
-                        "shared mem:",
+                        'shared mem:',
                         shared_mem)
             assert num.prod(blocks) * 8 < 48 * 1024
 
-    def benchmark(self, plot=False, data_gen="random"):
+    def benchmark(self, plot=False, data_gen='random'):
         from datetime import datetime
         print('testing %s ' % implementations, end='', flush=True)
 
         plot = plot or 'PLOT_BENCHMARK' in os.environ
-        time = datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
+        time = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
         longest_impl_name = 5 + max([len(impl) for impl in implementations])
 
-        _bench_size = 2
+        _bench_size = 3
         _narrays = (100, 500, 5000, 8_000)[:_bench_size]
         _nshifts = (100, 500, 5000, 8_000)[:_bench_size]
         _nsamples = (100, 500, 5000, 8_000)[:_bench_size]
@@ -268,10 +276,10 @@ class ParstackTestCase(unittest.TestCase):
                     config = dict(
                         narrays=narrays, nshifts=nshifts, nsamples=nsamples)
 
-                    print("==========")
+                    print('==========')
                     print('type', dtype.__name__, 'method', method, '\t'.join(
-                        ["%s=%d" % c for c in config.items()]))
-                    print("==========")
+                        ['%s=%d' % c for c in config.items()]))
+                    print('==========')
 
                     warmup = dict(numpy=0, omp=0, cuda=2, cuda_atomic=2)
                     nrepeats = dict(numpy=1, omp=3, cuda=3, cuda_atomic=3)
@@ -279,7 +287,7 @@ class ParstackTestCase(unittest.TestCase):
                     arrays = []
                     for iarray in range(narrays):
                         data = num.arange(nsamples, dtype=dtype)
-                        if data_gen == "random":
+                        if data_gen == 'random':
                             data = num.random.random(
                                 random.randint(0.5 * nsamples, nsamples)
                             ).astype(dtype)
@@ -294,11 +302,12 @@ class ParstackTestCase(unittest.TestCase):
                     cpu_threads = multiprocessing.cpu_count()
                     confs = [('numpy', 1, 1)]
                     if TEST_CUDA:
-                        # the cuda_atomic kernel is agnostic to thread block sizes
+                        # cuda_atomic is agnostic to thread block sizes
                         confs.append(('cuda_atomic', cpu_threads, 256))
                         for cuda_threads in [2**i for i in range(5, 11)]:
                             confs.append(('cuda', cpu_threads, cuda_threads))
-                    for nparallel in range(0, cpu_threads + 1, cpu_threads // 4):
+                    for nparallel in range(
+                            0, cpu_threads + 1, cpu_threads // 4):
                         confs.append(('openmp', max(1, nparallel), 1))
 
                     temp_res = []
@@ -316,14 +325,14 @@ class ParstackTestCase(unittest.TestCase):
                                             nparallel=nparallel,
                                             target_block_threads=cuda_threads)
                         temp_res.append((r, impl))
-                        if impl == "numpy":
+                        if impl == 'numpy':
                             reference = t
 
                         ndigits = 2
                         score = nsamples * nshifts / t / 1e6
                         speedup = 1 if reference is None else round(
                             reference / t, ndigits)
-                        print("\t".join(['%s=%s' % metric for metric in dict(
+                        print('\t'.join(['%s=%s' % metric for metric in dict(
                             impl=str(impl).ljust(longest_impl_name),
                             nparallel=str(nparallel).ljust(2),
                             cuda_threads=str(cuda_threads).ljust(4),
@@ -346,22 +355,22 @@ class ParstackTestCase(unittest.TestCase):
                         num.testing.assert_almost_equal(
                             r, temp_res[0][0], decimal=precision)
 
-                print("==========")
-                print('TYPE', dtype.__name__, 'METHOD', method, "SUMMARY")
-                print("==========")
+                print('==========')
+                print('TYPE', dtype.__name__, 'METHOD', method, 'SUMMARY')
+                print('==========')
                 benchmarked = set()
 
                 # compute average speedups
                 speedups = defaultdict(list)
                 for setting, res in results.items():
                     for impl, t in res.items():
-                        speedups[impl].append(res["numpy"] / t)
+                        speedups[impl].append(res['numpy'] / t)
                 for impl, sups in speedups.items():
                     benchmarked.add(impl)
                     print(impl.ljust(longest_impl_name),
-                          "\tavg speedup over numpy: %s x" % (
+                          '\tavg speedup over numpy: %s x' % (
                               str(round(sum(sups) / len(sups), 3))))
-                print("==========")
+                print('==========')
 
                 # fastest implementations for specific problem sizes
                 winners = defaultdict(list)
@@ -372,15 +381,16 @@ class ParstackTestCase(unittest.TestCase):
                 for impl in benchmarked:
                     settings_won = winners[impl]
                     print(impl.ljust(longest_impl_name),
-                          "\twon %d/%d:\t" % (
+                          '\twon %d/%d:\t' % (
                               len(settings_won), len(settings)), settings_won)
-                print("==========")
+                print('==========')
                 if plot:
                     self._plot_benchmark_results(
                         results,
-                        filename="bm_parstack_%s_%s_method_%d.pdf" % (time, dtype.__name__, method))
+                        filename='bm_parstack_%s_%s_method_%d.pdf' % (
+                            time, dtype.__name__, method))
 
-    def _plot_benchmark_results(self, results, filename="bm_parstack.pdf"):
+    def _plot_benchmark_results(self, results, filename='bm_parstack.pdf'):
         import matplotlib.pyplot as plt
 
         impl = defaultdict(list)
@@ -407,11 +417,11 @@ class ParstackTestCase(unittest.TestCase):
         fig.tight_layout()
 
         test_base_dir = os.path.dirname(os.path.abspath(__file__))
-        output_dir = os.path.join(test_base_dir, "../benchmark")
+        output_dir = os.path.join(test_base_dir, '../benchmark')
         os.makedirs(output_dir, exist_ok=True)
         output_file = os.path.join(output_dir, filename)
         plt.savefig(output_file)
-        print("saved results to ", output_file)
+        print('saved results to ', output_file)
 
     @unittest.skip('needs manual inspection')
     @require_gui
@@ -420,18 +430,18 @@ class ParstackTestCase(unittest.TestCase):
 
         km = 1000.
         nstations = 10
-        edepth = 5 * km
+        edepth = 5*km
         store_id = 'crust2_d0'
 
         swin = 2.
-        lwin = 9. * swin
+        lwin = 9.*swin
         ks = 1.0
         kl = 1.0
         kd = 3.0
 
         engine = gf.get_engine()
-        snorths = (num.random.random(nstations) - 1.0) * 50 * km
-        seasts = (num.random.random(nstations) - 1.0) * 50 * km
+        snorths = (num.random.random(nstations)-1.0) * 50*km
+        seasts = (num.random.random(nstations)-1.0) * 50*km
         targets = []
         for istation, (snorths, seasts) in enumerate(zip(snorths, seasts)):
             targets.append(
@@ -444,8 +454,8 @@ class ParstackTestCase(unittest.TestCase):
                     interpolation='multilinear'))
 
         source = gf.DCSource(
-            north_shift=50 * km,
-            east_shift=50 * km,
+            north_shift=50*km,
+            east_shift=50*km,
             depth=edepth)
 
         store = engine.get_store(store_id)
@@ -462,7 +472,7 @@ class ParstackTestCase(unittest.TestCase):
                 gauss = trace.Trace(
                     tmin=t[0],
                     deltat=tr.deltat,
-                    ydata=num.exp(-((t - tp)**2) / ((2 * tr.deltat)**2)))
+                    ydata=num.exp(-((t-tp)**2)/((2*tr.deltat)**2)))
 
                 tr.ydata[:] = 0.0
                 tr.add(gauss)
@@ -493,13 +503,13 @@ class ParstackTestCase(unittest.TestCase):
         nnorth = 50
         neast = 50
 
-        size = 200 * km
+        size = 200*km
 
         north = num.linspace(-size, size, nnorth)
         north2 = num.repeat(north, neast)
         east = num.linspace(-size, size, neast)
         east2 = num.tile(east, nnorth)
-        depth = 5 * km
+        depth = 5*km
 
         def tcal(target, i):
             try:
@@ -517,19 +527,18 @@ class ParstackTestCase(unittest.TestCase):
         nsls = sorted(station_stalta_traces.keys())
 
         tts = num.fromiter((tcal(station_targets[nsl][0], i)
-                            for i in range(nnorth * neast)
+                            for i in range(nnorth*neast)
                             for nsl in nsls), dtype=num.float)
 
         arrays = [
-            station_stalta_traces[nsl].ydata.astype(num.float)
-            for nsl in nsls]
+            station_stalta_traces[nsl].ydata.astype(num.float) for nsl in nsls]
         offsets = num.array(
             [int(round(station_stalta_traces[nsl].tmin / deltat))
              for nsl in nsls], dtype=num.int32)
         shifts = -num.array(
             [int(round(tt / deltat))
              for tt in tts], dtype=num.int32).reshape(
-                     nnorth * neast, nstations)
+                 nnorth * neast, nstations)
         weights = num.ones((nnorth * neast, nstations))
 
         print(shifts[25 * neast + 25] * deltat)
@@ -548,12 +557,12 @@ class ParstackTestCase(unittest.TestCase):
 
         axes = fig.add_subplot(1, 1, 1, aspect=1.0)
 
-        axes.contourf(east / km, north / km, mat)
+        axes.contourf(east/km, north/km, mat)
 
         axes.plot(
-            g(targets, 'east_shift') / km,
-            g(targets, 'north_shift') / km, '^')
-        axes.plot(source.east_shift / km, source.north_shift / km, 'o')
+            g(targets, 'east_shift')/km,
+            g(targets, 'north_shift')/km, '^')
+        axes.plot(source.east_shift/km, source.north_shift / km, 'o')
         plt.show()
 
     def test_checks_index_data_type(self):
@@ -562,12 +571,14 @@ class ParstackTestCase(unittest.TestCase):
             arrays, shifts, offsets, weights = self._generate_random_samples(
                 narrays=100, nshifts=100, nsamples=100, index_dtype=dtypes)
 
-            for impl, method in product(implementations, (0,1,)):
+            for impl, method in product(implementations, (0, 1)):
                 if not all([dt == num.int32 for dt in dtypes]):
                     with self.assertRaises(ValueError):
-                        parstack(arrays, offsets, shifts, weights, method=method, impl=impl)
+                        parstack(arrays, offsets, shifts, weights,
+                                 method=method, impl=impl)
                 else:
-                    parstack(arrays, offsets, shifts, weights, method=method, impl=impl)
+                    parstack(arrays, offsets, shifts, weights,
+                             method=method, impl=impl)
 
     def test_checks_input_data_type(self):
         print('testing %s ' % implementations, end='', flush=True)
@@ -575,14 +586,16 @@ class ParstackTestCase(unittest.TestCase):
             arrays, shifts, offsets, weights = self._generate_random_samples(
                 narrays=100, nshifts=100, nsamples=100, dtype=dtypes)
 
-            for impl, method in product(implementations, (0,1,)):
+            for impl, method in product(implementations, (0, 1)):
                 if any([dt != dtypes[0] for dt in dtypes]):
                     # raises exception when mixing up float and double
                     with self.assertRaises(ValueError):
-                        parstack(arrays, offsets, shifts, weights, method=method, impl=impl)
+                        parstack(arrays, offsets, shifts, weights,
+                                 method=method, impl=impl)
                 else:
                     # result should be of the same data type
-                    r, _ = parstack(arrays, offsets, shifts, weights, method=method, impl=impl)
+                    r, _ = parstack(arrays, offsets, shifts, weights,
+                                    method=method, impl=impl)
                     self.assertEqual(r.dtype, dtypes[0])
 
     def test_limited(self):

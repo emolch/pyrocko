@@ -45,19 +45,19 @@ def parstack(arrays, offsets, shifts, weights,
     weights = num.reshape(weights, (nshifts*narrays))
 
     if (offsets.dtype != num.int32):
-        raise ValueError('offsets must be int32, got %s. ' % offsets.dtype)
+        raise ValueError('Offsets must be int32, got %s.' % offsets.dtype)
     if (shifts.dtype != num.int32):
-        raise ValueError('shifts must be int32, got %s. ' % shifts.dtype)
+        raise ValueError('Shifts must be int32, got %s.' % shifts.dtype)
 
     dtype_mismatch = [
             array.dtype for array in arrays if array.dtype != weights.dtype]
     if len(dtype_mismatch) > 0:
-        raise ValueError('arrays and weights must have the same data type. '
-                         'Got %s and %s' % (dtype_mismatch[0], weights.dtype))
+        raise ValueError('Arrays and weights must have the same data type. '
+                         'Got %s and %s.' % (dtype_mismatch[0], weights.dtype))
 
     if (result is not None and result.dtype != weights.dtype):
-        raise ValueError('result and arrays must have the same data type. '
-                         'Got %s and %s' % (result.dtype, weigths.dtype))
+        raise ValueError('Result and arrays must have the same data type. '
+                         'Got %s and %s.' % (result.dtype, weights.dtype))
 
     parstack_impl = parstack_ext.parstack
     if impl == cuda.IMPL_NP:

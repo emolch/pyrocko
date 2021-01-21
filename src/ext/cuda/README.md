@@ -30,16 +30,18 @@ cd cpython
 make -j
 make install
 # assuming you use pipenv as your modern venv for the project dir
-pipenv install --dev --python /my/intstall/path/bin/python3
+pipenv install --dev --python /my/install/path/bin/python3
 pipenv shell
 
 # run the test case in gdb to see what caused the segfault
+# when gdb breaks, you can use the `bt` (backtrace) command to get a callstack
 gdb -ex=r --args $(which python) -m nose test.base.test_parstack:ParstackTestCase.your_test_case
 
 # to get a clean valgrind report, use the official python suppression file
 # for newer versions of python, this might no longer be necessary
 wget -o valgrind-python.supp http://svn.python.org/projects/python/trunk/Misc/valgrind-python.supp
-valgrind --tool=memcheck --suppressions=valgrind-python.supp python -E -tt -m nose -s test.base.test_parstack:ParstackTestCase.your_test_case
+valgrind --tool=memcheck --suppressions=valgrind-python.supp \
+  python -E -tt -m nose -s test.base.test_parstack:ParstackTestCase.your_test_case
 ```
 
 Furthermore, tools such as `cuda-gdb` and `cuda-memcheck` are helpful to debug illegal memory accesses or data races.
@@ -52,19 +54,20 @@ cuda-memcheck --leak-check full nosetests -s test.base.test_parstack:ParstackTes
 
 #### Testing
 
-To make sure compilation succeeds with cuda enabled or disabled (Note: this only test successful builds, the tests should be run on supported hardware):
+To make sure compilation succeeds with cuda enabled or disabled, there are two distinct steps in the drone `tests-base` pipeline. Note that the cuda one only tests for a successful build and pyrocko functionality when compiled with support for CUDA, the tests should be run on supported hardware to actually test CUDA implementations:
 ```bash
-drone exec --pipeline=tests-base # compiles and tests both with and wihthout CUDA
+drone exec --pipeline=tests-base # compiles and tests both with and without CUDA
 drone exec --pipeline=tests-base --inclue tests-cuda # only compiles and tests with CUDA support
+
 # to test the kernels, make sure to run the test suite on CUDA enabled hardware
-# pyrocko will automatically check which implementations to test at runtime
+# the pyrocko test suite will automatically check which implementations to test at runtime
 nosetests -s --ignore-files="test_avl\.py" --ignore-files="test_pile\.py" test.base
 ```
 
 #### Profiling
 
 To improve kernel performance, the nvidia profiler (`nvvp`) should be used to guide optimization.
-On ubuntu, `nvvp` can be installed via `apt` (note, this requires a JRE 1.8):
+On ubuntu, `nvvp` can be installed via `apt` (requires a JRE >=1.8):
 ```bash
 sudo apt install nvidia-visual-profiler
 ```
@@ -74,6 +77,11 @@ There are sample executables in `src/ext/cuda/profiling`. To build and profile, 
 # this will profile all implemented kernels, save profiling information and open each in nvvp
 sudo python setup.py profile_cuda # sudo is required to profile the GPU
 ```
+
+#### Benchmarking
+
+Be advised that running extensive benchmarks can take a long time.
+If needed, change the `_bench_size` and/or reduce the number of `warmup` and `repeat` iterations.
 
 To run the benchmarks and plot a graph:
 ```bash

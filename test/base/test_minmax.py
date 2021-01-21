@@ -18,7 +18,7 @@ from pyrocko.minmax import (
 )
 
 # remove unimplemented
-implementations = set(_implementations) - {"cuda_atomic", "numpy"}
+implementations = set(_implementations) - {'cuda_atomic', 'numpy'}
 
 
 class MinMaxTestCase(unittest.TestCase):
@@ -30,12 +30,12 @@ class MinMaxTestCase(unittest.TestCase):
         for setting in product(*[[100, 500, 5000] for _ in range(2)]):
             nx, ny = setting
             grid, blocks, shared_mem = minmax_kernel_parameters(
-                nx, ny, axis=0, impl="cuda", target_block_threads=256
+                nx, ny, axis=0, impl='cuda', target_block_threads=256
             )
             assert num.prod(blocks) * 8 < 48 * 1024
 
     def test_minmax(self, benchmark=False):
-        print("testing %s " % implementations, end="", flush=True)
+        print('testing %s ' % implementations, end='', flush=True)
 
         def log(*msg):
             if benchmark:
@@ -55,19 +55,19 @@ class MinMaxTestCase(unittest.TestCase):
             ]
 
         variants = [
-            ("argmax", argmax_2d, num.argmax),
-            ("argmin", argmin_2d, num.argmin),
-            ("max", max_2d, num.amax),
-            ("min", min_2d, num.amin),
+            ('argmax', argmax_2d, num.argmax),
+            ('argmin', argmin_2d, num.argmin),
+            ('max', max_2d, num.amax),
+            ('min', min_2d, num.amin),
         ]
         nparallel = multiprocessing.cpu_count()
         for name, variant, reference_impl in variants:
             for sample, axis in itertools.product(samples, [0, 1]):
-                log("=====", name, sample.shape, axis)
+                log('=====', name, sample.shape, axis)
                 results = []
 
                 reference, dur = measure(reference_impl, 2, sample, axis=axis)
-                log("reference: %.5f" % dur)
+                log('reference: %.5f' % dur)
 
                 for impl in implementations:
                     kwargs = dict(
@@ -78,7 +78,7 @@ class MinMaxTestCase(unittest.TestCase):
                     )
                     measure(variant, 2, sample, **kwargs)  # warmup
                     result, dur = measure(variant, 2, sample, **kwargs)
-                    log("%s: %.5f" % (impl, dur))
+                    log('%s: %.5f' % (impl, dur))
                     results.append(result)
 
                 for result in results:
@@ -88,6 +88,6 @@ class MinMaxTestCase(unittest.TestCase):
                     )
 
 
-if __name__ == "__main__":
-    util.setup_logging("test_minmax", "debug")
+if __name__ == '__main__':
+    util.setup_logging('test_minmax', 'debug')
     unittest.main()

@@ -12,7 +12,7 @@ CUDA_COMPILED = minmax_ext.CUDA_COMPILED
 def _select_minmax(typ):
     @cuda.resolve_implementation_flag
     def _minmax(*args, **kwargs):
-        kwargs["typ"] = typ
+        kwargs['typ'] = typ
         return minmax_ext.minmax(*args, **kwargs)
     return _minmax
 

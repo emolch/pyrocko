@@ -383,6 +383,11 @@ static PyObject *w_parstack(PyObject *module, PyObject *args,
     }
 
     carrays = (void **)calloc(narrays, sizeof(void *));
+    if (carrays == NULL) {
+        PyErr_SetString(st->error, "alloc failed");
+        return NULL;
+    }
+
     clengths = (size_t *)calloc(narrays, sizeof(size_t));
     if (clengths == NULL) {
         free(carrays);
