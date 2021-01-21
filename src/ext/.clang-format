@@ -1,0 +1,10 @@
+---
+BasedOnStyle: Google
+IndentWidth: 4
+ContinuationIndentWidth: 4
+TabWidth: 4
+UseTab: Never
+---
+Language: Cpp
+DerivePointerAlignment: false
+PointerAlignment: Right

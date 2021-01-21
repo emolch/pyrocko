@@ -531,7 +531,7 @@ class CustomBuildExtCommand(build_ext, object):
                 elif isinstance(cflags, dict):
                     cflags = cflags['gcc']
 
-                if os.environ.get('PYROCKO_VERBOSE_BUILD', False):
+                if os.environ.get('PYROCKO_VERBOSE_BUILD'):
                     print(obj, src, ext, cc_args, cflags, pp_opts)
                 original_compile(
                     obj, src, ext, cc_args, cflags, pp_opts)
@@ -808,7 +808,6 @@ def compile_with_cuda(ex, omp=False):
         '-lineinfo',
         '-Xcompiler', '-rdynamic',
         '--use_fast_math',
-        '--ptxas-options=-v',
         '--compiler-options', "'-fPIC'",
         '--compiler-options', "'-Wall'"
     ]

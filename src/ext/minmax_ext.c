@@ -142,7 +142,7 @@ static PyObject *w_minmax_kernel_parameters(PyObject *module, PyObject *args,
       rows, cols, (uint8_t)axis, impl, target_block_threads, work_per_thread,
       shared_memory_per_thread, grid, blocks, &shared_memory, &err_msg);
   if (err != SUCCESS) {
-    return handle_error("minmax_kernel_parameters()", st, err_msg);
+    return handle_error("minmax_kernel_parameters()", st->error, err_msg);
   }
   return Py_BuildValue("(III)(III)n", grid[0], grid[1], grid[2], blocks[0],
                        blocks[1], blocks[2], shared_memory);
@@ -249,7 +249,7 @@ static PyObject *w_minmax(PyObject *module, PyObject *args, PyObject *kwargs) {
 
       if (RET_CODE != SUCCESS) {
     Py_DECREF(result);
-    return handle_error("minmax()", st, err_msg);
+    return handle_error("minmax()", st->error, err_msg);
   }
 
   return Py_BuildValue("N", (PyObject *)result);

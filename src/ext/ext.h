@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Python.h"
+#include <stdarg.h>
+#include <stdio.h>
 #define UNUSED(x) (void)x;
 
 struct module_state {
@@ -22,12 +24,23 @@ size_t smin(size_t a, size_t b) { return (a < b) ? a : b; }
 
 int32_t max(int32_t a, int32_t b) { return (a > b) ? a : b; }
 
-PyObject *handle_error(const char *call, struct module_state *st,
-                       char *err_msg) {
-  size_t len = snprintf(NULL, 0, "%s failed: %s", call, err_msg);
-  char *full_err_msg = malloc(len + 1);
-  snprintf(full_err_msg, len + 1, "%s failed: %s", call, err_msg);
-  PyErr_SetString(st->error, full_err_msg);
+int format(char **dest, const char *format, ...) {
+  va_list args;
+  int ret;
+
+  va_start(args, format);
+  size_t len = vsnprintf(NULL, 0, format, args);
+  *dest = malloc(len + 1);
+  ret = vsnprintf(*dest, len + 1, format, args);
+  va_end(args);
+
+  return ret;
+}
+
+PyObject *handle_error(const char *call, PyObject *error, char *err_msg) {
+  char *full_err_msg;
+  format(&full_err_msg, "%s: failed: %s", call, err_msg);
+  PyErr_SetString(error, full_err_msg);
   if (err_msg != NULL)
     free(err_msg);
   free(full_err_msg);

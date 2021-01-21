@@ -1,55 +1,58 @@
-#include "minmax.cuh"
-#include "parstack.cuh"
-#include "utils.cuh"
+#include <stdio.h>
+
 #include <cfloat>
 #include <cstdint>
 #include <limits>
-#include <stdio.h>
+
+#include "minmax.cuh"
+#include "parstack.cuh"
+#include "utils.cuh"
 #if defined(_OPENMP)
 #include <omp.h>
 #endif
 #include <thrust/reduce.h>
 
-#define select_parstack_kernel_for_block_size(kernel, _block_size)             \
-  {                                                                            \
-    switch (_block_size) {                                                     \
-    case 1024:                                                                 \
-      kernel<T, 1024><<<_grid, _blocks, _shared_memory>>>(_args);              \
-      break;                                                                   \
-    case 512:                                                                  \
-      kernel<T, 512><<<_grid, _blocks, _shared_memory>>>(_args);               \
-      break;                                                                   \
-    case 256:                                                                  \
-      kernel<T, 256><<<_grid, _blocks, _shared_memory>>>(_args);               \
-      break;                                                                   \
-    case 128:                                                                  \
-      kernel<T, 128><<<_grid, _blocks, _shared_memory>>>(_args);               \
-      break;                                                                   \
-    case 64:                                                                   \
-      kernel<T, 64><<<_grid, _blocks, _shared_memory>>>(_args);                \
-      break;                                                                   \
-    case 32:                                                                   \
-      kernel<T, 32><<<_grid, _blocks, _shared_memory>>>(_args);                \
-      break;                                                                   \
-    case 16:                                                                   \
-      kernel<T, 16><<<_grid, _blocks, _shared_memory>>>(_args);                \
-      break;                                                                   \
-    case 8:                                                                    \
-      kernel<T, 8><<<_grid, _blocks, _shared_memory>>>(_args);                 \
-      break;                                                                   \
-    case 4:                                                                    \
-      kernel<T, 4><<<_grid, _blocks, _shared_memory>>>(_args);                 \
-      break;                                                                   \
-    case 2:                                                                    \
-      kernel<T, 2><<<_grid, _blocks, _shared_memory>>>(_args);                 \
-      break;                                                                   \
-    case 1:                                                                    \
-      kernel<T, 1><<<_grid, _blocks, _shared_memory>>>(_args);                 \
-      break;                                                                   \
-    }                                                                          \
+#define select_parstack_kernel_for_block_size(kernel, _block_size)  \
+  {                                                                 \
+    switch (_block_size) {                                          \
+      case 1024:                                                    \
+        kernel<T, 1024><<<_grid, _blocks, _shared_memory>>>(_args); \
+        break;                                                      \
+      case 512:                                                     \
+        kernel<T, 512><<<_grid, _blocks, _shared_memory>>>(_args);  \
+        break;                                                      \
+      case 256:                                                     \
+        kernel<T, 256><<<_grid, _blocks, _shared_memory>>>(_args);  \
+        break;                                                      \
+      case 128:                                                     \
+        kernel<T, 128><<<_grid, _blocks, _shared_memory>>>(_args);  \
+        break;                                                      \
+      case 64:                                                      \
+        kernel<T, 64><<<_grid, _blocks, _shared_memory>>>(_args);   \
+        break;                                                      \
+      case 32:                                                      \
+        kernel<T, 32><<<_grid, _blocks, _shared_memory>>>(_args);   \
+        break;                                                      \
+      case 16:                                                      \
+        kernel<T, 16><<<_grid, _blocks, _shared_memory>>>(_args);   \
+        break;                                                      \
+      case 8:                                                       \
+        kernel<T, 8><<<_grid, _blocks, _shared_memory>>>(_args);    \
+        break;                                                      \
+      case 4:                                                       \
+        kernel<T, 4><<<_grid, _blocks, _shared_memory>>>(_args);    \
+        break;                                                      \
+      case 2:                                                       \
+        kernel<T, 2><<<_grid, _blocks, _shared_memory>>>(_args);    \
+        break;                                                      \
+      case 1:                                                       \
+        kernel<T, 1><<<_grid, _blocks, _shared_memory>>>(_args);    \
+        break;                                                      \
+    }                                                               \
   }
 
-template <typename T> struct parstack_kernel_arguments_t {
+template <typename T>
+struct parstack_kernel_arguments_t {
   size_t narrays;
   size_t nshifts;
   size_t nsamples;
@@ -66,18 +69,27 @@ template <typename T> struct parstack_kernel_arguments_t {
   T *arrays;
 };
 
-template <typename T> class ParstackCUDAKernel : public CUDAKernel {
-public:
+template <typename T>
+class ParstackCUDAKernel : public CUDAKernel {
+ public:
   ParstackCUDAKernel(size_t _narrays, size_t _nshifts, size_t _nsamples,
                      size_t _lengthout, int32_t _offsetout, T **_arrays,
                      T *_weights, T *_result, size_t *_lengths,
                      int32_t *_offsets, int32_t *_shifts, uint8_t _method,
                      uint8_t _nparallel, size_t _work_per_thread,
                      size_t _target_block_threads, char **_err)
-      : narrays(_narrays), nshifts(_nshifts), nsamples(_nsamples),
-        lengthout(_lengthout), offsetout(_offsetout), arrays(_arrays),
-        weights(_weights), result(_result), lengths(_lengths),
-        offsets(_offsets), shifts(_shifts), method(_method),
+      : narrays(_narrays),
+        nshifts(_nshifts),
+        nsamples(_nsamples),
+        lengthout(_lengthout),
+        offsetout(_offsetout),
+        arrays(_arrays),
+        weights(_weights),
+        result(_result),
+        lengths(_lengths),
+        offsets(_offsets),
+        shifts(_shifts),
+        method(_method),
         nparallel(_nparallel),
         CUDAKernel(_work_per_thread, _target_block_threads, _err) {}
 
@@ -135,12 +147,13 @@ public:
     clock_t r_start = clock();
     cudaEventRecord(start);
 
-    printf("cuda_parstack[host]: narrays=%zu nshifts=%zu lengthout=%zu "
-           "grid=(%u,%u,%u) "
-           "blocks=(%u,%u,%u) (%zu threads) mem=%zu output=(%zu,%zu)\n",
-           narrays, nshifts, lengthout, _grid.x, _grid.y, _grid.z, _blocks.x,
-           _blocks.y, _blocks.z, (size_t)(_blocks.x * _blocks.y * _blocks.z),
-           _shared_memory, nshifts, lengthout);
+    printf(
+        "cuda_parstack[host]: narrays=%zu nshifts=%zu lengthout=%zu "
+        "grid=(%u,%u,%u) "
+        "blocks=(%u,%u,%u) (%zu threads) mem=%zu output=(%zu,%zu)\n",
+        narrays, nshifts, lengthout, _grid.x, _grid.y, _grid.z, _blocks.x,
+        _blocks.y, _blocks.z, (size_t)(_blocks.x * _blocks.y * _blocks.z),
+        _shared_memory, nshifts, lengthout);
 #endif
 
     size_t i;
@@ -188,10 +201,10 @@ public:
                                 narrays, cudaMemcpyHostToDevice, stream),
               "arrays: copy failed", err);
 
-    cudaCheck(cudaMemcpyAsync(args.weights, weights,
-                              nshifts * narrays * sizeof(T),
-                              cudaMemcpyHostToDevice, stream),
-              "weights: copy failed", err);
+    cudaCheck(
+        cudaMemcpyAsync(args.weights, weights, nshifts * narrays * sizeof(T),
+                        cudaMemcpyHostToDevice, stream),
+        "weights: copy failed", err);
 
     cudaCheck(cudaMemcpyAsync(args.offsets, offsets, narrays * sizeof(int32_t),
                               cudaMemcpyHostToDevice, stream),
@@ -239,7 +252,7 @@ public:
         rows : rows,
         cols : cols,
         work_per_thread : 1,
-        array : args.result, // already in GPU memory
+        array : args.result,  // already in GPU memory
         iarrayout : NULL,
         varrayout : NULL,
         pitchin : args.pitchout,
@@ -248,7 +261,8 @@ public:
       cudaCheck(cudaMalloc((void **)&(max_args.varrayout), rows * sizeof(T)),
                 "maxresult: allocation failed", err);
 
-      auto max_kernel = ReductionMinMaxCUDAKernel<size_t, T>::make(max_args, err); 
+      auto max_kernel =
+          ReductionMinMaxCUDAKernel<size_t, T>::make(max_args, err);
       max_kernel->calculate_kernel_parameters();
       max_kernel->launch_kernel(max_args);
 
@@ -271,10 +285,11 @@ public:
     cudaEventElapsedTime(&milliseconds, start, stop);
 
     size_t transferred = narrays * lengthout * nshifts * sizeof(T);
-    printf("cuda_parstack[host]: compute and copy back done: %f sec (%f sec "
-           "total, %f GB %f GB/s bandwidth)\n",
-           ((double)(clock() - r_start)) / CLOCKS_PER_SEC, milliseconds / 1e3,
-           transferred / 1e9, transferred / 1e9 / milliseconds / 1e3);
+    printf(
+        "cuda_parstack[host]: compute and copy back done: %f sec (%f sec "
+        "total, %f GB %f GB/s bandwidth)\n",
+        ((double)(clock() - r_start)) / CLOCKS_PER_SEC, milliseconds / 1e3,
+        transferred / 1e9, transferred / 1e9 / milliseconds / 1e3);
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
@@ -290,7 +305,7 @@ public:
     return SUCCESS;
   };
 
-public:
+ public:
   T **arrays, *weights, *result;
   size_t *lengths;
   int32_t *offsets, *shifts;
@@ -299,7 +314,7 @@ public:
   int32_t offsetout;
   uint8_t method, nparallel;
 
-protected:
+ protected:
   parstack_kernel_arguments_t<T> args{parstack_kernel_arguments_t<T>{}};
 };
 
@@ -311,11 +326,6 @@ __global__ void parstack_atomic_kernel(parstack_kernel_arguments_t<T> args) {
   unsigned int arr_idx = blockIdx.y * blockDim.y + threadIdx.y;
   unsigned int sample_idx =
       args.work_per_thread * blockIdx.z * blockDim.z + threadIdx.z;
-
-#if defined(CUDA_DEBUG)
-  if (shift_idx == 0 && arr_idx == 0 && sample_idx == 0)
-    printf("cuda_parstack[ dev]: \n");
-#endif
 
   if (shift_idx < args.nshifts && arr_idx < args.narrays &&
       sample_idx < args.nsamples) {
@@ -342,12 +352,12 @@ template <class T>
 class AtomicParstackCUDAKernel : public ParstackCUDAKernel<T> {
   using ParstackCUDAKernel<T>::ParstackCUDAKernel;
 
-public:
+ public:
   size_t shared_memory_per_thread{0};
 
-  __host__ static std::unique_ptr<ParstackCUDAKernel<T>>
-  make(T **arrays, parstack_kernel_arguments_t<T> args, uint8_t method,
-       char **err) {
+  __host__ static std::unique_ptr<ParstackCUDAKernel<T>> make(
+      T **arrays, parstack_kernel_arguments_t<T> args, uint8_t method,
+      char **err) {
     return std::make_unique<AtomicParstackCUDAKernel<T>>(arrays, args, method,
                                                          err);
   }
@@ -400,8 +410,11 @@ public:
 
 template <typename T, unsigned int block_size>
 __global__ void parstack_reduction_kernel(parstack_kernel_arguments_t<T> args) {
-  // shared block memory that is used to combine the block results
-  extern __shared__ T partials[];
+  // shared memory that is used for partial results during reduction
+  // because the kernel is templated, the type of the shared memory is
+  // dynamically casted
+  extern __shared__ __align__(sizeof(T)) unsigned char _partials[];
+  T *partials = reinterpret_cast<T *>(_partials);
 
   const unsigned int arr_tid = threadIdx.x;
   const unsigned int shift_tid = threadIdx.y;
@@ -430,6 +443,7 @@ __global__ void parstack_reduction_kernel(parstack_kernel_arguments_t<T> args) {
     }
     arr_idx += grid_size;
   }
+
   partials[offset + arr_tid] = acc;
   __syncthreads();
 
@@ -504,10 +518,10 @@ template <class T>
 class ReductionParstackCUDAKernel : public ParstackCUDAKernel<T> {
   using ParstackCUDAKernel<T>::ParstackCUDAKernel;
 
-public:
-  __host__ static std::unique_ptr<ParstackCUDAKernel<T>>
-  make(T **arrays, parstack_kernel_arguments_t<T> args, uint8_t method,
-       char **err) {
+ public:
+  __host__ static std::unique_ptr<ParstackCUDAKernel<T>> make(
+      T **arrays, parstack_kernel_arguments_t<T> args, uint8_t method,
+      char **err) {
     return std::make_unique<ReductionParstackCUDAKernel<T>>(arrays, args,
                                                             method, err);
   }
@@ -533,7 +547,8 @@ public:
         min(this->target_block_threads, (size_t)limits->maxThreadsPerBlock);
     this->target_block_threads = min(
         this->target_block_threads,
-        next_pow2(limits->sharedMemPerBlock / this->shared_memory_per_thread));
+        next_pow2(limits->sharedMemPerBlock / this->shared_memory_per_thread) /
+            2);
     this->target_block_threads =
         min(this->target_block_threads,
             next_pow2(limits->sharedMemPerMultiprocessor /
@@ -551,10 +566,20 @@ public:
     unsigned int bshifts = threads_per_block / barrays;
     bshifts = min((size_t)bshifts, next_pow2(this->nshifts));
     bshifts = min(bshifts, limits->maxThreadsDim[1]);
+    bshifts =
+        min((size_t)bshifts,
+            next_pow2(limits->sharedMemPerBlock /
+                      (max(32, barrays) * this->shared_memory_per_thread)) /
+                2);
 
     unsigned int blengthout = threads_per_block / (barrays * bshifts);
     blengthout = min((size_t)blengthout, next_pow2(this->lengthout));
     blengthout = min(blengthout, limits->maxThreadsDim[2]);
+    blengthout =
+        min((size_t)blengthout, next_pow2(limits->sharedMemPerBlock /
+                                          (max(32, barrays) * bshifts *
+                                           this->shared_memory_per_thread)) /
+                                    2);
 
     this->_blocks = dim3(barrays, bshifts, blengthout);
     this->_block_size = this->_blocks.x;
@@ -574,12 +599,12 @@ template <typename T>
 ParstackKernelFactory<T> select_parstack_kernel_implementation(impl_t impl) {
   ParstackKernelFactory<T> kernel_impl = NULL;
   switch (impl) {
-  case IMPL_CUDA_ATOMIC:
-    kernel_impl = AtomicParstackCUDAKernel<T>::make;
-    break;
-  default:
-    kernel_impl = ReductionParstackCUDAKernel<T>::make;
-    break;
+    case IMPL_CUDA_ATOMIC:
+      kernel_impl = AtomicParstackCUDAKernel<T>::make;
+      break;
+    default:
+      kernel_impl = ReductionParstackCUDAKernel<T>::make;
+      break;
   }
   return kernel_impl;
 }
@@ -589,8 +614,7 @@ int check_cuda_parstack_implementation_compatibility(impl_t impl,
                                                      char **err) {
   ParstackKernelFactory<float> factory =
       select_parstack_kernel_implementation<float>(impl);
-  if (factory == NULL)
-    EXIT_DEBUG("kernel not implemented", err);
+  if (factory == NULL) EXIT_DEBUG("kernel not implemented", err);
   auto kernel = factory(NULL, parstack_kernel_arguments_t<float>{}, 0, err);
   *compatible = kernel->is_compatible();
   return SUCCESS;
@@ -612,8 +636,7 @@ int calculate_cuda_parstack_kernel_parameters(
   };
   ParstackKernelFactory<float> factory =
       select_parstack_kernel_implementation<float>(impl);
-  if (factory == NULL)
-    EXIT_DEBUG("kernel not implemented", err);
+  if (factory == NULL) EXIT_DEBUG("kernel not implemented", err);
   auto kernel = factory(NULL, args, 0, err);
   kernel->target_block_threads = target_block_threads;
   kernel->shared_memory_per_thread = shared_memory_per_thread;
@@ -628,30 +651,38 @@ int calculate_cuda_parstack_kernel_parameters(
   return SUCCESS;
 }
 
-int cuda_parstack(size_t narrays, float **arrays, int32_t *offsets,
-                  size_t *lengths, size_t nshifts, int32_t *shifts,
-                  float *weights, uint8_t method, size_t lengthout,
-                  int32_t offsetout, float *result, impl_t impl,
-                  uint8_t nparallel, size_t target_block_threads, char **err) {
-  parstack_kernel_arguments_t<float> args = {
-    narrays : narrays,
-    nshifts : nshifts,
-    nsamples : 0, // computed
-    lengthout : lengthout,
-    offsetout : offsetout,
+template <typename T>
+int cuda_parstack(T **arrays, T *weights, T *result,
+                  parstack_arguments_t args) {
+  parstack_kernel_arguments_t<T> kernel_args = {
+    narrays : args.narrays,
+    nshifts : args.nshifts,
+    nsamples : 0,  // computed
+    lengthout : args.lengthout,
+    offsetout : args.offsetout,
     work_per_thread : 32,
     weights : weights,
     result : result,
-    lengths : lengths,
-    shifts : shifts,
-    offsets : offsets
+    lengths : args.lengths,
+    shifts : args.shifts,
+    offsets : args.offsets
   };
-  ParstackKernelFactory<float> factory =
-      select_parstack_kernel_implementation<float>(impl);
-  if (factory == NULL)
-    EXIT_DEBUG("kernel not implemented", err);
-  auto kernel = factory(arrays, args, method, err);
+  ParstackKernelFactory<T> factory =
+      select_parstack_kernel_implementation<T>(args.impl);
+  if (factory == NULL) EXIT_DEBUG("kernel not implemented", args.err);
+  auto kernel = factory(arrays, kernel_args, args.method, args.err);
   if (!kernel->is_compatible())
-    EXIT_DEBUG("CUDA implementation incompatible with available hardware", err);
+    EXIT_DEBUG("CUDA implementation incompatible with available hardware",
+               args.err);
   return kernel->launch();
+}
+
+int cuda_parstack_float(float **arrays, float *weights, float *result,
+                        parstack_arguments_t args) {
+  return cuda_parstack<float>(arrays, weights, result, args);
+}
+
+int cuda_parstack_double(double **arrays, double *weights, double *result,
+                         parstack_arguments_t args) {
+  return cuda_parstack<double>(arrays, weights, result, args);
 }
