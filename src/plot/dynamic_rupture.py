@@ -800,25 +800,15 @@ class RuptureMap(Map):
             *self.jxyr,
             **kwargs)
 
-    def draw_dynamic_data(self, data, original_patch_indices=None, **kwargs):
+    def draw_dynamic_data(self, data, **kwargs):
         '''
         Draw an image of any data gridded on the patches e.g dislocation
 
         :param data: Patchwise data grid array
         :type data: :py:class:`numpy.ndarray`
-        :param original_patch_indices: If the source has been recalculated and
-            manually manipulated (``patches``, ``coef_mat`` etc.),
-            then give here a boolean array indicating the position of the
-            remaining patches on the original patch grid. False is interpreted
-            as no data, ``True`` is replaced by the patch data.
-        :type original_patch_indices: optional,
-            :py:class:`numpy.ndarray` of bool ``(source.nx, source.ny)``
         '''
 
         plot_data = data
-        if original_patch_indices is not None:
-            plot_data = num.zeros(original_patch_indices.shape)
-            plot_data[original_patch_indices] = data
 
         kwargs['cmap'] = kwargs.get('cmap', 'afmhot_r')
 
@@ -1256,24 +1246,14 @@ class RuptureView(Object):
 
             self._axes.scatter(length, width, *args, **kwargs)
 
-    def draw_dynamic_data(self, data, original_patch_indices=None, **kwargs):
+    def draw_dynamic_data(self, data, **kwargs):
         ''' Draw an image of any data gridded on the patches e.g dislocation
 
         :param data: Patchwise data grid array
         :type data: :py:class:`numpy.ndarray`
-        :param original_patch_indices: If the source has been recalculated and
-            manually manipulated (``patches``, ``coef_mat`` etc.), then give
-            here a boolean array indicating the position of the remaining
-            patches on the original patch grid. False is interpreted
-            as no data, ``True`` is replaced by the patch data.
-        :type original_patch_indices: optional,
-            :py:class:`numpy.ndarray` of bool ``(source.nx, source.ny)``
         '''
 
         plot_data = data
-        if original_patch_indices is not None:
-            plot_data = num.zeros(original_patch_indices.shape)
-            plot_data[original_patch_indices] = data
 
         anchor_x, anchor_y = map_anchor[self.source.anchor]
 
