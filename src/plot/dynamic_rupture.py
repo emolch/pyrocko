@@ -91,7 +91,7 @@ def _mplcmap_to_gmtcpt_code(mplcmap, steps=256):
 
     rgbas = [cmap(i) for i in num.linspace(0, 255, steps).astype(num.int64)]
 
-    return ','.join(['%g/%g/%g' % (
+    return ','.join(['%d/%d/%d' % (
         c[0] * 255, c[1] * 255, c[2] * 255) for c in rgbas])
 
 

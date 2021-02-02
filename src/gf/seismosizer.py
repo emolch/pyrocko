@@ -2467,7 +2467,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         optional=True,
         help='Coefficient matrix linking traction and dislocation field',
         dtype=num.float,
-        shape=(None,))
+        shape=(None, None))
 
     eikonal_decimation = Int.T(
         optional=True,
