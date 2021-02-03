@@ -5,7 +5,8 @@ import logging
 import os
 
 import numpy as num
-from pyrocko import gf, util, trace
+from pyrocko import gf, util, trace, moment_tensor as pmt, orthodrome as pod
+from pyrocko.gf.seismosizer import map_anchor
 from pyrocko.modelling import DislocationInverter
 
 logger = logging.getLogger('pyrocko.test.test_gf_source_types')
@@ -61,53 +62,114 @@ class GFSourceTypesTestCase(unittest.TestCase):
 
     @unittest.skipUnless(*have_store('crust2_ib'))
     def test_pseudo_dynamic_rupture(self):
+        from matplotlib import pyplot as plt
+
         store_id = 'crust2_ib'
 
         engine = gf.get_engine()
         store = engine.get_store(store_id)
 
+        moment = 1e19
+        nucleation_x, nucleation_y = 0., 0.
+
         pdr = gf.PseudoDynamicRupture(
             length=20000., width=10000., depth=2000.,
-            anchor='top', gamma=0.8, dip=90., strike=0.,
-            nucleation_x=0., nucleation_y=0.)
+            anchor='top', gamma=0.8, dip=45., strike=60.,
+            moment=moment, nx=5, ny=3, smooth_rupture=False,
+            decimation_factor=1000)
 
-        points, _, vr, times = pdr.discretize_time(store)
-        assert times.shape == vr.shape
-        assert points.shape[0] == times.shape[0] * times.shape[1]
+        # Check magnitude calculations
+        assert pdr.magnitude == pmt.moment_to_magnitude(moment)
+        assert pdr.get_magnitude() == pmt.moment_to_magnitude(moment)
+
+        # Check nucleation setting
+        pdr.nucleation = num.array([[nucleation_x, nucleation_y]])
+        assert pdr.nucleation_x == num.array(nucleation_x)
+        assert pdr.nucleation_y == num.array(nucleation_y)
+
+        # Check new nucleation time
+        pdr.nucleation_time = 1.
+        points_old, _, vr_old, times_old = pdr.discretize_time(store)
+        assert times_old.shape == vr_old.shape
+        assert points_old.shape[0] == times_old.shape[0] * times_old.shape[1]
+
+        pdr._interpolators = {}
+        pdr.nucleation_time = 0.
+
+        points_new, _, vr_new, times_new = pdr.discretize_time(store)
+        assert times_new.shape == times_old.shape
+        num.testing.assert_allclose(times_new, times_old - 1., rtol=1e-7)
+        num.testing.assert_allclose(vr_new, vr_old, rtol=1e-7)
+        num.testing.assert_allclose(points_new, points_old, rtol=1e-7)
 
         pdr.discretize_patches(
             store=store,
-            interpolation='nearest_neighbor',
-            nucleation_x=0.,
-            nucleation_y=0.)
+            interpolation='nearest_neighbor')
+
+        # Check moment calculation discretize basesource vs moment_rate_patches
+        mom_rate_old, times_old = pdr.get_moment_rate_patches(store=store)
+        mom_rate_new, times_new = pdr.get_moment_rate(store=store)
+
+        cum_mom_old = (mom_rate_old * num.concatenate([
+            (num.diff(times_old)[0],), num.diff(times_old)])).sum()
+
+        num.testing.assert_allclose(cum_mom_old, moment, rtol=1e-3)
+        num.testing.assert_equal(times_new, times_old)
+
+        # Check magnitude scaling of slip and slip rate
+        disloc_tmax = pdr.get_slip()
+        disloc_tmax_max = num.linalg.norm(disloc_tmax, axis=1).max()
+
+        pdr.magnitude = None
+        pdr.slip = disloc_tmax_max
+
+        # Large rtol due to interpolation and rounding differences induced by
+        # get_moment calculation
+        num.testing.assert_allclose(
+            pdr.get_moment(store=store),
+            moment,
+            rtol=1e-2)
+
+        deltat = pdr.get_patch_attribute('time').max() * 0.5
+        deltaslip, times = pdr.get_delta_slip(deltat=deltat, delta=False)
+
+        num.testing.assert_allclose(disloc_tmax, pdr.get_slip())
+        num.testing.assert_allclose(disloc_tmax, deltaslip[:, -1, :])
+
+        pdr.slip = None
 
         pdr.tractions = gf.tractions.HomogeneousTractions(
             strike=0.,
             dip=0.,
             normal=-.5e6)
 
-        time = num.max(pdr.get_patch_attribute('time')) * 0.5
+        disloc_est = pdr.get_slip(t=deltat)
 
-        disloc_est = pdr.get_okada_slip(t=time)
+        # Check get delta slip function
+        deltaslip, times_old = pdr.get_delta_slip(deltat=deltat)
+        cumslip, times_new = pdr.get_delta_slip(deltat=deltat, delta=False)
 
+        num.testing.assert_equal(times_old, times_new)
+        num.testing.assert_equal(cumslip, num.cumsum(deltaslip, axis=1))
+
+        # Check coefficient matrix calculation
         coef_mat = DislocationInverter.get_coef_mat(pdr.patches)
-
         assert (coef_mat == pdr.coef_mat).all()
 
         if show_plot:
             level = num.arange(0., 15., 1.5)
 
-            import matplotlib.pyplot as plt
-            x_val = points[:times.shape[1], 0]
-            y_val = points[::times.shape[1], 2]
+            x_val = points_old[:times_old.shape[1], 0]
+            y_val = points_old[::times_old.shape[1], 2]
 
             plt.gcf().add_subplot(1, 1, 1, aspect=1.0)
             plt.imshow(
-                vr,
+                vr_old,
                 extent=[
                     num.min(x_val), num.max(x_val),
                     num.max(y_val), num.min(y_val)])
-            plt.contourf(x_val, y_val, times, level, cmap='gray', alpha=0.7)
+            plt.contourf(
+                x_val, y_val, times_old, level, cmap='gray', alpha=0.7)
             plt.colorbar(label='Rupture Propagation Time [s]')
             plt.show()
 
@@ -127,8 +189,105 @@ class GFSourceTypesTestCase(unittest.TestCase):
                 pdr.get_patch_attribute('time').reshape(pdr.ny, pdr.nx),
                 level,
                 cmap='gray', alpha=0.5)
-            plt.colorbar(im, label='Opening [m] after %.2f s' % time)
+            plt.colorbar(im, label='Opening [m] after %.2f s' % deltat)
             plt.show()
+
+    @unittest.skipUnless(*have_store('crust2_ib'))
+    def test_pseudo_dynamic_rupture_outline(self):
+        length = 20000.
+        width = 10000.
+        depth = 3400.
+        north_shift = 1500.
+        east_shift = -2000.
+
+        pdr = gf.PseudoDynamicRupture(
+            length=length, width=width, depth=depth,
+            north_shift=north_shift, east_shift=east_shift,
+            anchor='top', gamma=0.8, dip=90., strike=0.)
+
+        points = num.array(
+            [[-0.5 * length + north_shift, east_shift, depth],
+             [0.5 * length + north_shift, east_shift, depth],
+             [0.5 * length + north_shift, east_shift, depth + width],
+             [-0.5 * length + north_shift, east_shift, depth + width],
+             [-0.5 * length + north_shift, east_shift, depth]])
+
+        num.testing.assert_allclose(
+            points, pdr.outline(cs='xyz'), atol=1.)
+
+        num.testing.assert_allclose(
+            points[:, :2], pdr.outline(cs='xy'), atol=1.)
+
+        latlon = pod.ne_to_latlon(pdr.lat, pdr.lon, points[:, 0], points[:, 1])
+        latlon = num.array(latlon).T
+
+        num.testing.assert_allclose(
+            latlon,
+            pdr.outline(cs='latlon'), atol=1.)
+
+        num.testing.assert_allclose(
+            latlon[:, ::-1],
+            pdr.outline(cs='lonlat'), atol=1.)
+
+        num.testing.assert_allclose(
+            num.concatenate((latlon, points[:, 2].reshape((-1, 1))), axis=1),
+            pdr.outline(cs='latlondepth'), atol=1.)
+
+    @unittest.skipUnless(*have_store('crust2_ib'))
+    def test_pseudo_dynamic_rupture_points_on_source(self):
+        length = 20000.
+        width = 10000.
+        depth = 3400.
+        north_shift = 1500.
+        east_shift = -2000.
+
+        pdr = gf.PseudoDynamicRupture(
+            length=length, width=width, depth=depth,
+            north_shift=north_shift, east_shift=east_shift,
+            anchor='top', gamma=0.8, dip=90., strike=0.)
+
+        random_points = num.concatenate((
+            num.random.uniform(-1, 1, size=(10, 1)),
+            num.random.uniform(-1., 1., size=(10, 1))), axis=1)
+
+        points_xy = num.array(list(map_anchor.values()))
+        points_xy = num.concatenate((points_xy, random_points))
+
+        points = num.zeros((points_xy.shape[0], 3))
+        points[:, 0] = 0.5 * points_xy[:, 0] * length + north_shift
+        points[:, 1] = east_shift
+        points[:, 2] = 0.5 * (points_xy[:, 1] + 1.) * width + depth
+
+        num.testing.assert_allclose(
+            points, pdr.points_on_source(
+                points_x=points_xy[:, 0], points_y=points_xy[:, 1],
+                cs='xyz'), atol=1.)
+
+        num.testing.assert_allclose(
+            points[:, :2], pdr.points_on_source(
+                points_x=points_xy[:, 0], points_y=points_xy[:, 1],
+                cs='xy'), atol=1.)
+
+        latlon = pod.ne_to_latlon(pdr.lat, pdr.lon, points[:, 0], points[:, 1])
+        latlon = num.array(latlon).T
+
+        num.testing.assert_allclose(
+            latlon,
+            pdr.points_on_source(
+                points_x=points_xy[:, 0], points_y=points_xy[:, 1],
+                cs='latlon'), atol=1.)
+
+        num.testing.assert_allclose(
+            latlon[:, ::-1],
+            pdr.points_on_source(
+                points_x=points_xy[:, 0], points_y=points_xy[:, 1],
+                cs='lonlat'), atol=1.)
+
+        num.testing.assert_allclose(
+            num.concatenate((latlon, points[:, 2].reshape((-1, 1))), axis=1),
+            pdr.points_on_source(
+                points_x=points_xy[:, 0], points_y=points_xy[:, 1],
+                cs='latlondepth'), atol=1.)
 
     @unittest.skipUnless(*have_store('crust2_ib'))
     def test_oversampling(self):

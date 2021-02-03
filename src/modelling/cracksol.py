@@ -61,7 +61,8 @@ class GriffithCrack(Object):
         opening in x1 direction and the crack extending in x2 direction.
 
         :param x_obs: Observation point coordinates along x2-axis.
-            If x_obs < -self.a or x_obs > self.a, output dislocations are zero
+            If :math:`x_{obs} < -a` or :math:`x_{obs} > a`, output dislocations
+            are zero
         :type x_obs: :py:class:`numpy.ndarray`, ``(N,)``
 
         :return: dislocations at each observation point in strike, dip and
@@ -97,8 +98,8 @@ class GriffithCrack(Object):
         opening in x1 direction.
 
         :param x_obs: Observation point coordinates along axis through crack
-            centre. If x_obs < -self.a or x_obs > self.a, output dislocations
-            are zero
+            centre. If :math:`x_{obs} < -a` or :math:`x_{obs} > a`, output
+            dislocations are zero
         :type x_obs: :py:class:`numpy.ndarray`, ``(N,)``
 
         :return: dislocations at each observation point in strike, dip and

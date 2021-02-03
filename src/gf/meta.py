@@ -1321,18 +1321,25 @@ class DiscretizedMTSource(DiscretizedSource):
 
     def get_moment_rate(self, deltat=None):
         moments = self.moments()
+        times = self.times
 
-        t_min = self.times.min()
+        t_max = times.max()
+        mom_times = num.arange(0, t_max + deltat, deltat)
+        mom_times[mom_times > t_max] = t_max
 
-        duration = self.times.max() - t_min
-        nbins = math.ceil(duration / deltat) + 1
-        bins = num.arange(t_min, nbins*deltat+t_min, deltat)
+        # Right open histrogram bins
+        mom = num.array([
+            num.sum(moments[(times > t0) & (times <= t1)])
+            for t0, t1 in zip(mom_times[:-1], mom_times[1:])
+        ])
 
-        mom, mom_times = num.histogram(
-            self.times, bins=bins, weights=moments)
+        mom = num.concatenate(((moments[times == 0.].sum(),), mom))
+
+        deltat = num.concatenate((
+            (deltat,),
+            num.diff(mom_times)))
 
         mom_rate = mom / deltat
-        mom_times = mom_times[:-1] + (deltat - t_min)
 
         return mom_rate, mom_times
 

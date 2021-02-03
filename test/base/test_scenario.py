@@ -61,12 +61,13 @@ class ScenarioTestCase(unittest.TestCase):
             target_generators=[
                 targets.WaveformGenerator(
                     store_id=ScenarioTestCase.store_id,
-                    station_generator=targets.RandomStationGenerator(
-                        nstations=5,
-                        avoid_water=False),
+                    station_generators=[
+                        targets.RandomStationGenerator(
+                            nstations=5,
+                            avoid_water=False)],
                     noise_generator=targets.waveform.WhiteNoiseGenerator(),
                     seismogram_quantity='velocity'),
-                ],
+            ],
             source_generator=scenario.DCSourceGenerator(
                 time_min=util.str_to_time('2017-01-01 00:00:00'),
                 time_max=util.str_to_time('2017-01-01 02:00:00'),
@@ -199,10 +200,11 @@ class ScenarioTestCase(unittest.TestCase):
             radius=60*km,
             target_generators=[
                 targets.GNSSCampaignGenerator(
-                    station_generator=targets.RandomStationGenerator(
-                        avoid_water=False,
-                        channels=None))
-                ],
+                    station_generators=[
+                        targets.RandomStationGenerator(
+                            avoid_water=False,
+                            channels=None)])
+            ],
             source_generator=scenario.DCSourceGenerator(
                 time_min=util.str_to_time('2017-01-01 00:00:00'),
                 time_max=util.str_to_time('2017-01-01 02:00:00'),
@@ -242,7 +244,7 @@ class ScenarioTestCase(unittest.TestCase):
             target_generators=[
                 targets.WaveformGenerator(
                     store_id=ScenarioTestCase.store_id,
-                    station_generator=targets.RandomStationGenerator(
+                    station_generators=targets.RandomStationGenerator(
                         avoid_water=False),
                     noise_generator=targets.waveform.WhiteNoiseGenerator(),
                     seismogram_quantity='velocity'),
@@ -251,10 +253,11 @@ class ScenarioTestCase(unittest.TestCase):
                     noise_generator=targets.insar.AtmosphericNoiseGenerator(
                         amplitude=1e-5)),
                 targets.GNSSCampaignGenerator(
-                    station_generator=targets.RandomStationGenerator(
-                        avoid_water=False,
-                        channels=None))
-                ],
+                    station_generators=[
+                        targets.RandomStationGenerator(
+                            avoid_water=False,
+                            channels=None)])
+            ],
             source_generator=scenario.DCSourceGenerator(
                 time_min=util.str_to_time('2017-01-01 00:00:00'),
                 time_max=util.str_to_time('2017-01-01 02:00:00'),
@@ -307,8 +310,8 @@ class ScenarioTestCase(unittest.TestCase):
             target_generators=[
                 targets.WaveformGenerator(
                     store_id=ScenarioTestCase.store_id,
-                    station_generator=targets.RandomStationGenerator(
-                        avoid_water=False),
+                    station_generators=[
+                        targets.RandomStationGenerator(avoid_water=False)],
                     noise_generator=targets.waveform.WhiteNoiseGenerator(),
                     seismogram_quantity='velocity'),
                 targets.InSARGenerator(
@@ -316,10 +319,11 @@ class ScenarioTestCase(unittest.TestCase):
                     noise_generator=targets.insar.AtmosphericNoiseGenerator(
                         amplitude=1e-5)),
                 targets.GNSSCampaignGenerator(
-                    station_generator=targets.RandomStationGenerator(
-                        avoid_water=False,
-                        channels=None))
-                ],
+                    station_generators=[
+                        targets.RandomStationGenerator(
+                            avoid_water=False,
+                            channels=None)])
+            ],
             source_generator=scenario.DCSourceGenerator(
                 time_min=util.str_to_time('2017-01-01 00:00:00'),
                 time_max=util.str_to_time('2017-01-01 02:00:00'),

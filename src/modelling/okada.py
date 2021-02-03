@@ -126,9 +126,9 @@ class OkadaSource(AnalyticalRectangularSource):
         Calculation of first Lame's parameter
 
         According to Mueller (2007), the first Lame parameter lambda can be
-        determined from the formulation for the poisson ration nu:
-        nu = lambda / (2 * (lambda + mu))
-        with the shear modulus mu
+        determined from the formulation for the poisson ration :math:`\\nu`:
+        :math:`\\nu = \\frac{\\lambda}{2(\\lambda + \\mu)}`
+        with the shear modulus :math:`\\mu`
         '''
 
         return (2. * self.poisson * self.shearmod) / (1. - 2*self.poisson)
@@ -140,7 +140,7 @@ class OkadaSource(AnalyticalRectangularSource):
 
         Code copied from Kite
         Disregarding the opening (as for now)
-        We assume a shear modulus of :math:`mu = 36 mathrm{GPa}`
+        We assume a shear modulus of :math:`\\mu = 36 \\mathrm{GPa}`
         and :math:`M_0 = mu A D`
 
         .. important ::
@@ -224,7 +224,7 @@ class OkadaSource(AnalyticalRectangularSource):
         :param nwidth: Number of discrete points in faults down-dip direction
         :type nwidth: int
         :return: Discrete fault patches
-        :rtype: list of :py:class:`pyrocko.modelling.OkadaSource` objects
+        :rtype: list of :py:class:`pyrocko.modelling.okada.OkadaSource` objects
         '''
         assert nlength > 0
         assert nwidth > 0
@@ -305,7 +305,7 @@ class DislocationInverter(object):
         :param source_patches_list: list of all OkadaSources, which shall be
             used for BEM
         :type source_patches_list: list of
-            :py:class:`pyrocko.modelling.OkadaSource`
+            :py:class:`pyrocko.modelling.okada.OkadaSource`
         :param pure_shear: Shall only shear forces be taken into account,
             or additionally include opening, default False.
         :type pure_shear: optional, bool
@@ -403,7 +403,7 @@ class DislocationInverter(object):
         :param source_patches_list: list of all OkadaSources, which shall be
             used for BEM
         :type source_patches_list: list of
-            :py:class:`pyrocko.modelling.OkadaSource`
+            :py:class:`pyrocko.modelling.okada.OkadaSource`
         :param pure_shear: Flag, if also opening mode shall be taken into
             account (False) or the fault is described as pure shear (True).
         :type pure_shear: optional, bool
@@ -502,7 +502,7 @@ class DislocationInverter(object):
         :param source_patches_list: list of all OkadaSources, which shall be
             used for BEM
         :type source_patches_list: list of
-            :py:class:`pyrocko.modelling.OkadaSource`
+            :py:class:`pyrocko.modelling.okada.OkadaSource`
         :param pure_shear: Flag, if also opening mode shall be taken into
             account (False) or the fault is described as pure shear (True).
         :type pure_shear: optional, bool
@@ -634,7 +634,7 @@ class DislocationInverter(object):
         :param source_list: list of all OkadaSources, which shall be
             used for BEM
         :type source_list: optional, list of
-            :py:class:`pyrocko.modelling.OkadaSource`
+            :py:class:`pyrocko.modelling.okada.OkadaSource`
         :param epsilon: regularize small values from the coefficient matrix,
             default None.
         :type epsilon: optional, float

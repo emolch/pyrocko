@@ -109,10 +109,16 @@ class GNSSCampaignGenerator(TargetGenerator):
         path_gnss = op.join(path, 'gnss')
         util.ensuredir(path_gnss)
 
+        networks = []
+        for sg in self.station_generators:
+            try:
+                networks.append(sg.network_name)
+            except AttributeError:
+                pass
+
         fn = op.join(
             path_gnss,
-            'campaign-%s.yml' % '_'.join([
-                sg.network_name for sg in self.station_generators]))
+            'campaign-%s.yml' % '_'.join(networks))
 
         if op.exists(fn):
             return

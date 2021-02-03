@@ -252,7 +252,7 @@ mantle
             **source_params)
 
         dyn_rupture.discretize_patches(store)
-        slip = dyn_rupture.get_okada_slip()
+        slip = dyn_rupture.get_slip()
         rake = num.arctan2(slip[:, 1].mean(), slip[:, 0].mean())
 
         rect_rupture = gf.RectangularSource(
