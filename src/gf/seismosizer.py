@@ -2542,8 +2542,11 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                     'tractions defined can only be derived when earth model '
                     'is set')
 
-            moment = self.get_moment(store)
-            return float(pmt.moment_to_magnitude(moment))
+            moment_rate, _ = self.discretize_basesource(
+                store, target=target).get_moment_rate(store.config.deltat)
+
+            return float(pmt.moment_to_magnitude(
+                num.sum(moment_rate) * store.config.deltat))
 
         else:
             return float(pmt.moment_to_magnitude(1.0))
@@ -3405,7 +3408,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         return self.discretize_basesource(
             store, target=target).get_moment_rate(deltat)
 
-    def get_moment(self, store, target=None):
+    def get_moment(self, store=None, target=None):
         '''
         Get seismic source cumulative moment
 
@@ -3416,8 +3419,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :param target: Target information, needed for interpolation method
         :type target: optional, :py:class:`pyrocko.gf.target.Target`
         '''
-        return num.sum(
-            self.discretize_basesource(store, target=target).moments())
+        return float(pmt.magnitude_to_moment(self.get_magnitude(
+            store=store, target=target)))
 
     def get_seismic_energy(self, store):
         mom_rate, mom_times = self.get_moment_rate(store)
