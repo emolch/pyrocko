@@ -2980,9 +2980,12 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             for p in self.patches]).reshape(self.nx, self.ny, 2)
 
         # boundary condition is zero-slip
-        slip_grid = num.zeros((self.nx + 2, self.ny + 2, ntimes + 1, 3))
-        slip_grid[1:-1, 1:-1, 1:, :] = \
+        slip_grid = num.zeros((self.nx + 2, self.ny + 2, ntimes, 3))
+        slip_grid[1:-1, 1:-1, :, :] = \
             delta_slip.reshape(self.nx, self.ny, ntimes, 3)
+#         slip_grid = num.zeros((self.nx + 2, self.ny + 2, ntimes + 1, 3))
+#         slip_grid[1:-1, 1:-1, 1:, :] = \
+#             delta_slip.reshape(self.nx, self.ny, ntimes, 3)
 
         coords_x = num.empty(self.nx + 2)
         coords_x[1:-1] = patch_coords[:, 0, 0]
@@ -2995,8 +2998,11 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         coords_y[-1] = coords_y[-2] + pwd / 2
 
         slip_interp = RegularGridInterpolator(
-            (coords_x, coords_y, num.concatenate(([0.], slip_times))),
+            (coords_x, coords_y, slip_times),
             slip_grid)
+#         slip_interp = RegularGridInterpolator(
+#             (coords_x, coords_y, num.concatenate(([0.], slip_times))),
+#             slip_grid)
 
         # discretize basesources
         mindeltagf = min(tuple(
@@ -3333,8 +3339,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         # if we have only one timestep there is no gradient
         if calc_times.size > 1:
-            disloc_est = num.diff(disloc_est, axis=1)
-            calc_times = calc_times[1:]
+            disloc_est[:, 1:, :] = num.diff(disloc_est, axis=1)
+            # calc_times = calc_times[1:]
 
         return disloc_est, calc_times
 
