@@ -7,7 +7,11 @@ from __future__ import absolute_import, division
 import math
 import numpy as num
 from . import trace
+from .guts import Float, Object
 from . import ahfullgreen_ext as ext
+
+
+guts_prefix = 'pf'
 
 
 class AhfullgreenError(Exception):
@@ -21,7 +25,7 @@ def make_seismogram(
         npad_levelling=40, out_alignment=0.):
 
     if stf is None:
-        stf = Impulse()
+        stf = AhfullgreenSTFImpulse()
 
     x = num.asarray(x, num.float)
     f = num.asarray(f, num.float)
@@ -157,10 +161,11 @@ def add_seismogram(
         out[ind(tmax, out_offset)+1:] += temp[ind(tmax, tstart)]
 
 
-class Impulse(object):
+class AhfullgreenSTF(Object):
+    pass
 
-    def __init__(self):
-        pass
+
+class AhfullgreenSTFImpulse(AhfullgreenSTF):
 
     def t_cutoff(self):
         return None
@@ -169,14 +174,14 @@ class Impulse(object):
         return num.ones(f.size, dtype=num.complex)
 
 
-class Gauss(object):
-    def __init__(self, tau):
-        self._tau = tau
+class AhfullgreenSTFGauss(AhfullgreenSTF):
+
+    tau = Float.T(default=1.0)
 
     def t_cutoff(self):
-        return self._tau * 2.
+        return self.tau * 2.
 
     def __call__(self, f):
         omega = f * 2. * math.pi
 
-        return num.exp(-(omega**2 * self._tau**2 / 8.))
+        return num.exp(-(omega**2 * self.tau**2 / 8.))

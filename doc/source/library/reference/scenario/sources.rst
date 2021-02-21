@@ -15,3 +15,11 @@ Scenario's SourceGenerators
 .. automodule :: pyrocko.scenario.sources.rectangularsource
     :members:
     :show-inheritance:
+
+
+``PseudoDynamicRuptureGenerator``
+---------------------------------
+
+.. automodule :: pyrocko.scenario.sources.pseudodynrupture
+    :members:
+    :show-inheritance:

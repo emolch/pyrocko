@@ -33,7 +33,7 @@ We will utilize :class:`~pyrocko.gf.seismosizer.LocalEngine`, :class:`~pyrocko.g
 .. figure:: /static/gf_static_displacement.png
     :align: center
     :width: 90%
-    :alt: Static displacement from a strike-slip fault calculated through pyrocko
+    :alt: Static displacement from a strike-slip fault calculated through Pyrocko
 
     Synthetic surface displacement from a vertical strike-slip fault, with a N104W azimuth, in the Line-of-sight (LOS), east, north and vertical directions. LOS as for Envisat satellite (Look Angle: 23., Heading:-76). Positive motion toward the satellite.
 
@@ -41,6 +41,21 @@ Download :download:`gf_forward_example2.py </../../examples/gf_forward_example2.
 
 .. literalinclude :: /../../examples/gf_forward_example2.py
     :language: python
+
+
+Calculate spatial surface displacement using subfault dislocations
+------------------------------------------------------------------
+
+In this example we create a :class:`~pyrocko.modelling.OkadaSource` and compute the spatial static displacement at the surface invoked by that rupture [#f1]_.
+
+Download :download:`okada_forward_example.py </../../examples/okada_forward_example.py>`
+
+.. literalinclude :: /../../examples/okada_forward_example.py
+    :language: python
+
+.. rubric:: Footnotes
+
+.. [#f1] Okada, Y., Gravity and potential changes due to shear and tensile faults in a half-space. In: Journal of Geophysical Research 82.2, 1018–1040. doi:10.1029/92JB00178, 1992.
 
 
 Calculate spatial surface displacement and export Kite scenes
@@ -62,7 +77,7 @@ In this example we compare the synthetic unwappred and wrapped LOS displacements
 .. figure:: /static/gf_static_wrapper.png
     :align: center
     :width: 90%
-    :alt: Static displacement from a thrust fault calculated through pyrocko
+    :alt: Static displacement from a thrust fault calculated through Pyrocko
 
     Synthetic LOS displacements from a south-dipping thrust fault. LOS as for Sentinel-1 satellite (Look Angle: 36., Heading:-76). Positive motion toward the satellite. Left: unwrapped phase. Right: Wrapped phase.
 

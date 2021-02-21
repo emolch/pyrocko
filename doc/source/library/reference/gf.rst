@@ -32,6 +32,13 @@
     :members:
     :show-inheritance:
 
+``gf.tractions``
+----------------
+
+.. automodule:: pyrocko.gf.tractions
+    :members:
+    :show-inheritance:
+
 ``gf.meta``
 -----------
 

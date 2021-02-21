@@ -375,16 +375,13 @@ const mapping_scheme_t *get_mapping_scheme(char *name) {
 }
 
 interpolation_scheme_id get_interpolation_scheme_id(char *name) {
-    const char **s;
-    s = interpolation_scheme_names;
     interpolation_scheme_id i;
     i = 0;
-    while (s != NULL) {
-        if (0 == strcmp(*s, name)) {
+    while (interpolation_scheme_names[i] != NULL) {
+        if (0 == strcmp(interpolation_scheme_names[i], name)) {
             return i;
         }
         i++;
-        s++;
     }
     return UNDEFINED_INTERPOLATION_SCHEME;
 }
@@ -1241,6 +1238,7 @@ static store_error_t store_calc_static(
     float64_t ws_this[cscheme->ncomponents*cscheme->nsummands_max];
     uint64_t irecord_bases[VICINITY_NIP_MAX];
     float64_t weights_ip[VICINITY_NIP_MAX];
+    float64_t weights_sum;
 
     if (!inlimits(it))
         return BAD_REQUEST;
@@ -1267,7 +1265,7 @@ static store_error_t store_calc_static(
             shared (store, source_coords, ms, delays, receiver_coords, \
                     cscheme, mscheme, mapping, interpolation, it, nip, result) \
             private (isource, iip, icomponent, isummand, nsummands, irecord_bases, weights_ip, ws_this, \
-                     delay, weight, idelay_floor, idelay_ceil, idx, irecord, trace, w1, w2) \
+                     delay, weight, idelay_floor, idelay_ceil, idx, irecord, trace, w1, w2, weights_sum) \
             reduction (+: err) \
             num_threads (nthreads)
         {
@@ -1283,15 +1281,21 @@ static store_error_t store_calc_static(
                 &receiver_coords[ireceiver*5],
                 ws_this);
 
+            weights_sum = 0.;
+            for (iip=0; iip<cscheme->ncomponents*cscheme->nsummands_max; iip++)
+                weights_sum += ws_this[iip];
+
+            if (weights_sum == 0.)
+                continue;
 
             delay = delays[isource];
             idelay_floor = (int) floor(delay/deltat);
             idelay_ceil = (int) ceil(delay/deltat);
             if (!inlimits(idelay_floor) || !inlimits(idelay_ceil))
-                err += BAD_REQUEST;
+                err |= BAD_REQUEST;
 
             if (interpolation == MULTILINEAR) {
-                err += mscheme->vicinity(
+                err |= mscheme->vicinity(
                     mapping,
                     &source_coords[isource*5],
                     &receiver_coords[ireceiver*5],
@@ -1307,7 +1311,7 @@ static store_error_t store_calc_static(
                                 continue;
 
                             irecord = irecord_bases[iip] + cscheme->igs[icomponent][isummand];
-                            err += store_get(store, irecord, &trace);
+                            err |= store_get(store, irecord, &trace);
                             if (trace.is_zero)
                                 continue;
 
@@ -1325,7 +1329,7 @@ static store_error_t store_calc_static(
                     }
                 }
             } else if (interpolation == NEAREST_NEIGHBOR) {
-                err += mscheme->irecord(
+                err |= mscheme->irecord(
                     mapping,
                     &source_coords[isource*5],
                     &receiver_coords[ireceiver*5],
@@ -1339,7 +1343,7 @@ static store_error_t store_calc_static(
                             continue;
 
                         irecord = irecord_bases[0] + cscheme->igs[icomponent][isummand];
-                        err += store_get(store, irecord, &trace);
+                        err |= store_get(store, irecord, &trace);
                         if (trace.is_zero)
                             continue;
 
@@ -1364,7 +1368,7 @@ static store_error_t store_calc_static(
     Py_END_ALLOW_THREADS
 
     if (err != SUCCESS)
-        return BAD_REQUEST;
+        return err;
     return SUCCESS;
 }
 
@@ -1624,7 +1628,7 @@ static PyObject* w_store_mapping_init(PyObject *m, PyObject *args) {
 
     mscheme = get_mapping_scheme(mapping_scheme_name);
     if (mscheme == NULL) {
-        PyErr_SetString(st->error, "store_mapping_init: invalid mapping scheme name");
+        PyErr_Format(st->error, "store_mapping_init: invalid mapping scheme name %s", mapping_scheme_name);
         return NULL;
     }
     n = mscheme->ndims_continuous;
@@ -2672,13 +2676,13 @@ static PyObject* w_store_calc_timeseries(PyObject *m, PyObject *args) {
 
     cscheme = get_component_scheme(component_scheme_name);
     if (cscheme == NULL) {
-        PyErr_SetString(st->error, "w_store_calc_timeseries: invalid component scheme name");
+        PyErr_Format(st->error, "w_store_calc_timeseries: invalid component scheme name %s", component_scheme_name);
         return NULL;
     }
 
     interpolation = get_interpolation_scheme_id(interpolation_scheme_name);
     if (interpolation == UNDEFINED_INTERPOLATION_SCHEME) {
-        PyErr_SetString(st->error, "w_store_calc_timeseries: invalid interpolation scheme name");
+        PyErr_Format(st->error, "w_store_calc_timeseries: invalid interpolation scheme name %s", interpolation_scheme_name);
         return NULL;
     }
     if (!good_array(source_coords_arr, NPY_FLOAT64, -1, 2, shape_want_coords)) {
@@ -2861,15 +2865,16 @@ static PyObject* w_store_calc_static(PyObject *m, PyObject *args) {
 
     cscheme = get_component_scheme(component_scheme_name);
     if (cscheme == NULL) {
-        PyErr_SetString(st->error, "w_store_calc_static: invalid component scheme name");
+        PyErr_Format(st->error, "w_store_calc_static: invalid component scheme name %s", component_scheme_name);
         return NULL;
     }
 
     interpolation = get_interpolation_scheme_id(interpolation_scheme_name);
     if (interpolation == UNDEFINED_INTERPOLATION_SCHEME) {
-        PyErr_SetString(st->error, "w_store_calc_static: invalid interpolation scheme name");
+        PyErr_Format(st->error, "w_store_calc_static: invalid interpolation scheme name %s", interpolation_scheme_name);
         return NULL;
     }
+
     if (!good_array(source_coords_arr, NPY_FLOAT64, -1, 2, shape_want_coords)) {
         PyErr_SetString(st->error, "w_store_calc_static: unhealthy source_coords array");
         return NULL;

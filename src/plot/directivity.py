@@ -269,6 +269,8 @@ def plot_directivity(
     nucl_depth = source.depth
     nucl_distance = distance
 
+    anch_x, anch_y = map_anchor[source.anchor]
+
     if hasattr(source, 'nucleation_x') and hasattr(source, 'nucleation_y'):
         try:
             iter(source.nucleation_x)
@@ -311,7 +313,7 @@ def plot_directivity(
         strike_label = source.strike
 
     try:
-        ax.set_rlabel_position(strike_label % 180.)
+        ax.set_rlabel_position(strike_label % 180. - 180.)
     except AttributeError:
         logger.warn('Old matplotlib version: cannot set label positions')
 
@@ -384,15 +386,15 @@ def plot_directivity(
         tfirst = num_full_like(theta, tphase_first)
         tlast = num_full_like(theta, tphase_last)
 
-        ax.plot(theta, tfirst, color='k', alpha=.3, lw=1.)
-        ax.plot(theta, tlast, color='k', alpha=.3, lw=1.)
+        ax.plot(theta, tfirst, color='k', alpha=.3, lw=1., ls='--')
+        ax.plot(theta, tlast, color='k', alpha=.3, lw=1., ls='--')
 
         ax.text(
-            num.pi*7/5, tphase_first, '|'.join(_phase_begin.phase_defs),
+            300.*d2r, tphase_first, '|'.join(_phase_begin.phase_defs),
             ha='left', color='k', fontsize='small')
 
         ax.text(
-            num.pi*6/5, tphase_last, '|'.join(_phase_end.phase_defs),
+            270.*d2r, tphase_last, '|'.join(_phase_end.phase_defs),
             ha='left', color='k', fontsize='small')
 
     description = ('Component {component:s}\n'

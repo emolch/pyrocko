@@ -93,7 +93,7 @@ mantle
             source_depth_max=20.*km,
             source_depth_delta=0.5*km,
             distance_min=0.*km,
-            distance_max=40.*km,
+            distance_max=70.*km,
             distance_delta=0.5*km,
             modelling_code_id='psgrn_pscmp.%s' % version,
             earthmodel_1d=mod,
@@ -223,7 +223,101 @@ mantle
         process_multiple_targets()
 
         # self.plot_static_los_result(ml)
-        # print benchmark
+
+    def test_pseudo_dyn_rupture_vs_rectangular(self):
+
+        engine = gf.LocalEngine(store_dirs=[self.get_store_dir('pscmp')])
+        store = engine.get_store('psgrn_pscmp_test')
+        ntargets = 50
+        interpolation = 'nearest_neighbor'
+
+        source_params = dict(
+            north_shift=2*km,
+            east_shift=2*km,
+            depth=6.5*km,
+            width=2.*km,
+            length=4*km,
+            dip=random.uniform(0., 90.),
+            strike=random.uniform(-180., 180.),
+            magnitude=7.,
+            anchor='top',
+            decimation_factor=4)
+
+        dyn_rupture = gf.PseudoDynamicRupture(
+            nx=4, ny=4,
+            tractions=gf.tractions.HomogeneousTractions(
+                strike=1.e4,
+                dip=1.e4,
+                normal=0.),
+            **source_params)
+
+        dyn_rupture.discretize_patches(store)
+        slip = dyn_rupture.get_okada_slip()
+        rake = num.arctan2(slip[:, 1].mean(), slip[:, 0].mean())
+
+        rect_rupture = gf.RectangularSource(
+            rake=float(rake*d2r),
+            **source_params)
+
+        static_target = gf.StaticTarget(
+            north_shifts=(random.rand(ntargets)-.5) * 25. * km,
+            east_shifts=(random.rand(ntargets)-.5) * 25. * km,
+            tsnapshot=20,
+            interpolation=interpolation)
+
+        result = engine.process(rect_rupture, static_target)
+        synth_disp_rect = result.results_list[0][0].result
+
+        result = engine.process(dyn_rupture, static_target)
+        synth_disp_dyn = result.results_list[0][0].result
+
+        down_rect = synth_disp_rect['displacement.d']
+        down_dyn = synth_disp_dyn['displacement.d']
+
+        num.testing.assert_allclose(down_rect, down_dyn)
+
+    def test_pseudo_dyn_performance(self):
+        engine = gf.LocalEngine(store_dirs=[self.get_store_dir('pscmp')])
+        # store = engine.get_store('psgrn_pscmp_test')
+        ntargets = 250
+        interpolation = 'nearest_neighbor'
+
+        def calc_dyn_rupt(nx=4, ny=4):
+            from pyrocko.plot.dynamic_rupture import RuptureMap
+            dyn_rupture = gf.PseudoDynamicRupture(
+                nx=nx, ny=ny,
+                tractions=gf.tractions.HomogeneousTractions(
+                    strike=1.e4,
+                    dip=0.4e4,
+                    normal=0.1),
+                north_shift=2*km,
+                east_shift=2*km,
+                depth=6.5*km,
+                width=10.*km,
+                length=40*km,
+                dip=random.uniform(0., 90.),
+                strike=random.uniform(-180., 180.),
+                magnitude=7.,
+                anchor='top',
+                decimation_factor=4)
+
+            static_target = gf.StaticTarget(
+                north_shifts=(random.rand(ntargets)-.5) * 25. * km,
+                east_shifts=(random.rand(ntargets)-.5) * 25. * km,
+                tsnapshot=20,
+                interpolation=interpolation)
+
+            t = time.time()
+            # dyn_rupture.discretize_patches(store)
+            engine.process(dyn_rupture, static_target)
+            map = RuptureMap(source=dyn_rupture, lat=0., lon=0., radius=40*km,
+                             width=20., height=20.)
+            map.draw_patch_parameter('traction')
+            map.save('/tmp/test.pdf')
+            return dyn_rupture.nx*dyn_rupture.ny, time.time() - t
+
+        for n in (10, 20, 30):
+            npatches, t = calc_dyn_rupt(n, n)
 
     @staticmethod
     def plot_static_los_result(result):

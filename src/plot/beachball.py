@@ -461,7 +461,7 @@ def choose_transform(axes, size_units, position, size):
         if size is None:
             size = 1.0
 
-        size = size
+        size = size * 0.5
 
     elif size_units == 'axes':
         transform = axes.transAxes

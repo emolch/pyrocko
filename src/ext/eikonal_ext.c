@@ -29,41 +29,42 @@ int good_array(
         int typenum_want,
         npy_intp size_want,
         int ndim_want,
-        npy_intp* shape_want) {
+        npy_intp* shape_want,
+        char *name) {
 
     int i;
 
     if (!PyArray_Check(o)) {
-        PyErr_SetString(
+        PyErr_Format(
             PyExc_AttributeError,
-            "not a NumPy array" );
+            "%s not a NumPy array", name);
         return 0;
     }
 
     if (PyArray_TYPE((PyArrayObject*)o) != typenum_want) {
-        PyErr_SetString(
+        PyErr_Format(
             PyExc_AttributeError,
-            "array of unexpected type");
+            "array %s of unexpected type", name);
         return 0;
     }
 
     if (!PyArray_ISCARRAY((PyArrayObject*)o)) {
-        PyErr_SetString(
+        PyErr_Format(
             PyExc_AttributeError,
-            "array is not contiguous or not well behaved");
+            "array %s is not contiguous or not well behaved", name);
         return 0;
     }
 
     if (size_want != -1 && size_want != PyArray_SIZE((PyArrayObject*)o)) {
-        PyErr_SetString(
+        PyErr_Format(
             PyExc_AttributeError,
-            "array is of unexpected size");
+            "array %s is of unexpected size", name);
         return 0;
     }
     if (ndim_want != -1 && ndim_want != PyArray_NDIM((PyArrayObject*)o)) {
-        PyErr_SetString(
+        PyErr_Format(
             PyExc_AttributeError,
-            "array is of unexpected ndim");
+            "array %s is of unexpected ndim", name);
         return 0;
     }
 
@@ -72,9 +73,9 @@ int good_array(
             if (shape_want[i] != -1
                     && shape_want[i] != PyArray_DIMS((PyArrayObject*)o)[i]) {
 
-                PyErr_SetString(
+                PyErr_Format(
                     PyExc_AttributeError,
-                    "array is of unexpected shape");
+                    "array %s is of unexpected shape", name);
 
                 return 0;
             }
@@ -440,7 +441,8 @@ static eikonal_error_t eikonal_solver_fmm_cartesian(
 
 static PyObject* w_eikonal_solver_fmm_cartesian(
         PyObject *m,
-        PyObject *args) {
+        PyObject *args,
+        PyObject *kwds) {
 
     eikonal_error_t err;
     PyObject *speeds_arr, *times_arr;
@@ -451,14 +453,19 @@ static PyObject* w_eikonal_solver_fmm_cartesian(
 
     struct module_state *st = GETSTATE(m);
 
-    if (!PyArg_ParseTuple(args, "OOd", &speeds_arr, &times_arr, &delta)) {
+    static char *kwlist[] = {
+        "speeds", "times", "delta", NULL
+    };
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOd", kwlist, &speeds_arr, &times_arr, &delta)) {
         PyErr_SetString(
             st->error,
             "usage: eikonal_solver_fmm_cartesian(speeds, times, delta)");
         return NULL;
     }
 
-    if (!good_array(speeds_arr, NPY_FLOAT64, -1, -1, NULL)) return NULL;
+    if (!good_array(speeds_arr, NPY_FLOAT64, -1, -1, NULL, "speeds"))
+        return NULL;
     ndim = PyArray_NDIM((PyArrayObject*)speeds_arr);
     if (!(1 <= ndim && ndim <= NDIM_MAX)) {
         PyErr_Format(
@@ -475,7 +482,8 @@ static PyObject* w_eikonal_solver_fmm_cartesian(
         size *= shape[i];
     }
 
-    if (!good_array(times_arr, NPY_FLOAT64, size, ndim, shape)) return NULL;
+    if (!good_array(times_arr, NPY_FLOAT64, size, ndim, shape, "times"))
+        return NULL;
 
     speeds = (double*)PyArray_DATA((PyArrayObject*)speeds_arr);
     times = (double*)PyArray_DATA((PyArrayObject*)times_arr);
@@ -499,8 +507,8 @@ static PyObject* w_eikonal_solver_fmm_cartesian(
 static PyMethodDef eikonal_ext_methods[] = {
     {
         "eikonal_solver_fmm_cartesian",
-        w_eikonal_solver_fmm_cartesian,
-        METH_VARARGS,
+        (PyCFunctionWithKeywords) w_eikonal_solver_fmm_cartesian,
+        METH_VARARGS | METH_KEYWORDS,
         "Solve eikonal equation using the fast marching method."
     },
     {NULL, NULL, 0, NULL}        /* Sentinel */

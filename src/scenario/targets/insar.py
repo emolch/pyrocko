@@ -28,9 +28,9 @@ guts_prefix = 'pf.scenario'
 
 
 class ScenePatch(Object):
-    lat_center = Float.T(
+    center_lat = Float.T(
         help='Center latitude anchor.')
-    lon_center = Float.T(
+    center_lon = Float.T(
         help='center longitude anchor.')
     time_master = Timestamp.T(
         help='Timestamp of the master.')
@@ -121,19 +121,19 @@ class ScenePatch(Object):
         return self.swath_width + track_shift
 
     def get_ll_anchor(self):
-        return od.ne_to_latlon(self.lat_center, self.lon_center,
+        return od.ne_to_latlon(self.center_lat, self.center_lon,
                                -self.track_length/2, -self.width/2)
 
     def get_ur_anchor(self):
-        return od.ne_to_latlon(self.lat_center, self.lon_center,
+        return od.ne_to_latlon(self.center_lat, self.center_lon,
                                self.track_length/2, self.width/2)
 
     def get_ul_anchor(self):
-        return od.ne_to_latlon(self.lat_center, self.lon_center,
+        return od.ne_to_latlon(self.center_lat, self.center_lon,
                                self.track_length/2, -self.width/2)
 
     def get_lr_anchor(self):
-        return od.ne_to_latlon(self.lat_center, self.lon_center,
+        return od.ne_to_latlon(self.center_lat, self.center_lon,
                                -self.track_length/2, self.width/2)
 
     def get_corner_coordinates(self):
@@ -145,21 +145,21 @@ class ScenePatch(Object):
         if self.orbital_node == 'Ascending':
 
             ulLat, ulLon = od.ne_to_latlon(
-                self.lat_center, self.lon_center,
+                self.center_lat, self.center_lon,
                 self.track_length/2,
                 -num.tan(inc*d2r) * self.width/2)
             lrLat, lrLon = od.ne_to_latlon(
-                self.lat_center, self.lon_center,
+                self.center_lat, self.center_lon,
                 -self.track_length/2,
                 num.tan(inc*d2r) * self.width/2)
 
         elif self.orbital_node == 'Descending':
             urLat, urLon = od.ne_to_latlon(
-                self.lat_center, self.lon_center,
+                self.center_lat, self.center_lon,
                 self.track_length/2,
                 num.tan(inc*d2r) * self.width/2)
             llLat, llLon = od.ne_to_latlon(
-                self.lat_center, self.lon_center,
+                self.center_lat, self.center_lon,
                 -self.track_length/2,
                 -num.tan(inc*d2r) * self.width/2)
 
@@ -200,7 +200,7 @@ class ScenePatch(Object):
             east_shifts -= east_shifts[0, -1]/2
             north_shifts -= north_shifts[-1, -1]/2
 
-            latlon = od.ne_to_latlon(self.lat_center, self.lon_center,
+            latlon = od.ne_to_latlon(self.center_lat, self.center_lon,
                                      north_shifts.ravel(), east_shifts.ravel())
             points = num.array(latlon).T
             self._mask_water = get_gsshg().get_land_mask(points)\
@@ -380,13 +380,13 @@ class InSARGenerator(TargetGenerator):
         help='Add atmospheric noise model after Hansen, 2001.')
 
     def get_scene_patches(self):
-        lat_center, lon_center = self.get_center_latlon()
+        center_lat, center_lon = self.get_center_latlon()
 
         scene_patches = []
         for direction in ('Ascending', 'Descending'):
             patch = ScenePatch(
-                lat_center=lat_center,
-                lon_center=lon_center,
+                center_lat=center_lat,
+                center_lon=center_lon,
                 time_master=0,
                 time_slave=0,
                 inclination=self.inclination,

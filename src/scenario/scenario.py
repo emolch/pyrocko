@@ -58,7 +58,7 @@ class ScenarioGenerator(LocationGenerator):
                 self.retry()
 
         raise ScenarioError(
-            'Could not generate scenario within %i tries.' % self.ntries)
+            'Could not generate scenario in %i tries.' % self.ntries)
 
     def init_modelling(self, engine):
         self._engine = engine
@@ -445,7 +445,7 @@ Can be found as events.txt and sources.yml hosts the pyrocko.gf sources.
 ## Folder `meta`
 
 Contains stations.txt and StationXML files for waveforms as well as KML data.
-The responses are flat with gain of 1.0 at 1.0 Hz.
+The responses are flat with gain 1.0 at 1.0 Hz.
 
 ## Folder `waveforms`
 

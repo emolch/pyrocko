@@ -142,7 +142,7 @@ class AhfullTestCase(unittest.TestCase):
                 'displacement',
                 s.deltat, 0.,
                 out_x, out_y, out_z,
-                ahfullgreen.Gauss(s.tau))
+                ahfullgreen.AhfullgreenSTFGauss(tau=s.tau))
 
             trs = []
             for out, comp in zip([out_x, out_y, out_z], 'NED'):

@@ -14,6 +14,7 @@ Reference
    hamster_pile
    io
    model
+   modelling
    moment_tensor
    obspy_compat
    orthodrome
