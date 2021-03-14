@@ -135,8 +135,9 @@ class GeometryElement(base.Element):
     def update_cpt(self, state):
 
         values = state.geometry.get_property(state.display_parameter)
-        if len(values.shape) == 2:
-            values = values.sum(1)
+        # TODO Check
+        # if values.ndim == 2:
+        #     values = values.sum(1)
 
         self.cpt_handler._values = values
         self.cpt_handler.update_cpt()
@@ -205,7 +206,9 @@ class GeometryElement(base.Element):
             elif ref_idx_max < ref_idx_min:
                 out = values[:, ref_idx_max]
             else:
-                out = values[:, ref_idx_min:ref_idx_max].sum(1)
+                # TODO CHECK
+                # out = values[:, ref_idx_min:ref_idx_max].sum(1)
+                out = values[:, ref_idx_max]
         else:
             out = values.ravel()
         return out
@@ -225,6 +228,7 @@ class GeometryElement(base.Element):
         state = self._state
 
         if state.geometry and self._controls:
+            self._update_controls()
             # base.update_cpt(self)
             self.update_cpt(state)
 
@@ -240,7 +244,8 @@ class GeometryElement(base.Element):
                     self._pipe = TrimeshPipe(
                         vertices, faces,
                         values=values,
-                        lut=lut)
+                        lut=lut,
+                        backface_culling=False)
                     self._cbar_pipe = ColorbarPipe(
                         lut=lut, cbar_title=state.display_parameter)
                     self._parent.add_actor(self._pipe.actor)
@@ -312,57 +317,84 @@ class GeometryElement(base.Element):
                 # color maps
                 self.cpt_handler.cpt_controls(
                     self._parent, self._state.cpt, layout)
-                il = layout.rowCount() + 1
 
                 # times slider
-                values = state.geometry.get_property(state.display_parameter)
-                if len(values.shape) == 2:
-                    slider = qw.QSlider(qc.Qt.Horizontal)
-                    slider.setSizePolicy(
-                        qw.QSizePolicy(
-                            qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+                il = layout.rowCount() + 1
+                slider = qw.QSlider(qc.Qt.Horizontal)
+                slider.setSizePolicy(
+                    qw.QSizePolicy(
+                        qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
 
-                    slider.setMinimum(state.geometry.times.min())
-                    slider.setMaximum(state.geometry.times.max())
-                    slider.setSingleStep(state.geometry.deltat)
-                    slider.setPageStep(state.geometry.deltat)
+                slider.setMinimum(state.geometry.times.min())
+                slider.setMaximum(state.geometry.times.max())
+                slider.setSingleStep(state.geometry.deltat)
+                slider.setPageStep(state.geometry.deltat)
 
-                    layout.addWidget(qw.QLabel('Time'), il, 0)
-                    layout.addWidget(slider, il, 1)
+                time_label = qw.QLabel('Time')
+                layout.addWidget(time_label, il, 0)
+                layout.addWidget(slider, il, 1)
 
-                    slider_opacity = qw.QSlider(qc.Qt.Horizontal)
-                    slider_opacity.setSizePolicy(
-                        qw.QSizePolicy(
-                            qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-                    slider_opacity.setMinimum(0)
-                    slider_opacity.setMaximum(1000)
+                state_bind_slider(
+                    self, state, 'time', slider, dtype=int)
 
-                    il += 1
-                    layout.addWidget(slider_opacity, il, 1)
-                    layout.addWidget(qw.QLabel('Opacity'), il, 0)
+                self._time_label = time_label
+                self._time_slider = slider
 
-                    state_bind_slider(
-                        self, state, 'opacity', slider_opacity, factor=0.001)
+                il += 1
+                slider_opacity = qw.QSlider(qc.Qt.Horizontal)
+                slider_opacity.setSizePolicy(
+                    qw.QSizePolicy(
+                        qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+                slider_opacity.setMinimum(0)
+                slider_opacity.setMaximum(1000)
 
-                    state_bind_slider(
-                        self, state, 'time', slider, dtype=int)
+                opacity_label = qw.QLabel('Opacity')
+                layout.addWidget(opacity_label, il, 0)
+                layout.addWidget(slider_opacity, il, 1)
+
+                state_bind_slider(
+                    self, state, 'opacity', slider_opacity, factor=0.001)
+
+                self._opacity_label = opacity_label
+                self._opacity_slider = slider_opacity
 
                 il += 1
                 pb = qw.QPushButton('Remove')
                 layout.addWidget(pb, il, 1)
                 pb.clicked.connect(self.remove)
 
-                self.cpt_handler._update_cpt_combobox()
-                self.cpt_handler._update_cptscale_lineedit()
-
                 # visibility
                 cb = qw.QCheckBox('Show')
                 layout.addWidget(cb, il, 0)
                 state_bind_checkbox(self, state, 'visible', cb)
 
+                il += 1
+                layout.addWidget(qw.QFrame(), il, 0, 1, 3)
+
+                self.cpt_handler._update_cpt_combobox()
+                self.cpt_handler._update_cptscale_lineedit()
+
             self._controls = frame
 
+            self._update_controls()
+
         return self._controls
+
+    def _update_controls(self):
+        state = self._state
+        if state.geometry:
+            values = state.geometry.get_property(state.display_parameter)
+
+            if values.ndim == 2:
+                self._time_label.setVisible(True)
+                self._time_slider.setVisible(True)
+                self._opacity_label.setVisible(True)
+                self._opacity_slider.setVisible(True)
+            else:
+                self._time_label.setVisible(False)
+                self._time_slider.setVisible(False)
+                self._opacity_label.setVisible(False)
+                self._opacity_slider.setVisible(False)
 
 
 __all__ = [
