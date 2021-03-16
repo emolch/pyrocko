@@ -114,6 +114,10 @@ def state_bind_slider(owner, state, path, widget, factor=1., dtype=float):
         update_widget)
 
 
+def state_bind_spinbox(owner, state, path, widget, factor=1., dtype=float):
+    return state_bind_slider(owner, state, path, widget, factor, dtype)
+
+
 def state_bind_combobox(owner, state, path, widget):
 
     def make_funcs():

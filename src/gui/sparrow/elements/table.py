@@ -15,6 +15,7 @@ from . import base
 from .. import common
 
 guts_prefix = 'sparrow'
+km = 1e3
 
 
 def inormalize(x, imin, imax):
@@ -55,6 +56,8 @@ class TableState(base.ElementState):
     color_parameter = String.T(optional=True)
     cpt = base.CPTState.T(default=base.CPTState.D())
     size_parameter = String.T(optional=True)
+    depth_min = Float.T(default=0.)
+    depth_max = Float.T(default=100.)
     depth_offset = Float.T(default=0.0)
     symbol = SymbolChoice.T(default='point')
 
@@ -86,6 +89,11 @@ class TableElement(base.Element):
         state.add_listener(upd, 'size')
         state.add_listener(upd, 'depth_offset')
         state.add_listener(upd, 'color_parameter')
+
+        upd_alpha = self.update_alpha
+        self._listeners.append(upd_alpha)
+        state.add_listener(upd_alpha, 'depth_min')
+        state.add_listener(upd_alpha, 'depth_max')
 
         self.cpt_handler.bind_state(state.cpt, upd)
 
@@ -124,6 +132,7 @@ class TableElement(base.Element):
 
     def set_table(self, table):
         self._table = table
+
         self._istate += 1
         self._update_controls()
 
@@ -214,20 +223,29 @@ class TableElement(base.Element):
         self.update_alpha()  # TODO: only if needed?
         self._parent.update_view()
 
-    def update_alpha(self, *args):
-        if self._pipes is not None:
+    def update_alpha(self, *args, mask=None):
+        if self._pipes is None:
+            return
 
-            time = self._table.get_col('time')
-            mask = num.ones(time.size, dtype=num.bool)
-            if self._parent.state.tmin is not None:
-                mask &= self._parent.state.tmin <= time
-            if self._parent.state.tmax is not None:
-                mask &= time <= self._parent.state.tmax
+        time = self._table.get_col('time')
+        depth = self._table.get_col('depth')
 
-            for m, p in zip(self._pipe_maps, self._pipes):
-                p.set_alpha(mask[m])
+        mask = num.ones(time.size, dtype=num.bool)
 
-            self._parent.update_view()
+        if self._state.depth_min is not None:
+            mask &= depth >= self._state.depth_min
+        if self._state.depth_max is not None:
+            mask &= depth <= self._state.depth_max
+
+        if self._parent.state.tmin is not None:
+            mask &= self._parent.state.tmin <= time
+        if self._parent.state.tmax is not None:
+            mask &= time <= self._parent.state.tmax
+
+        for m, p in zip(self._pipe_maps, self._pipes):
+            p.set_alpha(mask[m])
+
+        self._parent.update_view()
 
     def _get_table_widgets_start(self):
         return 0
@@ -235,7 +253,7 @@ class TableElement(base.Element):
     def _get_controls(self):
         if self._controls is None:
             from ..state import state_bind_checkbox, state_bind_slider, \
-                state_bind_combobox
+                state_bind_combobox, state_bind_spinbox
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
@@ -256,7 +274,7 @@ class TableElement(base.Element):
 
             iy += 1
 
-            layout.addWidget(qw.QLabel('Size'), iy, 0)
+            layout.addWidget(qw.QLabel('Size Scaling'), iy, 0)
 
             cb = qw.QComboBox()
 
@@ -293,14 +311,70 @@ class TableElement(base.Element):
 
             iy += 1
 
+            layout.addWidget(qw.QLabel('Depth Min'), iy, 0)
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            layout.addWidget(slider, iy, 1)
+            state_bind_slider(
+                self, self._state, 'depth_min', slider)
+            self._depth_min_slider = slider
+
+            spinbox = qw.QDoubleSpinBox()
+            spinbox.setDecimals(1)
+            spinbox.setSuffix(' km')
+            spinbox.setSingleStep(1.)
+            layout.addWidget(spinbox, iy, 2)
+            state_bind_spinbox(
+                self, self._state, 'depth_min', spinbox, factor=km)
+            self._depth_min_spinbox = spinbox
+
+            iy += 1
+
+            layout.addWidget(qw.QLabel('Depth Max'), iy, 0)
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            layout.addWidget(slider, iy, 1)
+            state_bind_slider(
+                self, self._state, 'depth_max', slider)
+            self._depth_max_slider = slider
+
+            spinbox = qw.QDoubleSpinBox()
+            spinbox.setDecimals(1)
+            spinbox.setSuffix(' km')
+            spinbox.setSingleStep(1.)
+            layout.addWidget(spinbox, iy, 2)
+            state_bind_spinbox(
+                self, self._state, 'depth_max', spinbox, factor=km)
+            self._depth_max_spinbox = spinbox
+
+            def sync_depth_min(value):
+                state = self._state
+                if state.depth_min > value:
+                    state.depth_min = value
+
+            def sync_depth_max(value):
+                state = self._state
+                if state.depth_max < value:
+                    state.depth_max = value
+
+            self._depth_max_slider.valueChanged.connect(sync_depth_min)
+            self._depth_max_spinbox.valueChanged.connect(sync_depth_min)
+
+            self._depth_min_slider.valueChanged.connect(sync_depth_max)
+            self._depth_min_spinbox.valueChanged.connect(sync_depth_max)
+
+            iy += 1
+
             layout.addWidget(qw.QLabel('Depth Offset'), iy, 0)
 
             slider = qw.QSlider(qc.Qt.Horizontal)
             slider.setSizePolicy(
                 qw.QSizePolicy(
                     qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-            slider.setMinimum(0)
-            slider.setMaximum(100)
             layout.addWidget(slider, iy, 1)
             state_bind_slider(
                 self, self._state, 'depth_offset', slider, factor=1000.)
@@ -338,6 +412,23 @@ class TableElement(base.Element):
 
         self.cpt_handler._update_cpt_combobox()
         self.cpt_handler._update_cptscale_lineedit()
+
+        if self._table is not None and self._table.has_col('depth'):
+            depth = self._table.get_col('depth')
+
+            depth_min = depth.min()
+            depth_max = depth.max()
+
+            for wdg in (self._depth_min_slider, self._depth_max_slider,
+                        self._depth_min_spinbox, self._depth_max_spinbox):
+                wdg.setMinimum(depth_min)
+                wdg.setMaximum(depth_max)
+
+            for wdg in (self._depth_min_slider, self._depth_min_spinbox):
+                wdg.setValue(depth_min / km)
+
+            for wdg in (self._depth_max_slider, self._depth_max_spinbox):
+                wdg.setValue(depth_max / km)
 
 
 __all__ = [
