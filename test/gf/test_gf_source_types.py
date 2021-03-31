@@ -86,6 +86,8 @@ class GFSourceTypesTestCase(unittest.TestCase):
         pdr.nucleation = num.array([[nucleation_x, nucleation_y]])
         assert pdr.nucleation_x == num.array(nucleation_x)
         assert pdr.nucleation_y == num.array(nucleation_y)
+        num.testing.assert_equal(
+            pdr.nucleation, num.array([[nucleation_x, nucleation_y]]))
 
         # Check new nucleation time
         pdr.nucleation_time = 1.
