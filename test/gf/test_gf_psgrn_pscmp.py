@@ -293,8 +293,13 @@ mantle
             strike=uniform(0., 360.),
             slip=uniform(1., 5.))
 
-        source_plain = gf.RectangularSource(**TestRF)
-        source_with_time = gf.RectangularSource(time=123.5, **TestRF)
+        source_plain = gf.RectangularSource(
+            aggressive_oversampling=True,
+            **TestRF)
+        source_with_time = gf.RectangularSource(
+            time=123.5,
+            aggressive_oversampling=True,
+            **TestRF)
 
         gf_sources = [source_plain, source_with_time]
         pscmp_sources = [psgrn_pscmp.PsCmpRectangularSource(**TestRF)]
@@ -323,7 +328,9 @@ mantle
 
         for open_mode in [-1., 1.]:   # closing, opening
 
-            source_plain = gf.RectangularSource(**TestRF)
+            source_plain = gf.RectangularSource(
+                aggressive_oversampling=True,
+                **TestRF)
             source_plain.update(slip=slip, opening_fraction=open_mode)
 
             source_with_time = deepcopy(source_plain)
@@ -359,7 +366,9 @@ mantle
         opening = slip * opening_fraction
         pscmp_slip = slip - opening
 
-        source_plain = gf.RectangularSource(**TestRF)
+        source_plain = gf.RectangularSource(
+            aggressive_oversampling=True,
+            **TestRF)
         source_plain.update(slip=slip, opening_fraction=opening_fraction)
 
         source_with_time = deepcopy(source_plain)
@@ -389,7 +398,9 @@ mantle
             strike=uniform(0., 360.),
             slip=uniform(1., 5.))
 
-        source_plain = gf.RectangularSource(**TestRF)
+        source_plain = gf.RectangularSource(
+            aggressive_oversampling=True,
+            **TestRF)
 
         N, E = num.meshgrid(num.linspace(-20. * km, 20. * km, nnorth),
                             num.linspace(-20. * km, 20. * km, neast))

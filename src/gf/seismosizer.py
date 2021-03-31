@@ -4390,7 +4390,12 @@ class ScalarRule(Rule):
         return (self.c, )
 
     def apply_(self, target, base_seismogram):
-        return base_seismogram[self.c].data.copy()
+        data = base_seismogram[self.c].data.copy()
+        deltat = base_seismogram[self.c].deltat
+        if self.differentiate:
+            data = util.diff_fd(self.differentiate, 4, deltat, data)
+
+        return data
 
 
 class StaticDisplacement(Rule):
