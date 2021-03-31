@@ -103,7 +103,7 @@ class Trace(Object):
             tmax = time_float(tmax)
 
         if mtime is None:
-            mtime = time.time()
+            mtime = time_float(time.time())
 
         self.network, self.station, self.location, self.channel = [
             reuse(x) for x in (network, station, location, channel)]
