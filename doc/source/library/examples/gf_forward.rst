@@ -69,7 +69,7 @@ Download :download:`gf_forward_example2_sill.py </../../examples/gf_forward_exam
 Calculate spatial surface displacement using subfault dislocations
 ------------------------------------------------------------------
 
-In this example we create a :class:`~pyrocko.modelling.OkadaSource` and compute the spatial static displacement at the surface invoked by that rupture [#f1]_.
+In this example we create a :class:`~pyrocko.modelling.okada.OkadaSource` and compute the spatial static displacement at the surface invoked by that rupture [#f1]_.
 
 Download :download:`okada_forward_example.py </../../examples/okada_forward_example.py>`
 
@@ -79,7 +79,6 @@ Download :download:`okada_forward_example.py </../../examples/okada_forward_exam
 .. rubric:: Footnotes
 
 .. [#f1] Okada, Y., Gravity and potential changes due to shear and tensile faults in a half-space. In: Journal of Geophysical Research 82.2, 1018–1040. doi:10.1029/92JB00178, 1992.
->>>>>>> 89252887... add okada modelling and pseudo-dynamic rupture model (chapter 1)
 
 
 Calculate spatial surface displacement and export Kite scenes

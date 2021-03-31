@@ -6,7 +6,7 @@ Calculate subfault dislocations from tractions with Okada half-space equation
 
 .. highlight:: python
 
-In this example we create a :class:`~pyrocko.modelling.OkadaSource` and compute the spatial quasi-static dislocation field caused by a traction field. The linear relation between traction and dislocation is calculated based on Okada (1992) [#f1]_.
+In this example we create a :class:`~pyrocko.modelling.okada.OkadaSource` and compute the spatial quasi-static dislocation field caused by a traction field. The linear relation between traction and dislocation is calculated based on Okada (1992) [#f1]_.
 
 Download :download:`okada_inversion_example.py </../../examples/okada_inversion_example.py>`
 

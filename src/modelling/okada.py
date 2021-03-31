@@ -297,7 +297,8 @@ class DislocationInverter(object):
         Build coefficient matrix for given source_patches
 
         The BEM for a fault and the determination of the slip distribution from
-        the stress drop is based on the relation stress = coef_mat * displ.
+        the stress drop is based on the relation
+        :math:`stress = coefmat \\cdot displ`.
         Here the coefficient matrix is build and filled based on the
         okada_ext.okada displacements and partial displacement
         differentiations.
@@ -395,7 +396,8 @@ class DislocationInverter(object):
         Build coefficient matrix for given source_patches
 
         The BEM for a fault and the determination of the slip distribution from
-        the stress drop is based on the relation stress = coef_mat * displ.
+        the stress drop is based on the relation
+        :math:`stress = coefmat \\cdot displ`.
         Here the coefficient matrix is build and filled based on the
         okada_ext.okada displacements and partial displacement
         differentiations.
@@ -494,7 +496,8 @@ class DislocationInverter(object):
         Build coefficient matrix for given source_patches (Slow version)
 
         The BEM for a fault and the determination of the slip distribution from
-        the stress drop is based on the relation stress = coef_mat * displ.
+        the stress drop is based on the relation
+        :math:`stress = coefmat \\cdot displ`.
         Here the coefficient matrix is build and filled based on the
         okada_ext.okada displacements and partial displacement
         differentiations.
