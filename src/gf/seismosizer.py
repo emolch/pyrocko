@@ -2940,7 +2940,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         return points, points_xy, vr, times
 
     def get_vr_time_interpolators(
-            self, store, interpolation='nearest_neighbor',
+            self, store, interpolation='nearest_neighbor', force=False,
             *args, **kwargs):
         '''
         Calculate/return interpolators for rupture velocity and rupture time
@@ -2953,13 +2953,16 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :param interpolation: Kind of interpolation used. Choice between
             'multilinear' and 'nearest_neighbor'
         :type interpolation: optional, str
+        :param force: Force recalculation of the interpolators (e.g. after
+            change of nucleation point locations/times). Default is False
+        :type force: optional, bool
         '''
         interp_map = {'multilinear': 'linear', 'nearest_neighbor': 'nearest'}
         if interpolation not in interp_map:
             raise TypeError(
                 'Interpolation method %s not available' % interpolation)
 
-        if not self._interpolators.get(interpolation, False):
+        if not self._interpolators.get(interpolation, False) or force:
             _, points_xy, vr, times = self.discretize_time(
                 store=store, *args, **kwargs)
 
@@ -2988,7 +2991,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         return self._interpolators[interpolation]
 
     def discretize_patches(
-            self, store, interpolation='nearest_neighbor', grid_shape=(),
+            self, store, interpolation='nearest_neighbor', force=False,
+            grid_shape=(),
             *args, **kwargs):
         '''
         Get rupture start time and OkadaSource elements for points on rupture
@@ -3004,6 +3008,10 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :param interpolation: Kind of interpolation used. Choice between
             'multilinear' and 'nearest_neighbor'
         :type interpolation: optional, str
+        :param force: Force recalculation of the vr and time interpolators (
+            e.g. after change of nucleation point locations/times). Default is
+            False
+        :type force: optional, bool
         :param grid_shape: Desired sub fault patch grid size (nlength, nwidth).
             Either factor or grid_shape should be set.
         :type grid_shape: optional, tuple of int
@@ -3011,7 +3019,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         nx, ny, times, vr, time_interpolator, vr_interpolator = \
             self.get_vr_time_interpolators(
                 store, *args,
-                interpolation=interpolation, **kwargs)
+                interpolation=interpolation, force=force, **kwargs)
         anch_x, anch_y = map_anchor[self.anchor]
 
         al = self.length / 2.
