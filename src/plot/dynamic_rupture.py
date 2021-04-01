@@ -1444,11 +1444,12 @@ class RuptureView(Object):
         v = variable
 
         data, times = self.source.get_moment_rate(store=store, deltat=deltat)
+        deltat = num.concatenate([(num.diff(times)[0], ), num.diff(times)])
 
         if v in ('moment_rate', 'stf'):
             name, unit = 'dM/dt', 'Nm/s'
         elif v in ('cumulative_moment', 'moment'):
-            data = num.cumsum(data) * deltat
+            data = num.cumsum(data * deltat)
             name, unit = 'M', 'Nm'
         else:
             raise ValueError('No dynamic data for given variable %s found' % v)
