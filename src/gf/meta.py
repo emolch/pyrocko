@@ -1322,26 +1322,22 @@ class DiscretizedMTSource(DiscretizedSource):
     def get_moment_rate(self, deltat=None):
         moments = self.moments()
         times = self.times
+        times -= times.min()
 
         t_max = times.max()
-        mom_times = num.arange(0, t_max + deltat, deltat)
+        mom_times = num.arange(0, t_max + 2 * deltat, deltat) - deltat
         mom_times[mom_times > t_max] = t_max
 
         # Right open histrogram bins
-        mom = num.array([
-            num.sum(moments[(times > t0) & (times <= t1)])
-            for t0, t1 in zip(mom_times[:-1], mom_times[1:])
-        ])
+        mom, _ = num.histogram(
+            times,
+            bins=mom_times,
+            weights=moments)
 
-        mom = num.concatenate(((moments[times == 0.].sum(),), mom))
-
-        deltat = num.concatenate((
-            (deltat,),
-            num.diff(mom_times)))
-
+        deltat = num.diff(mom_times)
         mom_rate = mom / deltat
 
-        return mom_rate, mom_times
+        return mom_rate, mom_times[1:]
 
     def centroid(self):
         from pyrocko.gf.seismosizer import MTSource
