@@ -11,7 +11,10 @@ import math
 import os
 import re
 import logging
-import resource
+try:
+    import resource
+except ImportError:
+    resource = None
 
 import numpy as num
 
@@ -3626,8 +3629,9 @@ class LocalEngine(Engine):
         if request is None:
             request = Request(**kwargs)
 
-        rs0 = resource.getrusage(resource.RUSAGE_SELF)
-        rc0 = resource.getrusage(resource.RUSAGE_CHILDREN)
+        if resource:
+            rs0 = resource.getrusage(resource.RUSAGE_SELF)
+            rc0 = resource.getrusage(resource.RUSAGE_CHILDREN)
         tt0 = xtime()
 
         # make sure stores are open before fork()
@@ -3708,8 +3712,9 @@ class LocalEngine(Engine):
             status_callback(nsub, nsub)
 
         tt1 = time.time()
-        rs1 = resource.getrusage(resource.RUSAGE_SELF)
-        rc1 = resource.getrusage(resource.RUSAGE_CHILDREN)
+        if resource:
+            rs1 = resource.getrusage(resource.RUSAGE_SELF)
+            rc1 = resource.getrusage(resource.RUSAGE_CHILDREN)
 
         s = ProcessingStats()
 
@@ -3735,12 +3740,13 @@ class LocalEngine(Engine):
              s.t_perc_static_post_process) = perc_static
 
         s.t_wallclock = tt1 - tt0
-        s.t_cpu = (
-            (rs1.ru_utime + rs1.ru_stime + rc1.ru_utime + rc1.ru_stime) -
-            (rs0.ru_utime + rs0.ru_stime + rc0.ru_utime + rc0.ru_stime))
-        s.n_read_blocks = (
-            (rs1.ru_inblock + rc1.ru_inblock) -
-            (rs0.ru_inblock + rc0.ru_inblock))
+        if resource:
+            s.t_cpu = (
+                (rs1.ru_utime + rs1.ru_stime + rc1.ru_utime + rc1.ru_stime) -
+                (rs0.ru_utime + rs0.ru_stime + rc0.ru_utime + rc0.ru_stime))
+            s.n_read_blocks = (
+                (rs1.ru_inblock + rc1.ru_inblock) -
+                (rs0.ru_inblock + rc0.ru_inblock))
 
         n_records_stacked = 0.
         for results in results_list:

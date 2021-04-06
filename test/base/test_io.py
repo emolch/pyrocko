@@ -127,13 +127,14 @@ class IOTestCase(unittest.TestCase):
             format='text')
 
     def testReadEmpty(self):
-        tempfn = tempfile.mkstemp()[1]
+        tempfn = os.path.join(self.tmpdir, 'empty')
+        with open(tempfn, 'wb'):
+            pass
+
         try:
             list(mseed.iload(tempfn))
         except FileLoadError as e:
             assert str(e).find('No SEED data detected') != -1
-
-        os.remove(tempfn)
 
     def testReadSac(self):
         fpath = common.test_data_file('test1.sac')

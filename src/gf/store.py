@@ -11,7 +11,10 @@ import struct
 import weakref
 import math
 import shutil
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import copy
 import logging
 import re
@@ -22,7 +25,10 @@ from scipy import signal
 
 from . import meta
 from .error import StoreError
-from . import store_ext
+try:
+    from . import store_ext
+except ImportError:
+    store_ext = None
 from pyrocko import util, spit
 
 logger = logging.getLogger('pyrocko.gf.store')
@@ -395,6 +401,11 @@ class BaseStore(object):
     def lock(self):
         if not self._f_index:
             self.open()
+
+        if not fcntl:
+            raise StoreError(
+                'Python standard library module "fcntl" not available on '
+                'this platform.')
 
         while True:
             try:

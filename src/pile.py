@@ -319,6 +319,7 @@ class TracesFileCache(object):
         with open(tmpfn, 'wb') as f:
             pickle.dump(cache_copy, f, protocol=2)
 
+        os.unlink(cachefilename)
         os.rename(tmpfn, cachefilename)
 
 

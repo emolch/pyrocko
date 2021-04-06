@@ -70,11 +70,13 @@ import re
 import calendar
 import math
 import fnmatch
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import shlex
 import optparse
 import os.path as op
-import platform
 import errno
 
 import numpy as num
@@ -127,9 +129,9 @@ except NameError:
 force_dummy_progressbar = False
 
 
-if platform.system() != 'Darwin':
+try:
     from pyrocko import util_ext
-else:
+except ImportError:
     util_ext = None
 
 
@@ -1926,6 +1928,12 @@ class Sole(object):
         ensuredirs(self._pid_path)
         self._lockfile = None
         self._os = os
+
+        if not fcntl:
+            raise SoleError(
+                'Python standard library module "fcntl" not available on '
+                'this platform.')
+
         self._fcntl = fcntl
 
         try:

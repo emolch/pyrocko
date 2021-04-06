@@ -1084,7 +1084,7 @@ def MakePileViewerMainClass(base):
             self.determine_box_styles()
             self.setMouseTracking(True)
 
-            user_home_dir = os.environ['HOME']
+            user_home_dir = os.path.expanduser('~')
             self.snuffling_modules = {}
             self.snuffling_paths = [os.path.join(user_home_dir, '.snufflings')]
             self.default_snufflings = None

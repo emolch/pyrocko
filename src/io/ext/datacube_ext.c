@@ -3,6 +3,21 @@
 #include "Python.h"
 #include "numpy/arrayobject.h"
 
+#ifdef _WIN32
+    #define timegm _mkgmtime
+
+    char * strsep(char **sp, char *sep)
+    {
+        char *p, *s;
+        if (sp == NULL || *sp == NULL || **sp == '\0') return(NULL);
+        s = *sp;
+        p = s + strcspn(s, sep);
+        if (*p != '\0') *p++ = '\0';
+        *sp = p;
+        return(s);
+    }
+#endif
+
 static const size_t BUFMAX = 10000000;
 static const size_t READ_BUFFER_SIZE = 4096;
 static const size_t BOOKMARK_INTERVAL = 1024*1024;
@@ -521,13 +536,15 @@ datacube_error_t datacube_read_gps_block(reader_t *reader) {
         return BAD_GPS_BLOCK;
     }
     b += 4;
-    if (1 != sscanf(b+6, "%3i", &msecs)) {
+
+    if (7 != sscanf(b, "%2d%2d%2d%3d%2d%2d%4d",
+            &tm.tm_hour, &tm.tm_min, &tm.tm_sec, &msecs,
+            &tm.tm_mday, &tm.tm_mon, &tm.tm_year)) {
         return BAD_GPS_BLOCK;
     }
-    b[6] = ' ';
-    b[7] = ' ';
-    b[8] = ' ';
-    strptime(b, "%H%M%S   %d%m%Y", &tm);
+
+    tm.tm_mon -= 1;
+    tm.tm_year -= 1900;
 
     t = timegm(&tm);
     b += 17;

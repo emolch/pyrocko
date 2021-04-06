@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+
+#ifdef _WIN32
+  #define _USE_MATH_DEFINES
+#endif
 #include <math.h>
 
 static const int64_t NENTRIES = 1001;
