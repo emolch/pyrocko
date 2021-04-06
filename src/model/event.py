@@ -325,10 +325,10 @@ class Event(Location):
 
     def get_hash(self):
         e = self
-        if isinstance(e.time, util.hpfloat):
-            stime = util.time_to_str(e.time, format='%Y-%m-%d %H:%M:%S.6FRAC')
-        else:
+        if isinstance(e.time, float):
             stime = util.time_to_str(e.time, format='%Y-%m-%d %H:%M:%S.3FRAC')
+        else:
+            stime = util.time_to_str(e.time, format='%Y-%m-%d %H:%M:%S.6FRAC')
 
         s = float_or_none_to_str
 
