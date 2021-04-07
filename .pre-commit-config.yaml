@@ -1,5 +1,5 @@
 fail_fast: true
-files: ^(src|test)/
+files: ^(src/|test/|examples/|setup.py)
 repos:
 - repo: local
   hooks:
@@ -7,5 +7,5 @@ repos:
     name: flake8
     entry: flake8
     language: system
-    files: ^src/
+    files: ^(src/|test/|examples/|setup.py)
     types: [python]
