@@ -108,7 +108,7 @@ def make_prerequisites():
     from subprocess import check_call
 
     if is_windows:
-        cmd = ['prerequisites\prerequisites.bat']
+        cmd = ['prerequisites\\prerequisites.bat']
     else:
         cmd = ['sh', 'prerequisites/prerequisites.sh']
 
@@ -570,7 +570,7 @@ if is_windows:
 else:
     extra_compile_args = ['-Wextra']
 
-ext_modules=[
+ext_modules = [
     Extension(
         'datacube_ext',
         include_dirs=[get_python_inc(), numpy.get_include()],
