@@ -570,6 +570,106 @@ if is_windows:
 else:
     extra_compile_args = ['-Wextra']
 
+ext_modules=[
+    Extension(
+        'datacube_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'io', 'ext', 'datacube_ext.c')]),
+
+    Extension(
+        'signal_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'ext', 'signal_ext.c')]),
+
+    Extension(
+        'mseed_ext',
+        include_dirs=[get_python_inc(), numpy.get_include(),
+                      get_build_include('libmseed/')],
+        library_dirs=[get_build_include('libmseed/')],
+        libraries=['mseed'] if not is_windows else ['libmseed'],
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'io', 'ext', 'mseed_ext.c')]),
+
+    Extension(
+        'ims_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'io', 'ext', 'ims_ext.c')]),
+
+    Extension(
+        "avl",
+        sources=[op.join('src', 'ext', 'pyavl-1.12', 'avl.c'),
+                 op.join('src', 'ext', 'pyavl-1.12', 'avlmodule.c')],
+        define_macros=[('HAVE_AVL_VERIFY', None),
+                       ('AVL_FOR_PYTHON', None)],
+        include_dirs=[get_python_inc()],
+        extra_compile_args=['-Wno-parentheses', '-Wno-uninitialized']
+        if not is_windows else [],
+        extra_link_args=[] if sys.platform != 'sunos5' else ['-Wl,-x']),
+
+    Extension(
+        'autopick_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'ext', 'autopick_ext.c')])]
+
+ext_modules_non_windows = [
+    Extension(
+        'util_ext',
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'ext', 'util_ext.c')]),
+
+    Extension(
+        'evalresp_ext',
+        include_dirs=[get_python_inc(), numpy.get_include(),
+                      get_build_include('evalresp-3.3.0/include/')],
+        library_dirs=[get_build_include('evalresp-3.3.0/lib/')],
+        libraries=['evresp'],
+        extra_compile_args=extra_compile_args + [
+            '-I%s' % get_build_include('evalresp-3.3.0/include')],
+        sources=[op.join('src', 'ext', 'evalresp_ext.c')]),
+
+    Extension(
+        'gf.store_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args
+        + ['-D_FILE_OFFSET_BITS=64'] + omp_arg,
+        extra_link_args=[] + omp_lib,
+        sources=[op.join('src', 'gf', 'ext', 'store_ext.c')]),
+
+    Extension(
+        'eikonal_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args + omp_arg,
+        extra_link_args=[] + omp_lib,
+        sources=[op.join('src', 'ext', 'eikonal_ext.c')]),
+
+    Extension(
+        'parstack_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args + omp_arg,
+        extra_link_args=[] + omp_lib,
+        sources=[op.join('src', 'ext', 'parstack_ext.c')]),
+
+    Extension(
+        'ahfullgreen_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'ext', 'ahfullgreen_ext.c')]),
+
+    Extension(
+        'orthodrome_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'ext', 'orthodrome_ext.c')])]
+
+
+if not is_windows:
+    ext_modules.extend(ext_modules_non_windows)
+
+
 setup(
     cmdclass=cmdclass,
     name=packname,
@@ -618,106 +718,12 @@ setup(
     },
 
     packages=[packname] + subpacknames,
+
     package_dir={'pyrocko': 'src'},
+
     ext_package=packname,
-    ext_modules_OFF=[
-        Extension(
-            'util_ext',
-            extra_compile_args=extra_compile_args,
-            sources=[op.join('src', 'ext', 'util_ext.c')]),
 
-        Extension(
-            'evalresp_ext',
-            include_dirs=[get_python_inc(), numpy.get_include(),
-                          get_build_include('evalresp-3.3.0/include/')],
-            library_dirs=[get_build_include('evalresp-3.3.0/lib/')],
-            libraries=['evresp'],
-            extra_compile_args=extra_compile_args + [
-                '-I%s' % get_build_include('evalresp-3.3.0/include')],
-            sources=[op.join('src', 'ext', 'evalresp_ext.c')]),
-
-        Extension(
-            'gf.store_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args
-            + ['-D_FILE_OFFSET_BITS=64'] + omp_arg,
-            extra_link_args=[] + omp_lib,
-            sources=[op.join('src', 'gf', 'ext', 'store_ext.c')]),
-
-        Extension(
-            'eikonal_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args + omp_arg,
-            extra_link_args=[] + omp_lib,
-            sources=[op.join('src', 'ext', 'eikonal_ext.c')]),
-
-        Extension(
-            'parstack_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args + omp_arg,
-            extra_link_args=[] + omp_lib,
-            sources=[op.join('src', 'ext', 'parstack_ext.c')]),
-
-        Extension(
-            'ahfullgreen_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args,
-            sources=[op.join('src', 'ext', 'ahfullgreen_ext.c')]),
-
-        Extension(
-            'orthodrome_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args,
-            sources=[op.join('src', 'ext', 'orthodrome_ext.c')]),
-    ],
-
-    ext_modules=[
-
-        Extension(
-            'datacube_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args,
-            sources=[op.join('src', 'io', 'ext', 'datacube_ext.c')]),
-
-        Extension(
-            'signal_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args,
-            sources=[op.join('src', 'ext', 'signal_ext.c')]),
-
-        Extension(
-            'mseed_ext',
-            include_dirs=[get_python_inc(), numpy.get_include(),
-                          get_build_include('libmseed/')],
-            library_dirs=[get_build_include('libmseed/')],
-            libraries=['mseed'] if not is_windows else ['libmseed'],
-            extra_compile_args=extra_compile_args,
-            sources=[op.join('src', 'io', 'ext', 'mseed_ext.c')]),
-
-        Extension(
-            'ims_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args,
-            sources=[op.join('src', 'io', 'ext', 'ims_ext.c')]),
-
-        Extension(
-            "avl",
-            sources=[op.join('src', 'ext', 'pyavl-1.12', 'avl.c'),
-                     op.join('src', 'ext', 'pyavl-1.12', 'avlmodule.c')],
-            define_macros=[('HAVE_AVL_VERIFY', None),
-                           ('AVL_FOR_PYTHON', None)],
-            include_dirs=[get_python_inc()],
-            extra_compile_args=['-Wno-parentheses', '-Wno-uninitialized']
-            if not is_windows else [],
-            extra_link_args=[] if sys.platform != 'sunos5' else ['-Wl,-x']),
-
-        Extension(
-            'autopick_ext',
-            include_dirs=[get_python_inc(), numpy.get_include()],
-            extra_compile_args=extra_compile_args,
-            sources=[op.join('src', 'ext', 'autopick_ext.c')]),
-
-    ],
+    ext_modules=ext_modules,
 
     scripts=[
         'src/apps/gmtpy-epstopdf',
