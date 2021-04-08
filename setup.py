@@ -6,6 +6,7 @@ import time
 import shutil
 import tempfile
 import numpy
+import glob
 
 from distutils.sysconfig import get_python_inc
 from setuptools import setup, Extension, Command
@@ -102,6 +103,13 @@ installed_date = %s
         f.close()
     except Exception:
         pass
+
+
+libmseed_sources = [op.join('libmseed', entry) for entry in [
+    'fileutils.c', 'genutils.c', 'gswap.c', 'lmplatform.c',
+    'logging.c', 'lookup.c', 'msrutils.c', 'pack.c', 'packdata.c',
+    'parseutils.c', 'selection.c', 'tracelist.c', 'traceutils.c',
+    'unpack.c', 'unpackdata.c']]
 
 
 def make_prerequisites():
@@ -408,7 +416,6 @@ class CustomBuildAppCommand(build_ext):
         self.make_app()
 
     def make_app(self):
-        import glob
         import os
         import shutil
         from setuptools import setup
@@ -586,11 +593,11 @@ ext_modules = [
     Extension(
         'mseed_ext',
         include_dirs=[get_python_inc(), numpy.get_include(),
-                      get_build_include('libmseed/')],
-        library_dirs=[get_build_include('libmseed/')],
-        libraries=['mseed'] if not is_windows else ['libmseed'],
-        extra_compile_args=extra_compile_args,
-        sources=[op.join('src', 'io', 'ext', 'mseed_ext.c')]),
+                      get_build_include('libmseed')],
+        extra_compile_args=extra_compile_args + (
+            ['-D_CRT_SECURE_NO_WARNINGS', '-DWIN32'] if is_windows else []),
+        sources=[
+            op.join('src', 'io', 'ext', 'mseed_ext.c')] + libmseed_sources),
 
     Extension(
         'ims_ext',

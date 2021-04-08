@@ -2,12 +2,10 @@
 
 set -e
 
-if [ ! -f libmseed/libmseed.a ]; then
+if [ ! -d libmseed ]; then
     rm -rf libmseed
-    tar -xzf libmseed-2.19.6.tar.gz
-    cd libmseed
-    CFLAGS="-fPIC" make static
-    cd ..
+    tar -xzf libmseed-2.19.6.tar.gz --exclude=doc --exclude=test --exclude=example
+    patch -s -p0 < libmseed-2.19.6-speedread.patch
 fi
 
 if [ ! -d evalresp-3.3.0/lib ]; then
