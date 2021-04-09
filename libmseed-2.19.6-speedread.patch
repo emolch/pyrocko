@@ -1,6 +1,6 @@
 diff -ruN libmseed/libmseed.h libmseed_mod/libmseed.h
 --- libmseed/libmseed.h	2019-06-19 10:59:29.000000000 +0200
-+++ libmseed_mod/libmseed.h	2021-04-08 13:38:03.819403113 +0200
++++ libmseed_mod/libmseed.h	2021-04-09 09:44:41.881346528 +0200
 @@ -511,6 +511,7 @@
    double          samprate;          /* Nominal sample rate (Hz) */
    int64_t         samplecnt;         /* Number of samples in trace coverage */
@@ -11,7 +11,7 @@ diff -ruN libmseed/libmseed.h libmseed_mod/libmseed.h
    void           *prvtptr;           /* Private pointer for general use, unused by libmseed */
 diff -ruN libmseed/Makefile.win libmseed_mod/Makefile.win
 --- libmseed/Makefile.win	2019-06-19 10:59:29.000000000 +0200
-+++ libmseed_mod/Makefile.win	2021-04-07 16:22:04.091415681 +0200
++++ libmseed_mod/Makefile.win	2021-04-09 09:44:41.881346528 +0200
 @@ -5,9 +5,10 @@
  NODEBUG=1
  
@@ -26,7 +26,7 @@ diff -ruN libmseed/Makefile.win libmseed_mod/Makefile.win
  	genutils.obj	\
 diff -ruN libmseed/traceutils.c libmseed_mod/traceutils.c
 --- libmseed/traceutils.c	2019-06-19 10:59:29.000000000 +0200
-+++ libmseed_mod/traceutils.c	2021-04-08 13:47:55.097138422 +0200
++++ libmseed_mod/traceutils.c	2021-04-09 09:44:41.881346528 +0200
 @@ -437,6 +437,7 @@
  mst_addmsr (MSTrace *mst, MSRecord *msr, flag whence)
  {
@@ -35,7 +35,7 @@ diff -ruN libmseed/traceutils.c libmseed_mod/traceutils.c
  
    if (!mst || !msr)
      return -1;
-@@ -465,13 +466,17 @@
+@@ -465,13 +466,16 @@
        return -1;
      }
  
@@ -48,14 +48,135 @@ diff -ruN libmseed/traceutils.c libmseed_mod/traceutils.c
 -      ms_log (2, "mst_addmsr(): Cannot allocate memory\n");
 -      return -1;
 +    if (min_size > mst->bufsize) {
-+        mst->bufsize = min_size*2;
-+        mst->datasamples = realloc (mst->datasamples, mst->bufsize);
-+
++        mst->datasamples = realloc (mst->datasamples, min_size*2);
 +        if (mst->datasamples == NULL)
 +        {
 +          ms_log (2, "mst_addmsr(): Cannot allocate memory\n");
 +          return -1;
 +        }
++        mst->bufsize = min_size*2;
      }
    }
  
+@@ -548,6 +552,7 @@
+              flag whence)
+ {
+   int samplesize = 0;
++  size_t min_size;
+ 
+   if (!mst)
+     return -1;
+@@ -568,13 +573,15 @@
+       return -1;
+     }
+ 
+-    mst->datasamples = realloc (mst->datasamples,
+-                                (size_t) (mst->numsamples * samplesize + numsamples * samplesize));
+-
+-    if (mst->datasamples == NULL)
+-    {
+-      ms_log (2, "mst_addspan(): Cannot allocate memory\n");
+-      return -1;
++    min_size = (size_t) (mst->numsamples * samplesize + numsamples * samplesize);
++    if (min_size > mst->bufsize) {
++        mst->datasamples = realloc (mst->datasamples, min_size*2);
++        if (mst->datasamples == NULL)
++        {
++          ms_log (2, "mst_addspan(): Cannot allocate memory\n");
++          return -1;
++        }
++        mst->bufsize = min_size*2;
+     }
+   }
+ 
+@@ -1108,6 +1115,7 @@
+   float *fdata;
+   double *ddata;
+   int64_t idx;
++  size_t bufsize;
+ 
+   if (!mst)
+     return -1;
+@@ -1160,11 +1168,13 @@
+       }
+ 
+       /* Reallocate buffer for reduced size needed */
+-      if (!(mst->datasamples = realloc (mst->datasamples, (size_t) (mst->numsamples * sizeof (int32_t)))))
++      bufsize = (size_t) (mst->numsamples * sizeof (int32_t));
++      if (!(mst->datasamples = realloc (mst->datasamples, bufsize)))
+       {
+         ms_log (2, "mst_convertsamples: cannot re-allocate buffer for sample conversion\n");
+         return -1;
+       }
++      mst->bufsize = bufsize;
+     }
+ 
+     mst->sampletype = 'i';
+@@ -1184,11 +1194,13 @@
+         fdata[idx] = (float)ddata[idx];
+ 
+       /* Reallocate buffer for reduced size needed */
+-      if (!(mst->datasamples = realloc (mst->datasamples, (size_t) (mst->numsamples * sizeof (float)))))
++      bufsize = (size_t) (mst->numsamples * sizeof (float));
++      if (!(mst->datasamples = realloc (mst->datasamples, bufsize)))
+       {
+         ms_log (2, "mst_convertsamples: cannot re-allocate buffer after sample conversion\n");
+         return -1;
+       }
++      mst->bufsize = bufsize;
+     }
+ 
+     mst->sampletype = 'f';
+@@ -1197,7 +1209,8 @@
+   /* Convert to 64-bit doubles */
+   else if (type == 'd')
+   {
+-    if (!(ddata = (double *)malloc ((size_t) (mst->numsamples * sizeof (double)))))
++    bufsize = (size_t) (mst->numsamples * sizeof (double));
++    if (!(ddata = (double *)malloc (bufsize)))
+     {
+       ms_log (2, "mst_convertsamples: cannot allocate buffer for sample conversion to doubles\n");
+       return -1;
+@@ -1219,6 +1232,7 @@
+     }
+ 
+     mst->datasamples = ddata;
++    mst->bufsize = bufsize;
+     mst->sampletype  = 'd';
+   } /* Done converting to 64-bit doubles */
+ 
+@@ -1659,7 +1673,7 @@
+   int trpackedrecords     = 0;
+   int64_t trpackedsamples = 0;
+   int samplesize;
+-  int64_t bufsize;
++  size_t bufsize;
+ 
+   hptime_t preservestarttime   = 0;
+   double preservesamprate      = 0.0;
+@@ -1745,21 +1759,22 @@
+     mst->starttime = msr->starttime;
+ 
+     samplesize = ms_samplesize (mst->sampletype);
+-    bufsize    = (mst->numsamples - trpackedsamples) * samplesize;
++    bufsize = (size_t) (mst->numsamples - trpackedsamples) * samplesize;
+ 
+     if (bufsize)
+     {
+       memmove (mst->datasamples,
+                (char *)mst->datasamples + (trpackedsamples * samplesize),
+-               (size_t)bufsize);
++               bufsize);
+ 
+-      mst->datasamples = realloc (mst->datasamples, (size_t)bufsize);
++      mst->datasamples = realloc (mst->datasamples, bufsize);
+ 
+       if (mst->datasamples == NULL)
+       {
+         ms_log (2, "mst_pack(): Cannot (re)allocate datasamples buffer\n");
+         return -1;
+       }
++      mst->bufsize = bufsize;
+     }
+     else
+     {
