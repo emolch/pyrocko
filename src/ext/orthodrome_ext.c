@@ -1,30 +1,41 @@
 #define NPY_NO_DEPRECATED_API 7
-#define D2R (M_PI / 180.)
-#define R2D (1.0 / D2R)
 
-#define EARTH_OBLATENESS 1./298.257223563
-#define EARTHRADIUS_EQ 6378140.0
-#define EARTHRADIUS 6371000.0
 
 #include "Python.h"
 #include "numpy/arrayobject.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
-#include <unistd.h>
+/*#include <sys/mman.h>*/
+/*#include <unistd.h>*/
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _WIN32
+    #define _USE_MATH_DEFINES
+#endif
+#include <math.h>
 
-#define max(a, b) \
-   ({ __typeof__ (a) _a = (a); \
-      __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
+#ifndef max
+    #define max(a, b) \
+       ({ __typeof__ (a) _a = (a); \
+          __typeof__ (b) _b = (b); \
+         _a > _b ? _a : _b; })
+#endif
 
-#define min(a, b) \
-   ({ __typeof__ (a) _a = (a); \
-      __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })  
+#ifndef min
+    #define min(a, b) \
+       ({ __typeof__ (a) _a = (a); \
+          __typeof__ (b) _b = (b); \
+         _a < _b ? _a : _b; })  
+#endif
+
+
+#define D2R (M_PI / 180.)
+#define R2D (1.0 / D2R)
+
+#define EARTH_OBLATENESS 1./298.257223563
+#define EARTHRADIUS_EQ 6378140.0
+#define EARTHRADIUS 6371000.0
 
 struct module_state {
     PyObject *error;
@@ -77,6 +88,7 @@ static float64_t sqr(float64_t x) {
     return x*x;
 }
 
+/*
 static float64_t clip(float64_t x, float64_t mi, float64_t ma) {
     return x < mi ? mi : (x > ma ? ma : x);
 }
@@ -84,6 +96,7 @@ static float64_t clip(float64_t x, float64_t mi, float64_t ma) {
 static float64_t wrap(float64_t x, float64_t mi, float64_t ma) {
     return x - floor((x-mi)/(ma-mi)) * (ma-mi);
 }
+*/
 
 
 static float64_t cosdelta(float64_t alat, float64_t alon, float64_t blat, float64_t blon) {
@@ -115,6 +128,7 @@ static void azibazi_array(float64_t *alats, float64_t *alons, float64_t *blats, 
     }
 }
 
+/*
 static void ne_to_latlon(float64_t lat, float64_t lon, float64_t north, float64_t east, float64_t *lat_new, float64_t *lon_new) {
     float64_t a, b, c, gamma, alphasign, alpha;
 
@@ -137,7 +151,7 @@ static void ne_to_latlon(float64_t lat, float64_t lon, float64_t north, float64_
 }
 
 static void azibazi4(float64_t *a, float64_t *b, float64_t *azi, float64_t *bazi) {
-    /* azimuth and backazimuth for (lat,lon,north,east) coordinates */
+    ** azimuth and backazimuth for (lat,lon,north,east) coordinates **
 
     float64_t alat, alon, anorth, aeast;
     float64_t blat, blon, bnorth, beast;
@@ -153,15 +167,16 @@ static void azibazi4(float64_t *a, float64_t *b, float64_t *azi, float64_t *bazi
     bnorth = b[2];
     beast = b[3];
 
-    if (alat == blat && alon == blon) { /* carthesian */
+    if (alat == blat && alon == blon) { ** carthesian **
         *azi = atan2(beast - aeast, bnorth - anorth) * R2D;
         *bazi = *azi + 180.0;
-    } else { /* spherical */
+    } else { ** spherical **
         ne_to_latlon(alat, alon, anorth, aeast, &alat_eff, &alon_eff);
         ne_to_latlon(blat, blon, bnorth, beast, &blat_eff, &blon_eff);
         azibazi(alat_eff, alon_eff, blat_eff, blon_eff, azi, bazi);
     }
 }
+*/
 
 int check_latlon_ranges(float64_t alat, float64_t alon, float64_t blat, float64_t blon){
     if (alat > 90. || alat < -90. || blat > 90. || blat < -90.) {

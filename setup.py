@@ -624,6 +624,12 @@ ext_modules = [
         sources=[op.join('src', 'ext', 'eikonal_ext.c')]),
 
     Extension(
+        'orthodrome_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args,
+        sources=[op.join('src', 'ext', 'orthodrome_ext.c')]),
+
+    Extension(
         'autopick_ext',
         include_dirs=[get_python_inc(), numpy.get_include()],
         extra_compile_args=extra_compile_args,
@@ -664,13 +670,7 @@ ext_modules_non_windows = [
         'ahfullgreen_ext',
         include_dirs=[get_python_inc(), numpy.get_include()],
         extra_compile_args=extra_compile_args,
-        sources=[op.join('src', 'ext', 'ahfullgreen_ext.c')]),
-
-    Extension(
-        'orthodrome_ext',
-        include_dirs=[get_python_inc(), numpy.get_include()],
-        extra_compile_args=extra_compile_args,
-        sources=[op.join('src', 'ext', 'orthodrome_ext.c')])]
+        sources=[op.join('src', 'ext', 'ahfullgreen_ext.c')])]
 
 
 if not is_windows:
