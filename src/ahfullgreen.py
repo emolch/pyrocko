@@ -7,7 +7,10 @@ from __future__ import absolute_import, division
 import math
 import numpy as num
 from . import trace
-from . import ahfullgreen_ext as ext
+try:
+    from . import ahfullgreen_ext as ext
+except ImportError:
+    ext = None
 
 
 class AhfullgreenError(Exception):
@@ -19,6 +22,11 @@ def make_seismogram(
         quantity, deltat, stf=None, wanted_components='ned',
         want_far=True, want_intermediate=True, want_near=True,
         npad_levelling=40, out_alignment=0.):
+
+    if not ext:
+        raise Exception(
+            'pyrocko.ahfullgreen.make_seismogram() is not available on this '
+            'platform.')
 
     if stf is None:
         stf = Impulse()

@@ -51,7 +51,7 @@ int parstack(
         int nparallel);
 
 
-int32_t min(int32_t a, int32_t b) {
+int32_t i32min(int32_t a, int32_t b) {
     return (a < b) ? a : b;
 }
 
@@ -59,7 +59,7 @@ size_t smin(size_t a, size_t b) {
     return (a < b) ? a : b;
 }
 
-int32_t max(int32_t a, int32_t b) {
+int32_t i32max(int32_t a, int32_t b) {
     return (a > b) ? a : b;
 }
 
@@ -98,8 +98,8 @@ int parstack_config(
         for (ishift=0; ishift<nshifts; ishift++) {
             istart = offsets[iarray] + shifts[ishift*narrays + iarray];
             iend = istart + lengths[iarray];
-            imin = min(imin, istart);
-            imax = max(imax, iend);
+            imin = i32min(imin, istart);
+            imax = i32max(imax, iend);
         }
     }
 
@@ -159,7 +159,7 @@ int parstack(
                 istart = offsets[iarray] + shifts[ishift*narrays + iarray];
                 weight = weights[ishift*narrays + iarray];
                 if (weight != 0.0) {
-                    for (i=(size_t)max(0, imin - istart); i<(size_t)max(0, min(nsamp - istart + imin, lengths[iarray])); i++) {
+                    for (i=(size_t)i32max(0, imin - istart); i<(size_t)i32max(0, i32min(nsamp - istart + imin, lengths[iarray])); i++) {
                         result[ishift*nsamp + istart-imin+i] += arrays[iarray][i] * weight;
                     }
                 }
@@ -185,7 +185,7 @@ int parstack(
                 istart = offsets[iarray] + shifts[ishift*narrays + iarray];
                 weight = weights[ishift*narrays + iarray];
                 if (weight != 0.0) {
-                    for (i=(size_t)max(0, imin - istart); i<(size_t)max(0, min(nsamp - istart + imin, lengths[iarray])); i++) {
+                    for (i=(size_t)i32max(0, imin - istart); i<(size_t)i32max(0, i32min(nsamp - istart + imin, lengths[iarray])); i++) {
                         temp[istart-imin+i] += arrays[iarray][i] * weight;
                     }
                 }

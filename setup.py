@@ -630,6 +630,13 @@ ext_modules = [
         sources=[op.join('src', 'ext', 'orthodrome_ext.c')]),
 
     Extension(
+        'parstack_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args + omp_arg,
+        extra_link_args=[] + omp_lib,
+        sources=[op.join('src', 'ext', 'parstack_ext.c')]),
+
+    Extension(
         'autopick_ext',
         include_dirs=[get_python_inc(), numpy.get_include()],
         extra_compile_args=extra_compile_args,
@@ -659,13 +666,7 @@ ext_modules_non_windows = [
         extra_link_args=[] + omp_lib,
         sources=[op.join('src', 'gf', 'ext', 'store_ext.c')]),
 
-    Extension(
-        'parstack_ext',
-        include_dirs=[get_python_inc(), numpy.get_include()],
-        extra_compile_args=extra_compile_args + omp_arg,
-        extra_link_args=[] + omp_lib,
-        sources=[op.join('src', 'ext', 'parstack_ext.c')]),
-
+    # needs double complex which is not avail on msvc
     Extension(
         'ahfullgreen_ext',
         include_dirs=[get_python_inc(), numpy.get_include()],
