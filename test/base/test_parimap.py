@@ -4,7 +4,10 @@ import random
 import time
 import tempfile
 import os
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import unittest
 import errno
 from pyrocko import util
@@ -121,6 +124,7 @@ class ParimapTestCase(unittest.TestCase):
                 if end1 or end2:
                     break
 
+    @unittest.skipUnless(fcntl, 'fcntl not supported on this platform')
     def test_locks(self):
 
         fos, fn = tempfile.mkstemp()  # (dir='/try/with/nfs/mounted/dir')
