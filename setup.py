@@ -617,6 +617,13 @@ ext_modules = [
         extra_link_args=[] if sys.platform != 'sunos5' else ['-Wl,-x']),
 
     Extension(
+        'eikonal_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args + omp_arg,
+        extra_link_args=[] + omp_lib,
+        sources=[op.join('src', 'ext', 'eikonal_ext.c')]),
+
+    Extension(
         'autopick_ext',
         include_dirs=[get_python_inc(), numpy.get_include()],
         extra_compile_args=extra_compile_args,
@@ -645,13 +652,6 @@ ext_modules_non_windows = [
         + ['-D_FILE_OFFSET_BITS=64'] + omp_arg,
         extra_link_args=[] + omp_lib,
         sources=[op.join('src', 'gf', 'ext', 'store_ext.c')]),
-
-    Extension(
-        'eikonal_ext',
-        include_dirs=[get_python_inc(), numpy.get_include()],
-        extra_compile_args=extra_compile_args + omp_arg,
-        extra_link_args=[] + omp_lib,
-        sources=[op.join('src', 'ext', 'eikonal_ext.c')]),
 
     Extension(
         'parstack_ext',

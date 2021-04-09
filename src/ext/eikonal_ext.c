@@ -120,7 +120,7 @@ static void swap(size_t *a, size_t *b) {
     *b = t;
 }
 
-static double min(double a, double b) {
+static double dmin(double a, double b) {
     return (a < b) ? a : b;
 }
 
@@ -287,7 +287,7 @@ static eikonal_error_t update_neighbor(
                 ? times[index-stride] : THUGE;
 
         if (ix+1 < shape[idim])
-            tmins[idim] = min(
+            tmins[idim] = dmin(
                 tmins[idim],
                 (backpointers[index+stride] == ALIVE)
                     ? times[index+stride] : THUGE);
