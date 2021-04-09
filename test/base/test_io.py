@@ -158,35 +158,32 @@ class IOTestCase(unittest.TestCase):
     @random_traces(nsamples=1000)
     def testMSeedRecordLength(self, tr):
         for exp in range(8, 20):
-            with NTF(prefix='pyrocko') as f:
-                tempfn = f.name
-                io.save(tr, tempfn, record_length=2**exp)
-                assert os.stat(tempfn).st_size / 2**exp % 1. == 0.
-                tr2 = io.load(tempfn)[0]
-                assert tr == tr2
+            tempfn = os.path.join(self.tmpdir, 'reclen')
+            io.save(tr, tempfn, record_length=2**exp)
+            assert os.stat(tempfn).st_size / 2**exp % 1. == 0.
+            tr2 = io.load(tempfn)[0]
+            assert tr == tr2
 
     @random_traces(nsamples=10000, limit=2**27)
     def testMSeedSTEIM(self, tr):
-        with NTF(prefix='pyrocko') as f1:
-            io.save(tr, f1.name, steim=1)
-            tr1 = io.load(f1.name)[0]
 
-            with NTF(prefix='pyrocko') as f2:
-                io.save(tr, f2.name, steim=1)
-                tr2 = io.load(f2.name)[0]
+        fn1 = os.path.join(self.tmpdir, 'steim1')
+        fn2 = os.path.join(self.tmpdir, 'steim2')
+        fn3 = os.path.join(self.tmpdir, 'steimX')
 
-                # STEIM compression only affects int32
-                if tr.ydata.dtype is num.int32:
-                    assert op.getsize(f1.name) != op.getsize(f2.name)
+        io.save(tr, fn1, steim=1)
+        tr1 = io.load(fn1)[0]
+
+        io.save(tr, fn2, steim=2)
+        tr2 = io.load(fn2)[0]
 
         assert tr == tr1
         assert tr == tr2
         assert tr1 == tr2
 
         for steim in (0, 3):
-            with NTF(prefix='pyrocko') as f:
-                with self.assertRaises(FileSaveError):
-                    io.save(tr, f.name, steim=steim)
+            with self.assertRaises(FileSaveError):
+                io.save(tr, fn3, steim=steim)
 
     def testMSeedDetect(self):
         fpath = common.test_data_file('test2.mseed')
