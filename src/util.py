@@ -403,15 +403,19 @@ def download_dir(
         **kwargs)
 
 
+class dummy_hpfloat(object):
+    def __init__(self, *args, **kwargs):
+        raise Exception(
+            'NumPy lacks support for float128 or float96 data type on this '
+            'platform.')
+
+
 if hasattr(num, 'float128'):
     hpfloat = num.float128
 elif hasattr(num, 'float96'):
     hpfloat = num.float96
 else:
-    def hpfloat(x):
-        raise Exception(
-            'NumPy lacks support for float128 or float96 data type on this '
-            'platform.')
+    hpfloat = dummy_hpfloat
 
 
 g_time_float = None
