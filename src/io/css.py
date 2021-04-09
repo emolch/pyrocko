@@ -134,7 +134,7 @@ class CSSHeaderFile(object):
 
     @property
     def superdir(self):
-        return self.fn.rsplit('/', 1)[0]
+        return os.path.dirname(self.fn)
 
     def iter_pyrocko_traces(self, load_data=True):
         for idata, d in enumerate(self.data):
