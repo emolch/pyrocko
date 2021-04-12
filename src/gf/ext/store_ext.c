@@ -20,8 +20,16 @@
 #include "numpy/arrayobject.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
-#include <unistd.h>
+#ifndef _WIN32
+    #include <sys/mman.h>
+    #include <unistd.h>
+#endif
+
+#ifdef _WIN32
+    #define _USE_MATH_DEFINES
+#endif
+#include <math.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #if defined(_OPENMP)
@@ -51,6 +59,11 @@
   #define le32toh(x) OSSwapLittleToHostInt32(x)
   #define be64toh(x) OSSwapBigToHostInt64(x)
   #define le64toh(x) OSSwapLittleToHostInt64(x)
+#elif defined(_MSC_VER)
+  #define be32toh(x) _byteswap_ulong(x)
+  #define le32toh(x) (x)
+  #define be64toh(x) _byteswap_uint64(x)
+  #define le64toh(x) (x)
 #endif
 
 
@@ -72,6 +85,20 @@
 #endif
 #define R2D (1.0 / D2R)
 
+
+#ifdef _WIN32
+ssize_t pread(int fd, void *buf, size_t count, off_t offset) {
+    ssize_t ret;
+    if (0 != lseek(fd, offset, SEEK_CUR)) {
+        return -1;
+    }
+    ret = read(fd, buf, count);
+    if (0 != lseek(fd, -offset, SEEK_CUR)) {
+        return -1;
+    }
+    return ret;
+}
+#endif
 
 struct module_state {
     PyObject *error;
@@ -118,15 +145,19 @@ gf_dtype fe32toh(const gf_dtype x) {
     return r;
 }
 
-#define max(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-      __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
+#ifndef max
+    #define max(a,b) \
+       ({ __typeof__ (a) _a = (a); \
+          __typeof__ (b) _b = (b); \
+         _a > _b ? _a : _b; })
+#endif
 
-#define min(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-      __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
+#ifndef min
+    #define min(a,b) \
+       ({ __typeof__ (a) _a = (a); \
+          __typeof__ (b) _b = (b); \
+         _a < _b ? _a : _b; })
+#endif
 
 typedef enum {
     SUCCESS = 0,
@@ -284,6 +315,7 @@ typedef struct {
 /* component scheme defs */
 
 #define NCOMPONENTS_MAX 3
+#define NSUMMANDS_MAX 6
 
 typedef void (*make_weights_function_t)(const float64_t*, const float64_t*, const float64_t*, float64_t*);
 static void make_weights_dummy(const float64_t*, const float64_t*, const float64_t*, float64_t*);
@@ -750,7 +782,7 @@ static store_error_t store_sum_static(
     float64_t deltat = store->deltat;
     int idelay_floor, idelay_ceil;
     int j, itarget, idx;
-    uint isummand, nsummands_src;
+    uint64_t isummand, nsummands_src;
     float w1, w2;
     store_error_t err=SUCCESS;
     (void) nthreads;
@@ -1029,7 +1061,7 @@ static store_error_t store_calc_timeseries(
     store_error_t err = SUCCESS;
 
     size_t ireceiver, isource, iip, nip, icomponent, isummand, nsummands_max, nsummands;
-    float64_t ws_this[cscheme->ncomponents*cscheme->nsummands_max];
+    float64_t ws_this[NCOMPONENTS_MAX*NSUMMANDS_MAX];
     uint64_t irecord_bases[VICINITY_NIP_MAX];
     float64_t weights_ip[VICINITY_NIP_MAX];
 
@@ -1238,7 +1270,7 @@ static store_error_t store_calc_static(
     (void) nthreads;
 
     size_t ireceiver, isource, iip, nip, icomponent, isummand, nsummands_max, nsummands;
-    float64_t ws_this[cscheme->ncomponents*cscheme->nsummands_max];
+    float64_t ws_this[NCOMPONENTS_MAX*NSUMMANDS_MAX];
     uint64_t irecord_bases[VICINITY_NIP_MAX];
     float64_t weights_ip[VICINITY_NIP_MAX];
 

@@ -640,7 +640,16 @@ ext_modules = [
         'autopick_ext',
         include_dirs=[get_python_inc(), numpy.get_include()],
         extra_compile_args=extra_compile_args,
-        sources=[op.join('src', 'ext', 'autopick_ext.c')])]
+        sources=[op.join('src', 'ext', 'autopick_ext.c')]),
+
+    Extension(
+        'gf.store_ext',
+        include_dirs=[get_python_inc(), numpy.get_include()],
+        extra_compile_args=extra_compile_args
+        + ['-D_FILE_OFFSET_BITS=64'] + omp_arg,
+        extra_link_args=[] + omp_lib,
+        sources=[op.join('src', 'gf', 'ext', 'store_ext.c')])]
+
 
 ext_modules_non_windows = [
     Extension(
@@ -657,14 +666,6 @@ ext_modules_non_windows = [
         extra_compile_args=extra_compile_args + [
             '-I%s' % get_build_include('evalresp-3.3.0/include')],
         sources=[op.join('src', 'ext', 'evalresp_ext.c')]),
-
-    Extension(
-        'gf.store_ext',
-        include_dirs=[get_python_inc(), numpy.get_include()],
-        extra_compile_args=extra_compile_args
-        + ['-D_FILE_OFFSET_BITS=64'] + omp_arg,
-        extra_link_args=[] + omp_lib,
-        sources=[op.join('src', 'gf', 'ext', 'store_ext.c')]),
 
     # needs double complex which is not avail on msvc
     Extension(
