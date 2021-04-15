@@ -2592,7 +2592,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :rtype: :py:class:`numpy.ndarray` of shape ``(n_patches, 3)``
         '''
         if self.rake is not None:
-            logger.warn('tractions are derived based on the given source rake')
+            logger.warning(
+                'tractions are derived based on the given source rake')
             tractions = DirectedTractions(rake=self.rake)
         else:
             tractions = self.tractions
@@ -2857,8 +2858,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             interpolation=interpolation) * self.gamma
 
     def discretize_time(
-            self, store, interpolation='nearest_neighbor',
-            vr=None, times=None, *args, **kwargs):
+            self, store, *args, interpolation='nearest_neighbor',
+            vr=None, times=None, **kwargs):
         '''
         Get rupture start time for discrete points on source plane
 
@@ -2889,14 +2890,14 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         if vr is None or vr.shape != tuple((nx, ny)):
             if vr:
-                logger.warn(
+                logger.warning(
                     'Given rupture velocities are not in right shape: '
-                    '(%i, %i), but needed is (%i, %i).' % (*vr.shape, nx, ny))
+                    '(%i, %i), but needed is (%i, %i).', *vr.shape, nx, ny)
             vr = self._discretize_rupture_v(store, interpolation, points)\
                 .reshape(nx, ny)
 
         if vr.shape != tuple((nx, ny)):
-            logger.warn(
+            logger.warning(
                 'Given rupture velocities are not in right shape. Therefore'
                 ' standard rupture velocity array is used.')
 
@@ -2930,7 +2931,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             times = initialize_times()
         elif times.shape != tuple((nx, ny)):
             times = initialize_times()
-            logger.warn(
+            logger.warning(
                 'Given times are not in right shape. Therefore standard time'
                 ' array is used.')
 
@@ -2940,8 +2941,8 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         return points, points_xy, vr, times
 
     def get_vr_time_interpolators(
-            self, store, interpolation='nearest_neighbor', force=False,
-            *args, **kwargs):
+            self, store, *args, interpolation='nearest_neighbor', force=False,
+            **kwargs):
         '''
         Calculate/return interpolators for rupture velocity and rupture time
 
@@ -2964,7 +2965,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         if not self._interpolators.get(interpolation, False) or force:
             _, points_xy, vr, times = self.discretize_time(
-                store=store, *args, **kwargs)
+                *args, store=store, **kwargs)
 
             if self.length <= 0.:
                 raise ValueError(
@@ -2991,9 +2992,9 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         return self._interpolators[interpolation]
 
     def discretize_patches(
-            self, store, interpolation='nearest_neighbor', force=False,
+            self, store, *args, interpolation='nearest_neighbor', force=False,
             grid_shape=(),
-            *args, **kwargs):
+            **kwargs):
         '''
         Get rupture start time and OkadaSource elements for points on rupture
 
@@ -3551,7 +3552,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                 :py:class:`numpy.ndarray`, ``(n_times, 1)``
         '''
         ddisloc_est, calc_times = self.get_delta_slip(
-            delta=True, *args, **kwargs)
+            *args, delta=True, **kwargs)
 
         dt = num.concatenate(
             [(num.diff(calc_times)[0], ), num.diff(calc_times)])

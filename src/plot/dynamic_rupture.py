@@ -144,7 +144,8 @@ def make_colormap(
             raise ValueError(msg)
 
     if cmap is None:
-        logger.warn('No colormap name given. Uses temporary filename instead')
+        logger.warning(
+            'No colormap name given. Uses temporary filename instead')
         cmap = 'temp_cmap'
 
     return gmt.makecpt(
@@ -338,6 +339,7 @@ class RuptureMap(Map):
 
     def __init__(
             self,
+            *args,
             source=None,
             fontcolor='darkslategrey',
             width=20.,
@@ -348,7 +350,7 @@ class RuptureMap(Map):
             topo_cpt_wet='light_sea_uniform',
             topo_cpt_dry='light_land_uniform',
             show_cities=False,
-            *args, **kwargs):
+            **kwargs):
 
         size = (width, height)
         fontsize, gmt_config = _make_gmt_conf(fontcolor, size)
@@ -358,10 +360,10 @@ class RuptureMap(Map):
                 fontsize * 0.15, num.min(size) / 200.,
                 num.min(size) / 200., fontsize * 0.05]
 
-        Map.__init__(self, margins=margins, width=width, height=height,
+        Map.__init__(self, *args, margins=margins, width=width, height=height,
                      gmt_config=gmt_config,
                      topo_cpt_dry=topo_cpt_dry, topo_cpt_wet=topo_cpt_wet,
-                     *args, **kwargs)
+                     **kwargs)
 
         if show_cities:
             self.draw_cities()
@@ -1172,10 +1174,10 @@ class RuptureView(Object):
 
             im = self._axes.imshow(
                 data,
+                *args,
                 interpolation='none',
                 vmin=kwargs.get('clim', [None])[0],
                 vmax=kwargs.get('clim', [None, None])[1],
-                *args,
                 **kwargs)
 
             del kwargs['extent']
@@ -1187,9 +1189,9 @@ class RuptureView(Object):
                 del kwargs['cmap']
 
             plt.colorbar(
-                im, shrink=0.9, pad=0.03, aspect=15., *args, **kwargs)
+                im, *args, shrink=0.9, pad=0.03, aspect=15., **kwargs)
 
-    def _draw_contour(self, x, y, data, clevel=None, unit='', *args, **kwargs):
+    def _draw_contour(self, x, y, data, *args, clevel=None, unit='', **kwargs):
         setup_kwargs = dict(
             xlabel=kwargs.pop('xlabel', 'along strike [km]'),
             ylabel=kwargs.pop('ylabel', 'down dip [km]'),
@@ -1420,7 +1422,7 @@ class RuptureView(Object):
             length, width, data=data, clevel=clevel, unit='m', **kwargs)
 
     def draw_source_dynamics(
-            self, variable, store, deltat=None, *args, **kwargs):
+            self, variable, store, *args, deltat=None, **kwargs):
         ''' Display dynamic source parameter
 
         Fast inspection possibility for the cumulative moment and the source
@@ -1458,11 +1460,11 @@ class RuptureView(Object):
                     ylabel='%s / %.2g %s' % (name, data.max(), unit),
                     aspect='auto',
                     spatial_plot=False)
-        self._draw_scatter(x=times, y=data/num.max(data), *args, **kwargs)
+        self._draw_scatter(times, data/num.max(data), *args, **kwargs)
         self._is_1d = True
 
     def draw_patch_dynamics(
-            self, variable, nx, ny, store=None, deltat=None, *args, **kwargs):
+            self, variable, nx, ny, *args, store=None, deltat=None, **kwargs):
         ''' Display dynamic boundary element / patch parameter
 
         Fast inspection possibility for different dynamic parameter for a
@@ -1524,7 +1526,7 @@ class RuptureView(Object):
                     ylabel='%s / %.2g %s' % (name, num.max(data), unit),
                     aspect='auto',
                     spatial_plot=False)
-        self._draw_scatter(x=times, y=data[idx, :]/num.max(data),
+        self._draw_scatter(times, data[idx, :]/num.max(data),
                            *args, **kwargs)
         self._is_1d = True
 
@@ -1587,7 +1589,7 @@ def render_movie(fn_path, output_path, framerate=20):
     except CalledProcessError:
         pass
     except (TypeError, IOError):
-        logger.warn(
+        logger.warning(
             'Package ffmpeg needed for movie rendering. Please install it '
             '(e.g. on linux distr. via sudo apt-get ffmpeg) and retry.')
         return False
@@ -1608,7 +1610,7 @@ def render_movie(fn_path, output_path, framerate=20):
 
         return True
     except CalledProcessError as e:
-        logger.warn(e)
+        logger.warning(e)
         return False
 
 
@@ -1631,7 +1633,7 @@ def render_gif(fn, output_path, loops=-1):
     except CalledProcessError:
         pass
     except (TypeError, IOError):
-        logger.warn(
+        logger.warning(
             'Package ffmpeg needed for movie rendering. Please install it '
             '(e.g. on linux distr. via sudo apt-get ffmpeg.) and retry.')
         return False
@@ -1646,7 +1648,7 @@ def render_gif(fn, output_path, loops=-1):
 
         return True
     except CalledProcessError as e:
-        logger.warn(e)
+        logger.warning(e)
         return False
 
 

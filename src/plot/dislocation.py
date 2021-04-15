@@ -47,10 +47,11 @@ def draw(
     scat = axes.scatter(
         coordinates[:, 1],
         coordinates[:, 0],
+        *args,
         c=dislocation,
         edgecolor='None',
         vmin=vmin, vmax=vmax,
-        *args, **kwargs)
+        **kwargs)
 
     if xlims and ylims:
         axes.set_xlim(xlims)
@@ -154,10 +155,10 @@ def plot(
             ylabeling=False if iax in [2, 4] else True)
 
         scat = draw(
+            *args,
             axes=axes,
             dislocation=num.squeeze(data[:, iax - 1]),
             coordinates=coordinates,
-            *args,
             **kwargs)
 
         cbar = fig.colorbar(scat)
