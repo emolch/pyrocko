@@ -2965,7 +2965,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
         if not self._interpolators.get(interpolation, False) or force:
             _, points_xy, vr, times = self.discretize_time(
-                *args, store=store, **kwargs)
+                store, *args, **kwargs)
 
             if self.length <= 0.:
                 raise ValueError(
