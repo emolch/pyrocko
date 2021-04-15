@@ -23,7 +23,7 @@ from pyrocko.gf import PseudoDynamicRupture
 from pyrocko.gf.seismosizer import map_anchor
 from pyrocko.dataset.topo.tile import Tile
 
-logger = logging.getLogger('pyrocko.plot.dynamic_rupture')
+logger = logging.getLogger(__name__)
 
 gmtpy.check_have_gmt()
 gmt = gmtpy.GMT()

@@ -14,7 +14,7 @@ from pyrocko.util import get_threadpool_limits
 
 guts_prefix = 'modelling'
 
-logger = logging.getLogger('pyrocko.modelling.okada')
+logger = logging.getLogger(__name__)
 
 d2r = num.pi/180.
 r2d = 180./num.pi
@@ -112,7 +112,7 @@ class OkadaSource(AnalyticalRectangularSource):
 
     poisson = Float.T(
         default=0.25,
-        help='Poisson\'s ratio, typically 0.25',
+        help='Poisson\'s ratio, default 0.25',
         optional=True)
 
     shearmod = Float.T(

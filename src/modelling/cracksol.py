@@ -10,7 +10,7 @@ from pyrocko.guts_array import Array
 
 guts_prefix = 'modelling'
 
-logger = logging.getLogger('pyrocko.modelling.cracksol')
+logger = logging.getLogger(__name__)
 
 
 class GriffithCrack(Object):

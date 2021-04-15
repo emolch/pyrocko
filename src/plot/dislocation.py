@@ -12,10 +12,10 @@ def draw(
         axes,
         dislocation,
         coordinates,
+        *args,
         xlims=[],
         ylims=[],
         zero_center=False,
-        *args,
         **kwargs):
     '''
     Do scatterplot of dislocation array
@@ -87,12 +87,12 @@ def setup_axes(axes, title='', xlabeling=False, ylabeling=False):
 def plot(
         dislocations,
         coordinates,
+        *args,
         filename='',
         dpi=100,
         fontsize=10.,
         figsize=None,
         titles=None,
-        *args,
         **kwargs):
 
     '''

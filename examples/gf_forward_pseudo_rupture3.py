@@ -90,7 +90,7 @@ channel_codes = 'ENZ'
 
 for it, t in enumerate(traction_ratio):
     # Display absolut tractions and final absolut dislocations
-    logger.info('Modelling for fractal traction for traction ratio %g' % t)
+    logger.info('Modelling for fractal traction for traction ratio %g', t)
 
     source.tractions.components[0].traction_max = t
 
