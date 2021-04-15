@@ -110,28 +110,97 @@ class OkadaSource(AnalyticalRectangularSource):
         help='Opening of the plane in [m]',
         optional=True)
 
-    poisson = Float.T(
+    poisson__ = Float.T(
         default=0.25,
         help='Poisson\'s ratio, default 0.25',
         optional=True)
 
-    shearmod = Float.T(
+    lamb__ = Float.T(
+        help='First Lame\' s parameter [Pa]',
+        optional=True)
+
+    shearmod__ = Float.T(
         default=32e9,
         help='Shear modulus along the plane [Pa]',
         optional=True)
 
     @property
+    def poisson(self):
+        '''
+        Calculation of poisson ratio (if not given)
+
+        According to Mueller (2007), the poisson ratio can be
+        determined from the formulation for the poisson ratio :math:`\\nu`:
+        :math:`\\nu = \\frac{\\lambda}{2(\\lambda + \\mu)}`
+        with the shear modulus :math:`\\mu` and first Lame parameter
+        :math:`\\lambda`.
+        '''
+
+        if self.poisson__ is not None:
+            return self.poisson__
+
+        if self.shearmod__ is None or self.lamb__ is None:
+            raise ValueError('Shearmod and lambda are needed')
+
+        return (self.lamb__) / (2. * (self.lamb__ + self.shearmod__))
+
+    @poisson.setter
+    def poisson(self, poisson):
+        self.poisson__ = poisson
+
+    @property
     def lamb(self):
         '''
-        Calculation of first Lame's parameter
+        Calculation of first Lame's parameter (if not given)
 
-        According to Mueller (2007), the first Lame parameter lambda can be
-        determined from the formulation for the poisson ration :math:`\\nu`:
+        According to Mueller (2007), the first Lame parameter can be
+        determined from the formulation for the poisson ratio :math:`\\nu`:
         :math:`\\nu = \\frac{\\lambda}{2(\\lambda + \\mu)}`
         with the shear modulus :math:`\\mu`
         '''
 
-        return (2. * self.poisson * self.shearmod) / (1. - 2*self.poisson)
+        if self.lamb__ is not None:
+            return self.lamb__
+
+        if self.shearmod__ is None or self.poisson__ is None:
+            raise ValueError('Shearmod and poisson ratio are needed')
+
+        return (
+            2. * self.poisson__ * self.shearmod__) / (1. - 2. * self.poisson__)
+
+    @lamb.setter
+    def lamb(self, lamb):
+        self.lamb__ = lamb
+
+    @property
+    def shearmod(self):
+        '''
+        Calculation of shear modulus (if not given)
+
+        According to Mueller (2007), the shear modulus can be
+        determined from the formulation for the poisson ratio :math:`\\nu`:
+        :math:`\\mu = \\frac{\\8(1+\\nu)}{1-2\\nu)}`
+
+        .. important ::
+
+            We assume a perfect elastic solid with :math:`K=\\frac{5}{3}\\mu`
+
+            Through :math:`\\mu = \\frac{3K(1-2\\nu)}{2(1+\\nu)}` this leads to
+            :math:`\\mu = \\frac{8(1+\\nu)}{1-2\\nu}`
+
+        '''
+
+        if self.shearmod__ is not None:
+            return self.shearmod__
+
+        if self.poisson__ is None:
+            raise ValueError('Poisson ratio is needed')
+
+        return (8. * (1. + self.poisson__)) / (1. - 2. * self.poisson__)
+
+    @shearmod.setter
+    def shearmod(self, shearmod):
+        self.shearmod__ = shearmod
 
     @property
     def seismic_moment(self):
@@ -140,8 +209,7 @@ class OkadaSource(AnalyticalRectangularSource):
 
         Code copied from Kite
         Disregarding the opening (as for now)
-        We assume a shear modulus of :math:`\\mu = 36 \\mathrm{GPa}`
-        and :math:`M_0 = mu A D`
+        We assume :math:`M_0 = mu A D`
 
         .. important ::
 
@@ -154,18 +222,11 @@ class OkadaSource(AnalyticalRectangularSource):
         :rtype: float
         '''
 
-        if self.shearmod:
-            mu = self.shearmod
-        elif self.poisson:
-            self.shearmod = (8. * (1. + self.poisson)) / (1. - 2*self.poisson)
-            mu = self.shearmod
-        else:
-            raise ValueError(
-                'Shear modulus or poisson ratio needed for moment calculation')
+        mu = self.shearmod
 
         disl = 0.
         if self.slip:
-            disl = (disl**2 + self.slip**2)**.5
+            disl = self.slip
         if self.opening:
             disl = (disl**2 + self.opening**2)**.5
 

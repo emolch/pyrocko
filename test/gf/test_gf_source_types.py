@@ -60,11 +60,11 @@ class GFSourceTypesTestCase(unittest.TestCase):
         plt.axis('equal')
         plt.show()
 
-    @unittest.skipUnless(*have_store('crust2_ib'))
+    @unittest.skipUnless(*have_store('iceland_reg_v2'))
     def test_pseudo_dynamic_rupture(self):
         from matplotlib import pyplot as plt
 
-        store_id = 'crust2_ib'
+        store_id = 'iceland_reg_v2'
 
         engine = gf.get_engine()
         store = engine.get_store(store_id)
@@ -115,7 +115,7 @@ class GFSourceTypesTestCase(unittest.TestCase):
         cum_mom_old = (mom_rate_old * num.concatenate([
             (num.diff(times_old)[0],), num.diff(times_old)])).sum()
 
-        num.testing.assert_allclose(cum_mom_old, moment, rtol=1e-3)
+        num.testing.assert_allclose(cum_mom_old, moment, rtol=2e-3)
         num.testing.assert_equal(times_new, times_old)
 
         # Check magnitude scaling of slip and slip rate
@@ -130,7 +130,7 @@ class GFSourceTypesTestCase(unittest.TestCase):
         num.testing.assert_allclose(
             pdr.get_moment(store=store),
             moment,
-            rtol=1e-2)
+            rtol=5e-2)
 
         deltat = pdr.get_patch_attribute('time').max() * 0.5
         deltaslip, times = pdr.get_delta_slip(deltat=deltat, delta=False)
@@ -194,7 +194,6 @@ class GFSourceTypesTestCase(unittest.TestCase):
             plt.colorbar(im, label='Opening [m] after %.2f s' % deltat)
             plt.show()
 
-    @unittest.skipUnless(*have_store('crust2_ib'))
     def test_pseudo_dynamic_rupture_outline(self):
         length = 20000.
         width = 10000.
@@ -235,7 +234,6 @@ class GFSourceTypesTestCase(unittest.TestCase):
             num.concatenate((latlon, points[:, 2].reshape((-1, 1))), axis=1),
             pdr.outline(cs='latlondepth'), atol=1.)
 
-    @unittest.skipUnless(*have_store('crust2_ib'))
     def test_pseudo_dynamic_rupture_points_on_source(self):
         length = 20000.
         width = 10000.
@@ -291,9 +289,9 @@ class GFSourceTypesTestCase(unittest.TestCase):
                 points_x=points_xy[:, 0], points_y=points_xy[:, 1],
                 cs='latlondepth'), atol=1.)
 
-    @unittest.skipUnless(*have_store('crust2_ib'))
+    @unittest.skipUnless(*have_store('iceland_reg_v2'))
     def test_oversampling(self):
-        store_id = 'crust2_ib'
+        store_id = 'iceland_reg_v2'
 
         comp_map = {
             'E': 0,
@@ -341,7 +339,7 @@ class GFSourceTypesTestCase(unittest.TestCase):
         all_traces = []
         for isize in range(nsizes):
             source = gf.RectangularSource(
-                depth=5.*km,
+                depth=1.5*km,
                 strike=0.,
                 dip=90.,
                 anchor='top',

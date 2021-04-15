@@ -4,8 +4,10 @@ import numpy as num
 import unittest
 
 from pyrocko import util
-from pyrocko import moment_tensor as mt
-from pyrocko.modelling import DislocationInverter, okada_ext, OkadaSource
+from pyrocko import moment_tensor as pmt
+from pyrocko.modelling import (
+    DislocationInverter, okada_ext, OkadaSource, GriffithCrack)
+
 
 from ..common import Benchmark
 
@@ -93,6 +95,48 @@ class OkadaTestCase(unittest.TestCase):
                 [slip**2, opening**2]))
 
         assert source_list2[0].seismic_moment == seismic_moment
+
+    def test_okada_params(self):
+        strike = 0.
+        dip = 0.
+        rake = 90.
+        slip = 1.0
+        opening = 1.0
+
+        al1 = 0.
+        al2 = 0.5
+        aw1 = 0.
+        aw2 = 0.25
+        poisson = 0.25
+        mu = 32.0e9
+        lamb = (2. * poisson * mu) / (1. - 2. * poisson)
+
+        source = OkadaSource(
+            lat=0., lon=0.,
+            north_shift=0., east_shift=0.,
+            depth=1000., al1=al1, al2=al2, aw1=aw1, aw2=aw2,
+            strike=strike, dip=dip,
+            rake=rake, slip=slip, opening=opening,
+            poisson=poisson, lamb=lamb)
+
+        assert source.shearmod == mu
+
+        source.lamb = None
+        source.shearmod = mu
+        assert source.lamb == lamb
+
+        source.poisson = None
+        source.lamb = lamb
+        assert source.poisson == poisson
+
+        moment = num.linalg.norm(
+            (slip, opening)) * (al1 + al2) * (aw1 + aw2) * mu
+
+        num.testing.assert_allclose(source.seismic_moment, moment, atol=1e-7)
+        num.testing.assert_allclose(
+            source.moment_magnitude,
+            pmt.moment_to_magnitude(moment),
+            atol=1e-7)
 
     def test_okada_online_example(self):
         source_list = [OkadaSource(
@@ -210,7 +254,7 @@ class OkadaTestCase(unittest.TestCase):
         coefmat_sdn = num.zeros((npoints * 3, npoints * 3))
 
         def ned2sdn_rotmat(strike, dip):
-            return mt.euler_to_matrix((dip + 180.)*d2r, strike*d2r, 0.).A
+            return pmt.euler_to_matrix((dip + 180.)*d2r, strike*d2r, 0.).A
 
         lambda_mean = num.mean([src.lamb for src in source_disc])
         mu_mean = num.mean([src.shearmod for src in source_disc])
@@ -573,8 +617,6 @@ class OkadaTestCase(unittest.TestCase):
             plt.show()
 
     def test_okada_vs_griffith_circ(self):
-        from pyrocko.modelling import GriffithCrack
-
         length_total = 10000.
         width_total = length_total
 
@@ -633,6 +675,8 @@ class OkadaTestCase(unittest.TestCase):
         griffith = GriffithCrack(
             width=length_total,
             poisson=poisson, shearmod=mu, stressdrop=stressdrop)
+
+        # Test circular crack
         disloc_grif = griffith.disloc_circular(x_obs=rec_grif)
 
         indices = num.arange(source_coords.shape[0])[source_coords[:, 0] == 0.]
@@ -680,6 +724,142 @@ class OkadaTestCase(unittest.TestCase):
             add_subplot(fig, 3, 3, r'$\Delta u_{normal}$', 2, typ='scatter')
             plt.show()
 
+    def test_okada_vs_griffith_displacement_inf2d(self):
+        length_total = 50. * km
+        width_total = 10. * km
+        depth = 200. * km
+
+        al1 = -length_total / 2.
+        al2 = length_total / 2.
+        aw1 = -width_total / 2.
+        aw2 = width_total / 2.
+
+        nlength = 50
+        nwidth = 10
+
+        poisson = 0.25
+        mu = 32.0e9
+        lamb = (2. * poisson * mu) / (1. - 2. * poisson)
+
+        dstress = -0.5e6
+        comp = 1
+        min_x = -width_total / 2.
+        max_x = width_total / 2.
+
+        source = OkadaSource(
+            lat=0., lon=0.,
+            north_shift=0., east_shift=0.,
+            depth=depth, al1=al1, al2=al2, aw1=aw1, aw2=aw2,
+            strike=0., dip=0., rake=0.,
+            shearmod=mu, poisson=poisson)
+
+        source_list, _ = source.discretize(nlength, nwidth)
+
+        for isource in range(len(source_list)):
+            source_list[isource].shearmod = mu
+            source_list[isource].poisson = poisson
+
+        # Displacement along x2
+        stress = num.zeros((3 * len(source_list), ))
+        stress[comp::3] = dstress
+
+        cf = DislocationInverter.get_coef_mat(source_list, pure_shear=False)
+
+        disloc_okada = \
+            DislocationInverter.get_disloc_lsq(
+                stress_field=stress,
+                coef_mat=cf)
+
+        source_patches = num.array([src.source_patch() for src in source_list])
+        source_disl = disloc_okada.reshape(source_patches.shape[0], 3)
+
+        n_rec = 30
+        x_grif = num.linspace(min_x * 3., max_x * 3., n_rec)
+
+        receiver_coords = num.zeros((n_rec, 3))
+        receiver_coords[:, 0] = 0.
+        receiver_coords[:, 1] = x_grif
+        receiver_coords[:, 2] = depth
+
+        displ_okada = okada_ext.okada(
+            source_patches, source_disl, receiver_coords, lamb, mu, 0)
+
+        stressdrop = num.zeros(3, )
+        stressdrop[comp] = dstress
+
+        griffith = GriffithCrack(
+            width=num.sum(num.abs([min_x, max_x])),
+            poisson=poisson,
+            shearmod=mu,
+            stressdrop=stressdrop)
+
+        displ_grif = griffith.displ_infinite2d(x1_obs=0., x2_obs=x_grif)
+
+        num.testing.assert_allclose(
+            displ_grif[:, 2],
+            displ_okada[:, 2],
+            rtol=4e-1)
+
+        if show_plot:
+            import matplotlib.pyplot as plt
+
+            plt.plot(x_grif, displ_grif[:, 2], 'r')
+            plt.plot(x_grif, displ_okada[:, 2], 'b')
+
+            plt.xlabel('distance along x2 [m]')
+            plt.ylabel('opening displacement [m]')
+
+            plt.show()
+
+        # Displacement along x1
+        comp = 0
+        stress = num.zeros((3 * len(source_list), ))
+        stress[comp::3] = dstress
+
+        stressdrop = num.zeros(3, )
+        stressdrop[comp] = dstress
+
+        griffith.stressdrop = stressdrop
+
+        for i in range(len(source_list)):
+            source_list[i].depth = depth
+
+        cf = DislocationInverter.get_coef_mat(source_list)
+        disloc_okada = \
+            DislocationInverter.get_disloc_lsq(
+                stress_field=stress,
+                coef_mat=cf)
+
+        source_patches = num.array([src.source_patch() for src in source_list])
+        source_disl = disloc_okada.reshape(source_patches.shape[0], 3)
+
+        n_rec = 30
+        receiver_coords = num.zeros((n_rec, 3))
+        receiver_coords[:, 0] = 0.
+        receiver_coords[:, 1] = 0.
+        receiver_coords[:, 2] = depth + x_grif
+
+        displ_okada = okada_ext.okada(
+            source_patches, source_disl, receiver_coords, lamb, mu, 0)
+
+        displ_grif = -griffith.displ_infinite2d(x1_obs=x_grif, x2_obs=0.)
+
+        num.testing.assert_allclose(
+            displ_grif[:, 0],
+            displ_okada[:, 0],
+            rtol=5e-1)
+
+        if show_plot:
+            import matplotlib.pyplot as plt
+
+            plt.plot(x_grif, displ_grif[:, 0], 'r')
+            plt.plot(x_grif, displ_okada[:, 0], 'b')
+
+            plt.xlabel('distance along x1 [m]')
+            plt.ylabel('displacement in strike [m]')
+
+            plt.show()
+
     def test_patch2m6(self):
         rstate = num.random.RandomState(123)
         nbasesrcs = 100
@@ -702,12 +882,12 @@ class OkadaTestCase(unittest.TestCase):
             mu=mu)
 
         def patch2m6(strike, dip, rake, du_s, du_n):
-            rotmat = mt.euler_to_matrix(dip, strike, -rake)
+            rotmat = pmt.euler_to_matrix(dip, strike, -rake)
             momentmat = num.array(
                 [[lamb * du_n, 0.,          -mu * du_s],
                  [0.,          lamb * du_n, 0.],
                  [-mu * du_s,  0.,          (lamb + 2. * mu) * du_n]])
-            return mt.to6(rotmat.T * momentmat * rotmat)
+            return pmt.to6(rotmat.T * momentmat * rotmat)
 
         m6s_old = num.array([
             patch2m6(
