@@ -60,7 +60,7 @@ class Event(Location):
 
     :param lat: latitude of hypocenter (default 0.0)
     :param lon: longitude of hypocenter (default 0.0)
-    :param time: origin time as float in seconds after '1970-01-01 00:00:00
+    :param time: origin time system timestamp
     :param name: event identifier as string (optional)
     :param depth: source depth (optional)
     :param magnitude: magnitude of event (optional)
@@ -74,7 +74,7 @@ class Event(Location):
         Keys must be strings, values must be YAML serializable.
     '''
 
-    time = Timestamp.T(default=util.str_to_time('1970-01-01 00:00:00'))
+    time = Timestamp.T(default=Timestamp.D('1970-01-01 00:00:00'))
     depth = Float.T(optional=True)
     name = String.T(default='', optional=True, yamlstyle="'")
     magnitude = Float.T(optional=True)

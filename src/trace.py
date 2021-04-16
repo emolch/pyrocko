@@ -69,7 +69,7 @@ class Trace(Object):
     location = String.T(default='')
     channel = String.T(default='')
 
-    tmin = Timestamp.T(default=0.0)
+    tmin = Timestamp.T(default=Timestamp.D('1970-01-01 00:00:00'))
     tmax = Timestamp.T()
 
     deltat = Float.T(default=1.0)

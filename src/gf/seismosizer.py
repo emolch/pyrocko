@@ -1046,7 +1046,7 @@ class Source(Location, Cloneable):
     name = String.T(optional=True, default='')
 
     time = Timestamp.T(
-        default=0.,
+        default=Timestamp.D('1970-01-01 00:00:00'),
         help='source origin time.')
 
     stf = STF.T(

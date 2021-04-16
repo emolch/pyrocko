@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function
 
 import os.path as op
 
-from pyrocko import util, moment_tensor
+from pyrocko import moment_tensor
 from pyrocko.guts import Timestamp, Float, Int, Bool
 
 from ..base import LocationGenerator
@@ -23,8 +23,8 @@ class SourceGenerator(LocationGenerator):
         default=False,
         help='Avoid sources offshore under the ocean / lakes.')
 
-    time_min = Timestamp.T(default=util.str_to_time('2017-01-01 00:00:00'))
-    time_max = Timestamp.T(default=util.str_to_time('2017-01-03 00:00:00'))
+    time_min = Timestamp.T(default=Timestamp.D('2017-01-01 00:00:00'))
+    time_max = Timestamp.T(default=Timestamp.D('2017-01-03 00:00:00'))
 
     magnitude_min = Float.T(
         default=4.0,

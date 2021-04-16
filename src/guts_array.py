@@ -59,12 +59,12 @@ class Array(Object):
             self.serialize_dtype = serialize_dtype
 
         def is_default(self, val):
-            if self._default_cmp is None:
+            if self._default is None:
                 return val is None
             elif val is None:
                 return False
             else:
-                return array_equal(self._default_cmp, val)
+                return array_equal(self._default, val)
 
         def regularize_extra(self, val):
             if isinstance(val, (str, newstr)):

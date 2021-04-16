@@ -67,7 +67,7 @@ class SeismosizerTrace(Object):
         help='sampling interval [s]')
 
     tmin = Timestamp.T(
-        default=0.0,
+        default=Timestamp.D('1970-01-01 00:00:00'),
         help='time of first sample as a system timestamp [s]')
 
     def pyrocko_trace(self):

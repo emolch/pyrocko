@@ -351,10 +351,6 @@ class TBase(object):
 
         g_iprop += 1
         self._default = default
-        if isinstance(self._default, DefaultMaker):
-            self._default_cmp = self._default.make()
-        else:
-            self._default_cmp = self._default
 
         self.optional = optional
         self.name = None
@@ -368,10 +364,10 @@ class TBase(object):
         return make_default(self._default)
 
     def is_default(self, val):
-        if self._default_cmp is None:
+        if self._default is None:
             return val is None
         else:
-            return self._default_cmp == val
+            return self._default == val
 
     def has_default(self):
         return self._default is not None
@@ -608,12 +604,11 @@ class TBase(object):
     def classname_for_help(self, strip_module=''):
         if self.dummy_cls in guts_plain_dummy_types:
             return '``%s``' % self.cls.__name__
-        else:
-            if isinstance(self.cls, tuple):
-                return 'fixme!'
 
-            mod = self.cls.__module__
-            cls = self.cls.__name__
+        elif self.dummy_cls.dummy_for_description:
+            return self.dummy_cls.dummy_for_description
+
+        else:
             if self.dummy_cls is not self.cls:
                 if self.dummy_cls.__module__ == strip_module:
                     sadd = ' (:py:class:`%s`)' % (
@@ -624,14 +619,23 @@ class TBase(object):
             else:
                 sadd = ''
 
-            if mod == '__builtin__':
-                return '``%s``%s' % (cls, sadd)
+            def sclass(cls):
+                mod = cls.__module__
+                clsn = cls.__name__
+                if mod == '__builtin__' or mod == 'builtins':
+                    return '``%s``' % clsn
 
-            elif self.cls.__module__ == strip_module:
-                return ':py:class:`%s`%s' % (cls, sadd)
+                elif mod == strip_module:
+                    return ':py:class:`%s`' % clsn
 
+                else:
+                    return ':py:class:`%s.%s`' % (mod, clsn)
+
+            if isinstance(self.cls, tuple):
+                return '(%s)%s' % (
+                    ' | '.join(sclass(cls) for cls in self.cls), sadd)
             else:
-                return ':py:class:`%s.%s`%s' % (mod, cls, sadd)
+                return '%s%s' % (sclass(cls), sadd)
 
     @classmethod
     def props_help_string(cls):
@@ -652,9 +656,12 @@ class TBase(object):
             if prop.optional:
                 descr.append('*optional*')
 
-            d = prop.default()
-            if d is not None:
-                descr.append('*default:* ``%s``' % repr(d))
+            if isinstance(prop._default, DefaultMaker):
+                descr.append('*default:* ``%s``' % repr(prop._default))
+            else:
+                d = prop.default()
+                if d is not None:
+                    descr.append('*default:* ``%s``' % repr(d))
 
             hlp.append('    .. py:gattribute:: %s' % prop.name)
             hlp.append('')
@@ -823,15 +830,51 @@ def make_default(x):
 
 
 class DefaultMaker(object):
+    def make(self):
+        raise NotImplementedError('Schould be implemented in subclass.')
+
+
+class ObjectDefaultMaker(DefaultMaker):
     def __init__(self, cls, args, kwargs):
+        DefaultMaker.__init__(self)
         self.cls = cls
         self.args = args
         self.kwargs = kwargs
+        self.instance = None
 
     def make(self):
         return self.cls(
             *[make_default(x) for x in self.args],
             **dict((k, make_default(v)) for (k, v) in self.kwargs.items()))
+
+    def __eq__(self, other):
+        if self.instance is None:
+            self.instance = self.make()
+
+        return self.instance == other
+
+    def __repr__(self):
+        sargs = []
+        for arg in self.args:
+            sargs.append(repr(arg))
+
+        for k, v in self.kwargs.items():
+            sargs.append('%s=%s' % (k, repr(v)))
+
+        return '%s(%s)' % (self.cls.__name__, ', '.join(sargs))
+
+
+class TimestampDefaultMaker(DefaultMaker):
+    def __init__(self, s, format='%Y-%m-%d %H:%M:%S.OPTFRAC'):
+        DefaultMaker.__init__(self)
+        self._stime = s
+        self._format = format
+
+    def make(self):
+        return str_to_time(self._stime, self._format)
+
+    def __repr__(self):
+        return "str_to_time(%s)" % repr(self._stime)
 
 
 def with_metaclass(meta, *bases):
@@ -850,6 +893,7 @@ def with_metaclass(meta, *bases):
 
 class Object(with_metaclass(ObjectMetaClass, object)):
     dummy_for = None
+    dummy_for_description = None
 
     def __init__(self, **kwargs):
         if not kwargs.get('init_props', True):
@@ -872,7 +916,7 @@ class Object(with_metaclass(ObjectMetaClass, object)):
 
     @classmethod
     def D(cls, *args, **kwargs):
-        return DefaultMaker(cls, args, kwargs)
+        return ObjectDefaultMaker(cls, args, kwargs)
 
     def validate(self, regularize=False, depth=-1):
         self.T.instance.validate(self, regularize, depth)
@@ -1293,6 +1337,10 @@ class Timestamp(Object):
             return time_to_str(val, format='%Y-%m-%dT%H:%M:%S.9FRAC')\
                 .rstrip('0').rstrip('.') + 'Z'
 
+    @classmethod
+    def D(self, s):
+        return TimestampDefaultMaker(s)
+
 
 class DateTimestamp(Object):
     dummy_for = (hpfloat, float)
@@ -1325,6 +1373,10 @@ class DateTimestamp(Object):
 
         def to_save_xml(self, val):
             return time_to_str(val, format='%Y-%m-%d')
+
+    @classmethod
+    def D(self, s):
+        return TimestampDefaultMaker(s, format='%Y-%m-%d')
 
 
 class StringPattern(String):
