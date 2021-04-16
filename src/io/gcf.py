@@ -15,7 +15,16 @@ from collections import namedtuple
 from pyrocko import util, trace
 from .io_common import FileLoadError
 
-guralp_zero = util.str_to_time('1989-11-17 00:00:00')
+
+g_guralp_zero = None
+
+
+def get_guralp_zero():
+    global g_guralp_zero
+    if g_guralp_zero is None:
+        g_guralp_zero = util.str_to_time('1989-11-17 00:00:00')
+
+    return g_guralp_zero
 
 
 class GCFLoadError(FileLoadError):
@@ -79,7 +88,7 @@ def read_header(f, endianness='>'):
     i_day_second = struct.unpack(e+'I', data[8:12])[0]
     iday = i_day_second >> 17
     isecond = i_day_second & 0x1ffff
-    time = (iday*24*60*60) + guralp_zero + isecond
+    time = (iday*24*60*60) + get_guralp_zero() + isecond
 
     ittl, israte, compression, nrecords = struct.unpack(e+'BBBB', data[12:])
     if nrecords > 250:
@@ -236,7 +245,6 @@ def detect(first512):
 
 
 if __name__ == '__main__':
-    from pyrocko import util
     util.setup_logging('warn')
 
     all_traces = []

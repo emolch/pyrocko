@@ -14,7 +14,16 @@ from pyrocko import util, trace, model
 from .io_common import FileLoadError
 
 
-suds_tzero = util.str_to_time('1970-01-01 00:00:00')
+g_suds_zero = None
+
+
+def get_suds_zero():
+    global g_suds_zero
+    if g_suds_zero is None:
+        g_suds_zero = util.str_to_time('1970-01-01 00:00:00')
+
+    return g_suds_zero
+
 
 logger = logging.getLogger('pyrocko.io.suds')
 
@@ -105,7 +114,7 @@ class SudsDescriptrace(SudsStructBase, namedtuple(
         return cls._make(v)
 
     def to_trace(self, data):
-        tmin = self.begintime - suds_tzero
+        tmin = self.begintime - get_suds_zero()
         deltat = 1.0 / self.rate
 
         if data is None:
