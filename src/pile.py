@@ -260,7 +260,7 @@ class TracesFileCache(object):
             if not os.path.isfile(fn):
                 del cache[fn]
 
-        time_float = util.get_time_class()
+        time_float = util.get_time_float()
 
         for v in cache.values():
             v.trees_from_content(v.traces)

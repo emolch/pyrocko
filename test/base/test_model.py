@@ -39,7 +39,7 @@ class ModelTestCase(unittest.TestCase):
         return tempdir
 
     def testIOEventOld(self):
-        time_float = util.get_time_class()
+        time_float = util.get_time_float()
         tempdir = self.make_tempdir()
         fn = pjoin(tempdir, 'event.txt')
         e1 = model.Event(
@@ -64,7 +64,7 @@ class ModelTestCase(unittest.TestCase):
     def testIOEvent(self):
         tempdir = self.make_tempdir()
         fn = pjoin(tempdir, 'event.txt')
-        time_float = util.get_time_class()
+        time_float = util.get_time_float()
         e1 = model.Event(
             10., 20.,
             depth=10000.,

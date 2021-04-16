@@ -198,7 +198,7 @@ steps:
   - python3 -m coverage run --parallel-mode -m nose test.base
   - for x in .coverage.* ; do mv $x $${x#.} ; done
   environment:
-    USE_HPTIME: 1
+    PYROCKO_USE_HIGH_PRECISION_TIME: 1
   when:
     branch:
     - hptime
@@ -247,7 +247,7 @@ steps:
   - python3 -m coverage run --parallel-mode -m nose test.gf
   - for x in .coverage.* ; do mv $x $${x#.} ; done
   environment:
-    USE_HPTIME: 1
+    PYROCKO_USE_HIGH_PRECISION_TIME: 1
   when:
     branch:
     - hptime
@@ -295,7 +295,7 @@ steps:
   - python3 -m coverage run --parallel-mode -m nose test.examples
   - for x in .coverage.* ; do mv $x $${x#.} ; done
   environment:
-    USE_HPTIME: 1
+    PYROCKO_USE_HIGH_PRECISION_TIME: 1
   when:
     branch:
     - hptime
@@ -339,7 +339,7 @@ steps:
   - xvfb-run -s '-screen 0 640x480x24' python3 -m coverage run --parallel-mode -m nose test.gui test.base.test_obspy_compat:ObsPyCompatTestCase.test_obspy_fiddle test.base.test_obspy_compat:ObsPyCompatTestCase.test_obspy_snuffle
   - for x in .coverage.* ; do mv $x $${x#.} ; done
   environment:
-    USE_HPTIME: 1
+    PYROCKO_USE_HIGH_PRECISION_TIME: 1
   when:
     branch:
     - hptime

@@ -29,7 +29,7 @@ except ImportError:
     from yaml import SafeLoader, SafeDumper
 
 from .util import time_to_str, str_to_time, TimeStrError, hpfloat, \
-    get_time_class
+    get_time_float
 
 try:
     newstr = unicode
@@ -1287,7 +1287,7 @@ class Timestamp(Object):
 
         def regularize_extra(self, val):
 
-            time_float = get_time_class()
+            time_float = get_time_float()
 
             if isinstance(val, datetime.datetime):
                 tt = val.utctimetuple()
@@ -1350,7 +1350,7 @@ class DateTimestamp(Object):
 
         def regularize_extra(self, val):
 
-            time_float = get_time_class()
+            time_float = get_time_float()
 
             if isinstance(val, datetime.datetime):
                 tt = val.utctimetuple()

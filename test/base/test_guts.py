@@ -28,7 +28,7 @@ try:
 except NameError:
     unicode = str
 
-from pyrocko.util import get_time_class, to_time_float
+from pyrocko.util import get_time_float, to_time_float
 
 
 guts_prefix = 'guts_test'
@@ -48,7 +48,7 @@ basic_types = (
 
 
 def tstamp(*args):
-    time_float = get_time_class()
+    time_float = get_time_float()
     return time_float(calendar.timegm(args))
 
 
@@ -1342,13 +1342,13 @@ c: [!include ./{fname}]
         class X(Object):
             t = Timestamp.T()
 
-        time_float = get_time_class()
+        time_float = get_time_float()
         now = num.floor(time_float(time.time()))
 
         x = X(t=now)
         x2 = load_string(x.dump())
 
-        assert isinstance(x2.t, get_time_class())
+        assert isinstance(x2.t, get_time_float())
 
         x3 = load_string('''--- !guts_test.X
 t: 2018-08-06 12:53:20

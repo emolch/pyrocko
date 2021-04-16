@@ -56,7 +56,7 @@ class UtilTestCase(unittest.TestCase):
 
         with self.assertRaises(util.TimestampTypeError):
 
-            if util.get_time_class() is float:
+            if util.get_time_float() is float:
                 v = util.hpfloat(1.0)
             else:
                 v = 1.0

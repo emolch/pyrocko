@@ -18,7 +18,7 @@ class TargetGenerator(Generator):
         targets we have to consider vmin, vmax
         '''
         times = num.array([source.time for source in sources],
-                          dtype=util.get_time_class_numpy())
+                          dtype=util.get_time_dtype())
 
         return num.min(times), num.max(times)
 

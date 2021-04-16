@@ -206,7 +206,7 @@ class WaveformGenerator(TargetGenerator):
         dmin, dmax = self.station_generator.get_distance_range(sources)
 
         times = num.array([source.time for source in sources],
-                          dtype=util.get_time_class_numpy())
+                          dtype=util.get_time_dtype())
 
         tmin_events = num.min(times)
         tmax_events = num.max(times)

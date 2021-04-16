@@ -11,7 +11,7 @@ class MarkerTestCase(unittest.TestCase):
     def test_writeread(self):
         nslc_ids = [('', 'STA', '', '*')]
 
-        time_float = util.get_time_class()
+        time_float = util.get_time_float()
 
         event = model.Event(
             lat=111., lon=111., depth=111., time=time_float(111.))

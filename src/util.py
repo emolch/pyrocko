@@ -48,7 +48,7 @@ use:
 
     # To get the appropriate float class, use:
 
-    time_float = util.get_time_class()
+    time_float = util.get_time_float()
     #  -> float, numpy.float128 or numpy.float96
     [isinstance(t, time_float) for t in [t1, t2, t3]]
     #  -> [True, True, True]
@@ -413,7 +413,11 @@ else:
 
 
 g_time_float = None
-g_time_float_numpy = None
+g_time_dtype = None
+
+
+class TimeFloatSettingError(Exception):
+    pass
 
 
 def use_high_precision_time(enabled):
@@ -426,22 +430,76 @@ def use_high_precision_time(enabled):
     :type enabled: bool
 
     This function should be called before handling/reading any time data.
-    Furthermore, it should not be changed later unless you know what you are
-    doing.
+    It can only be called once.
 
     Special attention is required when using multiprocessing on a platform
     which does not use fork under the hood. In such cases, the desired setting
     must be set also in the subprocess.
     '''
+    _setup_high_precision_time_mode(enabled_app=enabled)
 
+
+def _setup_high_precision_time_mode(enabled_app=False):
     global g_time_float
-    g_time_float = hpfloat if enabled else float
+    global g_time_dtype
 
-    global g_time_float_numpy
-    g_time_float_numpy = hpfloat if enabled else num.float64
+    if not (g_time_float is None and g_time_dtype is None):
+        raise TimeFloatSettingError(
+            'Cannot set time handling mode: too late, it has already been '
+            'fixed by an earlier call.')
+
+    from pyrocko import config
+
+    conf = config.config()
+    enabled_config = conf.use_high_precision_time
+
+    enabled_env = os.environ.get('PYROCKO_USE_HIGH_PRECISION_TIME', None)
+    if enabled_env is not None:
+        try:
+            enabled_env = int(enabled_env) == 1
+        except ValueError:
+            raise TimeFloatSettingError(
+                'Environment variable PYROCKO_USE_HIGH_PRECISION_TIME '
+                'should be set to 0 or 1.')
+
+    enabled = enabled_config
+    mode_from = 'config variable `use_high_precision_time`'
+    notify = enabled
+
+    if enabled_env is not None:
+        if enabled_env != enabled:
+            notify = True
+        enabled = enabled_env
+        mode_from = 'environment variable `PYROCKO_USE_HIGH_PRECISION_TIME`'
+
+    if enabled_app is not None:
+        if enabled_app != enabled:
+            notify = True
+        enabled = enabled_app
+        mode_from = 'application override'
+
+    logger.debug('''
+Pyrocko high precision time mode selection (latter override earlier):
+    config: %s
+    env: %s
+    app: %s
+     -> enabled: %s'''.lstrip() % (
+         enabled_config, enabled_env, enabled_app, enabled))
+
+    if notify:
+        logger.info('Pyrocko high precision time mode %s by %s.' % (
+            'activated' if enabled else 'deactivated',
+            mode_from))
+
+    if enabled:
+        g_time_float = hpfloat
+        g_time_dtype = hpfloat
+    else:
+        g_time_float = float
+        g_time_dtype = num.float64
 
 
-def get_time_class():
+def get_time_float():
     '''
     Get the effective float class for timestamps.
 
@@ -453,30 +511,24 @@ def get_time_class():
     global g_time_float
 
     if g_time_float is None:
-        from pyrocko import config
-        conf = config.config()
-        g_time_float = hpfloat if conf.use_high_precision_time else float
+        _setup_high_precision_time_mode()
 
     return g_time_float
 
 
-def get_time_class_numpy():
+def get_time_dtype():
     '''
     Get effective NumPy float class to handle timestamps.
 
     See :ref:`High precision time handling mode <time-handling-mode>`.
     '''
 
-    global g_time_float_numpy
+    global g_time_dtype
 
-    if g_time_float_numpy is None:
-        from pyrocko import config
-        conf = config.config()
-        g_time_float_numpy = hpfloat \
-            if conf.use_high_precision_time \
-            else num.float64
+    if g_time_dtype is None:
+        _setup_high_precision_time_mode()
 
-    return g_time_float_numpy
+    return g_time_dtype
 
 
 def to_time_float(t):
@@ -485,7 +537,7 @@ def to_time_float(t):
 
     See :ref:`High precision time handling mode <time-handling-mode>`.
     '''
-    return get_time_class()(t)
+    return get_time_float()(t)
 
 
 class TimestampTypeError(ValueError):
@@ -502,13 +554,13 @@ def check_time_class(t, error='raise'):
     if t == 0.0:
         return
 
-    if not isinstance(t, get_time_class()):
+    if not isinstance(t, get_time_float()):
         message = (
             'Timestamp %g is of type %s but should be of type %s with '
             'Pyrocko\'s currently selected time handling mode.\n\n'
             'See https://pyrocko.org/docs/current/library/reference/util.html'
             '#high-precision-time-handling-mode' % (
-                t, type(t), get_time_class()))
+                t, type(t), get_time_float()))
 
         if error == 'raise':
             raise TimestampTypeError(message)
@@ -1417,7 +1469,7 @@ def str_to_time(s, format='%Y-%m-%d %H:%M:%S.OPTFRAC'):
     seconds.
     '''
 
-    time_float = get_time_class()
+    time_float = get_time_float()
 
     if util_ext is not None:
         try:

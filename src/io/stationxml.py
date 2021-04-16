@@ -18,7 +18,7 @@ from pyrocko.guts import (StringChoice, StringPattern, UnicodePattern, String,
                           Unicode, Int, Float, List, Object, Timestamp,
                           ValidationError, TBase, re_tz)
 from pyrocko.guts import load_xml  # noqa
-from pyrocko.util import hpfloat, time_to_str, get_time_class
+from pyrocko.util import hpfloat, time_to_str, get_time_float
 
 import pyrocko.model
 from pyrocko import trace, util
@@ -127,7 +127,7 @@ class DummyAwareOptionalTimestamp(Object):
     class __T(TBase):
 
         def regularize_extra(self, val):
-            time_float = get_time_class()
+            time_float = get_time_float()
 
             if isinstance(val, datetime.datetime):
                 tt = val.utctimetuple()

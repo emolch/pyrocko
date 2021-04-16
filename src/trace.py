@@ -85,7 +85,7 @@ class Trace(Object):
 
         Object.__init__(self, init_props=False)
 
-        time_float = util.get_time_class()
+        time_float = util.get_time_float()
 
         if not isinstance(tmin, time_float):
             tmin = Trace.tmin.regularize_extra(tmin)
