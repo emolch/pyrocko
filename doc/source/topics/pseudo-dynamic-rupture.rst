@@ -13,7 +13,7 @@ Theoretical foundation
 
 .. note ::
     
-    Dahm, T., Metz, M., Heimann, S., Isken, M. P. (2020). A self-similar dynamic rupture model based on the simplified wave-rupture analogy. Geophysical Journal International. *in-review*
+    Dahm, T., Metz, M., Heimann, S., Isken, M. P. (2021). A self-similar dynamic rupture model based on the simplified wave-rupture analogy. Geophysical Journal International. Volume 225, Issue 3, June 2021, Pages 1586–1604, https://doi.org/10.1093/gji/ggab045
 
 .. contents :: Content
   :depth: 4
@@ -23,7 +23,7 @@ Source implementation details
 *****************************
 
 
-The implementation of the pseudo dynamic rupture model into the Pyrocko and Pyrocko-GF framework is based on [Dahm2020]_. Essential building blocks are the classes :py:class:`~pyrocko.gf.seismosizer.PseudoDynamicRupture` and :py:class:`~pyrocko.gf.tractions.AbstractTractionField`. Additionally the model is constrained by the subsurface underground model as provided by the :py:class:`~pyrocko.gf.seismosizer.Store`. See [Dahm2020_] which describes the rupture source model in detail.
+The implementation of the pseudo dynamic rupture model into the Pyrocko and Pyrocko-GF framework is based on [Dahm2021]_. Essential building blocks are the classes :py:class:`~pyrocko.gf.seismosizer.PseudoDynamicRupture` and :py:class:`~pyrocko.gf.tractions.AbstractTractionField`. Additionally the model is constrained by the subsurface underground model as provided by the :py:class:`~pyrocko.gf.seismosizer.Store`. See [Dahm2021_] which describes the rupture source model in detail.
 
 .. figure :: /static/pseudo-dynamic-flow-2.svg
     :align: center
@@ -322,4 +322,4 @@ For rather complex ruptures also directivity effects in the waveforms are of int
 **********
 References
 **********
-.. [Dahm2020] Dahm, T., Metz, M., Heimann, S., Isken, M. P. (2020). A self-similar dynamic rupture model based on the simplified wave-rupture analogy. Geophysical Journal International. *in-review*
+.. [Dahm2021] Dahm, T., Metz, M., Heimann, S., Isken, M. P. (2021). A self-similar dynamic rupture model based on the simplified wave-rupture analogy. Geophysical Journal International. Volume 225, Issue 3, June 2021, Pages 1586–1604, https://doi.org/10.1093/gji/ggab045
