@@ -59,8 +59,9 @@ else:
 logger = logging.getLogger('pyrocko.gui.marker_editor')
 
 _header_data = [
-    'T', 'Time', 'M', 'Label', 'Depth [km]', 'Lat', 'Lon', 'Kind', 'Dist [km]',
-    'NSLCs', 'Polarity', 'Kagan Angle [deg]', 'Event Hash', 'MT']
+    'Type', 'Time', 'M', 'Label', 'Depth [km]', 'Lat', 'Lon', 'Kind',
+    'Dist [km]', 'NSLCs', 'Polarity', 'Kagan Angle [deg]', 'Event Hash',
+    'MT']
 
 _column_mapping = dict(zip(_header_data, range(len(_header_data))))
 
@@ -466,11 +467,11 @@ class MarkerTableModel(qc.QAbstractTableModel):
                 return qc.QVariant(
                     qc.QDateTime.fromMSecsSinceEpoch(marker.tmin*1000))
 
-            elif column == _column_mapping['T']:
+            elif column == _column_mapping['Type']:
                 if isinstance(marker, EventMarker):
-                    s = 'E'
+                    s = 'Event'
                 elif isinstance(marker, PhaseMarker):
-                    s = 'P'
+                    s = 'Phase'
 
             elif column == _column_mapping['M']:
                 if isinstance(marker, EventMarker):
