@@ -357,6 +357,104 @@ def eig2gx(eig, arcres=181):
     return groups
 
 
+def eig2gx_singleforce(force, arcres=181):
+    from pyrocko.moment_tensor import euler_to_matrix
+
+    aphi = num.linspace(0., 2.*PI, arcres)
+
+    groups = []
+    for (pt_name, pt_sign) in [('P', -1.), ('T', 1.)]:
+        patches = []
+        patches_lower = []
+        patches_upper = []
+        lines = []
+        lines_lower = []
+        lines_upper = []
+
+        force_length = num.linalg.norm(force)
+        force *= 1. / force_length
+
+        xphi = pt_sign * aphi
+
+        alpha = num.arccos(num.dot(num.array([0., 0., 1.]), force))
+        beta = num.arctan2(force[1], force[0])
+
+        rotmat = euler_to_matrix(
+            alpha=alpha,
+            beta=beta + num.pi / 2.,
+            gamma=0.)
+
+        rtp = num.zeros(xphi.shape + (3,))
+        rtp[:, 0] = 1.
+        rtp[:, 1] = num.pi / 2.
+        rtp[:, 2] = xphi
+
+        xyz = numpy_rtp2xyz(rtp)
+
+        poly = num.array([
+            num.dot(xyz[i, :], rotmat) for i in range(xyz.shape[0])]).reshape(
+            -1, 3)
+
+        if False:
+            import matplotlib.pyplot as plt
+            from matplotlib import cm  # noqa
+            from mpl_toolkits.mplot3d import Axes3D
+            from matplotlib.patches import FancyArrowPatch
+            from mpl_toolkits.mplot3d import proj3d
+
+            class Arrow3D(FancyArrowPatch):
+                def __init__(self, xs, ys, zs, *args, **kwargs):
+                    FancyArrowPatch.__init__(
+                        self, (0, 0), (0, 0), *args, **kwargs)
+                    self._verts3d = xs, ys, zs
+
+                def draw(self, renderer):
+                    xs3d, ys3d, zs3d = self._verts3d
+                    xs, ys, zs = proj3d.proj_transform(
+                        xs3d, ys3d, zs3d, renderer.M)
+                    self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+                    FancyArrowPatch.draw(self, renderer)
+
+            fig = plt.figure()
+            ax = Axes3D(fig, auto_add_to_figure=False)
+            fig.add_axes(ax)
+            ax.plot(xyz[:, 0], xyz[:, 1], xyz[:, 2], c='k')
+            ax.plot(poly[:, 0], poly[:, 1], poly[:, 2], c='r')
+
+            f = num.linalg.norm(force)
+            force /= f
+
+            a = Arrow3D(xs=[0, force[0]], ys=[0, force[1]], zs=[0, force[2]],
+                        mutation_scale=20,
+                        lw=3, arrowstyle="-|>", color="r")
+            ax.add_artist(a)
+
+            ax.set_xlabel('N')
+            ax.set_ylabel('E')
+            ax.set_zlabel('D')
+
+            plt.draw()
+            plt.show()
+
+        polys = [poly]
+
+        if polys:
+            polys_lower, polys_upper = spoly_cut(polys, 2, arcres=arcres)
+            lines.extend(polys)
+            lines_lower.extend(polys_lower)
+            lines_upper.extend(polys_upper)
+
+            patches_lower.extend(polys_lower)
+            patches_upper.extend(polys_upper)
+
+        groups.append((
+            pt_name,
+            patches, patches_lower, patches_upper,
+            lines, lines_lower, lines_upper))
+
+    return groups
+
+
 def extr(points):
     pmean = num.mean(points, axis=0)
     return points + pmean*0.05
@@ -451,6 +549,27 @@ def deco_part(mt, mt_type='full', view='top'):
         deviatoric=res[3][2])[mt_type]
 
     return mtm.MomentTensor(m=m)
+
+
+def rotate_singleforce(force, view='top'):
+    assert view in ('top',),\
+        'Allowed views are top'
+
+    assert view in ('top', 'north', 'south', 'east', 'west'),\
+        'Allowed views are top, north, south, east and west'
+
+    if view == 'top':
+        pass
+    elif view == 'north':
+        force = num.dot(_view_north, force)
+    elif view == 'south':
+        force = num.dot(_view_south, force)
+    elif view == 'east':
+        force = num.dot(_view_east, force)
+    elif view == 'west':
+        force = num.dot(_view_west, force)
+
+    return force
 
 
 def choose_transform(axes, size_units, position, size):
@@ -620,7 +739,112 @@ def plot_beachball_mpl(
             alpha=alpha))
 
     collection = PatchCollection(
-            patches, zorder=zorder, transform=transform, match_original=True)
+        patches, zorder=zorder, transform=transform, match_original=True)
+
+    axes.add_artist(collection)
+    return collection
+
+
+def plot_singleforce_beachball_mpl(
+        fn, fe, fd, axes,
+        position=(0., 0.),
+        size=None,
+        zorder=0,
+        color_t='red',
+        color_p='white',
+        edgecolor='black',
+        linewidth=2,
+        alpha=1.0,
+        arcres=181,
+        decimation=1,
+        projection='lambert',
+        size_units='points',
+        view='top'):
+
+    '''
+    Plot single force beachball diagram to a Matplotlib plot
+
+    :param fn: northward force in [N]
+    :type fn: float
+    :param fe: eastward force in [N]
+    :type fe: float
+    :param fd: downward force in [N]
+    :type fd: float
+    :param position: position of the beachball in data coordinates
+    :param size: diameter of the beachball either in points or in data
+        coordinates, depending on the ``size_units`` setting
+    :param zorder: (passed through to matplotlib drawing functions)
+    :param color_t: color for compressional quadrants (default: ``'red'``)
+    :param color_p: color for extensive quadrants (default: ``'white'``)
+    :param edgecolor: color for lines (default: ``'black'``)
+    :param linewidth: linewidth in points (default: ``2``)
+    :param alpha: (passed through to matplotlib drawing functions)
+    :param projection: ``'lambert'`` (default), ``'stereographic'``, or
+        ``'orthographic'``
+    :param size_units: ``'points'`` (default) or ``'data'``, where the
+        latter causes the beachball to be projected in the plots data
+        coordinates (axes must have an aspect ratio of 1.0 or the
+        beachball will be shown distorted when using this).
+    :param view: View the beachball from ``top``, ``north``, ``south``,
+        ``east`` or ``west``. Useful for to show beachballs in cross-sections.
+        Default is ``top``.
+    '''
+
+    transform, position, size = choose_transform(
+        axes, size_units, position, size)
+
+    force = num.array([fn, fe, fd], dtype=num.float64)
+
+    # TODO check rotation!
+    force = rotate_singleforce(force, view)
+
+    idx = num.argsort(force)
+
+    ep, en, et = force[idx]
+    vp, vn, vt = num.hsplit(num.identity(3)[:, idx], 3)
+
+    eig = (ep, en, et, vp.ravel(), vn.ravel(), vt.ravel())
+
+    if eig[0] == 0. and eig[1] == 0. and eig[2] == 0:
+        raise BeachballError('eigenvalues are zero')
+
+    data = []
+    for (group, patches, patches_lower, patches_upper,
+            lines, lines_lower, lines_upper) in eig2gx_singleforce(
+            force, arcres):
+
+        if group == 'P':
+            color = color_p
+        else:
+            color = color_t
+
+        # plot "upper" features for lower hemisphere, because coordinate system
+        # is NED
+
+        for poly in patches_upper:
+            verts = project(poly, projection)[:, ::-1] * size + position[NA, :]
+            if alpha == 1.0:
+                data.append(
+                    (verts[::decimation], color, color, linewidth))
+            else:
+                data.append(
+                    (verts[::decimation], color, 'none', 0.0))
+
+        for poly in lines_upper:
+            verts = project(poly, projection)[:, ::-1] * size + position[NA, :]
+            data.append(
+                (verts[::decimation], 'none', edgecolor, linewidth))
+
+    patches = []
+    for (path, facecolor, edgecolor, linewidth) in data:
+        patches.append(Polygon(
+            xy=path, facecolor=facecolor,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            alpha=alpha))
+
+    collection = PatchCollection(
+        patches, zorder=zorder, transform=transform, match_original=True)
 
     axes.add_artist(collection)
     return collection
