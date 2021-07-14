@@ -17,6 +17,7 @@ from pyrocko.guts import \
 from pyrocko import table, model  # , automap
 from pyrocko.client import fdsn, catalog
 from pyrocko.gui.qt_compat import qw, fnpatch
+from pyrocko.plot import beachball
 # from pyrocko.himesh import HiMesh
 
 # from pyrocko.gui.vtk_util import TrimeshPipe
@@ -205,19 +206,16 @@ def events_to_table(events):
                 m6 = num.zeros((len(events), 6))
                 m6[:, 0:3] = 1.0
 
-            m6[i, :] = ev.moment_tensor.m6()
+            m6[i, :] = beachball.deco_part(ev.moment_tensor, 'deviatoric').m6()
 
     tab = table.Table()
 
-    loc_rec = table.LocationRecipe()
-    tab.add_recipe(loc_rec)
-    tab.add_col(loc_rec.c5_header, c5)
+    ev_rec = table.EventRecipe()
+    tab.add_recipe(ev_rec)
+    tab.add_col(ev_rec.get_header('c5'), c5)
 
-    for k, unit in [
-            ('time', 's'),
-            ('magnitude', None)]:
-
-        tab.add_col(table.Header(k, unit), oa_to_array(events, k))
+    for k in ['time', 'magnitude']:
+        tab.add_col(ev_rec.get_header(k), oa_to_array(events, k))
 
     if events:
         eventtags_to_array(events, tab)
