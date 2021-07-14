@@ -124,6 +124,10 @@ class NoSuchRecipe(Exception):
     pass
 
 
+class NoSuchCol(Exception):
+    pass
+
+
 class Recipe(Object):
 
     def __init__(self):
@@ -151,7 +155,14 @@ class Recipe(Object):
         return self._table
 
     def get_header(self, name):
-        return self._name_to_header[name]
+        try:
+            return self._name_to_header[name]
+        except KeyError:
+            for h in self._required_headers:
+                if h.name == name:
+                    return h
+
+        raise KeyError(name)
 
     def _add_required_cols(self, table):
         for h in self._headers:
@@ -227,7 +238,7 @@ class Table(Object):
 
     def add_recipe(self, recipe):
         self._recipes.append(recipe)
-        recipe._add_required_cols(self)
+        #recipe._add_required_cols(self)
 
     def get_nrows(self):
         if not self._arrays:
@@ -378,7 +389,7 @@ class Table(Object):
             if recipe.has_col(name):
                 return recipe
 
-        raise NoSuchRecipe(name)
+        raise NoSuchCol(name)
 
     def get_description(self):
         return Description(self)
@@ -417,6 +428,12 @@ class Table(Object):
     def add_computed_col(self, header, func):
         header = anything_to_header(header)
         self.add_recipe(SimpleRecipe(header, func))
+
+    def get_row(self, irow):
+        if irow == -1:
+            return [arr[-1:] for arr in self.arrays]
+        else:
+            return [arr[irow:irow+1] for arr in self.arrays]
 
 
 class SimpleRecipe(Recipe):
@@ -505,6 +522,25 @@ class EventRecipe(LocationRecipe):
         LocationRecipe.__init__(self)
         self._register_required_col(Header(name='time', unit='s'))
         self._register_required_col(Header(name='magnitude'))
+
+    def iter_events(self, table):
+        from pyrocko import model
+        for vec in zip(table.get_col(x) for x in [
+                'time', 'lat', 'lon',
+                'north_shift', 'east_shift', 'depth',
+                'magnitude']):
+
+            yield model.Event(
+                time=vec[0],
+                lat=vec[1],
+                lon=vec[2],
+                north_shift=vec[3],
+                east_shift=vec[4],
+                depth=vec[5],
+                magnitude=vec[6])
+
+    def get_events(self, table):
+        return list(self.iter_events(table))
 
 
 class MomentTensorRecipe(Recipe):
