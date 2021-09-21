@@ -930,6 +930,8 @@ class Trace(Content):
                 'scipy.signal.butter(). You may need to downsample the '
                 'signal before filtering.')
 
+        a = a.astype(dtype)
+        b = b.astype(dtype)
         data = self.ydata.astype(dtype)
         if demean:
             data -= num.mean(data)
@@ -955,6 +957,8 @@ class Trace(Content):
         (b, a) = _get_cached_filter_coefs(
             order, [corner*2.0*self.deltat], btype='high')
 
+        a = a.astype(dtype)
+        b = b.astype(dtype)
         data = self.ydata.astype(dtype)
         if len(a) != order+1 or len(b) != order+1:
             logger.warning(
@@ -984,6 +988,9 @@ class Trace(Content):
             order,
             [corner*2.0*self.deltat for corner in (corner_hp, corner_lp)],
             btype='band')
+
+        a = a.astype(dtype)
+        b = b.astype(dtype)
         data = self.ydata.astype(dtype)
         if demean:
             data -= num.mean(data)
@@ -1008,6 +1015,8 @@ class Trace(Content):
             order,
             [corner*2.0*self.deltat for corner in (corner_hp, corner_lp)],
             btype='bandstop')
+        a = a.astype(a)
+        b = b.astype(b)
         data = self.ydata.astype(dtype)
         if demean:
             data -= num.mean(data)

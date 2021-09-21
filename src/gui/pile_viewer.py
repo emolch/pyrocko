@@ -1188,6 +1188,7 @@ def MakePileViewerMainClass(base):
             self.waterfall_clip_max = 1.
             self.waterfall_show_absolute = False
             self.waterfall_integrate = False
+            self.waterfall_median = 0
             self.view_mode = ViewMode.Wiggle
 
             self.automatic_updates = True
@@ -3084,6 +3085,7 @@ def MakePileViewerMainClass(base):
                 waterfall.set_traces(processed_traces)
                 waterfall.set_cmap(self.waterfall_cmap)
                 waterfall.set_integrate(self.waterfall_integrate)
+                waterfall.set_median_filter(self.waterfall_median)
                 waterfall.set_clip(
                     self.waterfall_clip_min, self.waterfall_clip_max)
                 waterfall.show_absolute_values(
@@ -3819,6 +3821,10 @@ def MakePileViewerMainClass(base):
             self.waterfall_integrate = toggle
             self.update()
 
+        def waterfall_set_median(self, px):
+            self.waterfall_median = px
+            self.update()
+
         def set_selected_markers(self, markers):
             '''
             Set a list of markers selected
@@ -4505,6 +4511,10 @@ class PileViewer(qw.QFrame):
         )
         self.colorbar_control.show_integrate_toggled.connect(
             self.viewer.waterfall_set_integrate
+        )
+
+        self.colorbar_control.median_changed.connect(
+            self.viewer.waterfall_set_median
         )
 
         for icontrol, control in enumerate((

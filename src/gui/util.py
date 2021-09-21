@@ -428,6 +428,7 @@ class ColorbarControl(qw.QWidget):
     cmap_changed = qc.pyqtSignal(str)
     show_absolute_toggled = qc.pyqtSignal(bool)
     show_integrate_toggled = qc.pyqtSignal(bool)
+    median_changed = qc.pyqtSignal(int)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -487,25 +488,24 @@ class ColorbarControl(qw.QWidget):
         self.abs_toggle.setCheckable(True)
         self.abs_toggle.toggled.connect(self.toggle_absolute)
 
-        self.int_toggle = qw.QPushButton()
-        self.int_toggle.setText('∫')
-        self.int_toggle.setToolTip(
+        self.integrate_toggle = qw.QPushButton()
+        self.integrate_toggle.setText('∫')
+        self.integrate_toggle.setToolTip(
             u'Integrate traces (e.g. strain rate → strain)')
-        self.int_toggle.setSizePolicy(btn_size)
-        self.int_toggle.setCheckable(True)
-        print(self.abs_toggle.width())
-        self.int_toggle.setMaximumSize(
+        self.integrate_toggle.setSizePolicy(btn_size)
+        self.integrate_toggle.setCheckable(True)
+        self.integrate_toggle.setMaximumSize(
             24,
-            self.int_toggle.maximumSize().height())
-        self.int_toggle.toggled.connect(self.show_integrate_toggled.emit)
+            self.integrate_toggle.maximumSize().height())
+        self.integrate_toggle.toggled.connect(
+            self.show_integrate_toggled.emit)
 
-        self.median_toggle = qw.QPushButton()
-        self.median_toggle.setIcon(
-            qg.QIcon.fromTheme('go-bottom'))
-        self.median_toggle.setToolTip('Median filter')
-        self.median_toggle.setSizePolicy(btn_size)
-        self.median_toggle.setCheckable(True)
-        self.median_toggle.toggled.connect(self.toggle_median)
+        self.median_spin = qw.QSpinBox()
+        self.median_spin.setSingleStep(2)
+        self.median_spin.setRange(0, 9)
+        self.median_spin.setToolTip('Median filter')
+        self.median_spin.setSizePolicy(btn_size)
+        self.median_spin.valueChanged.connect(self.change_median)
 
         v_splitter = qw.QFrame()
         v_splitter.setFrameShape(qw.QFrame.VLine)
@@ -518,8 +518,10 @@ class ColorbarControl(qw.QWidget):
         layout.addWidget(self.reverse_toggle)
         layout.addWidget(v_splitter)
         layout.addWidget(self.abs_toggle)
-        layout.addWidget(self.int_toggle)
-        layout.addWidget(self.median_toggle)
+        layout.addWidget(self.integrate_toggle)
+        layout.addWidget(v_splitter)
+        layout.addWidget(qw.QLabel('Median'))
+        layout.addWidget(self.median_spin)
         self.controls.setLayout(layout)
 
         self.set_cmap_name(self.DEFAULT_CMAP)
@@ -549,6 +551,15 @@ class ColorbarControl(qw.QWidget):
     def toggle_absolute(self, toggled):
         self.symetry_toggle.setChecked(not toggled)
         self.show_absolute_toggled.emit(toggled)
+
+    def toggle_median(self, toggled):
+        self.median_changed.emit((5, 5))
+
+    def change_median(self, size):
+        if size != 0 and size % 2 == 0:
+            self.median_spin.setValue(size + 1)
+            return
+        self.median_changed.emit(size)
 
     def widgets(self):
         return (self.lname, self.cmap_options, self.controls)

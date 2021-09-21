@@ -34,7 +34,7 @@ class TraceWaterfall:
         self._clip_min = 0.
         self._clip_max = 1.
         self._common_scale = True
-        self._median_filter = (3, 3)
+        self._median_filter = 3
 
         self.set_cmap(DEFAULT_CMAP)
 
@@ -54,6 +54,8 @@ class TraceWaterfall:
         self._integrate = integrate
 
     def set_median_filter(self, median_filter_size=False):
+        if not 0 <= median_filter_size <= 9:
+            raise ValueError('median filter size out of range')
         self._median_filter = median_filter_size
 
     def show_absolute_values(self, show_absolute):
@@ -147,17 +149,17 @@ class TraceWaterfall:
                 deltats[itr] = tr.deltat
 
         if self._integrate:
-            data = num.cumsum(data, axis=1) * deltats[:, num.newaxis]
             # data -= data.mean(axis=1)[:, num.newaxis]
+            data = num.cumsum(data, axis=1) * deltats[:, num.newaxis]
 
         if self._common_scale:
             data /= num.abs(data).max(axis=1)[:, num.newaxis]
 
+        if self._median_filter:
+            data = signal.medfilt2d(data, self._median_filter)
+
         if self._show_absolute:
             data = num.abs(signal.hilbert(data, axis=1))
-
-        if self._median_filter:
-            data = ndimage.median_filter(data, self._median_filter)
 
         if self._show_absolute:
             vmax = data.max()
