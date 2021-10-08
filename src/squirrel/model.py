@@ -47,6 +47,7 @@ try:
 except Exception:
     g_tmin_queries = g_tmin
 
+
 def to_kind(kind_id):
     return g_content_kinds[kind_id]
 

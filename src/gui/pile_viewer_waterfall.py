@@ -168,8 +168,9 @@ class TraceWaterfall:
             vmax = num.abs(data).max()
             vmin = -vmax
 
-        vrange = vmax - vmin
+        num.save('/tmp/das-data.npy', data)
 
+        vrange = vmax - vmin
         self.norm.vmin = vmin + self._clip_min*vrange
         self.norm.vmax = vmax - (1. - self._clip_max)*vrange
 
@@ -184,10 +185,12 @@ class TraceWaterfall:
         # Mask out empty data
         img_data[empty_data, 3] = 0
 
-        px_x, px_y = data.shape
+        data_px, data_py = data.shape
         img = qg.QImage(
             img_data,
-            px_y, px_x, qg.QImage.Format_RGBA8888)
+            data_py, data_px, qg.QImage.Format_RGBA8888)
+
+        img = img.smoothScaled(px_y*2, px_x*2)
 
         self._data_cache = (data, img, data_hash)
         return self._data_cache
@@ -196,7 +199,11 @@ class TraceWaterfall:
         if not self.traces:
             raise AttributeError('No traces to paint.')
 
+        p.save()
+        p.setRenderHints(
+            qg.QPainter.Antialiasing | qg.QPainter.SmoothPixmapTransform)
         rect = rect or p.window()
         trace_data, img, *_ = self.get_image(
             int(rect.width()), int(rect.height()))
         p.drawImage(rect, img)
+        p.restore()
