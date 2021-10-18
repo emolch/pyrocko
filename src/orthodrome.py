@@ -8,13 +8,14 @@ Some basic geodetic functions.
 '''
 
 import math
+from functools import wraps
+
 import numpy as num
-
-from .moment_tensor import euler_to_matrix
-from .config import config
-from .plot.beachball import spoly_cut
-
 from matplotlib.path import Path
+
+from .config import config
+from .moment_tensor import euler_to_matrix
+from .plot.beachball import spoly_cut
 
 d2r = math.pi/180.
 r2d = 1./d2r
@@ -75,6 +76,8 @@ class Loc(object):
     :attrib lat: Latitude in [deg].
     :attrib lon: Longitude in [deg].
     '''
+    __slots__ = ['lat', 'lon']
+
     def __init__(self, lat, lon):
         self.lat = lat
         self.lon = lon
@@ -253,7 +256,6 @@ def azimuth_numpy(a_lats, a_lons, b_lats, b_lons, _cosdelta=None):
 
     Please find the details of the implementation in the documentation of the
     function :py:func:`pyrocko.orthodrome.azimuth`.
-
 
     :param a_lats: Latitudes in [deg] point A.
     :param a_lons: Longitudes in [deg] point A.
@@ -730,6 +732,119 @@ def azidist_to_latlon_rad(lat0, lon0, azimuth_rad, distance_rad):
     return lat, lon
 
 
+def crosstrack_distance(begin_lat, begin_lon, end_lat, end_lon,
+                        point_lat, point_lon):
+    '''Calculate distance of a point to a great-circle path.
+
+    The sign of the results shows side of the path the point is on. Negative
+    distance is right of the path, positive left.
+
+    .. math ::
+
+        d_{xt} = \\arcsin \\left( \\sin \\left( \\Delta_{13} \\right) \\cdot
+            \\sin \\left( \\gamma_{13} - \\gamma_{12} \\right) \\right)
+
+    :param begin_lat: Latitude of the great circle start in [deg].
+    :param begin_lon: Longitude of the great circle start in [deg].
+    :param end_lat: Latitude of the great circle end in [deg].
+    :param end_lon: Longitude of the great circle end in [deg].
+    :param point_lat: Latitude of the point in [deg].
+    :param point_lon: Longitude of the point in [deg].
+    :type begin_lat: float
+    :type begin_lon: float
+    :type end_lat: float
+    :type end_lon: float
+    :type point_lat: float
+    :type point_lon: float
+
+    :return: Distance of the point to the great-circle path in [deg].
+    :rtype: float
+    '''
+    start = Loc(begin_lat, begin_lon)
+    end = Loc(end_lat, end_lon)
+    point = Loc(point_lat, point_lon)
+
+    dist_ang = math.acos(cosdelta(start, point))
+    azi_point = azimuth(start, point) * d2r
+    azi_end = azimuth(start, end) * d2r
+
+    return math.asin(math.sin(dist_ang) * math.sin(azi_point - azi_end)) * r2d
+
+
+def alongtrack_distance(begin_lat, begin_lon, end_lat, end_lon,
+                        point_lat, point_lon):
+    '''Calculate distance of a point along a great-circle path in [deg].
+
+    Distance is relative to the beginning of the path.
+
+    .. math ::
+
+        d_{At} = \\arccos \\left( \\frac{\\cos \\left( \\Delta_{13} \\right)}
+            {\\cos \\left( \\Delta_{xt} \\right) } \\right)
+
+    :param begin_lat: Latitude of the great circle start in [deg].
+    :param begin_lon: Longitude of the great circle start in [deg].
+    :param end_lat: Latitude of the great circle end in [deg].
+    :param end_lon: Longitude of the great circle end in [deg].
+    :param point_lat: Latitude of the point in [deg].
+    :param point_lon: Longitude of the point in [deg].
+    :type begin_lat: float
+    :type begin_lon: float
+    :type end_lat: float
+    :type end_lon: float
+    :type point_lat: float
+    :type point_lon: float
+
+    :return: Distance of the point along the great-circle path in [deg].
+    :rtype: float
+    '''
+    start = Loc(begin_lat, begin_lon)
+    point = Loc(point_lat, point_lon)
+    cos_dist_ang = cosdelta(start, point)
+    dist_rad = crosstrack_distance(
+        begin_lat, begin_lon, end_lat, end_lon, point_lat, point_lon) * d2r
+    return math.acos(cos_dist_ang / math.cos(dist_rad)) * r2d
+
+
+def alongtrack_distance_m(begin_lat, begin_lon, end_lat, end_lon,
+                          point_lat, point_lon):
+    '''Calculate distance of a point along a great-circle path in [m].
+
+    Distance is relative to the beginning of the path.
+
+    .. math ::
+
+        d_{At} = \\arccos \\left( \\frac{\\cos \\left( \\Delta_{13} \\right)}
+            {\\cos \\left( \\Delta_{xt} \\right) } \\right)
+
+    :param begin_lat: Latitude of the great circle start in [deg].
+    :param begin_lon: Longitude of the great circle start in [deg].
+    :param end_lat: Latitude of the great circle end in [deg].
+    :param end_lon: Longitude of the great circle end in [deg].
+    :param point_lat: Latitude of the point in [deg].
+    :param point_lon: Longitude of the point in [deg].
+    :type begin_lat: float
+    :type begin_lon: float
+    :type end_lat: float
+    :type end_lon: float
+    :type point_lat: float
+    :type point_lon: float
+
+    :return: Distance of the point along the great-circle path in [m].
+    :rtype: float
+    '''
+    start = Loc(begin_lat, begin_lon)
+    end = Loc(end_lat, end_lon)
+    azi_end = azimuth(start, end)
+    dist_deg = alongtrack_distance(
+        begin_lat, begin_lon, end_lat, end_lon,
+        point_lat, point_lon)
+    along_point = Loc(
+        *azidist_to_latlon(begin_lat, begin_lon, azi_end, dist_deg))
+
+    return distance_accurate50m(start, along_point)
+
+
 def ne_to_latlon_alternative_method(lat0, lon0, north_m, east_m):
     '''
     Transform local cartesian coordinates to latitude and longitude.
@@ -825,6 +940,19 @@ def ne_to_latlon_alternative_method(lat0, lon0, north_m, east_m):
     return lat, lon
 
 
+def angle_difference(angle_a, angle_b):
+    '''
+    Difference between two angles in [deg].
+
+    :param angle_a: Angle A [deg].
+    :param angle_b: Angle B [deg].
+
+    :return: Difference between the two angles in [deg].
+    :rtype: float
+    '''
+    return ((angle_a - angle_b) + 180.) % 360. - 180.
+
+
 def latlon_to_ne(*args):
     '''
     Relative cartesian coordinates with respect to a reference location.
@@ -914,8 +1042,10 @@ def get_wgs84():
 
 
 def amap(n):
+
     def wrap(f):
         if n == 1:
+            @wraps(f)
             def func(*args):
                 it = num.nditer(args + (None,))
                 for ops in it:
@@ -923,12 +1053,15 @@ def amap(n):
 
                 return it.operands[-1]
         elif n == 2:
+            @wraps(f)
             def func(*args):
                 it = num.nditer(args + (None, None))
                 for ops in it:
                     ops[-2][...], ops[-1][...] = f(*ops[:-2])
 
                 return it.operands[-2], it.operands[-1]
+        else:
+            raise ValueError('Cannot wrap %s' % f.__qualname__)
 
         return func
     return wrap
