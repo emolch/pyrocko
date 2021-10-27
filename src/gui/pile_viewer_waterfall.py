@@ -10,6 +10,12 @@ from matplotlib.colors import Normalize
 from pyrocko.trace import t2ind
 from .qt_compat import qg
 
+try:
+    import lightguide
+    HAS_LIGHTGUIDE = True
+except ImportError:
+    HAS_LIGHTGUIDE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,17 +30,21 @@ class TraceWaterfall:
         self.traces = []
 
         self._current_cmap = None
-        self.cmap = None
+        self.cmap = get_cmap(DEFAULT_CMAP)
         self.norm = Normalize()
 
         self._data_cache = None
 
-        self._show_absolute = False
+        self._show_envelope = False
         self._integrate = False
         self._clip_min = 0.
         self._clip_max = 1.
         self._common_scale = True
-        self._median_filter = 3
+        self._median_filter_size = 3
+
+        self._goldstein_exponent = 0.
+        self._goldstein_window_size = 32
+        self._goldstein_adaptive_weights = False
 
         self.set_cmap(DEFAULT_CMAP)
 
@@ -56,10 +66,10 @@ class TraceWaterfall:
     def set_median_filter(self, median_filter_size=False):
         if not 0 <= median_filter_size <= 9:
             raise ValueError('median filter size out of range')
-        self._median_filter = median_filter_size
+        self._median_filter_size = median_filter_size
 
-    def show_absolute_values(self, show_absolute):
-        self._show_absolute = show_absolute
+    def show_envelope(self, show_envelope):
+        self._show_envelope = show_envelope
 
     def set_cmap(self, cmap):
         if cmap == self._current_cmap:
@@ -71,6 +81,13 @@ class TraceWaterfall:
     def set_common_scale(self, _common_scale):
         self._common_scale = _common_scale
 
+    def set_goldstein_params(
+            self, exponent, window_size,
+            adaptive_weights=False):
+        self._goldstein_exponent = exponent
+        self._goldstein_window_size = window_size
+        self._goldstein_adaptive_weights = adaptive_weights
+
     def get_state_hash(self):
         sha1 = hashlib.sha1()
         sha1.update(self.tmin.hex().encode())
@@ -78,10 +95,13 @@ class TraceWaterfall:
         sha1.update(self._clip_min.hex().encode())
         sha1.update(self._clip_max.hex().encode())
         sha1.update(self.cmap.name.encode())
-        sha1.update(bytes(self._show_absolute))
+        sha1.update(bytes(self._show_envelope))
         sha1.update(bytes(self._integrate))
         sha1.update(bytes(len(self.traces)))
-        sha1.update(bytes(self._median_filter))
+        sha1.update(bytes(self._median_filter_size))
+        sha1.update(self._goldstein_exponent.hex().encode())
+        sha1.update(bytes(self._goldstein_window_size))
+        sha1.update(bytes(self._goldstein_adaptive_weights))
         for tr in self.traces:
             sha1.update(tr.hash(unsafe=True).encode())
 
@@ -115,9 +135,9 @@ class TraceWaterfall:
         dtype = num.float64 if num.float64 in dtypes else num.float32
 
         data = num.zeros((img_rows, img_nsamples), dtype=dtype)
-        empty_data = num.ones_like(data, dtype=num.bool)
+        empty_data = num.ones_like(data, dtype=bool)
 
-        deltats = num.zeros(img_rows) if self._integrate else None
+        deltats = num.zeros(img_rows)
 
         logger.debug(
             'image render: using [::%d] traces at %d time undersampling'
@@ -145,8 +165,7 @@ class TraceWaterfall:
             data[itr, img_ibeg:img_iend] = tr_data[ibeg:iend]
             empty_data[itr, img_ibeg:img_iend] = False
 
-            if self._integrate:
-                deltats[itr] = tr.deltat
+            deltats[itr] = tr.deltat
 
         if self._integrate:
             # data -= data.mean(axis=1)[:, num.newaxis]
@@ -155,24 +174,31 @@ class TraceWaterfall:
         if self._common_scale:
             data /= num.abs(data).max(axis=1)[:, num.newaxis]
 
-        if self._median_filter:
-            data = signal.medfilt2d(data, self._median_filter)
+        if HAS_LIGHTGUIDE:
+            if self._goldstein_exponent:
+                data = lightguide.rust.goldstein_filter(
+                    data,
+                    window_size=self._goldstein_window_size,
+                    overlap=int(self._goldstein_window_size / 2 - 2),
+                    exponent=self._goldstein_exponent,
+                    adaptive_weights=self._goldstein_adaptive_weights)
 
-        if self._show_absolute:
+        if self._median_filter_size:
+            data = signal.medfilt2d(data, self._median_filter_size)
+
+        if self._show_envelope:
             data = num.abs(signal.hilbert(data, axis=1))
 
-        if self._show_absolute:
+        if self._show_envelope:
             vmax = data.max()
             vmin = data.min()
         else:
             vmax = num.abs(data).max()
             vmin = -vmax
 
-        num.save('/tmp/das-data.npy', data)
-
         vrange = vmax - vmin
-        self.norm.vmin = vmin + self._clip_min*vrange
-        self.norm.vmax = vmax - (1. - self._clip_max)*vrange
+        self.norm.vmin = vmin + self._clip_min * vrange
+        self.norm.vmax = vmax - (1. - self._clip_max) * vrange
 
         tstart = time.time()
         img_data = self.norm(data)

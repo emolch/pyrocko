@@ -34,7 +34,7 @@ from .marker import associate_phases_to_events, MarkerOneNSLCRequired
 
 from .util import (ValControl, LinValControl, Marker, EventMarker,
                    PhaseMarker, make_QPolygonF, draw_label, Label,
-                   Progressbars, ColorbarControl)
+                   Progressbars, WaterfallControl, WaterfallFilter)
 
 from .qt_compat import qc, qg, qw, qgl, qsvg, use_pyqt5
 
@@ -1186,9 +1186,14 @@ def MakePileViewerMainClass(base):
             self.waterfall_cmap = 'viridis'
             self.waterfall_clip_min = 0.
             self.waterfall_clip_max = 1.
-            self.waterfall_show_absolute = False
+            self.waterfall_show_envelope = False
             self.waterfall_integrate = False
-            self.waterfall_median = 0
+            self.waterfall_median_filter_size = 0
+
+            self.waterfall_goldstein_exponent = 0.
+            self.waterfall_goldstein_window_size = 32
+            self.waterfall_goldstein_adaptive_weight = False
+
             self.view_mode = ViewMode.Wiggle
 
             self.automatic_updates = True
@@ -3085,11 +3090,16 @@ def MakePileViewerMainClass(base):
                 waterfall.set_traces(processed_traces)
                 waterfall.set_cmap(self.waterfall_cmap)
                 waterfall.set_integrate(self.waterfall_integrate)
-                waterfall.set_median_filter(self.waterfall_median)
+                waterfall.set_median_filter(self.waterfall_median_filter_size)
                 waterfall.set_clip(
                     self.waterfall_clip_min, self.waterfall_clip_max)
-                waterfall.show_absolute_values(
-                    self.waterfall_show_absolute)
+                waterfall.show_envelope(
+                    self.waterfall_show_envelope)
+                waterfall.set_goldstein_params(
+                    self.waterfall_goldstein_exponent,
+                    self.waterfall_goldstein_window_size,
+                    self.waterfall_goldstein_adaptive_weight
+                )
 
                 rect = qc.QRectF(
                     0, self.ax_height,
@@ -3729,16 +3739,16 @@ def MakePileViewerMainClass(base):
             )
 
             if self.view_mode is ViewMode.Waterfall:
-                self.parent().show_colorbar_ctrl(True)
-                self.parent().show_gain_ctrl(False)
+                self.parent().show_waterfall_ctrl(True)
+                self.parent().show_wiggle_ctrl(False)
 
                 for item in items_waterfall_disabled:
                     item.setDisabled(True)
 
                 self.visible_length = 180.
             else:
-                self.parent().show_colorbar_ctrl(False)
-                self.parent().show_gain_ctrl(True)
+                self.parent().show_waterfall_ctrl(False)
+                self.parent().show_wiggle_ctrl(True)
 
                 for item in items_waterfall_disabled:
                     item.setDisabled(False)
@@ -3813,16 +3823,28 @@ def MakePileViewerMainClass(base):
             self.waterfall_clip_max = clip_max
             self.update()
 
-        def waterfall_show_absolute_change(self, toggle):
-            self.waterfall_show_absolute = toggle
+        def waterfall_show_envelope_change(self, toggle):
+            self.waterfall_show_envelope = toggle
             self.update()
 
         def waterfall_set_integrate(self, toggle):
             self.waterfall_integrate = toggle
             self.update()
 
-        def waterfall_set_median(self, px):
-            self.waterfall_median = px
+        def waterfall_set_median_filter(self, px):
+            self.waterfall_median_filter_size = px
+            self.update()
+
+        def waterfall_set_goldstein_exponent(self, exponent):
+            self.waterfall_goldstein_exponent = exponent
+            self.update()
+        
+        def waterfall_set_goldstein_window_size(self, size):
+            self.waterfall_goldstein_window_size = size
+            self.update()
+
+        def waterfall_set_goldstein_adaptive_weight(self, adaptive):
+            self.waterfall_goldstein_adaptive_weight = adaptive
             self.update()
 
         def set_selected_markers(self, markers):
@@ -4474,6 +4496,7 @@ class PileViewer(qw.QFrame):
         self.update_contents()
 
     def controls(self):
+        viewer = self.viewer
         frame = qw.QFrame(self)
         layout = qw.QGridLayout()
         frame.setLayout(layout)
@@ -4490,42 +4513,52 @@ class PileViewer(qw.QFrame):
         self.gain_control.setup('Gain:', 0.001, 1000., 1., 2)
         self.rot_control = LinValControl()
         self.rot_control.setup('Rotate [deg]:', -180., 180., 0., 3)
-        self.colorbar_control = ColorbarControl(self)
+        self.waterfall_control = WaterfallControl(self)
+        self.waterfall_filter = WaterfallFilter(self)
 
         self.lowpass_control.valchange.connect(
-            self.viewer.lowpass_change)
+            viewer.lowpass_change)
         self.highpass_control.valchange.connect(
-            self.viewer.highpass_change)
+            viewer.highpass_change)
         self.gain_control.valchange.connect(
-            self.viewer.gain_change)
+            viewer.gain_change)
         self.rot_control.valchange.connect(
-            self.viewer.rot_change)
-        self.colorbar_control.cmap_changed.connect(
-            self.viewer.waterfall_cmap_change
-        )
-        self.colorbar_control.clip_changed.connect(
-            self.viewer.waterfall_clip_change
-        )
-        self.colorbar_control.show_absolute_toggled.connect(
-            self.viewer.waterfall_show_absolute_change
-        )
-        self.colorbar_control.show_integrate_toggled.connect(
-            self.viewer.waterfall_set_integrate
-        )
+            viewer.rot_change)
 
-        self.colorbar_control.median_changed.connect(
-            self.viewer.waterfall_set_median
-        )
+        self.waterfall_control.cmap_changed.connect(
+            viewer.waterfall_cmap_change)
+        self.waterfall_control.clip_changed.connect(
+            viewer.waterfall_clip_change)
+        self.waterfall_control.show_envelope_toggled.connect(
+            viewer.waterfall_show_envelope_change)
+        self.waterfall_control.show_integrate_toggled.connect(
+            viewer.waterfall_set_integrate)
+        self.waterfall_control.median_changed.connect(
+            viewer.waterfall_set_median_filter)
 
-        for icontrol, control in enumerate((
+        self.waterfall_filter.exponent_changed.connect(
+            viewer.waterfall_set_goldstein_exponent)
+        self.waterfall_filter.window_size_changed.connect(
+            viewer.waterfall_set_goldstein_window_size)
+        self.waterfall_filter.adaptive_weights.toggled.connect(
+            viewer.waterfall_set_goldstein_adaptive_weight)
+
+        row = 0
+        for control in (
                 self.highpass_control,
                 self.lowpass_control,
                 self.gain_control,
                 self.rot_control,
-                self.colorbar_control)):
+                self.waterfall_filter,
+                self.waterfall_control):
 
-            for iwidget, widget in enumerate(control.widgets()):
-                layout.addWidget(widget, icontrol, iwidget)
+            widgets = control.widgets()
+            if not widgets:
+                continue
+
+            for iwidget, widget in enumerate(widgets):
+                layout.addWidget(widget, row, iwidget)
+            row += 1
 
         spacer = qw.QSpacerItem(
             0, 0, qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
@@ -4563,10 +4596,11 @@ class PileViewer(qw.QFrame):
     def get_pile(self):
         return self.viewer.get_pile()
 
-    def show_colorbar_ctrl(self, show):
-        for w in self.colorbar_control.widgets():
-            w.setVisible(show)
+    def show_waterfall_ctrl(self, show):
+        for wdg in self.waterfall_control.widgets() + \
+                self.waterfall_filter.widgets():
+            wdg.setVisible(show)
 
-    def show_gain_ctrl(self, show):
-        for w in self.gain_control.widgets():
-            w.setVisible(show)
+    def show_wiggle_ctrl(self, show):
+        for wdg in self.gain_control.widgets() + self.rot_control.widgets():
+            wdg.setVisible(show)

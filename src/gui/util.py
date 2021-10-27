@@ -409,7 +409,7 @@ class LinValControl(ValControl):
         return int(round((value-self.mi)/(self.ma-self.mi) * 10000.))
 
 
-class ColorbarControl(qw.QWidget):
+class WaterfallControl(qw.QWidget):
 
     AVAILABLE_CMAPS = (
         'viridis',
@@ -426,7 +426,7 @@ class ColorbarControl(qw.QWidget):
     DEFAULT_CMAP = 'viridis'
 
     cmap_changed = qc.pyqtSignal(str)
-    show_absolute_toggled = qc.pyqtSignal(bool)
+    show_envelope_toggled = qc.pyqtSignal(bool)
     show_integrate_toggled = qc.pyqtSignal(bool)
     median_changed = qc.pyqtSignal(int)
 
@@ -480,13 +480,13 @@ class ColorbarControl(qw.QWidget):
         self.reverse_toggle.setCheckable(True)
         self.reverse_toggle.toggled.connect(self.toggle_reverse_cmap)
 
-        self.abs_toggle = qw.QPushButton()
-        self.abs_toggle.setIcon(
+        self.env_toggle = qw.QPushButton()
+        self.env_toggle.setIcon(
             qg.QIcon.fromTheme('go-bottom'))
-        self.abs_toggle.setToolTip('Show absolute values')
-        self.abs_toggle.setSizePolicy(btn_size)
-        self.abs_toggle.setCheckable(True)
-        self.abs_toggle.toggled.connect(self.toggle_absolute)
+        self.env_toggle.setToolTip('Show envelope')
+        self.env_toggle.setSizePolicy(btn_size)
+        self.env_toggle.setCheckable(True)
+        self.env_toggle.toggled.connect(self.toggle_absolute)
 
         self.integrate_toggle = qw.QPushButton()
         self.integrate_toggle.setText('∫')
@@ -517,7 +517,7 @@ class ColorbarControl(qw.QWidget):
         layout.addWidget(self.symetry_toggle)
         layout.addWidget(self.reverse_toggle)
         layout.addWidget(v_splitter)
-        layout.addWidget(self.abs_toggle)
+        layout.addWidget(self.env_toggle)
         layout.addWidget(self.integrate_toggle)
         layout.addWidget(v_splitter)
         layout.addWidget(qw.QLabel('Median'))
@@ -550,7 +550,7 @@ class ColorbarControl(qw.QWidget):
 
     def toggle_absolute(self, toggled):
         self.symetry_toggle.setChecked(not toggled)
-        self.show_absolute_toggled.emit(toggled)
+        self.show_envelope_toggled.emit(toggled)
 
     def toggle_median(self, toggled):
         self.median_changed.emit((5, 5))
@@ -769,6 +769,101 @@ class ColorbarSlider(qw.QWidget):
                 label_right_rect,
                 label_right_align | qc.Qt.AlignVCenter,
                 '%d%%' % round(self.clip_max * 100))
+
+
+class WaterfallFilter(qw.QWidget):
+    SLIDER_MAX = 100
+
+    EXPONENT_RANGE = (0., 1.)
+    WINDOW_SIZES = (16, 32, 64, 128)
+
+    try:
+        import lightguide  # noqa
+        HAS_LIGHTGUIDE_INSTALLED = True
+    except ImportError:
+        HAS_LIGHTGUIDE_INSTALLED = False
+
+    exponent_changed = qc.pyqtSignal(float)
+    window_size_changed = qc.pyqtSignal(int)
+
+
+    def __init__(self, *args):
+        super().__init__()
+
+        self.lname = qw.QLabel("Waterfall filter")
+        self.lname.setSizePolicy(
+            qw.QSizePolicy(qw.QSizePolicy.Minimum, qw.QSizePolicy.Minimum))
+        btn_size = qw.QSizePolicy(
+            qw.QSizePolicy.Maximum | qw.QSizePolicy.ShrinkFlag,
+            qw.QSizePolicy.Maximum | qw.QSizePolicy.ShrinkFlag)
+
+        spin_exponent = qw.QDoubleSpinBox()
+        spin_exponent.setRange(*self.EXPONENT_RANGE)
+        spin_exponent.setSingleStep(0.05)
+        spin_exponent.valueChanged.connect(self.spin_exp_changed)
+        self.spin_exponent = spin_exponent
+
+        slider_exponent = qw.QSlider(qc.Qt.Horizontal)
+        slider_exponent.setTickPosition(qw.QSlider.NoTicks)
+
+        slider_exponent.setRange(0, self.SLIDER_MAX)
+        slider_exponent.setSingleStep(5)
+        slider_exponent.setPageStep(20)
+        slider_exponent.valueChanged.connect(self.slider_exp_changed)
+        self.slider_exponent = slider_exponent
+
+        window_size = qw.QComboBox()
+        for size in self.WINDOW_SIZES:
+            window_size.addItem('%dx%d' % (size, size), size)
+        window_size.currentIndexChanged.connect(self.window_size_updated)
+
+        adaptive_weights = qw.QPushButton('Adaptive Weights')
+        adaptive_weights.setToolTip('Use adaptive weights for the filter')
+        adaptive_weights.setSizePolicy(btn_size)
+        adaptive_weights.setCheckable(True)
+        self.adaptive_weights = adaptive_weights
+
+        v_splitter = qw.QFrame()
+        v_splitter.setFrameShape(qw.QFrame.VLine)
+        v_splitter.setFrameShadow(qw.QFrame.Sunken)
+
+        self.controls = qw.QWidget()
+        layout = qw.QHBoxLayout()
+        layout.addWidget(slider_exponent)
+        layout.addWidget(v_splitter)
+        layout.addWidget(qw.QLabel("Window size"))
+        layout.addWidget(window_size)
+        layout.addWidget(adaptive_weights)
+        self.controls.setLayout(layout)
+
+        if not self.HAS_LIGHTGUIDE_INSTALLED:
+            self.controls.setEnabled(False)
+            self.spin_exponent.setEnabled(False)
+            self.controls.setToolTip(
+                "Install the lightguide package to unlock this filter")
+
+    @staticmethod
+    def _update_value_silent(value, widget):
+        widget.blockSignals(True)
+        widget.setValue(value)
+        widget.blockSignals(False)
+
+    def spin_exp_changed(self, exponent):
+        self._update_value_silent(
+            int(exponent * self.SLIDER_MAX), self.slider_exponent)
+        self.exponent_changed.emit(exponent)
+
+    def slider_exp_changed(self, exponent):
+        exponent /= self.SLIDER_MAX
+        self._update_value_silent(exponent, self.spin_exponent)
+        self.exponent_changed.emit(exponent)
+
+    def window_size_updated(self, idx):
+        window_size = self.WINDOW_SIZES[idx]
+        self.window_size_changed.emit(window_size)
+
+    def widgets(self):
+        return self.lname, self.spin_exponent, self.controls
 
 
 class Progressbar(object):
