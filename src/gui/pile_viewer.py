@@ -92,6 +92,11 @@ class NSLC(object):
         self.station = s
         self.location = l
         self.channel = c
+        self.nslc_id = (n, s, l, c)
+
+    @classmethod
+    def dummy(cls):
+        return cls(None, None)
 
 
 class m_float(float):
@@ -164,6 +169,50 @@ gap_lap_tolerance = 5.
 class ViewMode(enum.Enum):
     Wiggle = 1
     Waterfall = 2
+
+
+class ScaleMode(enum.Enum):
+    IndividualScale = 1
+    CommonScale = 2
+    CommonScaleStation = 3
+    CommonScaleStationLocation = 4
+    CommonScaleComponent = 5
+
+
+class IndividualScale:
+    mode = ScaleMode.IndividualScale
+    @staticmethod
+    def scale(tr):
+        return tr.nslc_id
+
+
+class CommonScale:
+    mode = ScaleMode.CommonScale
+    @staticmethod
+    def scale(_):
+        return None
+
+
+class CommonScaleStation:
+    mode = ScaleMode.CommonScaleStation
+    @staticmethod
+    def scale(tr):
+        return tr.network, tr.station
+
+
+class CommonScaleStationLocation:
+    mode = ScaleMode.CommonScaleStationLocation
+    @staticmethod
+    def scale(tr):
+        return tr.network, tr.station, tr.location
+
+
+class CommonScaleComponent:
+    mode = ScaleMode.CommonScaleComponent
+    
+    @staticmethod
+    def scale(tr):
+        return tr.channel
 
 
 class Timer(object):
@@ -775,6 +824,7 @@ def MakePileViewerMainClass(base):
             self.track_start = None
             self.track_trange = None
 
+
             self.lowpass = None
             self.highpass = None
             self.gain = 1.0
@@ -887,18 +937,18 @@ def MakePileViewerMainClass(base):
             # Scale Menu
             menudef = [
                 ('Individual Scale',
-                 lambda tr: tr.nslc_id,
+                 IndividualScale,
                  qg.QKeySequence(qc.Qt.Key_S, qc.Qt.Key_I)),
                 ('Common Scale',
-                 lambda tr: None,
+                 CommonScale,
                  qg.QKeySequence(qc.Qt.Key_S, qc.Qt.Key_C)),
                 ('Common Scale per Station',
-                 lambda tr: (tr.network, tr.station),
+                 CommonScaleStation,
                  qg.QKeySequence(qc.Qt.Key_S, qc.Qt.Key_S)),
                 ('Common Scale per Station Location',
-                 lambda tr: (tr.network, tr.station, tr.location)),
+                 CommonScaleStationLocation),
                 ('Common Scale per Component',
-                 lambda tr: (tr.channel)),
+                 CommonScaleComponent),
             ]
 
             self.menuitems_scaling = add_radiobuttongroup(
@@ -906,7 +956,8 @@ def MakePileViewerMainClass(base):
                 default=self.config.trace_scale)
             scale_menu.addSeparator()
 
-            self.scaling_key = self.menuitems_scaling[0][1]
+            self.scaling_key = self.menuitems_scaling[0][1].scale
+            self.scaling_mode = self.menuitems_scaling[0][1].mode
             self.scaling_hooks = {}
             self.scalingmode_change()
 
@@ -2289,7 +2340,7 @@ def MakePileViewerMainClass(base):
                         lat, lon = 0.0, 0.0
                         old = self.get_active_event()
                         if len(nslcs) == 1:
-                            lat, lon = self.station_latlon(NSLC(*nslcs[0]))
+                            lat, lon = self.station_latlon(NSLCNone, None(*nslcs[0]))
                         elif old is not None:
                             lat, lon = old.lat, old.lon
 
@@ -3091,6 +3142,8 @@ def MakePileViewerMainClass(base):
                 waterfall.set_cmap(self.waterfall_cmap)
                 waterfall.set_integrate(self.waterfall_integrate)
                 waterfall.set_median_filter(self.waterfall_median_filter_size)
+                waterfall.set_individual_scale(
+                    self.scaling_mode is ScaleMode.IndividualScale)
                 waterfall.set_clip(
                     self.waterfall_clip_min, self.waterfall_clip_max)
                 waterfall.show_envelope(
@@ -3713,7 +3766,8 @@ def MakePileViewerMainClass(base):
         def scalingmode_change(self, ignore=None):
             for menuitem, scaling_key in self.menuitems_scaling:
                 if menuitem.isChecked():
-                    self.scaling_key = scaling_key
+                    self.scaling_key = scaling_key.scale
+                    self.scaling_mode = scaling_key.mode
             self.update()
 
         def apply_scaling_hooks(self, data_ranges):

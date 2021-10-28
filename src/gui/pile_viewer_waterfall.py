@@ -39,7 +39,7 @@ class TraceWaterfall:
         self._integrate = False
         self._clip_min = 0.
         self._clip_max = 1.
-        self._common_scale = True
+        self._individual_scale = True
         self._median_filter_size = 3
 
         self._goldstein_exponent = 0.
@@ -78,8 +78,8 @@ class TraceWaterfall:
         self.cmap = get_cmap(cmap)
         self._current_cmap = cmap
 
-    def set_common_scale(self, _common_scale):
-        self._common_scale = _common_scale
+    def set_individual_scale(self, _individual_scale):
+        self._individual_scale = _individual_scale
 
     def set_goldstein_params(
             self, exponent, window_size,
@@ -95,6 +95,7 @@ class TraceWaterfall:
         sha1.update(self._clip_min.hex().encode())
         sha1.update(self._clip_max.hex().encode())
         sha1.update(self.cmap.name.encode())
+        sha1.update(bytes(self._individual_scale))
         sha1.update(bytes(self._show_envelope))
         sha1.update(bytes(self._integrate))
         sha1.update(bytes(len(self.traces)))
@@ -167,27 +168,30 @@ class TraceWaterfall:
 
             deltats[itr] = tr.deltat
 
-        if self._integrate:
-            # data -= data.mean(axis=1)[:, num.newaxis]
-            data = num.cumsum(data, axis=1) * deltats[:, num.newaxis]
 
-        if self._common_scale:
-            data /= num.abs(data).max(axis=1)[:, num.newaxis]
+        if self._integrate:
+            data -= data.mean(axis=1)[:, num.newaxis]
+            data = num.cumsum(data, axis=1) * deltats[:, num.newaxis]
 
         if HAS_LIGHTGUIDE:
             if self._goldstein_exponent:
                 data = lightguide.rust.goldstein_filter(
                     data,
                     window_size=self._goldstein_window_size,
-                    overlap=int(self._goldstein_window_size / 2 - 2),
+                    overlap=int(self._goldstein_window_size / 2 - 1),
                     exponent=self._goldstein_exponent,
-                    adaptive_weights=self._goldstein_adaptive_weights)
+                    adaptive_weights=self._goldstein_adaptive_weights).copy()
 
         if self._median_filter_size:
             data = signal.medfilt2d(data, self._median_filter_size)
 
         if self._show_envelope:
             data = num.abs(signal.hilbert(data, axis=1))
+
+        if self._individual_scale:
+            data /= num.abs(data).max(axis=1)[:, num.newaxis]
+
+        data[num.isnan(data)] = 0.
 
         if self._show_envelope:
             vmax = data.max()
