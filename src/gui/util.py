@@ -775,7 +775,7 @@ class WaterfallFilter(qw.QWidget):
     SLIDER_MAX = 100
 
     EXPONENT_RANGE = (0., 1.)
-    WINDOW_SIZES = (16, 32, 64, 128)
+    WINDOW_TRACES = (16, 32, 64, 128)
 
     try:
         import lightguide  # noqa
@@ -784,7 +784,8 @@ class WaterfallFilter(qw.QWidget):
         HAS_LIGHTGUIDE_INSTALLED = False
 
     exponent_changed = qc.pyqtSignal(float)
-    window_size_changed = qc.pyqtSignal(int)
+    window_ntraces_changed = qc.pyqtSignal(int)
+    window_length_changed = qc.pyqtSignal(float)
 
 
     def __init__(self, *args):
@@ -812,16 +813,29 @@ class WaterfallFilter(qw.QWidget):
         slider_exponent.valueChanged.connect(self.slider_exp_changed)
         self.slider_exponent = slider_exponent
 
-        window_size = qw.QComboBox()
-        for size in self.WINDOW_SIZES:
-            window_size.addItem('%dx%d' % (size, size), size)
-        window_size.currentIndexChanged.connect(self.window_size_updated)
+        window_ntraces = qw.QComboBox()
+        for size in self.WINDOW_TRACES:
+            window_ntraces.addItem('%d' % size, size)
+        window_ntraces.currentIndexChanged.connect(self.window_ntraces_updated)
 
-        adaptive_weights = qw.QPushButton('Adaptive Weights')
-        adaptive_weights.setToolTip('Use adaptive weights for the filter')
-        adaptive_weights.setSizePolicy(btn_size)
-        adaptive_weights.setCheckable(True)
-        self.adaptive_weights = adaptive_weights
+        spin_win_length = qw.QDoubleSpinBox()
+        spin_win_length.setEnabled(False)
+        spin_win_length.setSuffix('s')
+        self.spin_win_length = spin_win_length
+
+        slider_win_length = qw.QSlider(qc.Qt.Horizontal)
+        slider_win_length.setTickPosition(qw.QSlider.NoTicks)
+        slider_win_length.setRange(5, 30)
+        slider_win_length.setSingleStep(5)
+        slider_win_length.setPageStep(20)
+        slider_win_length.valueChanged.connect(self.slider_win_length_changed)
+        self.slider_win_length = slider_win_length
+
+        normalize_power = qw.QPushButton('Normalize power')
+        normalize_power.setToolTip('Normalize power spectrum for the filter')
+        normalize_power.setSizePolicy(btn_size)
+        normalize_power.setCheckable(True)
+        self.normalize_power = normalize_power
 
         v_splitter = qw.QFrame()
         v_splitter.setFrameShape(qw.QFrame.VLine)
@@ -831,9 +845,12 @@ class WaterfallFilter(qw.QWidget):
         layout = qw.QHBoxLayout()
         layout.addWidget(slider_exponent)
         layout.addWidget(v_splitter)
-        layout.addWidget(qw.QLabel("Window size"))
-        layout.addWidget(window_size)
-        layout.addWidget(adaptive_weights)
+        layout.addWidget(qw.QLabel("Length"))
+        layout.addWidget(spin_win_length)
+        layout.addWidget(slider_win_length)
+        layout.addWidget(qw.QLabel("Number traces"))
+        layout.addWidget(window_ntraces)
+        layout.addWidget(normalize_power)
         self.controls.setLayout(layout)
 
         if not self.HAS_LIGHTGUIDE_INSTALLED:
@@ -857,10 +874,15 @@ class WaterfallFilter(qw.QWidget):
         exponent /= self.SLIDER_MAX
         self._update_value_silent(exponent, self.spin_exponent)
         self.exponent_changed.emit(exponent)
+    
+    def slider_win_length_changed(self, length):
+        length /= 10.
+        self.spin_win_length.setValue(length)
+        self.window_length_changed.emit(length)
 
-    def window_size_updated(self, idx):
-        window_size = self.WINDOW_SIZES[idx]
-        self.window_size_changed.emit(window_size)
+    def window_ntraces_updated(self, idx):
+        window_ntraces = self.WINDOW_TRACES[idx]
+        self.window_ntraces_changed.emit(window_ntraces)
 
     def widgets(self):
         return self.lname, self.spin_exponent, self.controls

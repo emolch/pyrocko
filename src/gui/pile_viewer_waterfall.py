@@ -43,8 +43,9 @@ class TraceWaterfall:
         self._median_filter_size = 3
 
         self._goldstein_exponent = 0.
-        self._goldstein_window_size = 32
-        self._goldstein_adaptive_weights = False
+        self._goldstein_window_ntraces = 32
+        self._goldstein_window_ntraces = 0.1
+        self._goldstein_normalize_power = False
 
         self.set_cmap(DEFAULT_CMAP)
 
@@ -82,11 +83,13 @@ class TraceWaterfall:
         self._individual_scale = _individual_scale
 
     def set_goldstein_params(
-            self, exponent, window_size,
-            adaptive_weights=False):
+            self, exponent, window_traces, window_length,
+            normalize_power=False):
         self._goldstein_exponent = exponent
-        self._goldstein_window_size = window_size
-        self._goldstein_adaptive_weights = adaptive_weights
+        self._goldstein_window_ntraces = window_traces
+        self._goldstein_window_length = window_length
+        
+        self._goldstein_normalize_power = normalize_power
 
     def get_state_hash(self):
         sha1 = hashlib.sha1()
@@ -101,8 +104,9 @@ class TraceWaterfall:
         sha1.update(bytes(len(self.traces)))
         sha1.update(bytes(self._median_filter_size))
         sha1.update(self._goldstein_exponent.hex().encode())
-        sha1.update(bytes(self._goldstein_window_size))
-        sha1.update(bytes(self._goldstein_adaptive_weights))
+        sha1.update(bytes(self._goldstein_window_ntraces))
+        sha1.update(self._goldstein_window_length.hex().encode())
+        sha1.update(bytes(self._goldstein_normalize_power))
         for tr in self.traces:
             sha1.update(tr.hash(unsafe=True).encode())
 
@@ -168,19 +172,32 @@ class TraceWaterfall:
 
             deltats[itr] = tr.deltat
 
-
         if self._integrate:
             data -= data.mean(axis=1)[:, num.newaxis]
             data = num.cumsum(data, axis=1) * deltats[:, num.newaxis]
 
         if HAS_LIGHTGUIDE:
             if self._goldstein_exponent:
-                data = lightguide.rust.goldstein_filter(
+                window_ntraces = self._goldstein_window_ntraces
+                window_length = int(self._goldstein_window_length // img_deltat)
+                if window_ntraces % 2:
+                    window_ntraces += 1
+                if window_length % 2:
+                    window_length += 1
+
+                overlap = (
+                    int(window_ntraces // 2 - 1),
+                    int(window_length // 2 - 1)
+                )
+                print(window_ntraces, window_length)
+                print(overlap)
+
+                data = lightguide.rust.goldstein_filter_rect(
                     data,
-                    window_size=self._goldstein_window_size,
-                    overlap=int(self._goldstein_window_size / 2 - 1),
+                    window_size=(window_ntraces, window_length),
+                    overlap=overlap,
                     exponent=self._goldstein_exponent,
-                    adaptive_weights=self._goldstein_adaptive_weights).copy()
+                    normalize_power=self._goldstein_normalize_power).copy()
 
         if self._median_filter_size:
             data = signal.medfilt2d(data, self._median_filter_size)

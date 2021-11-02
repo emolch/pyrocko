@@ -1242,8 +1242,9 @@ def MakePileViewerMainClass(base):
             self.waterfall_median_filter_size = 0
 
             self.waterfall_goldstein_exponent = 0.
-            self.waterfall_goldstein_window_size = 32
-            self.waterfall_goldstein_adaptive_weight = False
+            self.waterfall_goldstein_window_ntraces = 32
+            self.waterfall_goldstein_window_length = .1
+            self.waterfall_goldstein_normalize_power = False
 
             self.view_mode = ViewMode.Wiggle
 
@@ -3150,8 +3151,9 @@ def MakePileViewerMainClass(base):
                     self.waterfall_show_envelope)
                 waterfall.set_goldstein_params(
                     self.waterfall_goldstein_exponent,
-                    self.waterfall_goldstein_window_size,
-                    self.waterfall_goldstein_adaptive_weight
+                    self.waterfall_goldstein_window_ntraces,
+                    self.waterfall_goldstein_window_length,
+                    self.waterfall_goldstein_normalize_power
                 )
 
                 rect = qc.QRectF(
@@ -3893,12 +3895,16 @@ def MakePileViewerMainClass(base):
             self.waterfall_goldstein_exponent = exponent
             self.update()
         
-        def waterfall_set_goldstein_window_size(self, size):
-            self.waterfall_goldstein_window_size = size
+        def waterfall_set_goldstein_window_ntraces(self, size):
+            self.waterfall_goldstein_window_ntraces = size
             self.update()
 
-        def waterfall_set_goldstein_adaptive_weight(self, adaptive):
-            self.waterfall_goldstein_adaptive_weight = adaptive
+        def waterfall_set_goldstein_window_length(self, length):
+            self.waterfall_goldstein_window_length = length
+            self.update()
+
+        def waterfall_set_goldstein_normalize_power(self, normalize):
+            self.waterfall_goldstein_normalize_power = normalize
             self.update()
 
         def set_selected_markers(self, markers):
@@ -4592,10 +4598,12 @@ class PileViewer(qw.QFrame):
 
         self.waterfall_filter.exponent_changed.connect(
             viewer.waterfall_set_goldstein_exponent)
-        self.waterfall_filter.window_size_changed.connect(
-            viewer.waterfall_set_goldstein_window_size)
-        self.waterfall_filter.adaptive_weights.toggled.connect(
-            viewer.waterfall_set_goldstein_adaptive_weight)
+        self.waterfall_filter.window_ntraces_changed.connect(
+            viewer.waterfall_set_goldstein_window_ntraces)
+        self.waterfall_filter.window_length_changed.connect(
+            viewer.waterfall_set_goldstein_window_length)
+        self.waterfall_filter.normalize_power.toggled.connect(
+            viewer.waterfall_set_goldstein_normalize_power)
 
         row = 0
         for control in (
