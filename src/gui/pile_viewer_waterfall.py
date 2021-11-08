@@ -179,7 +179,7 @@ class TraceWaterfall:
         if HAS_LIGHTGUIDE:
             if self._goldstein_exponent:
                 window_ntraces = self._goldstein_window_ntraces
-                window_length = int(self._goldstein_window_length // img_deltat)
+                window_length = self._goldstein_window_ntraces
                 if window_ntraces % 2:
                     window_ntraces += 1
                 if window_length % 2:
