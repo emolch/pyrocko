@@ -43,7 +43,7 @@ class TraceWaterfall:
         self._median_filter_size = 3
 
         self._goldstein_exponent = 0.
-        self._goldstein_window_ntraces = 32
+        self._goldstein_window_ntraces = 16
         self._goldstein_window_ntraces = 0.1
         self._goldstein_normalize_power = False
 
@@ -189,11 +189,9 @@ class TraceWaterfall:
                     int(window_ntraces // 2 - 1),
                     int(window_length // 2 - 1)
                 )
-                print(window_ntraces, window_length)
-                print(overlap)
 
                 data = lightguide.rust.goldstein_filter_rect(
-                    data,
+                    data.astype(num.float32),
                     window_size=(window_ntraces, window_length),
                     overlap=overlap,
                     exponent=self._goldstein_exponent,
