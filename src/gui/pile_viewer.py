@@ -209,7 +209,7 @@ class CommonScaleStationLocation:
 
 class CommonScaleComponent:
     mode = ScaleMode.CommonScaleComponent
-    
+
     @staticmethod
     def scale(tr):
         return tr.channel
@@ -2072,6 +2072,7 @@ def MakePileViewerMainClass(base):
         def nslc_ids_under_cursor(self, x, y):
             ftrack = self.track_to_screen.rev(y)
             nslc_ids = self.get_nslc_ids_for_track(ftrack)
+            print('Here', nslc_ids)
             return nslc_ids
 
         def marker_under_cursor(self, x, y):
@@ -3136,6 +3137,21 @@ def MakePileViewerMainClass(base):
             nticks = 0
             annot_labels = []
 
+            # Map nslc ids to canvas rows
+            for trace in processed_traces:
+                gt = self.gather(trace)
+                if gt not in self.key_to_row:
+                    continue
+
+                itrack = self.key_to_row[gt]
+                if itrack not in track_projections:
+                    continue
+
+                if itrack not in self.track_to_nslc_ids:
+                    self.track_to_nslc_ids[itrack] = set()
+
+                self.track_to_nslc_ids[itrack].add(trace.nslc_id)
+
             if self.view_mode is ViewMode.Waterfall and processed_traces:
                 waterfall = self.waterfall
                 waterfall.set_time_range(self.tmin, self.tmax)
@@ -3206,11 +3222,6 @@ def MakePileViewerMainClass(base):
                         continue
 
                     trace_to_itrack[trace] = itrack
-
-                    if itrack not in self.track_to_nslc_ids:
-                        self.track_to_nslc_ids[itrack] = set()
-
-                    self.track_to_nslc_ids[itrack].add(trace.nslc_id)
 
                     if itrack not in track_scaling_keys:
                         track_scaling_keys[itrack] = set()
@@ -3894,7 +3905,7 @@ def MakePileViewerMainClass(base):
         def waterfall_set_goldstein_exponent(self, exponent):
             self.waterfall_goldstein_exponent = exponent
             self.update()
-        
+
         def waterfall_set_goldstein_window_ntraces(self, size):
             self.waterfall_goldstein_window_ntraces = size
             self.update()
@@ -3929,6 +3940,7 @@ def MakePileViewerMainClass(base):
 
         def get_nslc_ids_for_track(self, ftrack):
             itrack = int(ftrack)
+            print(itrack, self.track_to_nslc_ids)
             return self.track_to_nslc_ids.get(itrack, [])
 
         def stop_picking(self, x, y, abort=False):
