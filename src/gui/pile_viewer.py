@@ -2072,7 +2072,6 @@ def MakePileViewerMainClass(base):
         def nslc_ids_under_cursor(self, x, y):
             ftrack = self.track_to_screen.rev(y)
             nslc_ids = self.get_nslc_ids_for_track(ftrack)
-            print('Here', nslc_ids)
             return nslc_ids
 
         def marker_under_cursor(self, x, y):
@@ -3940,7 +3939,6 @@ def MakePileViewerMainClass(base):
 
         def get_nslc_ids_for_track(self, ftrack):
             itrack = int(ftrack)
-            print(itrack, self.track_to_nslc_ids)
             return self.track_to_nslc_ids.get(itrack, [])
 
         def stop_picking(self, x, y, abort=False):
