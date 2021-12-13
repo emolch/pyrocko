@@ -137,6 +137,16 @@ def make_chunks(items):
 
 class deg_float(float):
 
+    def __lt__(self, other):
+        if other is None:
+            return False
+        return super().__lt__(other)
+
+    def __gt__(self, other):
+        if other is None:
+            return False
+        return super().__gt__(other)
+
     def __str__(self):
         return '%4.0f' % self
 
