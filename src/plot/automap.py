@@ -1207,10 +1207,8 @@ class Map(Object):
                 if num.any(points_in_region(boundary.points, self._wesn)):
                     for typ, part in boundary.split_types(
                             [['SUB'],
-                             # ['OSR', 'OTF', 'OCB', 'CTF', 'CCB', 'CRB']]):
                              ['OSR', 'CRB'],
-                             ['OTF', 'CTF'],
-                             ['OCB', 'CCB']]):
+                             ['OTF', 'CTF', 'OCB', 'CCB']]):
 
                         lats, lons = part.T
 
