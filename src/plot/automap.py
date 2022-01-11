@@ -1207,11 +1207,18 @@ class Map(Object):
                 if num.any(points_in_region(boundary.points, self._wesn)):
                     for typ, part in boundary.split_types(
                             [['SUB'],
-                             ['OSR', 'OTF', 'OCB', 'CTF', 'CCB', 'CRB']]):
+                             # ['OSR', 'OTF', 'OCB', 'CTF', 'CCB', 'CRB']]):
+                             ['OSR', 'CRB'],
+                             ['OTF', 'CTF'],
+                             ['OCB', 'CCB']]):
 
                         lats, lons = part.T
 
                         kwargs = {}
+
+                        kwargs['in_columns'] = (lons, lats)
+                        kwargs['W'] = '%gp,%s' % (size, color_plates)
+
                         if typ[0] == 'SUB':
                             if boundary.kind == '\\':
                                 kwargs['S'] = 'f%g/%gp+t+r' % (
@@ -1222,8 +1229,14 @@ class Map(Object):
 
                             kwargs['G'] = color_plates
 
-                        kwargs['in_columns'] = (lons, lats)
-                        kwargs['W'] = '%gp,%s' % (size, color_plates),
+                        elif typ[0] in ['OSR', 'CRB']:
+                            kwargs_bg = {}
+                            kwargs_bg['in_columns'] = (lons, lats)
+                            kwargs_bg['W'] = '%gp,%s' % (
+                                size * 3, color_plates)
+                            psxy_kwargs.append(kwargs_bg)
+
+                            kwargs['W'] = '%gp,%s' % (size * 2, 'white')
 
                         psxy_kwargs.append(kwargs)
 
