@@ -185,7 +185,8 @@ class Viewer(qw.QMainWindow):
                 ('Plate bounds', elements.PlatesBoundsState()),
                 ('InSAR Surface Displacements', elements.KiteState()),
                 ('Geometry', elements.GeometryState()),
-                ('Spheroid', elements.SpheroidState())]:
+                ('Spheroid', elements.SpheroidState()),
+                ('Rays', elements.RaysState())]:
 
             def wrap_add_element(estate):
                 def add_element(*args):

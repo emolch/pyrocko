@@ -74,8 +74,11 @@ def make_multi_polyline(
             num.vstack(lines_latlon), radius=1.0 - depth/cake.earthradius)
         lines = lines_latlon
     elif lines_latlondepth is not None:
-        points = geometry.latlondepth2xyz(
-            num.vstack(lines_latlondepth), planetradius=cake.earthradius)
+        if not lines_latlondepth:
+            points = num.zeros((0, 3))
+        else:
+            points = geometry.latlondepth2xyz(
+                num.vstack(lines_latlondepth), planetradius=cake.earthradius)
         lines = lines_latlondepth
 
     vpoints = vtk.vtkPoints()

@@ -21,3 +21,4 @@ from .active_faults import *  # noqa
 from .plates import *  # noqa
 from .geometry import *  # noqa
 from .spheroid import *  # noqa
+from .rays import *  # noqa
