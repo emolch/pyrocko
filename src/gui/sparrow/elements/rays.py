@@ -49,7 +49,11 @@ def to_latlondepth(event, station, rays):
 
 class RaysState(ElementState):
     visible = Bool.T(default=True)
-    size = Float.T(default=3.0)
+    line_width = Float.T(default=1.0)
+    opacity = Float.T(default=1.0)
+    lat = Float.T(default=0.0)
+    lon = Float.T(default=0.0)
+    depth = Float.T(default=10000.0)
 
     def create(self):
         element = RaysElement()
@@ -61,6 +65,7 @@ class RaysPipe(object):
     def __init__(self, ray_data):
 
         self._opacity = 1.0
+        self._line_width = 1.0
         self._actors = {}
 
         mapper = vtk.vtkDataSetMapper()
@@ -82,9 +87,17 @@ class RaysPipe(object):
         opacity = float(opacity)
         if self._opacity != opacity:
             for actor in self._actors.values():
-                actor.getProperty().SetOpacity(opacity)
+                actor.GetProperty().SetOpacity(opacity)
 
             self._opacity = opacity
+
+    def set_line_width(self, width):
+        width = float(width)
+        if self._line_width != width:
+            for actor in self._actors.values():
+                actor.GetProperty().SetLineWidth(width)
+
+            self._line_width = width
 
     def get_actors(self):
         return [self._actors[k] for k in sorted(self._actors.keys())]
@@ -100,12 +113,19 @@ class RaysElement(Element):
         self._controls = None
         self._active_faults = None
         self._listeners = []
+        self._mod = cake.load_model()
+        self._stations = model.load_stations('stations.txt')
+        self._params = ()
 
     def bind_state(self, state):
-        self._listeners.append(
-            state.add_listener(self.update, 'visible'))
-        self._listeners.append(
-            state.add_listener(self.update, 'size'))
+        upd = self.update
+        self._listeners.append(upd)
+        for k in [
+                'visible', 'line_width', 'opacity',
+                'lat', 'lon', 'depth']:
+
+            state.add_listener(upd, k)
+
         self._state = state
 
     def unbind_state(self):
@@ -139,39 +159,52 @@ class RaysElement(Element):
             self._parent.update_view()
             self._parent = None
 
+    def move_here(self):
+        pstate = self._parent.state
+        state = self._state
+        state.lat = pstate.lat
+        state.lon = pstate.lon
+
     def update(self, *args):
 
         state = self._state
+        params = (state.lat, state.lon, state.depth)
+
+        if self._pipe and (params != self._params or not state.visible):
+            for actor in self._pipe.get_actors():
+                self._parent.remove_actor(actor)
+
+            self._pipe = None
+
         if state.visible:
             if not self._pipe:
+                print('update')
 
-                stations = model.load_stations('stations.txt')
                 events = [model.Event(
-                    lat=20., lon=40., depth=30000.)]
+                    lat=state.lat, lon=state.lon, depth=state.depth)]
 
-                mod = cake.load_model()
                 ray_data = []
                 for event in events:
-                    for station in stations:
+                    for station in self._stations:
                         dist = event.distance_to(station)
                         ray_data.append((
                             event,
                             station,
-                            mod.arrivals(
+                            self._mod.arrivals(
                                 phases=[cake.PhaseDef('P')],
                                 distances=[dist*od.m2d],
                                 zstart=event.depth,
                                 zstop=0.0)))
 
                 self._pipe = RaysPipe(ray_data)
+                self._params = params
 
-        if state.visible:
-            for actor in self._pipe.get_actors():
-                self._parent.add_actor(actor)
+                for actor in self._pipe.get_actors():
+                    self._parent.add_actor(actor)
 
-        else:
-            for actor in self._pipe.get_actors():
-                self._parent.remove_actor(actor)
+        if self._pipe:
+            self._pipe.set_opacity(state.opacity)
+            self._pipe.set_line_width(state.line_width)
 
         self._parent.update_view()
 
@@ -184,25 +217,41 @@ class RaysElement(Element):
             layout.setAlignment(qc.Qt.AlignTop)
             frame.setLayout(layout)
 
-            layout.addWidget(qw.QLabel('Size'), 0, 0)
+            state = self._state
 
-            slider = qw.QSlider(qc.Qt.Horizontal)
-            slider.setSizePolicy(
-                qw.QSizePolicy(
+            iy = 0
+            for (param, vmin, vmax) in [
+                    ('lat', -90., 90.),
+                    ('lon', -180., 180.),
+                    ('depth', -10000., 100000.),
+                    ('line_width', 0., 5.),
+                    ('opacity', 0., 1.)]:
+
+                layout.addWidget(qw.QLabel(param.capitalize()), iy, 0)
+
+                slider = qw.QSlider(qc.Qt.Horizontal)
+                slider.setSizePolicy(qw.QSizePolicy(
                     qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-            slider.setMinimum(0)
-            slider.setMaximum(10)
-            slider.setSingleStep(0.5)
-            slider.setPageStep(1)
-            layout.addWidget(slider, 0, 1)
-            state_bind_slider(self, self._state, 'size', slider)
+
+                slider.setMinimum(vmin * 100.)
+                slider.setMaximum(vmax * 100.)
+                layout.addWidget(slider, iy, 1)
+
+                state_bind_slider(self, state, param, slider, factor=0.01)
+                iy += 1
+
+            pb = qw.QPushButton('Move Here')
+            layout.addWidget(pb, iy, 0)
+            pb.clicked.connect(self.move_here)
+
+            iy += 1
 
             cb = qw.QCheckBox('Show')
-            layout.addWidget(cb, 1, 0)
-            state_bind_checkbox(self, self._state, 'visible', cb)
+            layout.addWidget(cb, iy, 0)
+            state_bind_checkbox(self, state, 'visible', cb)
 
             pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 1, 1)
+            layout.addWidget(pb, iy, 1)
             pb.clicked.connect(self.remove)
 
             self._controls = frame
