@@ -4,6 +4,7 @@
 # ---|P------/S----------~Lg----------
 from __future__ import absolute_import, division
 
+import re
 import logging
 import numpy as num
 import hashlib
@@ -52,7 +53,21 @@ class EmptyEvent(Exception):
 
 
 class Tag(StringPattern):
-    pattern = r'^[A-Za-z][A-Za-z0-9._]{0,128}(:[A-Za-z0-9._-]*)?$'
+    pattern = r'^([A-Za-z][A-Za-z0-9._]{0,128})(:([A-Za-z0-9._-]*))?$'
+
+
+def opportunistic_cast(v):
+    try:
+        return int(v)
+    except ValueError:
+        pass
+
+    try:
+        return float(v)
+    except ValueError:
+        pass
+
+    return v
 
 
 class Event(Location):
@@ -120,6 +135,18 @@ class Event(Location):
             region=region, catalog=catalog,
             moment_tensor=moment_tensor, duration=duration, tags=tags,
             extras=extras)
+
+    def tags_as_dict(self):
+        d = {}
+        for tag in self.tags:
+            m = re.match(Tag.pattern, tag)
+            if m:
+                k, v = m.group(1), opportunistic_cast(m.group(3))
+                d[k] = None if m.group(2) == '' else v
+            else:
+                logger.warning('Invalid event tag: %s' % tag)
+
+        return d
 
     def time_as_string(self):
         return util.time_to_str(self.time)
