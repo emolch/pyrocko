@@ -134,46 +134,27 @@ def oa_to_array(objects, attribute):
 
 
 def eventtags_to_array(events, tab):
-    n_tags = num.array([len(ev.tags) for ev in events])
-    evts_all_tags = num.arange(len(events))[n_tags != 0]
 
-    if evts_all_tags.shape[0] == 0:
-        return tab
+    ks = set()
+    event_tags = []
+    for ev in events:
+        tags = ev.tags_as_dict()
+        ks.update(tags.keys())
+        event_tags.append(tags)
 
-    ev0 = events[evts_all_tags[0]]
-
-    if num.unique(n_tags).shape[0] > 1:
-        msg = 'Not all events have equal number of tags.'
-        if num.unique(n_tags).shape[0] == 2 and num.min(n_tags) == 0:
-            logger.warn(msg + ' Zero length lists are filled with NaNs.')
+    for k in sorted(ks):
+        column = [tags.get(k, None) for tags in event_tags]
+        if all(isinstance(v, int) for v in column):
+            dtype = int
+        elif all(isinstance(v, float) for v in column):
+            dtype = float
         else:
-            raise IndexError(
-                msg + ' Several non-zero shapes detected. Please check.')
-
-    for it, tag in enumerate(ev0.tags):
-        if tag.find(':') > -1:
-            header = '_'.join(['tag', tag.split(':')[0]])
-            value_ind = 1
-        else:
-            header = 'tag_%i' % (it + 1)
-            value_ind = 0
-
-        try:
-            float(tag.split(':')[value_ind])
-            dtype = num.float
-            values = num.ones_like(n_tags) * num.nan
-        except ValueError:
             dtype = num.string_
-            values = num.array(
-                ['' for x in range(n_tags.shape[0])], dtype=dtype)
+            column = [v or '' for v in column]
 
-        values[evts_all_tags] = num.array([
-            events[iev].tags[it].split(':')[value_ind]
-            for iev in evts_all_tags], dtype=dtype)
+        arr = num.array(column, dtype=dtype)
 
-        tab.add_col(table.Header(header), values)
-
-    return tab
+        tab.add_col(table.Header('tag_%s' % k), arr)
 
 
 def eventextras_to_array(events, tab):
@@ -210,8 +191,6 @@ def eventextras_to_array(events, tab):
 
         tab.add_col(table.Header(header), values)
 
-    return tab
-
 
 def events_to_table(events):
     c5 = num.zeros((len(events), 5))
@@ -231,8 +210,8 @@ def events_to_table(events):
         tab.add_col(table.Header(k, unit), oa_to_array(events, k))
 
     if events:
-        tab = eventtags_to_array(events, tab)
-        tab = eventextras_to_array(events, tab)
+        eventtags_to_array(events, tab)
+        eventextras_to_array(events, tab)
 
     return tab
 
