@@ -75,7 +75,8 @@ class Element(object):
 
 
 class CPTChoice(StringChoice):
-    choices = ['slip_colors', 'seismic', 'jet', 'hot_r', 'gist_earth_r']
+    choices = [
+        'slip_colors', 'seismic', 'seismic_r', 'jet', 'hot_r', 'gist_earth_r']
 
 
 class CPTState(ElementState):
