@@ -56,8 +56,8 @@ class TableState(base.ElementState):
     color_parameter = String.T(optional=True)
     cpt = base.CPTState.T(default=base.CPTState.D())
     size_parameter = String.T(optional=True)
-    depth_min = Float.T(default=0.)
-    depth_max = Float.T(default=100.)
+    depth_min = Float.T(default=-60*km)
+    depth_max = Float.T(default=700*km)
     depth_offset = Float.T(default=0.0)
     symbol = SymbolChoice.T(default='point')
 
