@@ -161,7 +161,7 @@ def state_bind_slider(owner, state, path, widget, factor=1., dtype=float):
 
         def update_widget(state, widget):
             widget.blockSignals(True)
-            widget.setValue(state.get(path) * 1. / factor)
+            widget.setValue(int(state.get(path) * 1. / factor))
             widget.blockSignals(False)
 
         return update_state, update_widget
