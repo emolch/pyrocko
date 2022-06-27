@@ -2168,7 +2168,7 @@ def degapper(
                                  / idist) * (b.ydata[0]-a.ydata[-1])
                             ).astype(a.ydata.dtype)
                         elif fillmethod == 'zeros':
-                            filler = num.zeros(idist-1, dtype=a.ydist.dtype)
+                            filler = num.zeros(idist-1, dtype=a.ydata.dtype)
                         a.ydata = num.concatenate((a.ydata, filler, b.ydata))
                     a.tmax = b.tmax
                     if a.mtime and b.mtime:
