@@ -14,7 +14,7 @@ except ImportError as e:
 
 from pyrocko import automap
 from pyrocko.guts import Bool, String, List
-from pyrocko.gui.qt_compat import qw, fnpatch
+from pyrocko.gui.qt_compat import qw
 from pyrocko.dataset import topo
 from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
 
@@ -99,10 +99,10 @@ class KiteElement(Element):
     def open_load_scene_dialog(self, *args):
         caption = 'Select one or more Kite scenes to open'
 
-        fns, _ = fnpatch(qw.QFileDialog.getOpenFileNames(
+        fns, _ = qw.QFileDialog.getOpenFileNames(
             self._parent, caption,
             filter='YAML file (*.yml *.yaml)',
-            options=common.qfiledialog_options))
+            options=common.qfiledialog_options)
 
         for fname in fns:
             try:

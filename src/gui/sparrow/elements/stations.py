@@ -12,7 +12,7 @@ from pyrocko.guts import \
 
 from pyrocko import cake, table, model, geometry
 from pyrocko.client import fdsn
-from pyrocko.gui.qt_compat import qw, qc, fnpatch
+from pyrocko.gui.qt_compat import qw, qc
 
 from pyrocko.gui.vtk_util import ScatterPipe
 from .. import common
@@ -167,8 +167,8 @@ class StationsElement(Element):
     def open_file_load_dialog(self):
         caption = 'Select one or more files to open'
 
-        fns, _ = fnpatch(qw.QFileDialog.getOpenFileNames(
-            self._parent, caption, options=common.qfiledialog_options))
+        fns, _ = qw.QFileDialog.getOpenFileNames(
+            self._parent, caption, options=common.qfiledialog_options)
 
         self._state.station_selection = FileStationSelection(
             paths=[str(fn) for fn in fns])

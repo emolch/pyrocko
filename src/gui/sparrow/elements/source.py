@@ -11,7 +11,7 @@ import numpy as num
 from pyrocko.guts import Bool, Float, Object, String
 
 from pyrocko import cake, geometry, gf
-from pyrocko.gui.qt_compat import qc, qw, fnpatch
+from pyrocko.gui.qt_compat import qc, qw
 from pyrocko.gui.talkie import TalkieRoot
 
 from pyrocko.gui.vtk_util import \
@@ -193,8 +193,8 @@ class SourceElement(base.Element):
 
     def open_file_load_dialog(self):
         caption = 'Select one file to open'
-        fns, _ = fnpatch(qw.QFileDialog.getOpenFileNames(
-            self._parent, caption, options=common.qfiledialog_options))
+        fns, _ = qw.QFileDialog.getOpenFileNames(
+            self._parent, caption, options=common.qfiledialog_options)
 
         if fns:
             try:
@@ -223,8 +223,8 @@ class SourceElement(base.Element):
     def open_file_save_dialog(self, fn=None):
         caption = 'Choose a file name to write source'
         if not fn:
-            fn, _ = fnpatch(qw.QFileDialog.getSaveFileName(
-                self._parent, caption, options=common.qfiledialog_options))
+            fn, _ = qw.QFileDialog.getSaveFileName(
+                self._parent, caption, options=common.qfiledialog_options)
         if fn:
             self.save_file(str(fn))
 
