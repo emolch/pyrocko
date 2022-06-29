@@ -1076,10 +1076,10 @@ class Viewer(qw.QMainWindow):
         rot_world = pmt.euler_to_matrix(
             -(self.state.lat-90.)*d2r,
             (self.state.lon+90.)*d2r,
-            0.0*d2r).A.T
+            0.0*d2r).T
 
         rot_cam = pmt.euler_to_matrix(
-            self.state.dip*d2r, -(self.state.strike-90)*d2r, 0.0*d2r).A.T
+            self.state.dip*d2r, -(self.state.strike-90)*d2r, 0.0*d2r).T
 
         rot = num.dot(rot_world, num.dot(rot_cam, rot_world.T))
 
