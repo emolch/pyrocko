@@ -46,14 +46,12 @@ from scipy.interpolate import RegularGridInterpolator
 
 from pyrocko.guts import (Object, Float, String, StringChoice, List,
                           Timestamp, Int, SObject, ArgumentError, Dict,
-                          ValidationError, Bool, Any)
+                          ValidationError, Bool)
 from pyrocko.guts_array import Array
 
 from pyrocko import moment_tensor as pmt
 from pyrocko import trace, util, config, model, eikonal_ext
-from pyrocko.orthodrome import (ne_to_latlon, azidist_numpy,
-                                azidist_to_latlon, latlon_to_ne_numpy)
-from pyrocko.table import Table, LocationRecipe
+from pyrocko.orthodrome import ne_to_latlon
 from pyrocko.model import Location
 from pyrocko.modelling import OkadaSource, make_okada_coefficient_matrix, \
     okada_ext, invert_fault_dislocations_bem
@@ -301,7 +299,6 @@ def check_rect_source_discretisation(points2, nl, nw, store):
 def outline_rect_source(strike, dip, length, width, anchor):
     ln = length
     wd = width
-
     points = num.array(
         [[-0.5 * ln, -0.5 * wd, 0.],
          [0.5 * ln, -0.5 * wd, 0.],
@@ -1652,82 +1649,26 @@ class RectangularExplosionSource(ExplosionSource):
             depths=points[:, 2],
             m0s=amplitudes)
 
+    def outline(self, cs='xyz'):
+        points = outline_rect_source(self.strike, self.dip, self.length,
+                                     self.width, self.anchor)
 
-    def xy_to_coord(self, x, y, cs='xyz'):
-        ln, wd = self.length, self.width
-        strike, dip = self.strike, self.dip
-
-        def array_check(variable):
-            if not isinstance(variable, num.ndarray):
-                return num.array(variable)
-            else:
-                return variable
-
-        x, y = array_check(x), array_check(y)
-
-        if x.shape[0] != y.shape[0]:
-            raise ValueError('Shapes of x and y mismatch')
-
-        x, y =  x * 0.5 * ln, y * 0.5 * wd
-
-        points = num.hstack((
-            x.reshape(-1, 1), y.reshape(-1, 1), num.zeros((x.shape[0], 1))))
-
-        anch_x, anch_y = map_anchor[self.anchor]
-        points[:, 0] -= anch_x * 0.5 * ln
-        points[:, 1] -= anch_y * 0.5 * wd
-
-        rotmat = num.asarray(
-            pmt.euler_to_matrix(dip * d2r, strike * d2r, 0.0))
-
-        points_rot = num.dot(rotmat.T, points.T).T
-
-        points_rot[:, 0] += self.north_shift
-        points_rot[:, 1] += self.east_shift
-        points_rot[:, 2] += self.depth
-
+        points[:, 0] += self.north_shift
+        points[:, 1] += self.east_shift
+        points[:, 2] += self.depth
         if cs == 'xyz':
-            return points_rot
+            return points
         elif cs == 'xy':
-            return points_rot[:, :2]
-        elif cs in ('latlon', 'lonlat', 'latlondepth'):
+            return points[:, :2]
+        elif cs in ('latlon', 'lonlat'):
             latlon = ne_to_latlon(
-                self.lat, self.lon, points_rot[:, 0], points_rot[:, 1])
+                self.lat, self.lon, points[:, 0], points[:, 1])
+
             latlon = num.array(latlon).T
             if cs == 'latlon':
                 return latlon
-            elif cs == 'lonlat':
-                return latlon[:, ::-1]
             else:
-                return num.concatenate(
-                    (latlon, points_rot[:, 2].reshape((len(points_rot),1))),
-                    axis=1)
-
-    def outline(self, cs='xyz'):
-        x = num.array([-1., 1., 1., -1., -1.])
-        y = num.array([-1., -1., 1., 1., -1.])
-
-        return self.xy_to_coord(x, y, cs=cs)
-
-    # def outline(self, cs='xyz'):
-    #     points = outline_rect_source(self.strike, self.dip, self.length,
-    #                                  self.width, self.anchor)
-
-    #     points[:, 0] += self.north_shift
-    #     points[:, 1] += self.east_shift
-    #     points[:, 2] += self.depth
-    #     if cs == 'xyz':
-    #         return points
-    #     elif cs == 'xy':
-    #         return points[:, :2]
-    #     elif cs in ('latlon', 'lonlat'):
-    #         latlon = ne_to_latlon(
-    #             self.lat, self.lon, points[:, 0], points[:, 1])
-    #         latlon = num.array(latlon).T
-    #         if cs == 'latlon':
-    #             return latlon
-    #         else:
-                # return latlon[:, ::-1]
+                return latlon[:, ::-1]
 
     def get_nucleation_abs_coord(self, cs='xy'):
 
@@ -2376,7 +2317,7 @@ class RectangularSource(SourceWithDerivedMagnitude):
         if x.shape[0] != y.shape[0]:
             raise ValueError('Shapes of x and y mismatch')
 
-        x, y =  x * 0.5 * ln, y * 0.5 * wd
+        x, y = x * 0.5 * ln, y * 0.5 * wd
 
         points = num.hstack((
             x.reshape(-1, 1), y.reshape(-1, 1), num.zeros((x.shape[0], 1))))
@@ -2408,7 +2349,7 @@ class RectangularSource(SourceWithDerivedMagnitude):
                 return latlon[:, ::-1]
             else:
                 return num.concatenate(
-                    (latlon, points_rot[:, 2].reshape((len(points_rot),1))),
+                    (latlon, points_rot[:, 2].reshape((len(points_rot), 1))),
                     axis=1)
 
     def outline(self, cs='xyz'):
@@ -2416,6 +2357,33 @@ class RectangularSource(SourceWithDerivedMagnitude):
         y = num.array([-1., -1., 1., 1., -1.])
 
         return self.xy_to_coord(x, y, cs=cs)
+
+    def points_on_source(self, cs='xyz', **kwargs):
+
+        points = points_on_rect_source(
+            self.strike, self.dip, self.length, self.width,
+            self.anchor, **kwargs)
+
+        points[:, 0] += self.north_shift
+        points[:, 1] += self.east_shift
+        points[:, 2] += self.depth
+        if cs == 'xyz':
+            return points
+        elif cs == 'xy':
+            return points[:, :2]
+        elif cs in ('latlon', 'lonlat', 'latlondepth'):
+            latlon = ne_to_latlon(
+                self.lat, self.lon, points[:, 0], points[:, 1])
+
+            latlon = num.array(latlon).T
+            if cs == 'latlon':
+                return latlon
+            elif cs == 'lonlat':
+                return latlon[:, ::-1]
+            else:
+                return num.concatenate(
+                    (latlon, points[:, 2].reshape((len(points), 1))),
+                    axis=1)
 
     def geometry(self, *args, **kwargs):
         from pyrocko.model import Geometry
@@ -2465,57 +2433,6 @@ class RectangularSource(SourceWithDerivedMagnitude):
             'moment', ds.moments().reshape(ds.nl*ds.nw, -1))
 
         return geom
-
-    def outline(self, cs='xyz'):
-        points = outline_rect_source(self.strike, self.dip, self.length,
-                                     self.width, self.anchor)
-        points[:, 0] += self.north_shift
-        points[:, 1] += self.east_shift
-        points[:, 2] += self.depth
-        if cs == 'xyz':
-            return points
-        elif cs == 'xy':
-            return points[:, :2]
-        elif cs in ('latlon', 'lonlat', 'latlondepth'):
-            latlon = ne_to_latlon(
-                self.lat, self.lon, points[:, 0], points[:, 1])
-
-            latlon = num.array(latlon).T
-            if cs == 'latlon':
-                return latlon
-            elif cs == 'lonlat':
-                return latlon[:, ::-1]
-            else:
-                return num.concatenate(
-                    (latlon, points[:, 2].reshape((len(points), 1))),
-                    axis=1)
-
-    def points_on_source(self, cs='xyz', **kwargs):
-
-        points = points_on_rect_source(
-            self.strike, self.dip, self.length, self.width,
-            self.anchor, **kwargs)
-
-        points[:, 0] += self.north_shift
-        points[:, 1] += self.east_shift
-        points[:, 2] += self.depth
-        if cs == 'xyz':
-            return points
-        elif cs == 'xy':
-            return points[:, :2]
-        elif cs in ('latlon', 'lonlat', 'latlondepth'):
-            latlon = ne_to_latlon(
-                self.lat, self.lon, points[:, 0], points[:, 1])
-
-            latlon = num.array(latlon).T
-            if cs == 'latlon':
-                return latlon
-            elif cs == 'lonlat':
-                return latlon[:, ::-1]
-            else:
-                return num.concatenate(
-                    (latlon, points[:, 2].reshape((len(points), 1))),
-                    axis=1)
 
     def get_nucleation_abs_coord(self, cs='xy'):
 
@@ -5736,7 +5653,6 @@ stf_classes = [
 __all__ = '''
 SeismosizerError
 BadRequest
-Cloneable
 NoSuchStore
 DerivedMagnitudeError
 STFMode
