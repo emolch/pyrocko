@@ -324,10 +324,13 @@ class GeometryElement(base.Element):
                     qw.QSizePolicy(
                         qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
 
-                slider.setMinimum(state.geometry.times.min())
-                slider.setMaximum(state.geometry.times.max())
-                slider.setSingleStep(state.geometry.deltat)
-                slider.setPageStep(state.geometry.deltat)
+                def iround(x):
+                    return int(round(x))
+
+                slider.setMinimum(iround(state.geometry.times.min()))
+                slider.setMaximum(iround(state.geometry.times.max()))
+                slider.setSingleStep(iround(state.geometry.deltat))
+                slider.setPageStep(iround(state.geometry.deltat))
 
                 time_label = qw.QLabel('Time')
                 layout.addWidget(time_label, il, 0)

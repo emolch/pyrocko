@@ -97,7 +97,7 @@ def _paint_cpt_rect(painter, cpt, rect):
     rect_cpt.setWidth(int(rect.width() * 0.9) - 2)
 
     rect_c_nan = copy.deepcopy(rect)
-    rect_c_nan.setLeft(rect.left() + rect_cpt.width() + 4.)
+    rect_c_nan.setLeft(rect.left() + rect_cpt.width() + 4)
     rect_c_nan.setWidth(int(rect.width() * 0.1) - 2)
 
     levels = num.zeros(len(cpt.levels) * 2 + 4)

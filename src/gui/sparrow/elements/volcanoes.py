@@ -133,7 +133,7 @@ class VolcanoesElement(Element):
                     qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
             slider.setMinimum(0)
             slider.setMaximum(10)
-            slider.setSingleStep(0.5)
+            slider.setSingleStep(1)
             slider.setPageStep(1)
             layout.addWidget(slider, 0, 1)
             state_bind_slider(self, self._state, 'size', slider)

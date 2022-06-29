@@ -95,7 +95,7 @@ class TableElement(base.Element):
         state.add_listener(upd, 'size')
         state.add_listener(upd, 'depth_offset')
 
-        upd_alpha = self.update_alpha
+        upd_alpha = self._update_alpha
         self._listeners.append(upd_alpha)
         state.add_listener(upd_alpha, 'depth_min')
         state.add_listener(upd_alpha, 'depth_max')
@@ -279,7 +279,7 @@ class TableElement(base.Element):
         self._update_alpha()  # TODO: only if needed?
         self._parent.update_view()
 
-    def update_alpha(self, *args, mask=None):
+    def _update_alpha(self, *args, mask=None):
         if self._state.symbol == 'beachball':
             return
 
@@ -383,7 +383,7 @@ class TableElement(base.Element):
             spinbox = qw.QDoubleSpinBox()
             spinbox.setDecimals(1)
             spinbox.setSuffix(' km')
-            spinbox.setSingleStep(1.)
+            spinbox.setSingleStep(1)
             layout.addWidget(spinbox, iy, 2)
             state_bind_spinbox(
                 self, self._state, 'depth_min', spinbox, factor=km)
@@ -404,7 +404,7 @@ class TableElement(base.Element):
             spinbox = qw.QDoubleSpinBox()
             spinbox.setDecimals(1)
             spinbox.setSuffix(' km')
-            spinbox.setSingleStep(1.)
+            spinbox.setSingleStep(1)
             layout.addWidget(spinbox, iy, 2)
             state_bind_spinbox(
                 self, self._state, 'depth_max', spinbox, factor=km)
@@ -480,14 +480,14 @@ class TableElement(base.Element):
 
             for wdg in (self._depth_min_slider, self._depth_max_slider,
                         self._depth_min_spinbox, self._depth_max_spinbox):
-                wdg.setMinimum(depth_min)
-                wdg.setMaximum(depth_max)
+                wdg.setMinimum(int(depth_min))
+                wdg.setMaximum(int(depth_max))
 
             for wdg in (self._depth_min_slider, self._depth_min_spinbox):
-                wdg.setValue(depth_min / km)
+                wdg.setValue(int(depth_min / km))
 
             for wdg in (self._depth_max_slider, self._depth_max_spinbox):
-                wdg.setValue(depth_max / km)
+                wdg.setValue(int(depth_max / km))
 
 
 __all__ = [

@@ -68,6 +68,10 @@ def getitem_or_none(l, i):
         return None
 
 
+def iround(f):
+    return int(round(f))
+
+
 class SnapshotItemDelegate(qw.QStyledItemDelegate):
     def __init__(self, model):
         qw.QStyledItemDelegate.__init__(self)
@@ -84,8 +88,9 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
         from .main import app
         item = self.model.get_item_or_none(index)
         em = get_em(painter)
-        frect = option.rect.adjusted(0., 0., 0., 0.)
-        trect = option.rect.adjusted(em*0.5, em*0.5, -em*0.5, -em*0.5)
+        frect = option.rect.adjusted(0, 0, 0, 0)
+        nb = iround(em*0.5)
+        trect = option.rect.adjusted(nb, nb, -nb, -nb)
 
         if isinstance(item, Snapshot):
 
