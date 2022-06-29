@@ -5,7 +5,7 @@
 
 import numpy as num
 
-from pyrocko.guts import Object, String, Unicode, List, Int, SObject, Any
+from pyrocko.guts import Object, List
 from pyrocko.guts_array import Array
 from pyrocko.table import Table, LocationRecipe
 
@@ -56,7 +56,8 @@ class Geometry(Object):
              'Indexes belonging to one polygon have to be given row-wise.',
         optional=True)
 
-    outlines = List.T(Table.T(),
+    outlines = List.T(
+        Table.T(),
         default=[],
         help='List of vertices of the mesh of the outlines of the geometry. '
              'Expected to be (lat,lon,north,east,depth) for each vertex'

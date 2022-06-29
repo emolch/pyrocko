@@ -10,7 +10,7 @@ import os
 import numpy as num
 
 from pyrocko import automap
-from pyrocko.guts import Object, String, Tuple, StringChoice
+from pyrocko.guts import String, Tuple, StringChoice
 from pyrocko.plot import AutoScaler, AutoScaleMode
 from pyrocko.dataset import topo
 
@@ -52,7 +52,7 @@ class Element(object):
         for listener in self._listeners:
             try:
                 listener.release()
-            except Exception as e:
+            except Exception:
                 pass
 
         self._listeners = []
@@ -157,7 +157,6 @@ class CPTHandler(Element):
             le.clear()
 
             self._cptscale_to_lineedit(self._state, le)
-
 
     def _cptscale_to_lineedit(self, state, widget):
         sel = widget.selectedText() == widget.text()

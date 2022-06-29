@@ -151,7 +151,7 @@ def eventtags_to_array(events, tab):
             header = '_'.join(['tag', tag.split(':')[0]])
             value_ind = 1
         else:
-            header = 'tag_%i' % (i + 1)
+            header = 'tag_%i' % (it + 1)
             value_ind = 0
 
         try:

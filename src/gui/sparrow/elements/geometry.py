@@ -123,9 +123,8 @@ class GeometryElement(base.Element):
         for listener in self._listeners:
             try:
                 listener.release()
-            except Exception as e:
+            except Exception:
                 pass
-
 
         self.cpt_handler.unbind_state()
         self._state = None
@@ -226,12 +225,12 @@ class GeometryElement(base.Element):
         state = self._state
 
         if state.geometry and self._controls:
-            #base.update_cpt(self)
+            # base.update_cpt(self)
             self.update_cpt(state)
 
             if state.visible:
-                #cpt_name = self.get_cpt_name(
-                #    state.cpt, state.display_parameter)
+                # cpt_name = self.get_cpt_name(
+                # state.cpt, state.display_parameter)
                 geo = state.geometry
                 values = self.get_values(geo)
                 lut = self.cpt_handler._lookuptable

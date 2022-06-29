@@ -228,8 +228,8 @@ class TrimeshPipe(object):
         prop.SetAmbientColor(0.3, 0.3, 0.3)
         prop.SetDiffuseColor(0.5, 0.5, 0.5)
         prop.SetSpecularColor(1.0, 1.0, 1.0)
-        prop.BackfaceCullingOn()  # solves problems at sphere horizon but
-                                # disables seeing topo from below.
+        prop.BackfaceCullingOn()
+        # solves probs at sphere horizon but disables seeing topo from below.
 
         # prop.EdgeVisibilityOn()
         # prop.SetInterpolationToGouraud()

@@ -20,6 +20,7 @@ Global Volcanism Program, 2013. Volcanoes of the World,
 v. 4.8.5. Venzke, E (ed.). Smithsonian Institution. Downloaded 29 Jan 2020.
 https://doi.org/10.5479/si.GVP.VOTW4-2013 '''
 
+
 class Volcano(object):
     age = None
 

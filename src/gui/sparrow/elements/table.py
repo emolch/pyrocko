@@ -270,7 +270,9 @@ class TableElement(base.Element):
 
             self._color_combobox = cb
 
-            self.cpt_handler.cpt_controls(self._parent, self._state.cpt, layout)
+            self.cpt_handler.cpt_controls(
+                self._parent, self._state.cpt, layout)
+
             iy = layout.rowCount() + 1
 
             layout.addWidget(qw.QLabel('Symbol'), iy, 0)
