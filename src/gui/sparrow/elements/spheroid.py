@@ -167,8 +167,8 @@ class SpheroidElement(Element):
                 slider.setSizePolicy(qw.QSizePolicy(
                     qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
 
-                slider.setMinimum(vmin * 100.)
-                slider.setMaximum(vmax * 100.)
+                slider.setMinimum(int(round(vmin * 100.)))
+                slider.setMaximum(int(round(vmax * 100.)))
                 layout.addWidget(slider, iy, 1)
 
                 state_bind_slider(self, state, param, slider, factor=0.01)

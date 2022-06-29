@@ -413,10 +413,15 @@ class SourceElement(base.Element):
                     slider.setSizePolicy(
                         qw.QSizePolicy(
                             qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-                    slider.setMinimum(source._ranges[label]['min'])
-                    slider.setMaximum(source._ranges[label]['max'])
-                    slider.setSingleStep(source._ranges[label]['step'])
-                    slider.setPageStep(source._ranges[label]['step'])
+                    slider.setMinimum(
+                        int(round(source._ranges[label]['min'])))
+                    slider.setMaximum(
+                        int(round(source._ranges[label]['max'])))
+                    slider.setSingleStep(
+                        int(round(source._ranges[label]['step'])))
+                    slider.setPageStep(
+                        int(round(source._ranges[label]['step'])))
+
                     layout.addWidget(slider, il, 1)
                     try:
                         state_bind_slider(
@@ -442,8 +447,8 @@ class SourceElement(base.Element):
                 slider.setSizePolicy(
                     qw.QSizePolicy(
                         qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-                slider.setMinimum(1.)
-                slider.setMaximum(1000.)
+                slider.setMinimum(1)
+                slider.setMaximum(1000)
                 slider.setSingleStep(1)
                 slider.setPageStep(1)
                 layout.addWidget(slider, il, 1)

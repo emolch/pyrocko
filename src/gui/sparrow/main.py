@@ -528,7 +528,7 @@ class Viewer(qw.QMainWindow):
 
         self._animation_timer = qc.QTimer(self)
         self._animation_timer.timeout.connect(self.next_animation_frame)
-        self._animation_timer.setInterval(interpolator.dt * 1000.)
+        self._animation_timer.setInterval(int(round(interpolator.dt * 1000.)))
         self._animation_timer.start()
         if output_path is not None:
             self.vtk_widget.setFixedSize(qc.QSize(1920, 1080))
