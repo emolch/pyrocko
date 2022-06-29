@@ -6,7 +6,6 @@ from pyrocko.guts import Object, String, Float, Bytes, clone, \
     dump_all, load_all
 
 from pyrocko.gui.qt_compat import qw, qc, qg, get_em, fnpatch
-from pyrocko.color import Color
 from .state import ViewerState, Interpolator, interpolateables
 from vtk.util.numpy_support import vtk_to_numpy
 import vtk
@@ -61,9 +60,9 @@ def fit_to_rect(frame, size, halign='center', valign='center'):
     return qc.QRectF(rl, rt, rw, rh)
 
 
-def getitem_or_none(l, i):
+def getitem_or_none(items, i):
     try:
-        return l[i]
+        return items[i]
     except IndexError:
         return None
 
@@ -111,7 +110,7 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
 
                 painter.fillRect(frect, bg_brush)
 
-            #painter.drawRect(frect)
+            # painter.drawRect(frect)
             img = item.get_image()
             if img is not None:
                 prect = fit_to_rect(frect, img.size(), halign='right')
@@ -143,11 +142,11 @@ class SnapshotListView(qw.QListView):
 
     def startDrag(self, supported):
         if supported & (qc.Qt.CopyAction | qc.Qt.MoveAction):
-             drag = qg.QDrag(self)
-             selected_indexes = self.selectedIndexes()
-             mime_data = self.model().mimeData(selected_indexes)
-             drag.setMimeData(mime_data)
-             drag.exec(qc.Qt.MoveAction)
+            drag = qg.QDrag(self)
+            selected_indexes = self.selectedIndexes()
+            mime_data = self.model().mimeData(selected_indexes)
+            drag.setMimeData(mime_data)
+            drag.exec(qc.Qt.MoveAction)
 
     def dropEvent(self, *args):
         mod = self.model()
