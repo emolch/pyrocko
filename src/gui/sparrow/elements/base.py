@@ -11,7 +11,7 @@ import base64
 import numpy as num
 
 from pyrocko import automap
-from pyrocko.guts import String, Tuple, StringChoice
+from pyrocko.guts import String, Float, StringChoice
 from pyrocko.plot import AutoScaler, AutoScaleMode
 from pyrocko.dataset import topo
 
@@ -82,7 +82,8 @@ class CPTChoice(StringChoice):
 class CPTState(ElementState):
     cpt_name = String.T(default=CPTChoice.choices[0])
     cpt_mode = String.T(default=AutoScaleMode.choices[1])
-    cpt_scale = Tuple.T(default=(None, None))
+    cpt_scale_min = Float.T(optional=True)
+    cpt_scale_max = Float.T(optional=True)
 
 
 class CPTHandler(Element):
@@ -99,7 +100,9 @@ class CPTHandler(Element):
         self._cpt_scale_lineedit = None
 
     def bind_state(self, cpt_state, update_function):
-        for state_attr in ['cpt_name', 'cpt_mode', 'cpt_scale']:
+        for state_attr in [
+                'cpt_name', 'cpt_mode', 'cpt_scale_min', 'cpt_scale_max']:
+
             cpt_state.add_listener(update_function, state_attr)
 
         self._state = cpt_state
@@ -181,8 +184,8 @@ class CPTHandler(Element):
         if self._lookuptable is not None:
             crange = self._lookuptable.GetRange()
 
-        if all(state.cpt_scale):
-            crange = state.cpt_scale
+        if state.cpt_scale_min is not None and state.cpt_scale_max is not None:
+            crange = state.cpt_scale_min, state.cpt_scale_max
 
         fmt = ', '.join(['%s' if item is None else '%g' for item in crange])
 
@@ -203,15 +206,18 @@ class CPTHandler(Element):
             else:
                 self._cpt_scale_lineedit.setEnabled(False)
 
-                if any(state.cpt_scale):
-                    state.cpt_scale = (None, None)
+                if state.cpt_scale_min is not None:
+                    state.cpt_scale_min = None
+
+                if state.cpt_scale_max is not None:
+                    state.cpt_scale_max = None
 
         if state.cpt_name is not None and self._values is not None:
             vscale = (num.nanmin(self._values), num.nanmax(self._values))
 
             vmin, vmax = None, None
-            if state.cpt_scale != (None, None):
-                vmin, vmax = state.cpt_scale
+            if None not in (state.cpt_scale_min, state.cpt_scale_max):
+                vmin, vmax = state.cpt_scale_min, state.cpt_scale_max
             else:
                 vmin, vmax, _ = self._autoscaler.make_scale(
                     vscale, override_mode=state.cpt_mode)
@@ -258,7 +264,7 @@ class CPTHandler(Element):
         layout.addWidget(le, iy, 2)
         state_bind(
             self, state,
-            ['cpt_scale'], _lineedit_to_cptscale,
+            ['cpt_scale_min', 'cpt_scale_max'], _lineedit_to_cptscale,
             le, [le.editingFinished, le.returnPressed],
             self._cptscale_to_lineedit)
 
@@ -275,7 +281,7 @@ def _lineedit_to_cptscale(widget, cpt_state):
         crange[0]+0.01 if crange[0] >= crange[1] else crange[1]))
 
     try:
-        cpt_state.cpt_scale = crange
+        cpt_state.cpt_scale_min, cpt_state.cpt_scale_max = crange
     except Exception:
         raise ValueError(
             'need two numerical values: <vmin>, <vmax>')
