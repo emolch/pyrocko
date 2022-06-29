@@ -175,7 +175,7 @@ class CakePhase(Snuffling):
 
         if plot_rays:
             fig = self.figure(name='Ray Paths')
-            from pyrocko import cake_plot
+            from pyrocko.plot import cake_plot
             cake_plot.my_rays_plot(model, None, allrays, depth, 0.0,
                                    num.array(alldists)*cake.m2d,
                                    axes=fig.gca())
@@ -236,7 +236,7 @@ class CakePhase(Snuffling):
     def plot_model(self):
         self.update_model()
 
-        from pyrocko import cake_plot
+        from pyrocko.plot import cake_plot
 
         fig = self.figure(name='Model: %s' % self._model[0])
 

@@ -1,4 +1,4 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
@@ -11,7 +11,7 @@ from collections import defaultdict
 
 import numpy as num
 
-from pyrocko.gui.snuffling import Snuffling, Param, Switch
+from pyrocko.gui.snuffler.snuffling import Snuffling, Param, Switch
 from pyrocko.trace import Trace, NoData
 from pyrocko import util
 

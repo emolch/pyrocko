@@ -1,4 +1,4 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
@@ -23,9 +23,9 @@ import pyrocko.trace
 import pyrocko.response
 import pyrocko.util
 import pyrocko.plot
-import pyrocko.gui.snuffling
-import pyrocko.gui.snufflings
-import pyrocko.gui.marker_editor
+import pyrocko.gui.snuffler.snuffling
+import pyrocko.gui.snuffler.snufflings
+import pyrocko.gui.snuffler.marker_editor
 
 from pyrocko.util import hpfloat, gmtime_x, mystrftime
 
@@ -52,7 +52,7 @@ qfiledialog_options = qw.QFileDialog.DontUseNativeDialog | \
 
 is_macos = platform.uname()[0] == 'Darwin'
 
-logger = logging.getLogger('pyrocko.gui.pile_viewer')
+logger = logging.getLogger('pyrocko.gui.snuffler.pile_viewer')
 
 
 def detrend(x, y):
@@ -1467,22 +1467,23 @@ def MakePileViewerMainClass(base):
 
                     if (directory, name) not in self.snuffling_modules:
                         self.snuffling_modules[directory, name] = \
-                            pyrocko.gui.snuffling.SnufflingModule(
+                            pyrocko.gui.snuffler.snuffling.SnufflingModule(
                                 directory, name, self)
 
                     yield self.snuffling_modules[directory, name]
 
         def setup_snufflings(self):
             # user snufflings
+            from pyrocko.gui.snuffler.snuffling import BrokenSnufflingModule
             for mod in self.iter_snuffling_modules():
                 try:
                     mod.load_if_needed()
-                except pyrocko.gui.snuffling.BrokenSnufflingModule as e:
+                except BrokenSnufflingModule as e:
                     logger.warning('Snuffling module "%s" is broken' % e)
 
             # load the default snufflings on first run
             if self.default_snufflings is None:
-                self.default_snufflings = pyrocko.gui\
+                self.default_snufflings = pyrocko.gui.snuffler\
                     .snufflings.__snufflings__()
                 for snuffling in self.default_snufflings:
                     self.add_snuffling(snuffling)
@@ -2755,7 +2756,7 @@ def MakePileViewerMainClass(base):
                         self.set_time_range(tmin, tmax)
 
         def printit(self):
-            from .qt_compat import qprint
+            from ..qt_compat import qprint
             printer = qprint.QPrinter()
             printer.setOrientation(qprint.QPrinter.Landscape)
 
@@ -4600,7 +4601,7 @@ class PileViewer(qw.QFrame):
         return frame
 
     def marker_editor(self):
-        editor = pyrocko.gui.marker_editor.MarkerEditor(
+        editor = pyrocko.gui.snuffler.marker_editor.MarkerEditor(
             self, sortable=self.marker_editor_sortable)
 
         editor.set_viewer(self.get_view())

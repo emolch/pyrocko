@@ -1,13 +1,16 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
+
+from __future__ import absolute_import, print_function, division
 
 import numpy as num
 import os
 
 from pyrocko import moment_tensor, model
-from pyrocko.gui.snuffling import Snuffling, Param, Choice, EventMarker, Switch
+from pyrocko.gui.snuffler.snuffling import Snuffling, Param, Choice, Switch, \
+    EventMarker
 from pyrocko import gf
 
 km = 1000.

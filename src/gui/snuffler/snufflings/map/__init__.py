@@ -1,8 +1,9 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+from __future__ import absolute_import, print_function, division
 
 from pyrocko.gui.qt_compat import qc, qg
 import os
@@ -21,7 +22,8 @@ else:  # noqa
     from BaseHTTPServer import HTTPServer
     from SimpleHTTPServer import SimpleHTTPRequestHandler
 
-from pyrocko.gui.snuffling import Snuffling, Switch, Choice, NoViewerSet
+from pyrocko.gui.snuffler.snuffling import Snuffling, Switch, Choice, \
+    NoViewerSet
 from pyrocko.guts import dump_xml
 from pyrocko import util, model, orthodrome as ortho
 from pyrocko.gui import util as gui_util

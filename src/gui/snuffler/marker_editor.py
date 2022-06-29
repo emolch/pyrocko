@@ -1,4 +1,4 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
@@ -6,7 +6,8 @@ from __future__ import absolute_import
 
 from .qt_compat import qc, qg, qw, QPixmapCache
 
-from .util import EventMarker, PhaseMarker, make_QPolygonF
+from .marker import EventMarker, PhaseMarker
+from ..util import make_QPolygonF
 from pyrocko.plot.beachball import mt2beachball, BeachballError
 from pyrocko.moment_tensor import kagan_angle
 from pyrocko.plot import tango_colors
@@ -40,7 +41,7 @@ def toFloat(val):
         return 9e99, False
 
 
-logger = logging.getLogger('pyrocko.gui.marker_editor')
+logger = logging.getLogger('pyrocko.gui.snuffler.marker_editor')
 
 _header_data = [
     'T', 'Time', 'M', 'Label', 'Depth [km]', 'Lat', 'Lon', 'Kind', 'Dist [km]',
@@ -304,7 +305,7 @@ class MarkerTableView(qw.QTableView):
             self.verticalHeader().hide()
 
     def print_menu(self):
-        from .qt_compat import qprint
+        from ..qt_compat import qprint
         printer = qprint.QPrinter(qprint.QPrinter.ScreenResolution)
         printer.setOutputFormat(qprint.QPrinter.NativeFormat)
         printer_dialog = qprint.QPrintDialog(printer, self)
