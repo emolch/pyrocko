@@ -151,6 +151,7 @@ class Viewer(qw.QMainWindow):
         self._actors_2d = set()
         self._render_window_size = (0, 0)
         self._use_depth_peeling = use_depth_peeling
+        self._in_update_elements = False
 
         mbar = self.menuBar()
         menu = mbar.addMenu('File')
@@ -651,6 +652,9 @@ class Viewer(qw.QMainWindow):
             self.resize_event(*render_window_size)
 
     def update_elements(self, path, value):
+        if self._in_update_elements:
+            return
+        self._in_update_elements = True
         for estate in self.state.elements:
             if estate.element_id not in self._elements:
                 new_element = estate.create()
@@ -675,6 +679,8 @@ class Viewer(qw.QMainWindow):
 
         for element_id in deactivate:
             del self._elements_active[element_id]
+
+        self._in_update_elements = False
 
     def add_actor_2d(self, actor):
         if actor not in self._actors_2d:
