@@ -238,7 +238,7 @@ class Table(Object):
 
     def add_recipe(self, recipe):
         self._recipes.append(recipe)
-        #recipe._add_required_cols(self)
+        # recipe._add_required_cols(self)
 
     def get_nrows(self):
         if not self._arrays:
