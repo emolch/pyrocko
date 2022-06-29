@@ -25,7 +25,7 @@ from pyrocko import geonames
 from pyrocko import moment_tensor as pmt
 
 from pyrocko.gui.util import Progressbars, RangeEdit
-from pyrocko.gui.qt_compat import qw, qc, use_pyqt5, fnpatch
+from pyrocko.gui.qt_compat import qw, qc
 # from pyrocko.gui import vtk_util
 
 from . import common, light, snapshots as snapshots_mod
@@ -34,10 +34,7 @@ import vtk
 import vtk.qt
 vtk.qt.QVTKRWIBase = 'QGLWidget'  # noqa
 
-if use_pyqt5:  # noqa
-    from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-else:  # noqa
-    from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
 from pyrocko import geometry  # noqa
 from . import state as vstate, elements  # noqa
@@ -467,9 +464,9 @@ class Viewer(qw.QMainWindow):
     def export_image(self):
 
         caption = 'Export Image'
-        fn_out, _ = fnpatch(qw.QFileDialog.getSaveFileName(
+        fn_out, _ = qw.QFileDialog.getSaveFileName(
             self, caption, 'image.png',
-            options=common.qfiledialog_options))
+            options=common.qfiledialog_options)
 
         if fn_out:
             self.save_image(fn_out)
@@ -731,10 +728,7 @@ class Viewer(qw.QMainWindow):
 
     def myWheelEvent(self, event):
 
-        if use_pyqt5:
-            angle = event.angleDelta().y()
-        else:
-            angle = event.delta()
+        angle = event.angleDelta().y()
 
         if angle > 200:
             angle = 200
@@ -1255,10 +1249,7 @@ def main(*args, **kwargs):
             app.setStyleSheet(qdarkgraystyle.load_stylesheet())
             # import qdarkstyle
             #
-            # if use_pyqt5:
-            #     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-            # else:
-            #     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt())
+            # app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
         except ImportError:
             logger.info(

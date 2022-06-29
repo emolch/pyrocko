@@ -16,7 +16,7 @@ from pyrocko.plot import AutoScaler, AutoScaleMode
 from pyrocko.dataset import topo
 
 from pyrocko.gui.talkie import TalkieRoot
-from pyrocko.gui.qt_compat import qc, qw, fnpatch
+from pyrocko.gui.qt_compat import qc, qw
 from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
 
 from .. import common
@@ -116,8 +116,8 @@ class CPTHandler(Element):
     def open_cpt_load_dialog(self):
         caption = 'Select one *.cpt file to open'
 
-        fns, _ = fnpatch(qw.QFileDialog.getOpenFileNames(
-            self._parent, caption, options=common.qfiledialog_options))
+        fns, _ = qw.QFileDialog.getOpenFileNames(
+            self._parent, caption, options=common.qfiledialog_options)
 
         if fns:
             self.load_cpt_file(fns[0])

@@ -62,12 +62,5 @@ if vers(Qt.QT_VERSION_STR) >= vers('5.4.0'):
     Qt.QCoreApplication.setAttribute(qc.Qt.AA_ShareOpenGLContexts, True)
 
 
-def fnpatch(x):
-    if use_pyqt5:
-        return x
-    else:
-        return x, None
-
-
 def get_em(painter):
     return painter.boundingRect(qc.QRectF(), 0, 'M').width()

@@ -16,7 +16,7 @@ from pyrocko.guts import \
 
 from pyrocko import table, model  # , automap
 from pyrocko.client import fdsn, catalog
-from pyrocko.gui.qt_compat import qw, fnpatch
+from pyrocko.gui.qt_compat import qw
 from pyrocko.plot import beachball
 # from pyrocko.himesh import HiMesh
 
@@ -414,8 +414,8 @@ class CatalogElement(TableElement):
     def open_file_dialog(self):
         caption = 'Select one or more files to open'
 
-        fns, _ = fnpatch(qw.QFileDialog.getOpenFileNames(
-            self._parent, caption, options=common.qfiledialog_options))
+        fns, _ = qw.QFileDialog.getOpenFileNames(
+            self._parent, caption, options=common.qfiledialog_options)
 
         self._state.selection = FileCatalogSelection(
             paths=[str(fn) for fn in fns])

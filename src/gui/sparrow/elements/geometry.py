@@ -9,7 +9,7 @@ import logging
 
 from pyrocko.guts import Bool, String, load, StringChoice, Float
 from pyrocko.geometry import arr_vertices, arr_faces
-from pyrocko.gui.qt_compat import qw, qc, fnpatch
+from pyrocko.gui.qt_compat import qw, qc
 from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, OutlinesPipe
 
 from pyrocko.model import Geometry
@@ -146,8 +146,8 @@ class GeometryElement(base.Element):
 
     def open_file_load_dialog(self):
         caption = 'Select one file containing a geometry to open'
-        fns, _ = fnpatch(qw.QFileDialog.getOpenFileNames(
-            self._parent, caption, options=common.qfiledialog_options))
+        fns, _ = qw.QFileDialog.getOpenFileNames(
+            self._parent, caption, options=common.qfiledialog_options)
 
         if fns:
             self.load_file(str(fns[0]))

@@ -5,7 +5,7 @@ import logging
 from pyrocko.guts import Object, String, Float, Bytes, clone, \
     dump_all, load_all
 
-from pyrocko.gui.qt_compat import qw, qc, qg, get_em, fnpatch
+from pyrocko.gui.qt_compat import qw, qc, qg, get_em
 from .state import ViewerState, Interpolator, interpolateables
 from vtk.util.numpy_support import vtk_to_numpy
 import vtk
@@ -350,17 +350,17 @@ class SnapshotsPanel(qw.QFrame):
             return
 
         caption = 'Export Movie'
-        fn_out, _ = fnpatch(qw.QFileDialog.getSaveFileName(
+        fn_out, _ = qw.QFileDialog.getSaveFileName(
             self, caption, 'movie.mp4',
-            options=common.qfiledialog_options))
+            options=common.qfiledialog_options)
 
         if fn_out:
             self.animate_snapshots(output_path=fn_out)
 
     def export_snapshots(self):
         caption = 'Export Snapshots'
-        fn, _ = fnpatch(qw.QFileDialog.getSaveFileName(
-            self, caption, options=common.qfiledialog_options))
+        fn, _ = qw.QFileDialog.getSaveFileName(
+            self, caption, options=common.qfiledialog_options)
 
         selected_indexes = self.list_view.selectedIndexes()
         items = self.model.get_series(selected_indexes)
@@ -377,8 +377,8 @@ class SnapshotsPanel(qw.QFrame):
 
     def import_snapshots(self):
         caption = 'Import Snapshots'
-        path, _ = fnpatch(qw.QFileDialog.getOpenFileName(
-            self, caption, options=common.qfiledialog_options))
+        path, _ = qw.QFileDialog.getOpenFileName(
+            self, caption, options=common.qfiledialog_options)
 
         if path:
             self.load_snapshots(path)

@@ -9,7 +9,7 @@ from pyrocko.plot import automap
 from pyrocko.dataset.topo import tile
 from pyrocko.guts import String
 from pyrocko.dataset import topo
-from pyrocko.gui.qt_compat import qw, qc, fnpatch
+from pyrocko.gui.qt_compat import qw, qc
 
 from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
 
@@ -140,8 +140,8 @@ class CustomTopoElement(Element):
     def open_file_dialog(self):
         caption = 'Select a file to open'
 
-        fn, _ = fnpatch(qw.QFileDialog.getOpenFileName(
-            self._parent, caption, options=common.qfiledialog_options))
+        fn, _ = qw.QFileDialog.getOpenFileName(
+            self._parent, caption, options=common.qfiledialog_options)
 
         if fn:
             self._state.path = str(fn)

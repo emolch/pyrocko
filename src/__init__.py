@@ -51,10 +51,6 @@ class DependencyMissingVTK(DependencyMissing):
 
 def check_have_vtk():
     import sys
-    try:
-        from pyrocko.gui.qt_compat import use_pyqt5
-    except ImportError:
-        raise DependencyMissing('Qt is not available')
 
     try:
         import vtk  # noqa
@@ -66,31 +62,11 @@ version of Python (Python%i).''' % sys.version_info.major
 
         raise DependencyMissingVTK(message)
 
-    if use_pyqt5:  # noqa
+    try:
+        from vtk.qt.QVTKRenderWindowInteractor \
+            import QVTKRenderWindowInteractor
 
-        try:
-            from vtk.qt.QVTKRenderWindowInteractor \
-                import QVTKRenderWindowInteractor
-
-            QVTKRenderWindowInteractor
-        except ImportError:
-            message = '''The installed version of VTK is incompatible with Qt5.
-
-Try using Qt4 by changing the following setting in the config file of Pyrocko
-(~/.pyrocko/config.pf):
-
-    gui_toolkit: qt4
-'''
-            raise DependencyMissing(message)
-
-    else:
-        try:
-            from vtk.qt4.QVTKRenderWindowInteractor \
-                import QVTKRenderWindowInteractor
-
-            QVTKRenderWindowInteractor
-        except Exception as e:
-            message = '''A problem with your Qt/VTK installation occurred.
-
-%s''' % str(e)
-            raise DependencyMissing(message)
+        QVTKRenderWindowInteractor
+    except ImportError:
+        message = 'The installed version of VTK is incompatible with Qt5.'
+        raise DependencyMissing(message)
