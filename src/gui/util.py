@@ -1,8 +1,9 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
-from __future__ import absolute_import, print_function
+
+from __future__ import absolute_import, print_function, division
 
 import math
 import time
@@ -15,9 +16,9 @@ from matplotlib.colors import Normalize
 
 from .qt_compat import qc, qg, qw
 
-from .marker import Marker, PhaseMarker, EventMarker  # noqa
-from .marker import MarkerParseError, MarkerOneNSLCRequired  # noqa
-from .marker import load_markers, save_markers  # noqa
+from .snuffler.marker import Marker, PhaseMarker, EventMarker  # noqa
+from .snuffler.marker import MarkerParseError, MarkerOneNSLCRequired  # noqa
+from .snuffler.marker import load_markers, save_markers  # noqa
 from pyrocko import plot
 
 

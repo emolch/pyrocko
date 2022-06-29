@@ -1,12 +1,12 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 from __future__ import print_function, absolute_import
 import numpy as num
 
-from pyrocko.gui.snuffling import Param, Snuffling, Switch, Choice
-from pyrocko.gui.util import Marker
+from pyrocko.gui.snuffler.snuffling import Param, Snuffling, Switch, Choice
+from pyrocko.gui.snuffler.marker import Marker
 from pyrocko import trace
 
 h = 3600.

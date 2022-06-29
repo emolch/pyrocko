@@ -1,4 +1,4 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
@@ -34,7 +34,7 @@ Pyrocko and ObsPy classes.
 
 '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function, division
 
 
 def to_pyrocko_trace(trace):
@@ -211,7 +211,7 @@ def snuffle(stream_or_trace, inventory=None, catalog=None, **kwargs):
     :returns:
         ``(return_tag, markers)``, where ``return_tag`` is the a string to flag
         how the Snuffler window has been closed and ``markers`` is a list of
-        :py:class:`pyrocko.gui.marker.Marker` objects.
+        :py:class:`pyrocko.gui.snuffler.marker.Marker` objects.
 
     This function displays an ObsPy stream object in Snuffler. It returns to
     the caller once the window has been closed. The ``return_tag`` returned by

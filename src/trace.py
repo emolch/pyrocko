@@ -1,12 +1,13 @@
-# http://pyrocko.org - GPLv3
+# https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
+
 '''
 This module provides basic signal processing for seismic traces.
 '''
 
-from __future__ import division, absolute_import
+from __future__ import absolute_import, print_function, division
 
 import time
 import math
@@ -1945,9 +1946,12 @@ class Trace(Object):
         '''
         Show trace in a snuffler window.
 
-        :param stations: list of `pyrocko.model.Station` objects or ``None``
-        :param events: list of `pyrocko.model.Event` objects or ``None``
-        :param markers: list of `pyrocko.gui.util.Marker` objects or ``None``
+        :param stations: list of :py:class:`pyrocko.model.Station` objects or
+            ``None``
+        :param events: list of :py:class:`pyrocko.model.Event` objects or
+            ``None``
+        :param markers: list of :py:class:`pyrocko.gui.snuffler.marker.Marker`
+            objects or ``None``
         :param ntracks: float, number of tracks to be shown initially (default:
             12)
         :param follow: time interval (in seconds) for real time follow mode or
@@ -1964,9 +1968,11 @@ def snuffle(traces, **kwargs):
     '''
     Show traces in a snuffler window.
 
-    :param stations: list of `pyrocko.model.Station` objects or ``None``
-    :param events: list of `pyrocko.model.Event` objects or ``None``
-    :param markers: list of `pyrocko.gui.util.Marker` objects or ``None``
+    :param stations: list of :py:class:`pyrocko.model.Station` objects or
+        ``None``
+    :param events: list of :py:class:`pyrocko.model.Event` objects or ``None``
+    :param markers: list of :py:class:`pyrocko.gui.snuffler.marker.Marker`
+        objects or ``None``
     :param ntracks: float, number of tracks to be shown initially (default: 12)
     :param follow: time interval (in seconds) for real time follow mode or
         ``None``
@@ -1976,7 +1982,7 @@ def snuffle(traces, **kwargs):
     '''
 
     from pyrocko import pile
-    from pyrocko.gui import snuffler
+    from pyrocko.gui.snuffler import snuffler
     p = pile.Pile()
     if traces:
         trf = pile.MemTracesFile(None, traces)
