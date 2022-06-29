@@ -1,7 +1,8 @@
-import numpy  as num
+import numpy as num
 import vtk
 
 from .. import vtk_util
+
 
 class Overlay(object):
 
@@ -65,6 +66,6 @@ class TimeRangeOverlay(Overlay):
         prop.SetOpacity(0.5)
         prop.SetLineWidth(2.0)
         print(type(prop), dir(prop))
-        #prop.EdgeVisibilityOn()
+        # prop.EdgeVisibilityOn()
 
         self.ren.AddActor2D(act)

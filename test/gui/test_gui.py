@@ -16,7 +16,7 @@ if common.have_gui():  # noqa
     from PyQt5.QtTest import QTest
     Qt = qc.Qt
 
-    from pyrocko.gui.snuffler.snuffler_app import Snuffler, SnufflerWindow
+    from pyrocko.gui.snuffler.snuffler_app import SnufflerWindow
     from pyrocko.gui.snuffler import pile_viewer as pyrocko_pile_viewer
     from pyrocko.gui import util as gui_util
     from pyrocko.gui.snuffler import snuffling

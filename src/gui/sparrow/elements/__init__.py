@@ -17,7 +17,7 @@ from .source import *  # noqa
 from .hud import *  # noqa
 from .volcanoes import *  # noqa
 from .kite_insar import *  # noqa
-from .active_faults import *
-from .plates import *
+from .active_faults import *  # noqa
+from .plates import *  # noqa
 from .geometry import *  # noqa
 from .spheroid import *  # noqa

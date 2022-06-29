@@ -449,6 +449,7 @@ class OkadaTestCase(unittest.TestCase):
 
         if show_plot:
             import matplotlib.pyplot as plt
+
             def add_subplot(fig, ntot, n, title, comp, typ='line'):
                 ax = fig.add_subplot(ntot, 1, n)
                 if typ == 'line':
@@ -553,6 +554,7 @@ class OkadaTestCase(unittest.TestCase):
 
         if show_plot:
             import matplotlib.pyplot as plt
+
             def add_subplot(fig, ntot, n, title, comp, typ='line'):
                 ax = fig.add_subplot(ntot, 1, n)
                 if typ == 'line':

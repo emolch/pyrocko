@@ -102,7 +102,7 @@ class ActiveFaults(object):
             config.config().fault_lines_dir, 'gem_active_faults.geojson')
 
         if not op.exists(self.fname_active_faults):
-                        self.download()
+            self.download()
 
         self.active_faults = []
         self._load_faults(self.fname_active_faults, ActiveFault)

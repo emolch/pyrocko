@@ -309,7 +309,7 @@ class SourceElement(base.Element):
 
         faces = source_geom.get_faces()
 
-        if parameter_label[param] is 'times' and \
+        if parameter_label[param] == 'times' and \
                 source_geom.has_property('t_arrival'):
 
             self.cpt_handler._values = source_geom.get_property('t_arrival')
@@ -378,7 +378,6 @@ class SourceElement(base.Element):
     def _get_controls(self):
         if not self._controls:
             from ..state import \
-                state_bind, \
                 state_bind_checkbox, state_bind_slider, state_bind_combobox
             from pyrocko import gf
 
@@ -479,7 +478,8 @@ class SourceElement(base.Element):
             state_bind_combobox(
                 self, self._state, 'display_parameter', cb)
 
-            self.cpt_handler.cpt_controls(self._parent, self._state.cpt, layout)
+            self.cpt_handler.cpt_controls(
+                self._parent, self._state.cpt, layout)
 
             il = layout.rowCount() + 1
             pb = qw.QPushButton('Move Source Here')
