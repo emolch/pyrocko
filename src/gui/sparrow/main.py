@@ -166,6 +166,7 @@ class Viewer(qw.QMainWindow):
         menu = mbar.addMenu('Add')
         for name, estate in [
                 ('Icosphere', elements.IcosphereState()),
+                ('Grid', elements.GridState()),
                 ('Stations', elements.StationsState()),
                 ('Topography', elements.TopoState()),
                 ('Custom Topography', elements.CustomTopoState()),
@@ -319,6 +320,10 @@ class Viewer(qw.QMainWindow):
             element_id='grid'))
         self.state.elements.append(elements.CoastlinesState(
             element_id='coastlines'))
+
+        print('AAA')
+        print(self.state)
+        print('BBB')
 
         # self.state.elements.append(elements.StationsState())
         # self.state.elements.append(elements.SourceState())
@@ -624,7 +629,9 @@ class Viewer(qw.QMainWindow):
             print('>  ', type(el).__name__, el.element_id, id(el))
         print('---')
 
+        print(id(state.elements))
         self.state.diff_update(state)
+        print(id(state.elements))
 
         print('---')
         for el in self.state.elements:
@@ -650,7 +657,9 @@ class Viewer(qw.QMainWindow):
 
     def update_elements(self, path, value):
         if self._in_update_elements:
+            print('block update_elements')
             return
+        print('enter update_elements')
         self._in_update_elements = True
         for estate in self.state.elements:
             if estate.element_id not in self._elements:
@@ -678,6 +687,7 @@ class Viewer(qw.QMainWindow):
             del self._elements_active[element_id]
 
         self._in_update_elements = False
+        print('exit update_elements')
 
     def add_actor_2d(self, actor):
         if actor not in self._actors_2d:
