@@ -49,7 +49,6 @@ class IcosphereElement(Element):
 
     def __init__(self):
         Element.__init__(self)
-        self.parent = None
         self._mesh = None
         self._controls = None
         self._params = None
@@ -71,14 +70,28 @@ class IcosphereElement(Element):
         state.add_listener(upd, 'opacity')
 
     def set_parent(self, parent):
-        self.parent = parent
+        Element.set_parent(self, parent)
         upd = self.update
         self._listeners.append(upd)
-        self.parent.state.add_listener(upd, 'dip')
+        self._parent.state.add_listener(upd, 'dip')
 
-        self.parent.add_panel(
+        self._parent.add_panel(
             self.get_name(), self._get_controls(), visible=True)
         self.update()
+
+    def unset_parent(self):
+        self.unbind_state()
+        if self._parent:
+            if self._mesh:
+                self._parent.remove_actor(self._mesh.actor)
+                self._mesh = None
+
+            if self._controls:
+                self._parent.remove_panel(self._controls)
+                self._controls = None
+
+            self._parent.update_view()
+            self._parent = None
 
     def update(self, *args):
         state = self._state
@@ -86,7 +99,7 @@ class IcosphereElement(Element):
         params = state.level, state.base, state.kind, state.smooth
 
         if self._mesh and (params != self._params or not state.visible):
-            self.parent.remove_actor(self._mesh.actor)
+            self._parent.remove_actor(self._mesh.actor)
             self._mesh = None
 
         if state.visible and not self._mesh:
@@ -100,14 +113,14 @@ class IcosphereElement(Element):
             self._mesh = TrimeshPipe(vertices, faces, smooth=state.smooth)
             self._params = params
 
-            self.parent.add_actor(self._mesh.actor)
+            self._parent.add_actor(self._mesh.actor)
 
-        if self.parent.state.distance < 2.0:
-            angle = 180. - math.acos(self.parent.state.distance / 2.0)*r2d
+        if self._parent.state.distance < 2.0:
+            angle = 180. - math.acos(self._parent.state.distance / 2.0)*r2d
 
             opacity = min(
                 1.0,
-                max(0., (angle+5. - self.parent.state.dip) / 10.))
+                max(0., (angle+5. - self._parent.state.dip) / 10.))
         else:
             opacity = 1.0
 
@@ -115,8 +128,8 @@ class IcosphereElement(Element):
 
         if self._mesh:
             if self._depth != state.depth:
-                radius = (self.parent.planet_radius - state.depth) \
-                    / self.parent.planet_radius
+                radius = (self._parent.planet_radius - state.depth) \
+                    / self._parent.planet_radius
 
                 self._mesh.set_vertices(self._vertices * radius)
                 self._depth = state.depth
@@ -124,7 +137,7 @@ class IcosphereElement(Element):
             self._mesh.set_opacity(opacity)
             self._mesh.set_color(state.color)
 
-        self.parent.update_view()
+        self._parent.update_view()
 
     def _get_controls(self):
         state = self._state

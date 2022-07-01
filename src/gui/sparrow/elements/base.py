@@ -58,7 +58,8 @@ class Element(object):
         self._parent = parent
 
     def unset_parent(self):
-        self._parent = None
+        print(self)
+        raise NotImplementedError
 
     def bind_state(self, state):
         self._state = state

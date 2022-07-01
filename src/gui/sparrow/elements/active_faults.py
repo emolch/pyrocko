@@ -128,8 +128,6 @@ class ActiveFaultsElement(Element):
 
     def __init__(self):
         Element.__init__(self)
-        self._parent = None
-        self._state = None
         self._pipe = None
         self._controls = None
         self._active_faults = None
@@ -144,7 +142,7 @@ class ActiveFaultsElement(Element):
         return 'Active Faults'
 
     def set_parent(self, parent):
-        self._parent = parent
+        Element.set_parent(self, parent)
         if not self._active_faults:
             self._active_faults = ActiveFaults()
 

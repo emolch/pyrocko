@@ -91,7 +91,6 @@ class GridElement(Element):
 
     def __init__(self):
         Element.__init__(self)
-        self.parent = None
         self._controls = None
         self._grid = None
         self._stepsizes = self.get_stepsizes(10.)
@@ -101,23 +100,35 @@ class GridElement(Element):
 
     def bind_state(self, state):
         Element.bind_state(self, state)
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'color')
+        self.register_state_listener3(self.update, state, 'visible')
+        self.register_state_listener3(self.update, state, 'color')
 
     def set_parent(self, parent):
-        self.parent = parent
-        self.parent.add_panel(
+        Element.set_parent(self, parent)
+        self._parent.add_panel(
             self.get_name(), self._get_controls(), visible=True)
 
         upd = self.update
         self._listeners.append(upd)
-        self.parent.state.add_listener(upd, 'distance')
-        self.parent.state.add_listener(upd, 'lat')
-        self.parent.state.add_listener(upd, 'lon')
+        self._parent.state.add_listener(upd, 'distance')
+        self._parent.state.add_listener(upd, 'lat')
+        self._parent.state.add_listener(upd, 'lon')
 
         self.update()
+
+    def unset_parent(self):
+        self.unbind_state()
+        if self._parent:
+            if self._grid:
+                self._parent.remove_actor(self._grid.actor)
+                self._grid = None
+
+            if self._controls:
+                self._parent.remove_panel(self._controls)
+                self._controls = None
+
+            self._parent.update_view()
+            self._parent = None
 
     def get_stepsizes(self, distance):
         factor = 10.
@@ -127,23 +138,23 @@ class GridElement(Element):
 
     def update(self, *args):
         state = self._state
-        pstate = self.parent.state
+        pstate = self._parent.state
 
         stepsizes = self.get_stepsizes(pstate.distance)
         if self._grid:
-            self.parent.remove_actor(self._grid.actor)
+            self._parent.remove_actor(self._grid.actor)
             self._grid = None
 
         if state.visible and not self._grid:
             delta = pstate.distance * r2d * 0.5
             self._grid = LatLonGrid(
                 1.0, stepsizes[0], stepsizes[1], pstate.lat, pstate.lon, delta)
-            self.parent.add_actor(self._grid.actor)
+            self._parent.add_actor(self._grid.actor)
 
         if self._grid:
             self._grid.set_color(state.color)
 
-        self.parent.update_view()
+        self._parent.update_view()
 
     def _get_controls(self):
         if not self._controls:
