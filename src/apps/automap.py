@@ -164,16 +164,16 @@ def main(args=None):
         util.setup_logging(program_name, 'info')
 
     if options.download_etopo1:
-        import pyrocko.datasets.topo.etopo1
-        pyrocko.datasets.topo.etopo1.download()
+        import pyrocko.dataset.topo.etopo1
+        pyrocko.dataset.topo.etopo1.download()
 
     if options.download_srtmgl3:
-        import pyrocko.datasets.topo.srtmgl3
-        pyrocko.datasets.topo.srtmgl3.download()
+        import pyrocko.dataset.topo.srtmgl3
+        pyrocko.dataset.topo.srtmgl3.download()
 
     if options.make_decimated:
-        import pyrocko.datasets.topo
-        pyrocko.datasets.topo.make_all_missing_decimated()
+        import pyrocko.dataset.topo
+        pyrocko.dataset.topo.make_all_missing_decimated()
 
     if (options.download_etopo1 or options.download_srtmgl3 or
             options.make_decimated) and len(args) == 0:
