@@ -1297,7 +1297,7 @@ class Tuple(Object):
                         strip_module=strip_module))
 
 
-unit_factors = dict(
+duration_unit_factors = dict(
     s=1.0,
     m=60.0,
     h=3600.0,
@@ -1305,20 +1305,37 @@ unit_factors = dict(
     y=365*24*3600.0)
 
 
+def parse_duration(s):
+    unit = s[-1]
+    if unit in duration_unit_factors:
+        return float(s[:-1]) * duration_unit_factors[unit]
+    else:
+        return float(s)
+
+
+def str_duration(d):
+    for k in 'ydhms':
+        if abs(d) >= duration_unit_factors[k]:
+            return '%g' % (d / duration_unit_factors[k]) + k
+
+    return '%g' % d
+
+
 class Duration(Object):
     dummy_for = float
 
     class __T(TBase):
-
         def regularize_extra(self, val):
             if isinstance(val, (str, newstr)):
-                unit = val[-1]
-                if unit in unit_factors:
-                    return float(val[:-1]) * unit_factors[unit]
-                else:
-                    return float(val)
+                return parse_duration(val)
 
             return val
+
+        def to_save(self, val):
+            return str_duration(val)
+
+        def to_save_xml(self, val):
+            return str_duration(val)
 
 
 re_tz = re.compile(r'(Z|([+-][0-2][0-9])(:?([0-5][0-9]))?)$')

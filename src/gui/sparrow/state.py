@@ -11,7 +11,7 @@ import numpy as num
 
 from pyrocko import util
 from pyrocko.guts import StringChoice, Float, List, Bool, Timestamp, Tuple, \
-    Object, get_elements, set_elements, path_to_str, clone
+    Duration, Object, get_elements, set_elements, path_to_str, clone
 
 from pyrocko.color import Color, interpolate as interpolate_color
 
@@ -108,8 +108,20 @@ class ViewerState(talkie.TalkieRoot):
     elements = List.T(talkie.Talkie.T())
     tmin = Timestamp.T(optional=True)
     tmax = Timestamp.T(optional=True)
+    tduration = Duration.T(optional=True)
+    tposition = Float.T(default=0.0)
     lighting = LightingChoice.T(default=LightingChoice.choices[0])
     background = Background.T(default=Background.D(color=Color('black')))
+
+    @property
+    def tmin_effective(self):
+        return common.tmin_effective(
+            self.tmin, self.tmax, self.tduration, self.tposition)
+
+    @property
+    def tmax_effective(self):
+        return common.tmax_effective(
+            self.tmin, self.tmax, self.tduration, self.tposition)
 
     def sort_elements(self):
         print(type(self.elements))

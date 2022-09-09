@@ -298,7 +298,7 @@ class BeachballPipe(object):
         nvertices = vertices.shape[0]
         amps = num.zeros(m6s.shape[0] * nvertices)
         for i, m6 in enumerate(m6s):
-            m = moment_tensor.symmat6(*m6).A
+            m = moment_tensor.symmat6(*m6)
             m /= num.linalg.norm(m) / num.sqrt(2.0)
             (ep, en, et), m_evecs = num.linalg.eigh(m)
             if num.linalg.det(m_evecs) < 0.:

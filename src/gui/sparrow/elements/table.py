@@ -56,6 +56,21 @@ class SymbolChoice(StringChoice):
     choices = ['point', 'sphere', 'beachball']
 
 
+class MaskingShapeChoice(StringChoice):
+    choices = ['rect', 'ramp', 'square']
+
+
+class MaskingModeChoice(StringChoice):
+    choices = ['zero-one-zero', 'low-one-low', 'low-one-zero']
+
+    @classmethod
+    def get_factors(cls, mode, value_low):
+        return {
+            'zero-one-zero': (0.0, 1.0, 0.0),
+            'low-one-low': (value_low, 1.0, value_low),
+            'low-one-zero': (value_low, 1.0, 0.0)}[mode]
+
+
 class TableState(base.ElementState):
     visible = Bool.T(default=True)
     size = Float.T(default=5.0)
@@ -66,6 +81,8 @@ class TableState(base.ElementState):
     depth_max = Float.T(default=700*km)
     depth_offset = Float.T(default=0.0)
     symbol = SymbolChoice.T(default='point')
+    time_masking_shape = MaskingShapeChoice.T(default='rect')
+    time_masking_mode = MaskingModeChoice.T(default='zero-one-zero')
 
 
 class TableElement(base.Element):
@@ -93,12 +110,13 @@ class TableElement(base.Element):
         self._listeners.append(upd)
         state.add_listener(upd, 'visible')
         state.add_listener(upd, 'size')
-        state.add_listener(upd, 'depth_offset')
 
-        upd_alpha = self._update_alpha
-        self._listeners.append(upd_alpha)
-        state.add_listener(upd_alpha, 'depth_min')
-        state.add_listener(upd_alpha, 'depth_max')
+        update_alpha = self._update_alpha
+        self._listeners.append(update_alpha)
+        state.add_listener(update_alpha, 'depth_min')
+        state.add_listener(update_alpha, 'depth_max')
+        state.add_listener(update_alpha, 'time_masking_shape')
+        state.add_listener(update_alpha, 'time_masking_mode')
 
         self.cpt_handler.bind_state(state.cpt, upd)
 
@@ -109,7 +127,6 @@ class TableElement(base.Element):
         state.add_listener(upd_s, 'color_parameter')
 
     def unbind_state(self):
-
         self.cpt_handler.unbind_state()
         self._listeners = []
         self._state = None
@@ -126,6 +143,8 @@ class TableElement(base.Element):
         self._listeners.append(update_alpha)
         self._parent.state.add_listener(update_alpha, 'tmin')
         self._parent.state.add_listener(update_alpha, 'tmax')
+        self._parent.state.add_listener(update_alpha, 'tduration')
+        self._parent.state.add_listener(update_alpha, 'tposition')
 
         self._parent.register_data_provider(self)
 
@@ -289,20 +308,59 @@ class TableElement(base.Element):
         time = self._table.get_col('time')
         depth = self._table.get_col('depth')
 
-        mask = num.ones(time.size, dtype=num.bool)
+        depth_mask = num.ones(time.size, dtype=bool)
 
         if self._state.depth_min is not None:
-            mask &= depth >= self._state.depth_min
+            depth_mask &= depth >= self._state.depth_min
         if self._state.depth_max is not None:
-            mask &= depth <= self._state.depth_max
+            depth_mask &= depth <= self._state.depth_max
 
-        if self._parent.state.tmin is not None:
-            mask &= self._parent.state.tmin <= time
-        if self._parent.state.tmax is not None:
-            mask &= time <= self._parent.state.tmax
+        tmin = self._parent.state.tmin_effective
+        tmax = self._parent.state.tmax_effective
+
+        if tmin is not None:
+            m1 = time < tmin
+        else:
+            m1 = num.zeros(time.size, dtype=bool)
+
+        if tmax is not None:
+            m3 = tmax < time
+        else:
+            m3 = num.zeros(time.size, dtype=bool)
+
+        m2 = num.logical_not(num.logical_or(m1, m3))
+
+        value_low = 0.05
+
+        f1, f2, f3 = MaskingModeChoice.get_factors(
+            self._state.time_masking_mode, value_low)
+
+        amp = num.ones(time.size, dtype=num.float)
+        amp[m1] = f1
+        amp[m3] = f3
+        if None in (tmin, tmax):
+            amp[m2] = 1.0
+        else:
+            if self._state.time_masking_shape == 'rect':
+                amp[m2] == 1.0
+            elif self._state.time_masking_shape == 'ramp':
+                amp[m2] = time[m2]
+                amp[m2] -= tmin
+                amp[m2] /= (tmax - tmin)
+            elif self._state.time_masking_shape == 'square':
+                amp[m2] = time[m2]
+                amp[m2] -= tmin
+                amp[m2] /= (tmax - tmin)
+                amp[m2] **= 2
+
+            if f1 != 0.0:
+                amp[m2] *= (1.0 - value_low)
+                amp[m2] += value_low
+
+        amp *= depth_mask
 
         for m, p in zip(self._pipe_maps, self._pipes):
-            p.set_alpha(mask[m])
+            p.set_alpha(amp[m])
 
         self._parent.update_view()
 
@@ -428,15 +486,17 @@ class TableElement(base.Element):
 
             iy += 1
 
-            layout.addWidget(qw.QLabel('Depth Offset'), iy, 0)
+            layout.addWidget(qw.QLabel('Time Masking Shape'), iy, 0)
+            cb = common.string_choices_to_combobox(MaskingShapeChoice)
+            layout.addWidget(cb, iy, 1)
+            state_bind_combobox(self, self._state, 'time_masking_shape', cb)
 
-            slider = qw.QSlider(qc.Qt.Horizontal)
-            slider.setSizePolicy(
-                qw.QSizePolicy(
-                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-            layout.addWidget(slider, iy, 1)
-            state_bind_slider(
-                self, self._state, 'depth_offset', slider, factor=1000.)
+            iy += 1
+
+            layout.addWidget(qw.QLabel('Time Masking Mode'), iy, 0)
+            cb = common.string_choices_to_combobox(MaskingModeChoice)
+            layout.addWidget(cb, iy, 1)
+            state_bind_combobox(self, self._state, 'time_masking_mode', cb)
 
             iy += 1
 

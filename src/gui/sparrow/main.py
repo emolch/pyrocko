@@ -10,7 +10,6 @@ import sys
 import signal
 import gc
 import logging
-import re
 import time
 import tempfile
 import os
@@ -25,7 +24,7 @@ from pyrocko import geonames
 from pyrocko import moment_tensor as pmt
 
 from pyrocko.gui.util import Progressbars, RangeEdit
-from pyrocko.gui.qt_compat import qw, qc
+from pyrocko.gui.qt_compat import qw, qc, qg
 # from pyrocko.gui import vtk_util
 
 from . import common, light, snapshots as snapshots_mod
@@ -34,7 +33,7 @@ import vtk
 import vtk.qt
 vtk.qt.QVTKRWIBase = 'QGLWidget'  # noqa
 
-from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # noqa
 
 from pyrocko import geometry  # noqa
 from . import state as vstate, elements  # noqa
@@ -973,48 +972,36 @@ class Viewer(qw.QMainWindow):
 
         # time
 
-        layout.addWidget(qw.QLabel('T<sub>MIN</sub>'), 6, 0)
+        layout.addWidget(qw.QLabel('Time Min'), 6, 0)
         le_tmin = qw.QLineEdit()
         layout.addWidget(le_tmin, 6, 1)
 
-        layout.addWidget(qw.QLabel('T<sub>MAX</sub>'), 7, 0)
+        layout.addWidget(qw.QLabel('Time Max'), 7, 0)
         le_tmax = qw.QLineEdit()
         layout.addWidget(le_tmax, 7, 1)
 
         def time_to_lineedit(state, attribute, widget):
-            from pyrocko.util import time_to_str
-
             sel = widget.selectedText() == widget.text() \
                 and widget.text() != ''
 
-            if getattr(state, attribute) is None:
-                widget.setText('')
-            else:
-                widget.setText('%s' % (time_to_str(
-                    getattr(state, attribute), format='%Y-%m-%d %H:%M')))
+            widget.setText(
+                common.time_or_none_to_str(getattr(state, attribute)))
+
             if sel:
                 widget.selectAll()
 
         def lineedit_to_time(widget, state, attribute):
-            from pyrocko.util import str_to_time
+            from pyrocko.util import str_to_time_fillup
 
             s = str(widget.text())
             if not s.strip():
                 setattr(state, attribute, None)
             else:
-                m = re.match(
-                    r'^\d\d\d\d-\d\d-\d\d( \d\d:\d\d+)?$', s)
-                if m:
-                    if not m.group(1):
-                        time_str = m.group(0) + ' 00:00'
-                    else:
-                        time_str = m.group(0)
-                    setattr(
-                        state,
-                        attribute,
-                        str_to_time(time_str, format='%Y-%m-%d %H:%M'))
-                else:
-                    raise ValueError('Use time format: YYYY-mm-dd [HH:MM]')
+                try:
+                    setattr(state, attribute, str_to_time_fillup(s))
+                except Exception:
+                    raise ValueError(
+                        'Use time format: YYYY-MM-DD HH:MM:SS.FFF')
 
         self._state_bind(
             ['tmin'], lineedit_to_time, le_tmin,
@@ -1032,23 +1019,107 @@ class Viewer(qw.QMainWindow):
         range_edit.set_data_provider(self)
         range_edit.set_data_name('time')
 
+        xblock = [False]
+
         def range_to_range_edit(state, widget):
-            widget.blockSignals(True)
-            widget.set_range(state.tmin, state.tmax)
-            widget.blockSignals(False)
+            if not xblock[0]:
+                widget.blockSignals(True)
+                widget.set_focus(state.tduration, state.tposition)
+                widget.set_range(state.tmin, state.tmax)
+                widget.blockSignals(False)
 
         def range_edit_to_range(widget, state):
+            xblock[0] = True
+            self.state.tduration, self.state.tposition = widget.get_focus()
             self.state.tmin, self.state.tmax = widget.get_range()
+            xblock[0] = False
 
         self._state_bind(
-            ['tmin', 'tmax'], range_edit_to_range,
-            range_edit, [range_edit.rangeChanged], range_to_range_edit)
+            ['tmin', 'tmax', 'tduration', 'tposition'],
+            range_edit_to_range,
+            range_edit,
+            [range_edit.rangeChanged, range_edit.focusChanged],
+            range_to_range_edit)
 
         layout.addWidget(range_edit, 8, 0, 1, 2)
 
-        layout.addWidget(ZeroFrame(), 9, 0, 1, 2)
+        layout.addWidget(qw.QLabel('Time Focus'), 9, 0)
+        le_focus = qw.QLineEdit()
+        layout.addWidget(le_focus, 9, 1)
+
+        def focus_to_lineedit(state, widget):
+            sel = widget.selectedText() == widget.text() \
+                and widget.text() != ''
+
+            if state.tduration is None:
+                widget.setText('')
+            else:
+                widget.setText('%s, %g' % (
+                    guts.str_duration(state.tduration),
+                    state.tposition))
+
+            if sel:
+                widget.selectAll()
+
+        def lineedit_to_focus(widget, state):
+            s = str(widget.text())
+            w = [x.strip() for x in s.split(',')]
+            print(w)
+            try:
+                if len(w) == 0 or not w[0]:
+                    state.tduration = None
+                    state.tposition = 0.0
+                else:
+                    state.tduration = guts.parse_duration(w[0])
+                    if len(w) > 1:
+                        state.tposition = float(w[1])
+                    else:
+                        state.tposition = 0.0
+
+            except Exception as e:
+                print(e)
+                raise ValueError('need two values: <duration>, <position>')
+
+        self._state_bind(
+            ['tduration', 'tposition'], lineedit_to_focus, le_focus,
+            [le_focus.editingFinished, le_focus.returnPressed],
+            focus_to_lineedit)
+
+        label_effective_tmin = qw.QLabel('0000-00-00 00:00:00.000')
+        label_effective_tmax = qw.QLabel('0000-00-00 00:00:00.000')
+
+        label_effective_tmin.setSizePolicy(
+            qw.QSizePolicy.Minimum, qw.QSizePolicy.Fixed)
+        label_effective_tmax.setSizePolicy(
+            qw.QSizePolicy.Minimum, qw.QSizePolicy.Fixed)
+        label_effective_tmin.setMinimumSize(
+            qg.QFontMetrics(label_effective_tmin.font()).width(
+                '0000-00-00 00:00:00.000'), 0)
+
+        layout.addWidget(label_effective_tmin, 10, 1)
+        layout.addWidget(label_effective_tmax, 11, 1)
+
+        update_effective_time_labels = self.update_effective_time_labels
+        self.register_state_listener(update_effective_time_labels)
+        for k in ['tmin', 'tmax', 'tduration', 'tposition']:
+            self.state.add_listener(update_effective_time_labels, k)
+
+        self._label_effective_tmin = label_effective_tmin
+        self._label_effective_tmax = label_effective_tmax
+
+        layout.addWidget(ZeroFrame(), 12, 0, 1, 2)
 
         return frame
+
+    def update_effective_time_labels(self, *args):
+        tmin = self.state.tmin_effective
+        tmax = self.state.tmax_effective
+
+        stmin = common.time_or_none_to_str(tmin)
+        stmax = common.time_or_none_to_str(tmax)
+
+        self._label_effective_tmin.setText(stmin)
+        self._label_effective_tmax.setText(stmax)
 
     def snapshots_panel(self):
         return snapshots_mod.SnapshotsPanel(self)
@@ -1264,7 +1335,8 @@ def main(*args, **kwargs):
         except ImportError:
             logger.info(
                 'Module qdarkgraystyle not available.\n'
-                'If wanted, install qdarkstyle with "pip install qdarkgraystyle".')
+                'If wanted, install qdarkstyle with "pip install '
+                'qdarkgraystyle".')
 
     win = Viewer(*args, **kwargs)
     app.set_main_window(win)

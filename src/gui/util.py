@@ -20,6 +20,7 @@ from .snuffler.marker import Marker, PhaseMarker, EventMarker  # noqa
 from .snuffler.marker import MarkerParseError, MarkerOneNSLCRequired  # noqa
 from .snuffler.marker import load_markers, save_markers  # noqa
 from pyrocko import plot
+from .sparrow import common
 
 
 try:
@@ -29,6 +30,10 @@ except ImportError:
 
 
 logger = logging.getLogger('pyrocko.gui.util')
+
+
+def rint(x):
+    return int(round(x))
 
 
 def make_QPolygonF(xdata, ydata):
@@ -1145,31 +1150,35 @@ class NoData(Exception):
 class RangeEdit(qw.QFrame):
 
     rangeChanged = qc.pyqtSignal()
+    focusChanged = qc.pyqtSignal()
 
     def __init__(self, parent=None):
         qw.QFrame.__init__(self, parent)
         self.setFrameStyle(qw.QFrame.StyledPanel | qw.QFrame.Plain)
+        self.setCursor(qc.Qt.SizeAllCursor)
         # self.setBackgroundRole(qg.QPalette.Button)
         # self.setAutoFillBackground(True)
+        self.setMouseTracking(True)
         poli = qw.QSizePolicy(
             qw.QSizePolicy.Expanding,
             qw.QSizePolicy.Fixed)
 
         self.setSizePolicy(poli)
-        self.setMinimumSize(100, 24)
-        self.projection = Projection()
+        self.setMinimumSize(100, 3*24)
         self._default_data_range = (0., 1.)
 
         self._size_hint = qw.QPushButton().sizeHint()
 
-        self._tmin = 0.25
-        self._tmax = 0.75
-
         self._need_initial_range = True
 
         self._track_start = None
-        self._track_trange = None
+        self._track_range = None
+        self._track_focus = None
+        self._track_what = None
+
         self._provider = None
+        self.tmin, self.tmax = self._default_data_range
+        self.tduration, self.tposition = None, 0.
 
     def set_default_data_range(self, tmin, tmax):
         self._default_data_range = (tmin, tmax)
@@ -1195,9 +1204,10 @@ class RangeEdit(qw.QFrame):
             else:
                 raise NoData()
 
-    def get_histogram(self):
-        umin_w, umax_w = self.projection.get_out_range()
-        tmin_w, tmax_w = self.projection.get_in_range()
+    def get_histogram(self, projection, h):
+        h = int(h)
+        umin_w, umax_w = projection.get_out_range()
+        tmin_w, tmax_w = projection.get_in_range()
         nbins = int(umax_w - umin_w)
         counts = num.zeros(nbins, dtype=num.int)
         if self._provider:
@@ -1212,53 +1222,125 @@ class RangeEdit(qw.QFrame):
             if nprocessed == 0:
                 self._need_initial_range = True
 
-        histogram = counts * 24 // (num.max(counts[1:-1]) or 1)
-        bitmap = num.zeros((24, nbins), dtype=num.bool)
-        for i in range(24):
-            bitmap[23-i, :] = histogram > i
+        histogram = counts * h // (num.max(counts[1:-1]) or 1)
+        bitmap = num.zeros((h, nbins), dtype=num.bool)
+        for i in range(h):
+            bitmap[h-1-i, :] = histogram > i
 
         bitmap = num.packbits(bitmap, axis=1, bitorder='little')
 
         return qg.QBitmap.fromData(
-            qc.QSize(nbins, 24),
+            qc.QSize(nbins, h),
             bitmap.tobytes(),
             qg.QImage.Format_MonoLSB)
 
     def drawit(self, painter):
-        self.projection.set_out_range(0., self.width())
-
-        vmin = 0
-        vmax = self.height()
 
         palette = self.palette()
 
-        umin_w, umax_w = self.projection.get_out_range()
-        umin = self.projection(self._tmin)
-        umax = self.projection(self._tmax)
+        upper_projection = self.upper_projection()
+        lower_projection = self.lower_projection()
 
-        rect_w = qc.QRectF(umin_w, vmin, float(umax_w-umin_w), vmax-vmin)
-        rect = qc.QRectF(umin, vmin, float(umax-umin), vmax-vmin)
+        upper_rect = self.upper_rect()
+        lower_rect = self.lower_rect()
+        focus_rect = self.focus_rect(upper_projection)
 
-        # style = self.style()
+        fill_brush = palette.brush(qg.QPalette.Button)
+        painter.fillRect(upper_rect, fill_brush)
 
-        # option = qw.QStyleOptionFrame()
-        # option.initFrom(self)
-        # option.state = qw.QStyle.State_Sunken
-        # style.drawPrimitive(
-        # qw.QStyle.PE_FrameLineEdit, option, painter, self)
+        if self.tduration is not None:
+            painter.setBrush(palette.light())
+            poly = qg.QPolygon(8)
+            poly.setPoint(
+                0, lower_rect.x(), lower_rect.y())
+            poly.setPoint(
+                1, lower_rect.x(), lower_rect.y()+lower_rect.height())
+            poly.setPoint(
+                2, lower_rect.x() + lower_rect.width(),
+                lower_rect.y() + lower_rect.height())
+            poly.setPoint(
+                3, lower_rect.x() + lower_rect.width(), lower_rect.y())
+            poly.setPoint(
+                4, focus_rect.x() + focus_rect.width(),
+                upper_rect.y() + upper_rect.height())
+            poly.setPoint(
+                5, focus_rect.x() + focus_rect.width(), upper_rect.y())
+            poly.setPoint(
+                6, focus_rect.x(), upper_rect.y())
+            poly.setPoint(
+                7, focus_rect.x(), upper_rect.y() + upper_rect.height())
+            painter.drawPolygon(poly)
+        else:
+            fill_brush = palette.light()
+            painter.fillRect(upper_rect, fill_brush)
 
-        fill_brush = palette.brush(qg.QPalette.AlternateBase)
-        painter.fillRect(rect_w, fill_brush)
+        xpen = qg.QPen(palette.color(qg.QPalette.ButtonText))
+        painter.setPen(xpen)
+        painter.drawPixmap(
+            0, upper_rect.x(),
+            self.get_histogram(upper_projection, upper_rect.height()))
 
-        fill_brush = palette.brush(qg.QPalette.Base)
-        painter.fillRect(rect, fill_brush)
+        if self.tduration is not None:
+            painter.drawPixmap(
+                0, lower_rect.y(),
+                self.get_histogram(lower_projection, lower_rect.height()))
 
-        frame_pen = qg.QPen(palette.color(qg.QPalette.ButtonText))
-        painter.setPen(frame_pen)
-        painter.drawRect(rect)
-        painter.drawRect(rect_w)
+        # frame_pen = qg.QPen(palette.color(qg.QPalette.ButtonText))
+        # painter.setPen(frame_pen)
+        # painter.drawRect(upper_rect)
+        # if self.tduration:
+        #     painter.drawRect(lower_rect)
 
-        painter.drawPixmap(0, 0, self.get_histogram())
+    def upper_projection(self):
+        p = Projection()
+        p.set_in_range(self.tmin, self.tmax)
+        p.set_out_range(0., self.width())
+        return p
+
+    def lower_projection(self):
+        tmin_eff = self.tmin_effective()
+        tmax_eff = self.tmax_effective()
+        if None in (tmin_eff, tmax_eff):
+            return None
+
+        p = Projection()
+        p.set_in_range(tmin_eff, tmax_eff)
+        p.set_out_range(0., self.width())
+        return p
+
+    def tmin_effective(self):
+        return common.tmin_effective(
+            self.tmin, self.tmax, self.tduration, self.tposition)
+
+    def tmax_effective(self):
+        return common.tmax_effective(
+            self.tmin, self.tmax, self.tduration, self.tposition)
+
+    def upper_rect(self):
+        vmin = 0
+        vmax = self.height() // 3
+        umin, umax = 0, self.width()
+        return qc.QRect(umin, vmin, umax-umin, vmax-vmin)
+
+    def lower_rect(self):
+        vmin = 2 * self.height() // 3
+        vmax = self.height()
+        umin, umax = 0, self.width()
+        return qc.QRect(umin, vmin, umax-umin, vmax-vmin)
+
+    def focus_rect(self, projection):
+        vmin = 0
+        vmax = self.height() // 3
+
+        tmin_eff = self.tmin_effective()
+        tmax_eff = self.tmax_effective()
+        if None in (tmin_eff, tmax_eff):
+            return None
+
+        umin = rint(projection(tmin_eff))
+        umax = rint(projection(tmax_eff))
+
+        return qc.QRect(umin, vmin, umax-umin, vmax-vmin)
 
     def set_range(self, tmin, tmax):
         if None in (tmin, tmax):
@@ -1268,38 +1350,58 @@ class RangeEdit(qw.QFrame):
             tmin -= 0.5
             tmax += 0.5
 
-        self.projection.set_in_range(tmin, tmax)
+        self.tmin = tmin
+        self.tmax = tmax
+
         self.rangeChanged.emit()
+        self.update()
 
     def get_range(self):
-        return self.projection.get_in_range()
+        return self.tmin, self.tmax
+
+    def set_focus(self, tduration, tposition):
+        self.tduration = tduration
+        self.tposition = tposition
+        self.focusChanged.emit()
+        self.update()
+
+    def get_focus(self):
+        return (self.tduration, self.tposition)
 
     def update_data_range(self):
         if self._need_initial_range:
             try:
-                self.projection.set_in_range(*self.get_data_range())
+                self.set_range(*self.get_data_range())
                 self._need_initial_range = False
             except NoData:
-                self.projection.set_in_range(*self._default_data_range)
+                self.set_range(*self._default_data_range)
+
                 self._need_initial_range = True
 
     def paintEvent(self, paint_ev):
         painter = qg.QPainter(self)
-
         painter.setRenderHint(qg.QPainter.Antialiasing)
-
         self.update_data_range()
-
         self.drawit(painter)
         qw.QFrame.paintEvent(self, paint_ev)
 
     def mousePressEvent(self, mouse_ev):
         self.update_data_range()
-        # point = self.mapFromGlobal(mouse_ev.globalPos())
 
         if mouse_ev.button() == qc.Qt.LeftButton:
             self._track_start = mouse_ev.x(), mouse_ev.y()
-            self._track_trange = self.projection.get_in_range()
+            self._track_range = self.get_range()
+            self._track_focus = self.get_focus()
+            # upper_projection = self.upper_projection()
+            # focus_rect = self.focus_rect(upper_projection)
+            upper_rect = self.upper_rect()
+            lower_rect = self.lower_rect()
+            if upper_rect.contains(mouse_ev.pos()):
+                self._track_what = 'global'
+            elif lower_rect.contains(mouse_ev.pos()):
+                self._track_what = 'focus'
+            else:
+                self._track_what = 'focus_slide'
 
         self.update()
 
@@ -1308,7 +1410,30 @@ class RangeEdit(qw.QFrame):
             self.update()
 
         self._track_start = None
-        self._track_trange = None
+        self._track_range = None
+        self._track_focus = None
+        self._track_what = None
+        if self.tduration is not None:
+            if self.tduration >= self.tmax - self.tmin:
+                self.set_focus(None, 0.0)
+            elif self.tposition < 0.:
+                self.set_focus(self.tduration, 0.0)
+            elif self.tposition > 1.0 - self.tduration \
+                    / (self.tmax - self.tmin):
+                self.set_focus(
+                    self.tduration, 1.0 - self.tduration
+                    / (self.tmax - self.tmin))
+
+    def mouseDoubleClickEvent(self, mouse_ev):
+        if mouse_ev.button() == qc.Qt.LeftButton:
+            lower_rect = self.lower_rect()
+            if lower_rect.contains(mouse_ev.pos()) \
+                    and self.tduration is not None:
+
+                etmin = self.tmin_effective()
+                etmax = self.tmax_effective()
+                self.set_range(etmin, etmax)
+                self.set_focus(None, 0.0)
 
     def mouseMoveEvent(self, mouse_ev):
         point = self.mapFromGlobal(mouse_ev.globalPos())
@@ -1317,16 +1442,67 @@ class RangeEdit(qw.QFrame):
             x0, y0 = self._track_start
             dx = (point.x() - x0)/float(self.width())
             dy = (point.y() - y0)/float(self.height())
+            xfrac = x0/float(self.width())
+            tmin0, tmax0 = self._track_range
+            tduration0, tposition0 = self._track_focus
 
-            tmin0, tmax0 = self._track_trange
+            if self._track_what == 'global':
+                scale = math.exp(-dy)
+                dtr = (tmax0-tmin0) * (scale - 1.0)
+                dt = dx*(tmax0-tmin0)*scale
 
-            scale = math.exp(-dy)
-            dtr = scale * (tmax0-tmin0) - (tmax0-tmin0)
-            frac = x0/float(self.width())
-            dt = dx*(tmax0-tmin0)*scale
+                tmin = tmin0 - dt - dtr*xfrac
+                tmax = tmax0 - dt + dtr*(1.-xfrac)
 
-            self.set_range(
-                tmin0 - dt - dtr*frac,
-                tmax0 - dt + dtr*(1.-frac))
+                self.set_range(tmin, tmax)
 
-            self.update()
+                tduration, tposition = self._track_focus
+                if tduration is not None:
+                    etmin0 = common.tmin_effective(
+                        tmin0, tmax0, tduration0, tposition0)
+
+                    tposition = (etmin0 - tmin) / (tmax - tmin)
+                    self.set_focus(tduration0, tposition)
+
+            elif self._track_what == 'focus':
+                if tduration0 is not None:
+                    scale = math.exp(-dy)
+
+                    dtr = tduration0 * (scale - 1.0)
+                    dt = dx * tduration0 * scale
+
+                    etmin0 = common.tmin_effective(
+                        tmin0, tmax0, tduration0, tposition0)
+                    etmax0 = common.tmax_effective(
+                        tmin0, tmax0, tduration0, tposition0)
+
+                    tmin = etmin0 - dt - dtr*xfrac
+                    tmax = etmax0 - dt + dtr*(1.-xfrac)
+
+                    tduration = tmax - tmin
+
+                    tposition = (tmin - tmin0) / (tmax0 - tmin0)
+                    print(tposition)
+                    tposition = min(
+                        max(0., tposition),
+                        1.0 - tduration / (tmax0 - tmin0))
+
+                    print(tposition)
+
+                    if tduration < (tmax0 - tmin0):
+                        self.set_focus(tduration, tposition)
+                    else:
+                        self.set_focus(None, tposition)
+
+                else:
+                    tduration, tposition = tmax0 - tmin0, 0.0
+                    self.set_focus(tduration, tposition)
+                    self._track_focus = (tduration, tposition)
+
+            elif self._track_what == 'focus_slide':
+                if tduration0 is not None:
+                    self.set_focus(
+                        tduration0,
+                        min(
+                            max(0., tposition0 + dx),
+                            1.0 - tduration0 / (tmax0 - tmin0)))
