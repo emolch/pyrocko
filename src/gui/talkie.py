@@ -146,17 +146,8 @@ class Talkie(Object):
     def diff_update(self, other, path=()):
         assert type(self) is type(other), '%s %s' % (type(self), type(other))
 
-        print('diff_update', path)
-
-        if type(self).__name__ == 'CustomTopoState':
-            print('yyy', id(self))
-            print(self)
-            print(self._listeners)
-
         for (s_prop, s_val), (o_prop, o_val) in zip(
                 self.T.ipropvals(self), other.T.ipropvals(other)):
-
-            print(s_prop.name)
 
             if not s_prop.multivalued:
                 if isinstance(s_val, Talkie) \
@@ -165,7 +156,6 @@ class Talkie(Object):
                     s_val.diff_update(o_val, path + (s_prop.name,))
                 else:
                     if not equal(s_val, o_val):
-                        print('SET!')
                         setattr(self, s_prop.name, clone(o_val))
             else:
                 if issubclass(s_prop.content_t.cls, Talkie):

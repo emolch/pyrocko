@@ -11,7 +11,7 @@ import math
 import numpy as num
 from scipy.interpolate import interp1d
 
-from pyrocko import automap, plot
+from pyrocko import automap, plot, util
 from pyrocko.geometry import d2r
 from pyrocko.gui.qt_compat import qg, qw, qc
 
@@ -29,7 +29,7 @@ def get_palette():
 def errorize(widget):
     widget.setStyleSheet('''
         QLineEdit {
-            background: rgb(100, 20, 20);
+            background: rgb(200, 150, 150);
         }''')
 
 
@@ -47,6 +47,27 @@ def strings_to_combobox(list_of_str):
 
 def string_choices_to_combobox(cls):
     return strings_to_combobox(cls.choices)
+
+
+def time_or_none_to_str(t):
+    if t is None:
+        return ''
+    else:
+        return util.time_to_str(t)
+
+
+def tmin_effective(tmin, tmax, tduration, tposition):
+    if None in (tmin, tmax, tduration, tposition):
+        return tmin
+    else:
+        return tmin + (tmax - tmin) * tposition
+
+
+def tmax_effective(tmin, tmax, tduration, tposition):
+    if None in (tmin, tmax, tduration, tposition):
+        return tmax
+    else:
+        return tmin + (tmax - tmin) * tposition + tduration
 
 
 def cover_region(lat, lon, delta, step=None, avoid_poles=False):
