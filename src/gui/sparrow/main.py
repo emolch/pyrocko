@@ -234,12 +234,23 @@ class Viewer(qw.QMainWindow):
 
         self.add_panel(
             'Navigation',
-            self.controls(), visible=True,
+            self.controls_navigation(), visible=True,
             where=qc.Qt.LeftDockWidgetArea)
 
-        snapshots_panel = self.snapshots_panel()
         self.add_panel(
-            'Snapshots', snapshots_panel, visible=False,
+            'Time',
+            self.controls_time(), visible=True,
+            where=qc.Qt.LeftDockWidgetArea)
+
+        self.add_panel(
+            'Appearance',
+            self.controls_appearance(), visible=True,
+            where=qc.Qt.LeftDockWidgetArea)
+
+        snapshots_panel = self.controls_snapshots()
+        self.add_panel(
+            'Snapshots',
+            snapshots_panel, visible=False,
             where=qc.Qt.LeftDockWidgetArea)
 
         self.setCentralWidget(self.frame)
@@ -319,10 +330,6 @@ class Viewer(qw.QMainWindow):
             element_id='grid'))
         self.state.elements.append(elements.CoastlinesState(
             element_id='coastlines'))
-
-        print('AAA')
-        print(self.state)
-        print('BBB')
 
         # self.state.elements.append(elements.StationsState())
         # self.state.elements.append(elements.SourceState())
@@ -614,31 +621,8 @@ class Viewer(qw.QMainWindow):
 
     def set_state(self, state):
         self.setUpdatesEnabled(False)
-
-        print('<<<<<<<<<<')
-
-        for tag, path, _ in self.state.diff(state):
-            print('diff', tag, path)
-
-        print('---')
-        for el in self.state.elements:
-            print('<  ', type(el).__name__, el.element_id, id(el))
-        print('---')
-        for el in state.elements:
-            print('>  ', type(el).__name__, el.element_id, id(el))
-        print('---')
-
-        print(id(state.elements))
         self.state.diff_update(state)
-        print(id(state.elements))
-
-        print('---')
-        for el in self.state.elements:
-            print('  ', type(el).__name__, el.element_id, id(el))
-        print('---')
-
         self.setUpdatesEnabled(True)
-        print('>>>>>>>>>>>>')
 
     def periodical(self):
         pass
@@ -656,9 +640,8 @@ class Viewer(qw.QMainWindow):
 
     def update_elements(self, path, value):
         if self._in_update_elements:
-            print('block update_elements')
             return
-        print('enter update_elements')
+
         self._in_update_elements = True
         for estate in self.state.elements:
             if estate.element_id not in self._elements:
@@ -686,7 +669,6 @@ class Viewer(qw.QMainWindow):
             del self._elements_active[element_id]
 
         self._in_update_elements = False
-        print('exit update_elements')
 
     def add_actor_2d(self, actor):
         if actor not in self._actors_2d:
@@ -833,14 +815,21 @@ class Viewer(qw.QMainWindow):
     def _gui_state_bind(self, *args, **kwargs):
         vstate.state_bind(self, self.gui_state, *args, **kwargs)
 
-    def controls(self):
+    def controls_navigation(self):
         frame = qw.QFrame(self)
+        frame.setSizePolicy(
+            qw.QSizePolicy.Minimum, qw.QSizePolicy.Fixed)
         layout = qw.QGridLayout()
         frame.setLayout(layout)
 
-        layout.addWidget(qw.QLabel('Location'), 0, 0)
+        # lat, lon, depth
+
+        layout.addWidget(
+            qw.QLabel('Location'), 0, 0, 1, 2)
+
         le = qw.QLineEdit()
-        layout.addWidget(le, 0, 1)
+        le.setToolTip('Latitude, Longitude, Depth [km]')
+        layout.addWidget(le, 1, 0, 1, 1)
 
         def lat_lon_depth_to_lineedit(state, widget):
             sel = str(widget.selectedText()) == str(widget.text())
@@ -870,9 +859,36 @@ class Viewer(qw.QMainWindow):
         self.lat_lon_lineedit.returnPressed.connect(
             lambda *args: self.lat_lon_lineedit.selectAll())
 
-        layout.addWidget(qw.QLabel('Strike, Dip'), 1, 0)
+        # focal point
+
+        cb = qw.QCheckBox('Fix')
+        layout.addWidget(cb, 1, 1, 1, 1)
+
+        def focal_point_to_checkbox(state, widget):
+            widget.blockSignals(True)
+            widget.setChecked(self.gui_state.focal_point != 'center')
+            widget.blockSignals(False)
+
+        def checkbox_to_focal_point(widget, state):
+            self.gui_state.focal_point = \
+                'target' if widget.isChecked() else 'center'
+
+        self._gui_state_bind(
+            ['focal_point'], checkbox_to_focal_point,
+            cb, [cb.toggled], focal_point_to_checkbox)
+
+        self.focal_point_checkbox = cb
+
+        # strike, dip
+
+        layout.addWidget(
+            qw.QLabel('View Plane'), 2, 0, 1, 2)
+
         le = qw.QLineEdit()
-        layout.addWidget(le, 1, 1)
+        le.setToolTip(
+            'Strike, Dip (view plane orientation, perpendicular to view '
+            'direction)')
+        layout.addWidget(le, 3, 0, 1, 1)
 
         def strike_dip_to_lineedit(state, widget):
             sel = widget.selectedText() == widget.text()
@@ -907,30 +923,13 @@ class Viewer(qw.QMainWindow):
         self.strike_dip_lineedit.returnPressed.connect(
             lambda *args: self.strike_dip_lineedit.selectAll())
 
-        cb = qw.QCheckBox('Local Focus')
-        layout.addWidget(cb, 2, 0)
-
-        def focal_point_to_checkbox(state, widget):
-            widget.blockSignals(True)
-            widget.setChecked(self.gui_state.focal_point != 'center')
-            widget.blockSignals(False)
-
-        def checkbox_to_focal_point(widget, state):
-            self.gui_state.focal_point = \
-                'target' if widget.isChecked() else 'center'
-
-        self._gui_state_bind(
-            ['focal_point'], checkbox_to_focal_point,
-            cb, [cb.toggled], focal_point_to_checkbox)
-
-        self.focal_point_checkbox = cb
-
         but = qw.QPushButton('Reset')
         but.clicked.connect(self.reset_strike_dip)
-        layout.addWidget(but, 2, 1)
+        layout.addWidget(but, 3, 1, 1, 1)
 
-        update_camera = self.update_camera        # this assignment is
-        update_render_settings = self.update_render_settings
+        # camera bindings
+
+        update_camera = self.update_camera        # this assignment is needed
 
         self.register_state_listener(update_camera)
 
@@ -945,40 +944,23 @@ class Viewer(qw.QMainWindow):
         self.register_state_listener(update_panel_visibility)
         self.gui_state.add_listener(update_panel_visibility, 'panels_visible')
 
-        # lighting
+        return frame
 
-        layout.addWidget(qw.QLabel('Lighting'), 4, 0)
+    def controls_time(self):
+        frame = qw.QFrame(self)
+        frame.setSizePolicy(
+            qw.QSizePolicy.Minimum, qw.QSizePolicy.Fixed)
 
-        cb = common.string_choices_to_combobox(vstate.LightingChoice)
-        layout.addWidget(cb, 4, 1)
-        vstate.state_bind_combobox(self, self.state, 'lighting', cb)
+        layout = qw.QGridLayout()
+        frame.setLayout(layout)
 
-        self.register_state_listener(update_render_settings)
-        self.state.add_listener(update_render_settings, 'lighting')
-
-        # background
-
-        layout.addWidget(qw.QLabel('Background'), 5, 0)
-
-        cb = common.strings_to_combobox(
-            ['black', 'white', 'skyblue1 - white'])
-
-        layout.addWidget(cb, 5, 1)
-        vstate.state_bind_combobox_background(
-            self, self.state, 'background', cb)
-
-        self.register_state_listener(update_render_settings)
-        self.state.add_listener(update_render_settings, 'background')
-
-        # time
-
-        layout.addWidget(qw.QLabel('Time Min'), 6, 0)
+        layout.addWidget(qw.QLabel('Min'), 0, 0)
         le_tmin = qw.QLineEdit()
-        layout.addWidget(le_tmin, 6, 1)
+        layout.addWidget(le_tmin, 0, 1)
 
-        layout.addWidget(qw.QLabel('Time Max'), 7, 0)
+        layout.addWidget(qw.QLabel('Max'), 1, 0)
         le_tmax = qw.QLineEdit()
-        layout.addWidget(le_tmax, 7, 1)
+        layout.addWidget(le_tmax, 1, 1)
 
         def time_to_lineedit(state, attribute, widget):
             sel = widget.selectedText() == widget.text() \
@@ -1041,11 +1023,11 @@ class Viewer(qw.QMainWindow):
             [range_edit.rangeChanged, range_edit.focusChanged],
             range_to_range_edit)
 
-        layout.addWidget(range_edit, 8, 0, 1, 2)
+        layout.addWidget(range_edit, 2, 0, 1, 2)
 
-        layout.addWidget(qw.QLabel('Time Focus'), 9, 0)
+        layout.addWidget(qw.QLabel('Focus'), 3, 0)
         le_focus = qw.QLineEdit()
-        layout.addWidget(le_focus, 9, 1)
+        layout.addWidget(le_focus, 3, 1)
 
         def focus_to_lineedit(state, widget):
             sel = widget.selectedText() == widget.text() \
@@ -1064,7 +1046,6 @@ class Viewer(qw.QMainWindow):
         def lineedit_to_focus(widget, state):
             s = str(widget.text())
             w = [x.strip() for x in s.split(',')]
-            print(w)
             try:
                 if len(w) == 0 or not w[0]:
                     state.tduration = None
@@ -1076,8 +1057,7 @@ class Viewer(qw.QMainWindow):
                     else:
                         state.tposition = 0.0
 
-            except Exception as e:
-                print(e)
+            except Exception:
                 raise ValueError('need two values: <duration>, <position>')
 
         self._state_bind(
@@ -1096,8 +1076,8 @@ class Viewer(qw.QMainWindow):
             qg.QFontMetrics(label_effective_tmin.font()).width(
                 '0000-00-00 00:00:00.000'), 0)
 
-        layout.addWidget(label_effective_tmin, 10, 1)
-        layout.addWidget(label_effective_tmax, 11, 1)
+        layout.addWidget(label_effective_tmin, 4, 1)
+        layout.addWidget(label_effective_tmax, 5, 1)
 
         update_effective_time_labels = self.update_effective_time_labels
         self.register_state_listener(update_effective_time_labels)
@@ -1107,9 +1087,44 @@ class Viewer(qw.QMainWindow):
         self._label_effective_tmin = label_effective_tmin
         self._label_effective_tmax = label_effective_tmax
 
-        layout.addWidget(ZeroFrame(), 12, 0, 1, 2)
+        return frame
+
+    def controls_appearance(self):
+        frame = qw.QFrame(self)
+        frame.setSizePolicy(
+            qw.QSizePolicy.Minimum, qw.QSizePolicy.Fixed)
+        layout = qw.QGridLayout()
+        frame.setLayout(layout)
+
+        layout.addWidget(qw.QLabel('Lighting'), 0, 0)
+
+        cb = common.string_choices_to_combobox(vstate.LightingChoice)
+        layout.addWidget(cb, 0, 1)
+        vstate.state_bind_combobox(self, self.state, 'lighting', cb)
+
+        update_render_settings = self.update_render_settings
+
+        self.register_state_listener(update_render_settings)
+        self.state.add_listener(update_render_settings, 'lighting')
+
+        # background
+
+        layout.addWidget(qw.QLabel('Background'), 1, 0)
+
+        cb = common.strings_to_combobox(
+            ['black', 'white', 'skyblue1 - white'])
+
+        layout.addWidget(cb, 1, 1)
+        vstate.state_bind_combobox_background(
+            self, self.state, 'background', cb)
+
+        self.register_state_listener(update_render_settings)
+        self.state.add_listener(update_render_settings, 'background')
 
         return frame
+
+    def controls_snapshots(self):
+        return snapshots_mod.SnapshotsPanel(self)
 
     def update_effective_time_labels(self, *args):
         tmin = self.state.tmin_effective
@@ -1120,9 +1135,6 @@ class Viewer(qw.QMainWindow):
 
         self._label_effective_tmin.setText(stmin)
         self._label_effective_tmax.setText(stmax)
-
-    def snapshots_panel(self):
-        return snapshots_mod.SnapshotsPanel(self)
 
     def reset_strike_dip(self, *args):
         self.state.strike = 90.
