@@ -103,12 +103,33 @@ class QVTKWidget(QVTKRenderWindowInteractor):
         self._parent.myWheelEvent(event)
 
 
+class MyDockWidgetTitleBar(qw.QLabel):
+
+    def event(self, ev):
+        ev.ignore()
+        return False
+
+
 class MyDockWidget(qw.QDockWidget):
 
-    def __init__(self, *args, **kwargs):
-        qw.QDockWidget.__init__(self, *args, **kwargs)
+    def __init__(self, name, parent, **kwargs):
+        qw.QDockWidget.__init__(self, name, parent, **kwargs)
+
         self._visible = False
         self._blocked = False
+
+        lab = MyDockWidgetTitleBar('<strong>%s</strong>' % name)
+        # lab.setFrameStyle(qw.QFrame.StyledPanel)
+        lab.setMargin(5)
+        lab.setBackgroundRole(qg.QPalette.AlternateBase)
+        lab.setAutoFillBackground(True)
+
+        # lab.setSizePolicy(
+        #     qw.QSizePolicy.Minimum, qw.QSizePolicy.Maximum)
+        # lab.setLineWidth(1)
+        # lab.setMidLineWidth(1)
+
+        self.setTitleBarWidget(lab)
 
     def setVisible(self, visible):
         self._visible = visible
@@ -138,6 +159,9 @@ class MyDockWidget(qw.QDockWidget):
 class Viewer(qw.QMainWindow):
     def __init__(self, use_depth_peeling=True, events=None, snapshots=None):
         qw.QMainWindow.__init__(self)
+
+        self.setTabPosition(
+            qc.Qt.AllDockWidgetAreas, qw.QTabWidget.West)
 
         self.planet_radius = cake.earthradius
         self.feature_radius_min = cake.earthradius - 1000. * km
@@ -1337,19 +1361,25 @@ def main(*args, **kwargs):
     if app is None:
         app = App()
 
-        try:
-            import qdarkgraystyle
-            app.setStyleSheet(qdarkgraystyle.load_stylesheet())
-            # import qdarkstyle
-            #
-            # app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-
-        except ImportError:
-            logger.info(
-                'Module qdarkgraystyle not available.\n'
-                'If wanted, install qdarkstyle with "pip install '
-                'qdarkgraystyle".')
-
+        # try:
+        #     from qt_material import apply_stylesheet
+        #
+        #     apply_stylesheet(app, theme='dark_teal.xml')
+        #
+        #
+        #     import qdarkgraystyle
+        #     app.setStyleSheet(qdarkgraystyle.load_stylesheet())
+        #     import qdarkstyle
+        #
+        #     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+        #
+        #
+        # except ImportError:
+        #     logger.info(
+        #         'Module qdarkgraystyle not available.\n'
+        #         'If wanted, install qdarkstyle with "pip install '
+        #         'qdarkgraystyle".')
+        #
     win = Viewer(*args, **kwargs)
     app.set_main_window(win)
 
