@@ -39,6 +39,7 @@ class ViewerGuiState(talkie.TalkieRoot):
     panels_visible = Bool.T(default=True)
     size = Tuple.T(2, Float.T(), default=(100., 100.))
     focal_point = FocalPointChoice.T(default='center')
+    detached = Bool.T(default=False)
 
     def next_focal_point(self):
         choices = FocalPointChoice.choices
@@ -124,7 +125,6 @@ class ViewerState(talkie.TalkieRoot):
             self.tmin, self.tmax, self.tduration, self.tposition)
 
     def sort_elements(self):
-        print(type(self.elements))
         self.elements.sort(key=lambda el: el.element_id)
 
 
