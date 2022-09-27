@@ -107,7 +107,7 @@ class MyDockWidgetTitleBar(qw.QLabel):
 
     def event(self, ev):
         ev.ignore()
-        return False
+        return qw.QLabel.event(self, ev)
 
 
 class MyDockWidget(qw.QDockWidget):
@@ -115,13 +115,19 @@ class MyDockWidget(qw.QDockWidget):
     def __init__(self, name, parent, **kwargs):
         qw.QDockWidget.__init__(self, name, parent, **kwargs)
 
+        self.setFeatures(
+            qw.QDockWidget.DockWidgetClosable
+            | qw.QDockWidget.DockWidgetMovable
+            | qw.QDockWidget.DockWidgetFloatable
+            | qw.QDockWidget.DockWidgetClosable)
+
         self._visible = False
         self._blocked = False
 
         lab = MyDockWidgetTitleBar('<strong>%s</strong>' % name)
         # lab.setFrameStyle(qw.QFrame.StyledPanel)
-        lab.setMargin(5)
-        lab.setBackgroundRole(qg.QPalette.AlternateBase)
+        lab.setMargin(10)
+        lab.setBackgroundRole(qg.QPalette.Mid)
         lab.setAutoFillBackground(True)
 
         # lab.setSizePolicy(
@@ -156,9 +162,24 @@ class MyDockWidget(qw.QDockWidget):
         self.setBlocked(False)
 
 
+class DetachedViewer(qw.QMainWindow):
+
+    def __init__(self, main_window, vtk_frame):
+        qw.QMainWindow.__init__(self)
+        self.main_window = main_window
+        self.setWindowTitle('Sparrow View')
+        vtk_frame.setParent(self)
+        self.setCentralWidget(vtk_frame)
+
+    def closeEvent(self, ev):
+        ev.ignore()
+        self.main_window.attach()
+
+
 class Viewer(qw.QMainWindow):
     def __init__(self, use_depth_peeling=True, events=None, snapshots=None):
         qw.QMainWindow.__init__(self)
+        self.setWindowTitle('Sparrow')
 
         self.setTabPosition(
             qc.Qt.AllDockWidgetAreas, qw.QTabWidget.West)
@@ -233,28 +254,30 @@ class Viewer(qw.QMainWindow):
         self.listeners = []
         self.elements = {}
 
-        self.frame = qw.QFrame()
+        self.detached_window = None
 
-        self.vl = qw.QVBoxLayout()
-        self.vl.setContentsMargins(0, 0, 0, 0)
+        main_frame = qw.QFrame()
 
-        frame2 = qw.QFrame()
-        # frame2.setFrameStyle(qw.QFrame.StyledPanel)
-        vl2 = qw.QVBoxLayout()
-        vl2.setContentsMargins(0, 0, 0, 0)
-        frame2.setLayout(vl2)
+        vtk_frame_layout = qw.QVBoxLayout()
+        vtk_frame_layout.setContentsMargins(0, 0, 0, 0)
+        self.vtk_widget = QVTKWidget(self, main_frame)
+        vtk_frame_layout.addWidget(self.vtk_widget)
+        self.vtk_frame = qw.QFrame()
+        self.vtk_frame.setLayout(vtk_frame_layout)
 
-        # self.vtk_widget = QVTKRenderWindowInteractor(frame2)
-        self.vtk_widget = QVTKWidget(self, frame2)
-
-        vl2.addWidget(self.vtk_widget)
-        self.vl.addWidget(frame2)
+        main_layout = qw.QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(self.vtk_frame)
 
         pb = Progressbars(self)
         self.progressbars = pb
-        self.vl.addWidget(pb)
+        main_layout.addWidget(pb)
 
-        self.frame.setLayout(self.vl)
+        main_frame.setLayout(main_layout)
+
+        self.main_frame = main_frame
+        self.main_layout = main_layout
+        self.vtk_frame_substitute = None
 
         self.add_panel(
             'Navigation',
@@ -277,7 +300,7 @@ class Viewer(qw.QMainWindow):
             snapshots_panel, visible=False,
             where=qc.Qt.LeftDockWidgetArea)
 
-        self.setCentralWidget(self.frame)
+        self.setCentralWidget(self.main_frame)
 
         self.mesh = None
 
@@ -389,6 +412,10 @@ class Viewer(qw.QMainWindow):
         self._animation_saver = None
 
         self.closing = False
+        self.vtk_widget.setFocus()
+        self.windowHandle().showMaximized()
+
+        self.update_detached()
 
         # #####
         # from pyrocko import table
@@ -495,6 +522,60 @@ class Viewer(qw.QMainWindow):
         #
         # self.add_actor(bp.actor)
         # #####
+
+    def update_detached(self, *args):
+
+        if self.gui_state.detached and not self.detached_window:  # detach
+            logger.debug('Detaching VTK view.')
+
+            self.main_layout.removeWidget(self.vtk_frame)
+            self.detached_window = DetachedViewer(self, self.vtk_frame)
+            self.detached_window.show()
+            self.vtk_widget.setFocus()
+
+            screens = get_app().screens()
+            if len(screens) > 1:
+                for screen in screens:
+                    if screen is not self.screen():
+                        self.detached_window.windowHandle().setScreen(screen)
+                        # .setScreen() does not work reliably,
+                        # therefore trying also with .move()...
+                        p = screen.geometry().topLeft()
+                        self.detached_window.move(p.x() + 50, p.y() + 50)
+                        # ... but also does not work in notion window manager.
+
+            self.detached_window.windowHandle().showMaximized()
+
+            frame = qw.QFrame()
+            frame.setBackgroundRole(qg.QPalette.Mid)
+            frame.setAutoFillBackground(True)
+            frame.setSizePolicy(
+                qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
+
+            layout = qw.QGridLayout()
+            frame.setLayout(layout)
+            self.main_layout.insertWidget(0, frame)
+
+            # attach_button = qw.QPushButton('Attach View')
+            # attach_button.clicked.connect(self.attach)
+            # layout.addWidget(
+            #     attach_button, 0, 0, alignment=qc.Qt.AlignCenter)
+
+            self.vtk_frame_substitute = frame
+
+        if not self.gui_state.detached and self.detached_window:  # attach
+            logger.debug('Attaching VTK view.')
+            self.detached_window.hide()
+            self.vtk_frame.setParent(self)
+            if self.vtk_frame_substitute:
+                self.main_layout.removeWidget(self.vtk_frame_substitute)
+
+            self.main_layout.insertWidget(0, self.vtk_frame)
+            self.detached_window = None
+            self.vtk_widget.setFocus()
+
+    def attach(self):
+        self.gui_state.detached = False
 
     def export_image(self):
 
@@ -828,6 +909,9 @@ class Viewer(qw.QMainWindow):
         elif k == ' ':
             self.toggle_panel_visibility()
 
+        elif k == 'd':
+            self.gui_state.detached = not self.gui_state.detached
+
     def key_up_event(self, obj, event):
         s = obj.GetKeySym()
         if s == 'Control_L':
@@ -1098,7 +1182,7 @@ class Viewer(qw.QMainWindow):
             qw.QSizePolicy.Minimum, qw.QSizePolicy.Fixed)
         label_effective_tmin.setMinimumSize(
             qg.QFontMetrics(label_effective_tmin.font()).width(
-                '0000-00-00 00:00:00.000'), 0)
+                '0000-00-00 00:00:00.000  '), 0)
 
         layout.addWidget(label_effective_tmin, 4, 1)
         layout.addWidget(label_effective_tmax, 5, 1)
@@ -1144,6 +1228,16 @@ class Viewer(qw.QMainWindow):
 
         self.register_state_listener(update_render_settings)
         self.state.add_listener(update_render_settings, 'background')
+
+        # detached/attached
+
+        update_detached = self.update_detached
+        self.register_state_listener(update_detached)
+        self.gui_state.add_listener(update_detached, 'detached')
+
+        cb = qw.QCheckBox('Detach')
+        layout.addWidget(cb, 2, 0, 2, 1)
+        vstate.state_bind_checkbox(self, self.gui_state, 'detached', cb)
 
         return frame
 
@@ -1255,7 +1349,7 @@ class Viewer(qw.QMainWindow):
 
         self.addDockWidget(where, dockwidget)
 
-        nwrap = 3
+        nwrap = 4
         if dws and len(dws) >= nwrap and tabify:
             self.tabifyDockWidget(
                 dws[len(dws) - nwrap + len(dws) % nwrap], dockwidget)
@@ -1308,6 +1402,7 @@ class Viewer(qw.QMainWindow):
                 yield data
 
     def closeEvent(self, event):
+        self.attach()
         event.accept()
         self.closing = True
 
