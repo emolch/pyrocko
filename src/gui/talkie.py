@@ -33,8 +33,8 @@ def root_and_path(obj, name=None):
     return root, '.'.join(path[::-1])
 
 
-def lclone(l):
-    [clone(x) for x in l]
+def lclone(xs):
+    [clone(x) for x in xs]
 
 
 g_uid = 0
@@ -269,7 +269,7 @@ class TalkieRoot(Talkie):
 
     def fire_event(self, path, value):
         path = '.'.join(path[::-1])
-        #print('fire_event:', path, value)
+        # print('fire_event:', path, value)
         parts = path.split('.')
         for i in range(len(parts)+1):
             subpath = '.'.join(parts[:i])
