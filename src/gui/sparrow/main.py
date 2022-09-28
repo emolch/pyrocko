@@ -357,7 +357,6 @@ class Viewer(qw.QMainWindow):
 
         renwin.Render()
 
-        self.show()
         iren.Initialize()
 
         self.iren = iren
@@ -413,9 +412,11 @@ class Viewer(qw.QMainWindow):
 
         self.closing = False
         self.vtk_widget.setFocus()
-        self.windowHandle().showMaximized()
 
         self.update_detached()
+
+        self.show()
+        self.windowHandle().showMaximized()
 
         # #####
         # from pyrocko import table
@@ -1173,8 +1174,8 @@ class Viewer(qw.QMainWindow):
             [le_focus.editingFinished, le_focus.returnPressed],
             focus_to_lineedit)
 
-        label_effective_tmin = qw.QLabel('0000-00-00 00:00:00.000')
-        label_effective_tmax = qw.QLabel('0000-00-00 00:00:00.000')
+        label_effective_tmin = qw.QLabel()
+        label_effective_tmax = qw.QLabel()
 
         label_effective_tmin.setSizePolicy(
             qw.QSizePolicy.Minimum, qw.QSizePolicy.Fixed)
