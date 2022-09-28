@@ -10,6 +10,7 @@ import time
 import numpy as num
 import logging
 import enum
+import calendar
 
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
@@ -19,7 +20,7 @@ from .qt_compat import qc, qg, qw
 from .snuffler.marker import Marker, PhaseMarker, EventMarker  # noqa
 from .snuffler.marker import MarkerParseError, MarkerOneNSLCRequired  # noqa
 from .snuffler.marker import load_markers, save_markers  # noqa
-from pyrocko import plot
+from pyrocko import plot, util
 from .sparrow import common
 
 
@@ -1147,6 +1148,23 @@ class NoData(Exception):
     pass
 
 
+g_working_system_time_range = util.get_working_system_time_range()
+
+g_initial_time_range = []
+
+try:
+    g_initial_time_range.append(
+        calendar.timegm((1950, 1, 1, 0, 0, 0)))
+except Exception:
+    g_initial_time_range.append(g_working_system_time_range[0])
+
+try:
+    g_initial_time_range.append(
+        calendar.timegm((time.gmtime().tm_year + 1, 1, 1, 0, 0, 0)))
+except Exception:
+    g_initial_time_range.append(g_working_system_time_range[1])
+
+
 class RangeEdit(qw.QFrame):
 
     rangeChanged = qc.pyqtSignal()
@@ -1158,18 +1176,15 @@ class RangeEdit(qw.QFrame):
         self.setCursor(qc.Qt.SizeAllCursor)
         # self.setBackgroundRole(qg.QPalette.Button)
         # self.setAutoFillBackground(True)
-        self.setMouseTracking(True)
+        # self.setMouseTracking(True)
         poli = qw.QSizePolicy(
             qw.QSizePolicy.Expanding,
             qw.QSizePolicy.Fixed)
 
         self.setSizePolicy(poli)
         self.setMinimumSize(100, 3*24)
-        self._default_data_range = (0., 1.)
 
         self._size_hint = qw.QPushButton().sizeHint()
-
-        self._need_initial_range = True
 
         self._track_start = None
         self._track_range = None
@@ -1177,11 +1192,8 @@ class RangeEdit(qw.QFrame):
         self._track_what = None
 
         self._provider = None
-        self.tmin, self.tmax = self._default_data_range
+        self.tmin, self.tmax = None, None
         self.tduration, self.tposition = None, 0.
-
-    def set_default_data_range(self, tmin, tmax):
-        self._default_data_range = (tmin, tmax)
 
     def set_data_provider(self, provider):
         self._provider = provider
@@ -1201,8 +1213,8 @@ class RangeEdit(qw.QFrame):
 
             if vals:
                 return min(vals), max(vals)
-            else:
-                raise NoData()
+
+        return None, None
 
     def get_histogram(self, projection, h):
         h = int(h)
@@ -1211,16 +1223,11 @@ class RangeEdit(qw.QFrame):
         nbins = int(umax_w - umin_w)
         counts = num.zeros(nbins, dtype=num.int)
         if self._provider:
-            nprocessed = 0
             for data in self._provider.iter_data(self._data_name):
                 ibins = ((data - tmin_w) * (nbins / (tmax_w - tmin_w))) \
                     .astype(num.int)
                 num.clip(ibins, 0, nbins-1, ibins)
                 counts += num.bincount(ibins, minlength=nbins)
-                nprocessed += 1
-
-            if nprocessed == 0:
-                self._need_initial_range = True
 
         histogram = counts * h // (num.max(counts[1:-1]) or 1)
         bitmap = num.zeros((h, nbins), dtype=num.bool)
@@ -1248,7 +1255,7 @@ class RangeEdit(qw.QFrame):
         fill_brush = palette.brush(qg.QPalette.Button)
         painter.fillRect(upper_rect, fill_brush)
 
-        if self.tduration is not None:
+        if focus_rect:
             painter.setBrush(palette.light())
             poly = qg.QPolygon(8)
             poly.setPoint(
@@ -1280,7 +1287,7 @@ class RangeEdit(qw.QFrame):
             0, upper_rect.x(),
             self.get_histogram(upper_projection, upper_rect.height()))
 
-        if self.tduration is not None:
+        if focus_rect and self.tduration:
             painter.drawPixmap(
                 0, lower_rect.y(),
                 self.get_histogram(lower_projection, lower_rect.height()))
@@ -1293,7 +1300,11 @@ class RangeEdit(qw.QFrame):
 
     def upper_projection(self):
         p = Projection()
-        p.set_in_range(self.tmin, self.tmax)
+        if None in (self.tmin, self.tmax):
+            p.set_in_range(*g_initial_time_range)
+        else:
+            p.set_in_range(self.tmin, self.tmax)
+
         p.set_out_range(0., self.width())
         return p
 
@@ -1340,12 +1351,12 @@ class RangeEdit(qw.QFrame):
         umin = rint(projection(tmin_eff))
         umax = rint(projection(tmax_eff))
 
-        return qc.QRect(umin, vmin, umax-umin, vmax-vmin)
+        return qc.QRect(umin, vmin, umax-umin+1, vmax-vmin)
 
     def set_range(self, tmin, tmax):
         if None in (tmin, tmax):
-            tmin = 0.0
-            tmax = 1.0
+            tmin = None
+            tmax = None
         elif tmin == tmax:
             tmin -= 0.5
             tmax += 0.5
@@ -1369,26 +1380,20 @@ class RangeEdit(qw.QFrame):
         return (self.tduration, self.tposition)
 
     def update_data_range(self):
-        if self._need_initial_range:
-            try:
-                self.set_range(*self.get_data_range())
-                self._need_initial_range = False
-            except NoData:
-                self.set_range(*self._default_data_range)
-
-                self._need_initial_range = True
+        self.set_range(*self.get_data_range())
 
     def paintEvent(self, paint_ev):
         painter = qg.QPainter(self)
         painter.setRenderHint(qg.QPainter.Antialiasing)
-        self.update_data_range()
         self.drawit(painter)
         qw.QFrame.paintEvent(self, paint_ev)
 
     def mousePressEvent(self, mouse_ev):
-        self.update_data_range()
 
         if mouse_ev.button() == qc.Qt.LeftButton:
+            if None in (self.tmin, self.tmax):
+                self.set_range(*g_initial_time_range)
+
             self._track_start = mouse_ev.x(), mouse_ev.y()
             self._track_range = self.get_range()
             self._track_focus = self.get_focus()
@@ -1482,12 +1487,9 @@ class RangeEdit(qw.QFrame):
                     tduration = tmax - tmin
 
                     tposition = (tmin - tmin0) / (tmax0 - tmin0)
-                    print(tposition)
                     tposition = min(
                         max(0., tposition),
                         1.0 - tduration / (tmax0 - tmin0))
-
-                    print(tposition)
 
                     if tduration < (tmax0 - tmin0):
                         self.set_focus(tduration, tposition)
