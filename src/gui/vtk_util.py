@@ -422,9 +422,6 @@ class TrimeshPipe(object):
         prop = act.GetProperty()
         self.prop = prop
         prop.SetColor(0.5, 0.5, 0.5)
-        prop.SetAmbientColor(0.3, 0.3, 0.3)
-        prop.SetDiffuseColor(0.5, 0.5, 0.5)
-        prop.SetSpecularColor(1.0, 1.0, 1.0)
 
         if backface_culling:
             prop.BackfaceCullingOn()
@@ -437,6 +434,13 @@ class TrimeshPipe(object):
         self.set_shading('phong')
         self._color = None
         self.set_color(Color('aluminium3'))
+
+        self._ambient = None
+        self.set_ambient(0.0)
+        self._diffuse = None
+        self.set_diffuse(1.0)
+        self._specular = None
+        self.set_specular(0.0)
 
         self.polydata = pd
         self.mapper = mapper
@@ -458,6 +462,21 @@ class TrimeshPipe(object):
         if self._color is None or color != self._color:
             self.prop.SetColor(*color.rgb)
             self._color = color
+
+    def set_ambient(self, ambient):
+        if self._ambient is None or ambient != self._ambient:
+            self.prop.SetAmbient(ambient)
+            self._ambient = ambient
+
+    def set_diffuse(self, diffuse):
+        if self._diffuse is None or diffuse != self._diffuse:
+            self.prop.SetDiffuse(diffuse)
+            self._diffuse = diffuse
+
+    def set_specular(self, specular):
+        if self._specular is None or specular != self._specular:
+            self.prop.SetSpecular(specular)
+            self._specular = specular
 
     def set_shading(self, shading):
         if self._shading is None or self._shading != shading:

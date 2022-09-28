@@ -37,6 +37,11 @@ class IcosphereState(ElementState):
     visible = Bool.T(default=True)
     smooth = Bool.T(default=False)
     color = Color.T(default=Color.D('aluminium5'))
+
+    ambient = Float.T(default=0.0)
+    diffuse = Float.T(default=1.0)
+    specular = Float.T(default=0.0)
+
     opacity = Float.T(default=1.0)
     depth = Float.T(default=30.0*km)
 
@@ -66,6 +71,9 @@ class IcosphereElement(Element):
         state.add_listener(upd, 'kind')
         state.add_listener(upd, 'smooth')
         state.add_listener(upd, 'color')
+        state.add_listener(upd, 'ambient')
+        state.add_listener(upd, 'diffuse')
+        state.add_listener(upd, 'specular')
         state.add_listener(upd, 'depth')
         state.add_listener(upd, 'opacity')
 
@@ -136,6 +144,9 @@ class IcosphereElement(Element):
 
             self._mesh.set_opacity(opacity)
             self._mesh.set_color(state.color)
+            self._mesh.set_ambient(state.ambient)
+            self._mesh.set_diffuse(state.diffuse)
+            self._mesh.set_specular(state.specular)
 
         self._parent.update_view()
 
@@ -177,42 +188,50 @@ class IcosphereElement(Element):
             layout.addWidget(qw.QLabel('Color'), 3, 0)
 
             cb = common.strings_to_combobox(
-                ['black', 'aluminium6', 'aluminium5', 'aluminium4', 'aluminium3', 'aluminium2', 'aluminium1', 'white', 'scarletred2', 'orange2', 'skyblue2', 'plum2'])
+                ['black', 'aluminium6', 'aluminium5', 'aluminium4',
+                 'aluminium3', 'aluminium2', 'aluminium1', 'white',
+                 'scarletred2', 'orange2', 'skyblue2', 'plum2'])
 
             layout.addWidget(cb, 3, 1)
             state_bind_combobox_color(
                 self, self._state, 'color', cb)
 
-            layout.addWidget(qw.QLabel('Opacity'), 4, 0)
+            def add_slider(title, param, irow):
+                layout.addWidget(qw.QLabel(title), irow, 0)
 
-            slider = qw.QSlider(qc.Qt.Horizontal)
-            slider.setSizePolicy(
-                qw.QSizePolicy(
-                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-            slider.setMinimum(0)
-            slider.setMaximum(1000)
-            layout.addWidget(slider, 4, 1)
+                slider = qw.QSlider(qc.Qt.Horizontal)
+                slider.setSizePolicy(
+                    qw.QSizePolicy(
+                        qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+                slider.setMinimum(0)
+                slider.setMaximum(1000)
+                layout.addWidget(slider, irow, 1)
 
-            state_bind_slider(
-                self, state, 'opacity', slider, factor=0.001)
+                state_bind_slider(
+                    self, state, param, slider, factor=0.001)
+
+            add_slider('Opacity', 'opacity', 4)
+            add_slider('Ambient', 'ambient', 5)
+            add_slider('Diffuse', 'diffuse', 6)
+            add_slider('Specular', 'specular', 7)
 
             cb = qw.QCheckBox('Show')
-            layout.addWidget(cb, 5, 0)
+            layout.addWidget(cb, 8, 0)
             state_bind_checkbox(self, state, 'visible', cb)
 
             cb = qw.QCheckBox('Smooth')
-            layout.addWidget(cb, 5, 1)
+            layout.addWidget(cb, 8, 1)
             state_bind_checkbox(self, state, 'smooth', cb)
 
-            layout.addWidget(qw.QLabel('Depth [km]'), 6, 0)
+            layout.addWidget(qw.QLabel('Depth [km]'), 9, 0)
             le = qw.QLineEdit()
-            layout.addWidget(le, 6, 1)
+            layout.addWidget(le, 9, 1)
             state_bind_lineedit(
                 self, state, 'depth', le,
                 from_string=lambda s: float(s)*1000.,
                 to_string=lambda v: str(v/1000.))
 
-            layout.addWidget(qw.QFrame(), 7, 0, 1, 2)
+            layout.addWidget(qw.QFrame(), 10, 0, 1, 2)
 
         self._controls = frame
 
