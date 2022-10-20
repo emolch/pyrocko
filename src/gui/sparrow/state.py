@@ -390,7 +390,8 @@ class Interpolator(object):
         self.dt = 1.0 / fps
         self.tmin = times[0]
         self.tmax = times[-1]
-        times_inter = util.arange2(self.tmin, self.tmax, self.dt)
+        times_inter = util.arange2(
+            self.tmin, self.tmax, self.dt, error='floor')
         times_inter[-1] = times[-1]
 
         states_inter = []

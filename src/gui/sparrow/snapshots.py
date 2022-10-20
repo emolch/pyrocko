@@ -72,8 +72,8 @@ def iround(f):
 
 
 class SnapshotItemDelegate(qw.QStyledItemDelegate):
-    def __init__(self, model):
-        qw.QStyledItemDelegate.__init__(self)
+    def __init__(self, model, parent):
+        qw.QStyledItemDelegate.__init__(self, parent=parent)
         self.model = model
 
     def sizeHint(self, option, index):
@@ -137,6 +137,67 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
             #     qc.Qt.AlignRight | qc.Qt.AlignTop,
             #     '%.2f' % item.effective_duration)
 
+    def editorEvent(self, event, model, option, index):
+
+        item = self.model.get_item_or_none(index)
+
+        if isinstance(item, Transition) \
+                and isinstance(event, qg.QMouseEvent) \
+                and event.button() == qc.Qt.RightButton:
+
+            menu = qw.QMenu()
+
+            for name, duration in [
+                    ('No Transition', 0.0),
+                    ('1/2 s', 0.5),
+                    ('1 s', 1.0),
+                    ('3 s', 3.0),
+                    ('5 s', 5.0),
+                    ('10 s', 10.0),
+                    ('60 s', 60.0)]:
+
+                def make_triggered(duration):
+                    def triggered():
+                        item.duration = duration
+
+                    return triggered
+
+                action = qw.QAction(name, menu)
+                action.triggered.connect(make_triggered(duration))
+                menu.addAction(action)
+
+            action = qw.QAction('Custom...', menu)
+
+            def triggered():
+                self.parent().edit(index)
+
+            action.triggered.connect(triggered)
+
+            menu.addAction(action)
+            menu.exec_(event.globalPos())
+
+            return True
+
+        else:
+            return qw.QStyledItemDelegate.editorEvent(
+                self, event, model, option, index)
+
+    def createEditor(self, parent, option, index):
+        return qw.QLineEdit(parent=parent)
+
+    def setModelData(self, editor, model, index):
+        item = self.model.get_item_or_none(index)
+        if item:
+            try:
+                item.duration = max(float(editor.text()), 0.0)
+            except ValueError:
+                pass
+
+    def setEditorData(self, editor, index):
+        item = self.model.get_item_or_none(index)
+        if item:
+            editor.setText('%g' % item.duration or 0.0)
+
 
 class SnapshotListView(qw.QListView):
 
@@ -191,15 +252,11 @@ class SnapshotsPanel(qw.QFrame):
         lv.doubleClicked.connect(self.goto_snapshot)
         lv.setSelectionMode(qw.QAbstractItemView.ExtendedSelection)
         lv.setDragDropMode(qw.QAbstractItemView.InternalMove)
+        lv.setEditTriggers(qw.QAbstractItemView.NoEditTriggers)
         lv.viewport().setAcceptDrops(True)
-        self.item_delegate = SnapshotItemDelegate(self.model)
+        self.item_delegate = SnapshotItemDelegate(self.model, lv)
         lv.setItemDelegate(self.item_delegate)
-        # lv.setDragEnabled(True)
-        # lv.setAcceptDrops(True)
-        # lv.setDropIndicatorShown(True)
-
         self.list_view = lv
-
         layout.addWidget(lv, 0, 0, 1, 3)
 
         pb = qw.QPushButton('New')
@@ -504,7 +561,8 @@ class SnapshotsModel(qc.QAbstractListModel):
                 return qc.Qt.ItemFlags(
                     qc.Qt.ItemIsEnabled
                     | qc.Qt.ItemIsEnabled
-                    | qc.Qt.ItemIsDropEnabled)
+                    | qc.Qt.ItemIsDropEnabled
+                    | qc.Qt.ItemIsEditable)
         else:
             return qc.QAbstractListModel.flags(self, index)
 
