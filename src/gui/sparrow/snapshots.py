@@ -121,6 +121,13 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
                 qc.Qt.AlignLeft | qc.Qt.AlignTop,
                 item.name)
 
+            painter.setPen(
+                app.palette().brush(
+                    qg.QPalette.Disabled
+                    if item.duration is None
+                    else qg.QPalette.Active,
+                    qg.QPalette.Text).color())
+
             ed = item.effective_duration
             painter.drawText(
                 trect,
@@ -583,7 +590,13 @@ class SnapshotsModel(qc.QAbstractListModel):
             if is_snap:
                 return qc.QVariant(str(item.state))
             else:
-                return qc.QVariant(', '.join(x[0] for x in item.animate))
+                if item.animate:
+                    label = 'Interpolation: %s' % \
+                        ', '.join(x[0] for x in item.animate)
+                else:
+                    label = 'Not interpolable.'
+
+                return qc.QVariant(label)
 
         elif role == qc.Qt.TextAlignmentRole and not is_snap:
             return qc.QVariant(qc.Qt.AlignRight)
