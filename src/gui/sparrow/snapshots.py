@@ -141,14 +141,14 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
 
         item = self.model.get_item_or_none(index)
 
-        if isinstance(item, Transition) \
-                and isinstance(event, qg.QMouseEvent) \
+        if isinstance(event, qg.QMouseEvent) \
                 and event.button() == qc.Qt.RightButton:
 
             menu = qw.QMenu()
 
             for name, duration in [
-                    ('No Transition', 0.0),
+                    ('Auto', None),
+                    ('0 s', 0.0),
                     ('1/2 s', 0.5),
                     ('1 s', 1.0),
                     ('3 s', 3.0),
@@ -191,12 +191,13 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
             try:
                 item.duration = max(float(editor.text()), 0.0)
             except ValueError:
-                pass
+                item.duration = None
 
     def setEditorData(self, editor, index):
         item = self.model.get_item_or_none(index)
         if item:
-            editor.setText('%g' % item.duration or 0.0)
+            editor.setText(
+                'Auto' if item.duration is None else '%g' % item.duration)
 
 
 class SnapshotListView(qw.QListView):
@@ -493,7 +494,7 @@ class Transition(Item):
     def get_name(self):
         ed = self.effective_duration
         return '%s %s' % (
-            'T' if self.animate else '',
+            'T' if self.animate and self.effective_duration > 0.0 else '',
             '%.2f s' % ed if ed != 0.0 else '')
 
     @property
@@ -555,7 +556,8 @@ class SnapshotsModel(qc.QAbstractListModel):
                 return qc.Qt.ItemFlags(
                     qc.Qt.ItemIsSelectable
                     | qc.Qt.ItemIsEnabled
-                    | qc.Qt.ItemIsDragEnabled)
+                    | qc.Qt.ItemIsDragEnabled
+                    | qc.Qt.ItemIsEditable)
 
             else:
                 return qc.Qt.ItemFlags(
@@ -587,8 +589,12 @@ class SnapshotsModel(qc.QAbstractListModel):
             return qc.QVariant(qc.Qt.AlignRight)
 
         elif role == qc.Qt.ForegroundRole and not is_snap:
-            return qc.QVariant(app.palette().brush(
-                qg.QPalette.Disabled, qg.QPalette.Text))
+            if item.duration is None:
+                return qc.QVariant(app.palette().brush(
+                    qg.QPalette.Disabled, qg.QPalette.Text))
+            else:
+                return qc.QVariant(app.palette().brush(
+                    qg.QPalette.Active, qg.QPalette.Text))
 
         else:
             qc.QVariant()
