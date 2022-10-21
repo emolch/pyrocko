@@ -38,6 +38,7 @@ class LightingChoice(StringChoice):
 class ViewerGuiState(talkie.TalkieRoot):
     panels_visible = Bool.T(default=True)
     size = Tuple.T(2, Float.T(), default=(100., 100.))
+    fixed_size = Tuple.T(2, Float.T(), optional=True)
     focal_point = FocalPointChoice.T(default='center')
     detached = Bool.T(default=False)
 
