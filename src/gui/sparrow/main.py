@@ -14,6 +14,7 @@ import time
 import tempfile
 import os
 import shutil
+import platform
 from subprocess import check_call
 
 import numpy as num
@@ -43,6 +44,11 @@ logger = logging.getLogger('pyrocko.gui.sparrow.main')
 
 d2r = num.pi/180.
 km = 1000.
+
+if platform.uname()[0] == 'Darwin':
+    g_modifier_key = '\u2318'
+else:
+    g_modifier_key = 'Ctrl'
 
 
 class ZeroFrame(qw.QFrame):
@@ -188,8 +194,11 @@ class CenteringScrollArea(qw.QScrollArea):
         for sb in (self.verticalScrollBar(), self.horizontalScrollBar()):
             sb.setValue(int(round(0.5 * (sb.minimum() + sb.maximum()))))
 
+    def wheelEvent(self, *args, **kwargs):
+        return self.widget().wheelEvent(*args, **kwargs)
 
-class Viewer(qw.QMainWindow):
+
+class SparrowViewer(qw.QMainWindow):
     def __init__(self, use_depth_peeling=True, events=None, snapshots=None):
         qw.QMainWindow.__init__(self)
         self.listeners = []
@@ -506,13 +515,13 @@ class Viewer(qw.QMainWindow):
     def update_focal_point(self, *args):
         if self.gui_state.focal_point == 'center':
             self.vtk_widget.setStatusTip(
-                'Click and drag: change location. Ctrl-click and drag: '
-                'change view plane orientation.')
+                'Click and drag: change location. %s-click and drag: '
+                'change view plane orientation.' % g_modifier_key)
         else:
             self.vtk_widget.setStatusTip(
-                'Ctrl-click and drag: change location. Click and drag: '
+                '%s-click and drag: change location. Click and drag: '
                 'change view plane orientation. Uncheck "Navigation: Fix" to '
-                'reverse sense.')
+                'reverse sense.' % g_modifier_key)
 
     def update_detached(self, *args):
 
@@ -580,11 +589,10 @@ class Viewer(qw.QMainWindow):
             self.save_image(fn_out)
 
     def save_image(self, path):
-        self.showFullScreen()
-        self.update_view()
-        self.gui_state.panels_visible = False
-        self.update_view()
-        self.vtk_widget.setFixedSize(qc.QSize(1920, 1080))
+
+        original_fixed_size = self.gui_state.fixed_size
+        if original_fixed_size is None:
+            self.gui_state.fixed_size = (1920., 1080.)
 
         wif = vtk.vtkWindowToImageFilter()
         wif.SetInput(self.renwin)
@@ -601,8 +609,7 @@ class Viewer(qw.QMainWindow):
         self.vtk_widget.setFixedSize(
             qw.QWIDGETSIZE_MAX, qw.QWIDGETSIZE_MAX)
 
-        self.showNormal()
-        self.gui_state.panels_visible = True
+        self.gui_state.fixed_size = original_fixed_size
 
     def update_render_settings(self, *args):
         if self._lighting is None or self._lighting != self.state.lighting:
@@ -928,7 +935,9 @@ class Viewer(qw.QMainWindow):
             qw.QLabel('Location'), 0, 0, 1, 2)
 
         le = qw.QLineEdit()
-        le.setToolTip('Latitude, Longitude, Depth [km]')
+        le.setStatusTip(
+            'Latitude, Longitude, Depth [km] or city name: '
+            'Focal point location.')
         layout.addWidget(le, 1, 0, 1, 1)
 
         def lat_lon_depth_to_lineedit(state, widget):
@@ -962,6 +971,9 @@ class Viewer(qw.QMainWindow):
         # focal point
 
         cb = qw.QCheckBox('Fix')
+        cb.setStatusTip(
+            'Fix location. Orbit focal point without pressing %s.' 
+            % g_modifier_key)
         layout.addWidget(cb, 1, 1, 1, 1)
 
         def focal_point_to_checkbox(state, widget):
@@ -990,9 +1002,9 @@ class Viewer(qw.QMainWindow):
             qw.QLabel('View Plane'), 2, 0, 1, 2)
 
         le = qw.QLineEdit()
-        le.setToolTip(
-            'Strike, Dip (view plane orientation, perpendicular to view '
-            'direction)')
+        le.setStatusTip(
+            'Strike, Dip [deg]: View plane orientation, perpendicular to view '
+            'direction.')
         layout.addWidget(le, 3, 0, 1, 1)
 
         def strike_dip_to_lineedit(state, widget):
@@ -1029,6 +1041,7 @@ class Viewer(qw.QMainWindow):
             lambda *args: self.strike_dip_lineedit.selectAll())
 
         but = qw.QPushButton('Reset')
+        but.setStatusTip('Reset to north-up map view.')
         but.clicked.connect(self.reset_strike_dip)
         layout.addWidget(but, 3, 1, 1, 1)
 
@@ -1407,11 +1420,13 @@ class Viewer(qw.QMainWindow):
         return self.closing
 
 
-class App(qw.QApplication):
+class SparrowApp(qw.QApplication):
     def __init__(self):
-        qw.QApplication.__init__(self, sys.argv)
+        qw.QApplication.__init__(self, ['Sparrow'])
         self.lastWindowClosed.connect(self.myQuit)
         self._main_window = None
+        self.setApplicationDisplayName('Sparrow')
+        self.setDesktopFileName('Sparrow')
 
     def install_sigint_handler(self):
         self._old_signal_handler = signal.signal(
@@ -1451,7 +1466,7 @@ def main(*args, **kwargs):
     global win
 
     if app is None:
-        app = App()
+        app = SparrowApp()
 
         # try:
         #     from qt_material import apply_stylesheet
@@ -1472,7 +1487,7 @@ def main(*args, **kwargs):
         #         'If wanted, install qdarkstyle with "pip install '
         #         'qdarkgraystyle".')
         #
-    win = Viewer(*args, **kwargs)
+    win = SparrowViewer(*args, **kwargs)
     app.set_main_window(win)
 
     app.install_sigint_handler()
