@@ -167,7 +167,7 @@ class MyDockWidget(qw.QDockWidget):
 class DetachedViewer(qw.QMainWindow):
 
     def __init__(self, main_window, vtk_frame):
-        qw.QMainWindow.__init__(self)
+        qw.QMainWindow.__init__(self, main_window)
         self.main_window = main_window
         self.setWindowTitle('Sparrow View')
         vtk_frame.setParent(self)
@@ -225,16 +225,31 @@ class SparrowViewer(qw.QMainWindow):
         mbar = self.menuBar()
         menu = mbar.addMenu('File')
 
-        mitem = qw.QAction('Quit', self)
-        mitem.triggered.connect(self.request_quit)
-        menu.addAction(mitem)
+        menu.addAction(
+            'Export Image...',
+            self.export_image,
+            qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_E))
 
-        mitem = qw.QAction('Export Image...', self)
-        mitem.triggered.connect(self.export_image)
-        menu.addAction(mitem)
+        menu.addAction(
+            'Quit',
+            self.request_quit,
+            qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_Q))
 
         menu = mbar.addMenu('View')
-        self._add_vtk_widget_size_menu_entries(menu)
+        menu_sizes = menu.addMenu('Size')
+        self._add_vtk_widget_size_menu_entries(menu_sizes)
+
+        # detached/attached
+
+        update_detached = self.update_detached
+        self.register_state_listener(update_detached)
+        self.gui_state.add_listener(update_detached, 'detached')
+
+        action = qw.QAction('Detach')
+        action.setCheckable(True)
+        action.setShortcut(qc.Qt.CTRL | qc.Qt.Key_D)
+        vstate.state_bind_checkbox(self, self.gui_state, 'detached', action)
+        menu.addAction(action)
 
         self.panels_menu = mbar.addMenu('Panels')
 
@@ -463,23 +478,38 @@ class SparrowViewer(qw.QMainWindow):
         variable_size_action.triggered.connect(set_variable_size)
 
         fixed_size_items = []
-        for nx, ny in [
-                (1920, 1080),
-                (800, 600),
-                (800, 800)]:
-            name = '%i x %i' % (nx, ny)
-            action = menu.addAction(name)
-            action.setCheckable(True)
-            action.setActionGroup(group)
-            fixed_size_items.append((action, (nx, ny)))
+        for nx, ny, label in [
+                (None, None, 'Aspect 16:9 (e.g. for YouTube)'),
+                (426, 240, ''),
+                (640, 360, ''),
+                (854, 480, '(FWVGA)'),
+                (1280, 720, '(HD)'),
+                (1920, 1080, '(Full HD)'),
+                (2560, 1440, '(Quad HD)'),
+                (3840, 2160, '(4K UHD)'),
+                (None, None, 'Aspect 4:3'),
+                (640, 480, '(VGA)'),
+                (800, 600, '(SVGA)'),
+                (None, None, 'Other'),
+                (512, 512, ''),
+                (1024, 1024, '')]:
 
-            def make_set_fixed_size(nx, ny):
-                def set_fixed_size():
-                    self.gui_state.fixed_size = (float(nx), float(ny))
+            if None in (nx, ny):
+                menu.addSection(label)
+            else:
+                name = '%i x %i%s' % (nx, ny, ' %s' % label if label else '')
+                action = menu.addAction(name)
+                action.setCheckable(True)
+                action.setActionGroup(group)
+                fixed_size_items.append((action, (nx, ny)))
 
-                return set_fixed_size
+                def make_set_fixed_size(nx, ny):
+                    def set_fixed_size():
+                        self.gui_state.fixed_size = (float(nx), float(ny))
 
-            action.triggered.connect(make_set_fixed_size(nx, ny))
+                    return set_fixed_size
+
+                action.triggered.connect(make_set_fixed_size(nx, ny))
 
         def update_widget(*args):
             for action, (nx, ny) in fixed_size_items:
@@ -745,8 +775,6 @@ class SparrowViewer(qw.QMainWindow):
 
     def check_vtk_resize(self, *args):
         render_window_size = self.renwin.GetSize()
-        print(render_window_size,
-              self.vtk_widget.size().width(), self.vtk_widget.size().height())
         if self._render_window_size != render_window_size:
             self._render_window_size = render_window_size
             self.resize_event(*render_window_size)
@@ -916,9 +944,6 @@ class SparrowViewer(qw.QMainWindow):
 
         elif k == ' ':
             self.toggle_panel_visibility()
-
-        elif k == 'd':
-            self.gui_state.detached = not self.gui_state.detached
 
     def key_up_event(self, obj, event):
         s = obj.GetKeySym()
@@ -1247,16 +1272,6 @@ class SparrowViewer(qw.QMainWindow):
 
         self.register_state_listener(update_render_settings)
         self.state.add_listener(update_render_settings, 'background')
-
-        # detached/attached
-
-        update_detached = self.update_detached
-        self.register_state_listener(update_detached)
-        self.gui_state.add_listener(update_detached, 'detached')
-
-        cb = qw.QCheckBox('Detach')
-        layout.addWidget(cb, 2, 0, 2, 1)
-        vstate.state_bind_checkbox(self, self.gui_state, 'detached', cb)
 
         return frame
 
