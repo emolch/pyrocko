@@ -34,7 +34,8 @@ def errorize(widget):
 
 
 def de_errorize(widget):
-    widget.setStyleSheet('')
+    if isinstance(widget, qw.QWidget):
+        widget.setStyleSheet('')
 
 
 def strings_to_combobox(list_of_str):
