@@ -6,7 +6,6 @@
 from __future__ import absolute_import, print_function, division
 
 import math
-import sys
 import signal
 import gc
 import logging
@@ -101,12 +100,15 @@ class NoLocationChoices(Exception):
 
 
 class QVTKWidget(QVTKRenderWindowInteractor):
-    def __init__(self, parent, *args):
+    def __init__(self, viewer, *args):
         QVTKRenderWindowInteractor.__init__(self, *args)
-        self._parent = parent
+        self._viewer = viewer
 
     def wheelEvent(self, event):
-        self._parent.myWheelEvent(event)
+        return self._viewer.myWheelEvent(event)
+
+    def container_resized(self, ev):
+        self._viewer.update_vtk_widget_size()
 
 
 class MyDockWidgetTitleBar(qw.QLabel):
@@ -182,12 +184,11 @@ class CenteringScrollArea(qw.QScrollArea):
         self.setAlignment(qc.Qt.AlignCenter)
         self.setVerticalScrollBarPolicy(qc.Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(qc.Qt.ScrollBarAlwaysOff)
-        self.setWidgetResizable(True)
         self.setFrameShape(qw.QFrame.NoFrame)
 
-    def resizeEvent(self, *args):
-        retval = qw.QScrollArea.resizeEvent(self, *args)
-        self.recenter()
+    def resizeEvent(self, ev):
+        retval = qw.QScrollArea.resizeEvent(self, ev)
+        self.widget().container_resized(ev)
         return retval
 
     def recenter(self):
@@ -281,26 +282,24 @@ class SparrowViewer(qw.QMainWindow):
 
         self.detached_window = None
 
-        main_frame = qw.QFrame()
-        main_frame.setFrameShape(qw.QFrame.NoFrame)
-
-        self.vtk_widget = QVTKWidget(self, main_frame)
+        self.main_frame = qw.QFrame()
+        self.main_frame.setFrameShape(qw.QFrame.NoFrame)
 
         self.vtk_frame = CenteringScrollArea()
+
+        self.vtk_widget = QVTKWidget(self, self)
         self.vtk_frame.setWidget(self.vtk_widget)
 
-        main_layout = qw.QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(self.vtk_frame, qc.Qt.AlignCenter)
+        self.main_layout = qw.QVBoxLayout()
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.addWidget(self.vtk_frame, qc.Qt.AlignCenter)
 
         pb = Progressbars(self)
         self.progressbars = pb
-        main_layout.addWidget(pb)
+        self.main_layout.addWidget(pb)
 
-        main_frame.setLayout(main_layout)
+        self.main_frame.setLayout(self.main_layout)
 
-        self.main_frame = main_frame
-        self.main_layout = main_layout
         self.vtk_frame_substitute = None
 
         self.add_panel(
@@ -377,7 +376,7 @@ class SparrowViewer(qw.QMainWindow):
         iren.AddObserver('MouseMoveEvent', self.mouse_move_event)
         iren.AddObserver('KeyPressEvent', self.key_down_event)
         iren.AddObserver('KeyReleaseEvent', self.key_up_event)
-        iren.AddObserver('ModifiedEvent', self.check_resize)
+        iren.AddObserver('ModifiedEvent', self.check_vtk_resize)
 
         renwin.Render()
 
@@ -448,11 +447,20 @@ class SparrowViewer(qw.QMainWindow):
         update_vtk_widget_size = self.update_vtk_widget_size
         self.register_state_listener(update_vtk_widget_size)
         self.gui_state.add_listener(update_vtk_widget_size, 'fixed_size')
+        self.update_vtk_widget_size()
 
     def _add_vtk_widget_size_menu_entries(self, menu):
 
         group = qw.QActionGroup(menu)
         group.setExclusive(True)
+
+        def set_variable_size():
+            self.gui_state.fixed_size = False
+
+        variable_size_action = menu.addAction('Fit Window Size')
+        variable_size_action.setCheckable(True)
+        variable_size_action.setActionGroup(group)
+        variable_size_action.triggered.connect(set_variable_size)
 
         fixed_size_items = []
         for nx, ny in [
@@ -472,14 +480,6 @@ class SparrowViewer(qw.QMainWindow):
                 return set_fixed_size
 
             action.triggered.connect(make_set_fixed_size(nx, ny))
-
-        def set_variable_size():
-            self.gui_state.fixed_size = False
-
-        variable_size_action = menu.addAction('Variable Size')
-        variable_size_action.setCheckable(True)
-        variable_size_action.setActionGroup(group)
-        variable_size_action.triggered.connect(set_variable_size)
 
         def update_widget(*args):
             for action, (nx, ny) in fixed_size_items:
@@ -504,13 +504,21 @@ class SparrowViewer(qw.QMainWindow):
 
     def update_vtk_widget_size(self, *args):
         if self.gui_state.fixed_size:
-            nx, ny = map(int, self.gui_state.fixed_size)
-            self.vtk_widget.setFixedSize(qc.QSize(nx, ny))
+            nx, ny = (int(round(x)) for x in self.gui_state.fixed_size)
+            wanted_size = qc.QSize(nx, ny)
         else:
-            self.vtk_widget.setFixedSize(
-                qw.QWIDGETSIZE_MAX, qw.QWIDGETSIZE_MAX)
+            wanted_size = qc.QSize(
+                self.window().width(), self.vtk_frame.height())
+
+        current_size = self.vtk_widget.size()
+
+        if current_size.width() != wanted_size.width() \
+                or current_size.height() != wanted_size.height():
+
+            self.vtk_widget.setFixedSize(wanted_size)
 
         self.vtk_frame.recenter()
+        self.check_vtk_resize()
 
     def update_focal_point(self, *args):
         if self.gui_state.focal_point == 'center':
@@ -735,9 +743,10 @@ class SparrowViewer(qw.QMainWindow):
         app = get_app()
         app.myQuit()
 
-    def check_resize(self, *args):
-        self._render_window_size
+    def check_vtk_resize(self, *args):
         render_window_size = self.renwin.GetSize()
+        print(render_window_size,
+              self.vtk_widget.size().width(), self.vtk_widget.size().height())
         if self._render_window_size != render_window_size:
             self._render_window_size = render_window_size
             self.resize_event(*render_window_size)
@@ -972,7 +981,7 @@ class SparrowViewer(qw.QMainWindow):
 
         cb = qw.QCheckBox('Fix')
         cb.setStatusTip(
-            'Fix location. Orbit focal point without pressing %s.' 
+            'Fix location. Orbit focal point without pressing %s.'
             % g_modifier_key)
         layout.addWidget(cb, 1, 1, 1, 1)
 
