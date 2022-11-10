@@ -84,7 +84,7 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
             return qw.QStyledItemDelegate.sizeHint(self, option, index)
 
     def paint(self, painter, option, index):
-        from .main import app
+        app = common.get_app()
         item = self.model.get_item_or_none(index)
         em = get_em(painter)
         frect = option.rect.adjusted(0, 0, 0, 0)
@@ -576,7 +576,7 @@ class SnapshotsModel(qc.QAbstractListModel):
             return qc.QAbstractListModel.flags(self, index)
 
     def data(self, index, role):
-        from .main import app
+        app = common.get_app()
         i = index.row()
         item = self._items[i]
         is_snap = isinstance(item, Snapshot)

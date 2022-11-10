@@ -15,6 +15,13 @@ from pyrocko import automap, plot, util
 from pyrocko.geometry import d2r
 from pyrocko.gui.qt_compat import qg, qw, qc
 
+app = None
+
+
+def get_app():
+    global app
+    return app
+
 
 def get_err_palette():
     err_palette = qg.QPalette()

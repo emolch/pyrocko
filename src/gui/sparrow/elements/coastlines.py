@@ -58,8 +58,7 @@ class CoastlinesPipe(object):
         assert resolution in CoastlineResolutionChoice.choices
 
         if resolution not in self._polyline_grid:
-            from ..main import app
-            pb = app.get_progressbars()
+            pb = common.get_app().get_progressbars()
             if pb:
                 mess = 'Loading %s resolution coastlines' % resolution
                 pb.set_status(mess, 0, can_abort=False)
