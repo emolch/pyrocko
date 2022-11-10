@@ -326,18 +326,22 @@ class SparrowViewer(qw.QMainWindow):
         self._use_depth_peeling = use_depth_peeling
         self._in_update_elements = False
 
-        mbar = self.menuBar()
+        mbar = qw.QMenuBar()
+        self.setMenuBar(mbar)
+
         menu = mbar.addMenu('File')
 
         menu.addAction(
             'Export Image...',
             self.export_image,
-            qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_E))
+            qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_E)).setShortcutContext(
+                qc.Qt.ApplicationShortcut)
 
         menu.addAction(
             'Quit',
             self.request_quit,
-            qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_Q))
+            qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_Q)).setShortcutContext(
+                qc.Qt.ApplicationShortcut)
 
         menu = mbar.addMenu('View')
         menu_sizes = menu.addMenu('Size')
@@ -352,6 +356,8 @@ class SparrowViewer(qw.QMainWindow):
         action = qw.QAction('Detach')
         action.setCheckable(True)
         action.setShortcut(qc.Qt.CTRL | qc.Qt.Key_D)
+        action.setShortcutContext(qc.Qt.ApplicationShortcut)
+
         vstate.state_bind_checkbox(self, self.gui_state, 'detached', action)
         menu.addAction(action)
 
@@ -591,6 +597,7 @@ class SparrowViewer(qw.QMainWindow):
                 (1920, 1080, '(Full HD)'),
                 (2560, 1440, '(Quad HD)'),
                 (3840, 2160, '(4K UHD)'),
+                (3840*2, 2160*2, '',),
                 (None, None, 'Aspect 4:3'),
                 (640, 480, '(VGA)'),
                 (800, 600, '(SVGA)'),
@@ -637,7 +644,7 @@ class SparrowViewer(qw.QMainWindow):
             wanted_size = qc.QSize(nx, ny)
         else:
             wanted_size = qc.QSize(
-                self.window().width(), self.vtk_frame.height())
+                self.vtk_frame.window().width(), self.vtk_frame.height())
 
         current_size = self.vtk_widget.size()
 
