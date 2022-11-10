@@ -1226,6 +1226,14 @@ class SparrowViewer(qw.QMainWindow):
         le_tmax = qw.QLineEdit()
         layout.addWidget(le_tmax, 1, 1)
 
+        label_tcursor = qw.QLabel()
+
+        label_tcursor.setSizePolicy(
+            qw.QSizePolicy.Minimum, qw.QSizePolicy.Fixed)
+
+        layout.addWidget(label_tcursor, 2, 1)
+        self._label_tcursor = label_tcursor
+
         def time_to_lineedit(state, attribute, widget):
             sel = widget.selectedText() == widget.text() \
                 and widget.text() != ''
@@ -1287,11 +1295,16 @@ class SparrowViewer(qw.QMainWindow):
             [range_edit.rangeChanged, range_edit.focusChanged],
             range_to_range_edit)
 
-        layout.addWidget(range_edit, 2, 0, 1, 2)
+        def handle_tcursor_changed():
+            self.gui_state.tcursor = range_edit.get_tcursor()
 
-        layout.addWidget(qw.QLabel('Focus'), 3, 0)
+        range_edit.tcursorChanged.connect(handle_tcursor_changed)
+
+        layout.addWidget(range_edit, 3, 0, 1, 2)
+
+        layout.addWidget(qw.QLabel('Focus'), 4, 0)
         le_focus = qw.QLineEdit()
-        layout.addWidget(le_focus, 3, 1)
+        layout.addWidget(le_focus, 4, 1)
 
         def focus_to_lineedit(state, widget):
             sel = widget.selectedText() == widget.text() \
@@ -1340,8 +1353,8 @@ class SparrowViewer(qw.QMainWindow):
             qg.QFontMetrics(label_effective_tmin.font()).width(
                 '0000-00-00 00:00:00.000  '), 0)
 
-        layout.addWidget(label_effective_tmin, 4, 1)
-        layout.addWidget(label_effective_tmax, 5, 1)
+        layout.addWidget(label_effective_tmin, 5, 1)
+        layout.addWidget(label_effective_tmax, 6, 1)
 
         update_effective_time_labels = self.update_effective_time_labels
         self.register_state_listener(update_effective_time_labels)
@@ -1350,6 +1363,10 @@ class SparrowViewer(qw.QMainWindow):
 
         self._label_effective_tmin = label_effective_tmin
         self._label_effective_tmax = label_effective_tmax
+
+        update_tcursor = self.update_tcursor
+        self.register_state_listener(update_tcursor)
+        self.gui_state.add_listener(update_tcursor, 'tcursor')
 
         return frame
 
@@ -1399,6 +1416,11 @@ class SparrowViewer(qw.QMainWindow):
 
         self._label_effective_tmin.setText(stmin)
         self._label_effective_tmax.setText(stmax)
+
+    def update_tcursor(self, *args):
+        tcursor = self.gui_state.tcursor
+        stcursor = common.time_or_none_to_str(tcursor)
+        self._label_tcursor.setText(stcursor)
 
     def reset_strike_dip(self, *args):
         self.state.strike = 90.
