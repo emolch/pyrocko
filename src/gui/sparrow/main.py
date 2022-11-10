@@ -56,11 +56,6 @@ class ZeroFrame(qw.QFrame):
         return qc.QSize(0, 0)
 
 
-def get_app():
-    global app
-    return app
-
-
 class LocationChoice(object):
     def __init__(self, name, lat, lon, depth=0):
         self._name = name
@@ -202,6 +197,9 @@ class CenteringScrollArea(qw.QScrollArea):
 class SparrowViewer(qw.QMainWindow):
     def __init__(self, use_depth_peeling=True, events=None, snapshots=None):
         qw.QMainWindow.__init__(self)
+
+        common.get_app().set_main_window(self)
+
         self.listeners = []
 
         self.state = vstate.ViewerState()
@@ -453,8 +451,8 @@ class SparrowViewer(qw.QMainWindow):
 
         self.update_detached()
 
-        self.status('Pyrocko Sparrow - A bird\'s eye view.', 2.0)
-        self.status('Let\'s fly.', 2.0)
+        common.get_app().status('Pyrocko Sparrow - A bird\'s eye view.', 2.0)
+        common.get_app().status('Let\'s fly.', 2.0)
 
         self.show()
         self.windowHandle().showMaximized()
@@ -527,11 +525,6 @@ class SparrowViewer(qw.QMainWindow):
         self.register_state_listener(update_widget)
         self.gui_state.add_listener(update_widget, 'fixed_size')
 
-    def status(self, message, duration=None):
-        sb = self.statusBar()
-        # if sb.current_message()
-        sb.showMessage(message, int(duration * 1000))
-
     def update_vtk_widget_size(self, *args):
         if self.gui_state.fixed_size:
             nx, ny = (int(round(x)) for x in self.gui_state.fixed_size)
@@ -571,7 +564,7 @@ class SparrowViewer(qw.QMainWindow):
             self.detached_window.show()
             self.vtk_widget.setFocus()
 
-            screens = get_app().screens()
+            screens = common.get_app().screens()
             if len(screens) > 1:
                 for screen in screens:
                     if screen is not self.screen():
@@ -770,7 +763,7 @@ class SparrowViewer(qw.QMainWindow):
         pass
 
     def request_quit(self):
-        app = get_app()
+        app = common.get_app()
         app.myQuit()
 
     def check_vtk_resize(self, *args):
@@ -1439,6 +1432,7 @@ class SparrowViewer(qw.QMainWindow):
         self.attach()
         event.accept()
         self.closing = True
+        common.get_app().set_main_window(None)
 
     def is_closing(self):
         return self.closing
@@ -1477,8 +1471,13 @@ class SparrowApp(qw.QApplication):
         else:
             return None
 
+    def status(self, message, duration=None):
+        win = self.get_main_window()
+        if not win:
+            return
 
-app = None
+        win.statusBar().showMessage(
+            message, int((duration or 0) * 1000))
 
 
 def main(*args, **kwargs):
@@ -1486,11 +1485,10 @@ def main(*args, **kwargs):
     from pyrocko import util
     util.setup_logging('sparrow', 'info')
 
-    global app
     global win
 
-    if app is None:
-        app = SparrowApp()
+    if common.app is None:
+        common.app = SparrowApp()
 
         # try:
         #     from qt_material import apply_stylesheet
@@ -1512,13 +1510,10 @@ def main(*args, **kwargs):
         #         'qdarkgraystyle".')
         #
     win = SparrowViewer(*args, **kwargs)
-    app.set_main_window(win)
 
-    app.install_sigint_handler()
-    app.exec_()
-    app.uninstall_sigint_handler()
-
-    app.set_main_window(None)
+    common.app.install_sigint_handler()
+    common.app.exec_()
+    common.app.uninstall_sigint_handler()
 
     del win
 
