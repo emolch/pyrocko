@@ -41,6 +41,7 @@ class ViewerGuiState(talkie.TalkieRoot):
     fixed_size = Tuple.T(2, Float.T(), optional=True)
     focal_point = FocalPointChoice.T(default='center')
     detached = Bool.T(default=False)
+    tcursor = Timestamp.T(optional=True)
 
     def next_focal_point(self):
         choices = FocalPointChoice.choices

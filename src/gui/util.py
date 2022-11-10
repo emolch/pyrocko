@@ -1165,18 +1165,57 @@ except Exception:
     g_initial_time_range.append(g_working_system_time_range[1])
 
 
+def four_way_arrow(position, size):
+    r = 5.
+    w = 1.
+
+    points = [
+        (position[0]+size*float(a), position[1]+size*float(b))
+        for (a, b) in [
+            (0, r),
+            (1.5*w, r-2*w),
+            (0.5*w, r-2*w),
+            (0.5*w, 0.5*w),
+            (r-2*w, 0.5*w),
+            (r-2*w, 1.5*w),
+            (r, 0),
+            (r-2*w, -1.5*w),
+            (r-2*w, -0.5*w),
+            (0.5*w, -0.5*w),
+            (0.5*w, -(r-2*w)),
+            (1.5*w, -(r-2*w)),
+            (0, -r),
+            (-1.5*w, -(r-2*w)),
+            (-0.5*w, -(r-2*w)),
+            (-0.5*w, -0.5*w),
+            (-(r-2*w), -0.5*w),
+            (-(r-2*w), -1.5*w),
+            (-r, 0),
+            (-(r-2*w), 1.5*w),
+            (-(r-2*w), 0.5*w),
+            (-0.5*w, 0.5*w),
+            (-0.5*w, r-2*w),
+            (-1.5*w, r-2*w)]]
+
+    poly = qg.QPolygon(len(points))
+    for ipoint, point in enumerate(points):
+        poly.setPoint(ipoint, *(int(round(v)) for v in point))
+
+    return poly
+
+
 class RangeEdit(qw.QFrame):
 
     rangeChanged = qc.pyqtSignal()
     focusChanged = qc.pyqtSignal()
+    tcursorChanged = qc.pyqtSignal()
 
     def __init__(self, parent=None):
         qw.QFrame.__init__(self, parent)
         self.setFrameStyle(qw.QFrame.StyledPanel | qw.QFrame.Plain)
-        self.setCursor(qc.Qt.SizeAllCursor)
         # self.setBackgroundRole(qg.QPalette.Button)
         # self.setAutoFillBackground(True)
-        # self.setMouseTracking(True)
+        self.setMouseTracking(True)
         poli = qw.QSizePolicy(
             qw.QSizePolicy.Expanding,
             qw.QSizePolicy.Fixed)
@@ -1190,6 +1229,9 @@ class RangeEdit(qw.QFrame):
         self._track_range = None
         self._track_focus = None
         self._track_what = None
+
+        self._tcursor = None
+        self._hover_point = None
 
         self._provider = None
         self.tmin, self.tmax = None, None
@@ -1281,6 +1323,10 @@ class RangeEdit(qw.QFrame):
             fill_brush = palette.light()
             painter.fillRect(upper_rect, fill_brush)
 
+        # painter.setBrush(palette.text())
+        # poly = four_way_arrow((self.width() / 2.0, self.height() / 2.0), 2.)
+        # painter.drawPolygon(poly)
+
         xpen = qg.QPen(palette.color(qg.QPalette.ButtonText))
         painter.setPen(xpen)
         painter.drawPixmap(
@@ -1297,6 +1343,22 @@ class RangeEdit(qw.QFrame):
         # painter.drawRect(upper_rect)
         # if self.tduration:
         #     painter.drawRect(lower_rect)
+
+        if self._tcursor is not None:
+            x = int(round(upper_projection(self._tcursor)))
+            painter.drawLine(x, upper_rect.top(), x, upper_rect.bottom())
+            if focus_rect and self.tduration and lower_projection:
+                x = int(round(lower_projection(self._tcursor)))
+                painter.drawLine(x, lower_rect.top(), x, lower_rect.bottom())
+
+        if self._hover_point and lower_rect.contains(self._hover_point) \
+                and not self.tduration and not self._track_start:
+
+            alpha_brush = palette.highlight()
+            color = alpha_brush.color()
+            color.setAlpha(30)
+            alpha_brush.setColor(color)
+            painter.fillRect(lower_rect, alpha_brush)
 
     def upper_projection(self):
         p = Projection()
@@ -1379,6 +1441,9 @@ class RangeEdit(qw.QFrame):
     def get_focus(self):
         return (self.tduration, self.tposition)
 
+    def get_tcursor(self):
+        return self._tcursor
+
     def update_data_range(self):
         self.set_range(*self.get_data_range())
 
@@ -1405,9 +1470,29 @@ class RangeEdit(qw.QFrame):
                 self._track_what = 'global'
             elif lower_rect.contains(mouse_ev.pos()):
                 self._track_what = 'focus'
-            else:
-                self._track_what = 'focus_slide'
+                if self.tduration is None:
+                    frac = 0.02
+                    tduration = (self.tmax - self.tmin) * (1.0 - frac)
+                    tposition = 0.5*frac
+                    self.set_focus(tduration, tposition)
 
+            else:
+                if self.tduration is not None:
+                    self._track_what = 'focus_slide'
+                else:
+                    self._track_what = 'global_slide'
+
+        self.update()
+
+    def enterEvent(self, ev):
+        self._tcursor = None  # is set later by mouseMoveEvent
+        self._hover_point = None
+        self.tcursorChanged.emit()
+
+    def leaveEvent(self, ev):
+        self._tcursor = None
+        self._hover_point = None
+        self.tcursorChanged.emit()
         self.update()
 
     def mouseReleaseEvent(self, mouse_ev):
@@ -1442,6 +1527,7 @@ class RangeEdit(qw.QFrame):
 
     def mouseMoveEvent(self, mouse_ev):
         point = self.mapFromGlobal(mouse_ev.globalPos())
+        self._hover_point = point
 
         if self._track_start is not None:
             x0, y0 = self._track_start
@@ -1451,8 +1537,12 @@ class RangeEdit(qw.QFrame):
             tmin0, tmax0 = self._track_range
             tduration0, tposition0 = self._track_focus
 
-            if self._track_what == 'global':
-                scale = math.exp(-dy)
+            if self._track_what in ('global', 'global_slide'):
+                if self._track_what == 'global':
+                    scale = math.exp(-dy)
+                else:
+                    scale = 1.0
+
                 dtr = (tmax0-tmin0) * (scale - 1.0)
                 dt = dx*(tmax0-tmin0)*scale
 
@@ -1508,3 +1598,28 @@ class RangeEdit(qw.QFrame):
                         min(
                             max(0., tposition0 + dx),
                             1.0 - tduration0 / (tmax0 - tmin0)))
+
+        else:
+
+            upper_rect = self.upper_rect()
+            lower_rect = self.lower_rect()
+            upper_projection = self.upper_projection()
+            lower_projection = self.lower_projection()
+
+            if upper_rect.contains(point):
+                self.setCursor(qg.QCursor(qc.Qt.CursorShape.CrossCursor))
+                self._tcursor = upper_projection.rev(point.x())
+            elif lower_rect.contains(point):
+                self.setCursor(qg.QCursor(qc.Qt.CursorShape.CrossCursor))
+                if lower_projection and self.tduration is not None:
+                    self._tcursor = lower_projection.rev(point.x())
+            else:
+                self.setCursor(qg.QCursor(qc.Qt.CursorShape.SizeHorCursor))
+                self._tcursor = None
+
+            app = common.get_app()
+            if self._tcursor is not None:
+                app.status(util.time_to_str(self._tcursor))
+
+            self.update()
+            self.tcursorChanged.emit()
