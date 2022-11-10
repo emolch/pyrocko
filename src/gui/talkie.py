@@ -265,7 +265,11 @@ class TalkieRoot(Talkie):
         return ListenerRef(self, listener, path, ref_listener)
 
     def remove_listener(self, listener_ref):
-        self._listeners[listener_ref.path].remove(listener_ref.ref_listener)
+        try:
+            self._listeners[listener_ref._path].remove(
+                listener_ref._ref_listener)
+        except ValueError:
+            pass
 
     def fire_event(self, path, value):
         path = '.'.join(path[::-1])
