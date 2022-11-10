@@ -194,6 +194,112 @@ class CenteringScrollArea(qw.QScrollArea):
         return self.widget().wheelEvent(*args, **kwargs)
 
 
+class YAMLEditor(qw.QTextEdit):
+
+    def __init__(self, parent):
+        qw.QTextEdit.__init__(self)
+        self._parent = parent
+
+    def event(self, ev):
+        if isinstance(ev, qg.QKeyEvent) \
+                and ev.key() == qc.Qt.Key_Return \
+                and ev.modifiers() & qc.Qt.ShiftModifier:
+            self._parent.state_changed()
+            return True
+
+        return qw.QTextEdit.event(self, ev)
+
+
+class StateEditor(qw.QFrame):
+    def __init__(self, viewer, *args, **kwargs):
+        qw.QFrame.__init__(self, *args, **kwargs)
+        self.listeners = []
+
+        layout = qw.QGridLayout()
+
+        self.setLayout(layout)
+
+        self.source_editor = YAMLEditor(self)
+        self.source_editor.setAcceptRichText(False)
+        self.source_editor.setStatusTip('Press Shift-Return to apply changes')
+        font = qg.QFont("Monospace")
+        self.source_editor.setCurrentFont(font)
+        layout.addWidget(self.source_editor, 0, 0, 1, 2)
+
+        self.error_display_label = qw.QLabel('Error')
+        layout.addWidget(self.error_display_label, 1, 0, 1, 2)
+
+        self.error_display = qw.QTextEdit()
+        self.error_display.setCurrentFont(font)
+        self.error_display.setReadOnly(True)
+
+        self.error_display.setSizePolicy(
+            qw.QSizePolicy.Minimum, qw.QSizePolicy.Minimum)
+
+        self.error_display_label.hide()
+        self.error_display.hide()
+
+        layout.addWidget(self.error_display, 2, 0, 1, 2)
+
+        self.instant_updates = qw.QCheckBox('Instant Updates')
+        self.instant_updates.toggled.connect(self.state_changed)
+        layout.addWidget(self.instant_updates, 3, 0)
+
+        button = qw.QPushButton('Apply')
+        button.clicked.connect(self.state_changed)
+        layout.addWidget(button, 3, 1)
+
+        self.viewer = viewer
+        # recommended way, but resulted in a variable-width font being used:
+        # font = qg.QFontDatabase.systemFont(qg.QFontDatabase.FixedFont)
+        self.bind_state()
+        self.source_editor.textChanged.connect(self.text_changed_handler)
+        self.destroyed.connect(self.unbind_state)
+        self.bind_state()
+
+    def bind_state(self, *args):
+        ref = self.viewer.state.add_listener(self.update_state)
+        self.listeners.append(ref)
+        self.update_state()
+
+    def unbind_state(self):
+        while self.listeners:
+            listener = self.listeners.pop()
+            self.viewer.state.remove_listener(listener)
+
+    def update_state(self, *args):
+        cursor = self.source_editor.textCursor()
+
+        cursor_position = cursor.position()
+        vsb_position = self.source_editor.verticalScrollBar().value()
+        hsb_position = self.source_editor.horizontalScrollBar().value()
+
+        self.source_editor.setPlainText(str(self.viewer.state))
+
+        cursor.setPosition(cursor_position)
+        self.source_editor.setTextCursor(cursor)
+        self.source_editor.verticalScrollBar().setValue(vsb_position)
+        self.source_editor.horizontalScrollBar().setValue(hsb_position)
+
+    def text_changed_handler(self, *args):
+        if self.instant_updates.isChecked():
+            self.state_changed()
+
+    def state_changed(self):
+        try:
+            s = self.source_editor.toPlainText()
+            state = guts.load(string=s)
+            self.viewer.set_state(state)
+            self.error_display.setPlainText('')
+            self.error_display_label.hide()
+            self.error_display.hide()
+
+        except Exception as e:
+            self.error_display.show()
+            self.error_display_label.show()
+            self.error_display.setPlainText(str(e))
+
+
 class SparrowViewer(qw.QMainWindow):
     def __init__(self, use_depth_peeling=True, events=None, snapshots=None):
         qw.QMainWindow.__init__(self)
@@ -578,15 +684,19 @@ class SparrowViewer(qw.QMainWindow):
             self.detached_window.windowHandle().showMaximized()
 
             frame = qw.QFrame()
-            frame.setFrameShape(qw.QFrame.NoFrame)
-            frame.setBackgroundRole(qg.QPalette.Mid)
-            frame.setAutoFillBackground(True)
+            # frame.setFrameShape(qw.QFrame.NoFrame)
+            # frame.setBackgroundRole(qg.QPalette.Mid)
+            # frame.setAutoFillBackground(True)
             frame.setSizePolicy(
                 qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
 
             layout = qw.QGridLayout()
             frame.setLayout(layout)
             self.main_layout.insertWidget(0, frame)
+
+            self.state_editor = StateEditor(self)
+
+            layout.addWidget(self.state_editor, 0, 0)
 
             # attach_button = qw.QPushButton('Attach View')
             # attach_button.clicked.connect(self.attach)
@@ -601,6 +711,8 @@ class SparrowViewer(qw.QMainWindow):
             self.vtk_frame.setParent(self)
             if self.vtk_frame_substitute:
                 self.main_layout.removeWidget(self.vtk_frame_substitute)
+                self.state_editor.unbind_state()
+                self.vtk_frame_substitute = None
 
             self.main_layout.insertWidget(0, self.vtk_frame)
             self.detached_window = None
