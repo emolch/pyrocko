@@ -1283,6 +1283,23 @@ class RangeEdit(qw.QFrame):
             bitmap.tobytes(),
             qg.QImage.Format_MonoLSB)
 
+    def draw_time_ticks(self, painter, projection, rect):
+
+        palette = self.palette()
+        alpha_brush = palette.highlight()
+        color = alpha_brush.color()
+        # color.setAlpha(60)
+        painter.setPen(qg.QPen(color))
+
+        tmin, tmax = projection.get_in_range()
+        tinc, tinc_unit = plot.nice_time_tick_inc((tmax - tmin) / 7.)
+        tick_times, _ = plot.time_tick_labels(tmin, tmax, tinc, tinc_unit)
+
+        for tick_time in tick_times:
+            x = int(round(projection(tick_time)))
+            painter.drawLine(
+                x, rect.top(), x, rect.top() + rect.height() // 5)
+
     def drawit(self, painter):
 
         palette = self.palette()
@@ -1326,6 +1343,10 @@ class RangeEdit(qw.QFrame):
         # painter.setBrush(palette.text())
         # poly = four_way_arrow((self.width() / 2.0, self.height() / 2.0), 2.)
         # painter.drawPolygon(poly)
+
+        self.draw_time_ticks(painter, upper_projection, upper_rect)
+        if focus_rect and self.tduration:
+            self.draw_time_ticks(painter, lower_projection, lower_rect)
 
         xpen = qg.QPen(palette.color(qg.QPalette.ButtonText))
         painter.setPen(xpen)
@@ -1525,6 +1546,12 @@ class RangeEdit(qw.QFrame):
                 self.set_range(etmin, etmax)
                 self.set_focus(None, 0.0)
 
+            upper_rect = self.upper_rect()
+            if upper_rect.contains(mouse_ev.pos()) \
+                    and self.tduration is not None:
+
+                self.set_focus(None, 0.0)
+
     def mouseMoveEvent(self, mouse_ev):
         point = self.mapFromGlobal(mouse_ev.globalPos())
         self._hover_point = point
@@ -1606,20 +1633,35 @@ class RangeEdit(qw.QFrame):
             upper_projection = self.upper_projection()
             lower_projection = self.lower_projection()
 
+            app = common.get_app()
+            have_focus = lower_projection and self.tduration is not None
+
             if upper_rect.contains(point):
                 self.setCursor(qg.QCursor(qc.Qt.CursorShape.CrossCursor))
                 self._tcursor = upper_projection.rev(point.x())
+                app.status(
+                    'Click and drag to change global time interval. '
+                    'Move up/down to zoom.' + (
+                        ' Double-click to clear focus time interval.'
+                        if have_focus else ''))
+
             elif lower_rect.contains(point):
                 self.setCursor(qg.QCursor(qc.Qt.CursorShape.CrossCursor))
-                if lower_projection and self.tduration is not None:
+                if have_focus:
                     self._tcursor = lower_projection.rev(point.x())
+                    app.status(
+                        'Click and drag to change local time interval. '
+                        'Double-click to set global time interval from focus.')
+                else:
+                    app.status(
+                        'Click to activate focus time window.')
             else:
                 self.setCursor(qg.QCursor(qc.Qt.CursorShape.SizeHorCursor))
                 self._tcursor = None
-
-            app = common.get_app()
-            if self._tcursor is not None:
-                app.status(util.time_to_str(self._tcursor))
+                if have_focus:
+                    app.status('Move focus time interval with fixed length.')
+                else:
+                    app.status('Move global time interval with fixed length.')
 
             self.update()
             self.tcursorChanged.emit()
