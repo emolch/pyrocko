@@ -18,11 +18,26 @@ from pyrocko.color import Color
 from pyrocko.gui import vtk_util
 from .base import Element, ElementState
 from .. import common
-from pyrocko.geometry import r2d
+from pyrocko.geometry import r2d, d2r
 
 km = 1000.
 
 guts_prefix = 'sparrow'
+
+
+def nice_value_circle(step):
+    step = plot.nice_value(step)
+    if step > 30.:
+        return 30.
+
+    return step
+
+
+def ticks(vmin, vmax, vstep):
+    vmin = num.floor(vmin / vstep) * vstep
+    vmax = num.ceil(vmax / vstep) * vstep
+    n = int(round((vmax - vmin) / vstep))
+    return vmin + num.arange(n+1) * vstep
 
 
 class LatLonGrid(object):
@@ -31,8 +46,13 @@ class LatLonGrid(object):
         lat_min, lat_max, lon_min, lon_max, lon_closed = common.cover_region(
             lat, lon, delta, step_major, avoid_poles=True)
 
-        lat_majors = util.arange2(lat_min, lat_max, step_major)
-        lon_majors = util.arange2(lon_min, lon_max, step_major)
+        if delta < 30.:
+            step_major_lon = nice_value_circle(step_major/num.cos(lat*d2r))
+        else:
+            step_major_lon = step_major
+
+        lat_majors = ticks(lat_min, lat_max, step_major)
+        lon_majors = ticks(lon_min, lon_max, step_major_lon)
 
         lat_minors = util.arange2(lat_min, lat_max, step_minor)
 
@@ -77,6 +97,7 @@ class LatLonGrid(object):
         if self._color is None or self._color != color:
             self.prop.SetDiffuseColor(color.rgb)
             self._color = color
+
 
 class GridState(ElementState):
     visible = Bool.T(default=True)
@@ -132,7 +153,7 @@ class GridElement(Element):
 
     def get_stepsizes(self, distance):
         factor = 10.
-        step_major = plot.nice_value(min(10.0, factor * distance))
+        step_major = nice_value_circle(min(10.0, factor * distance))
         step_minor = min(1.0, step_major)
         return step_major, step_minor
 
