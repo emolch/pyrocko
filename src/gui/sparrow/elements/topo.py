@@ -9,7 +9,7 @@ import math
 import numpy as num
 
 from pyrocko.guts import Bool, Float, StringChoice
-from pyrocko import cake, util, automap
+from pyrocko import cake, automap, plot
 from pyrocko.dataset import topo
 from pyrocko.gui.qt_compat import qw, qc
 
@@ -23,6 +23,21 @@ from pyrocko import geometry
 from .. import common
 
 guts_prefix = 'sparrow'
+
+
+def ticks(vmin, vmax, vstep):
+    vmin = num.floor(vmin / vstep) * vstep
+    vmax = num.ceil(vmax / vstep) * vstep
+    n = int(round((vmax - vmin) / vstep))
+    return vmin + num.arange(n+1) * vstep
+
+
+def nice_value_circle(step):
+    step = plot.nice_value(step)
+    if step > 30.:
+        return 30.
+
+    return step
 
 
 class TopoMeshPipe(TrimeshPipe):
@@ -208,7 +223,9 @@ class TopoElement(Element):
 
         self.update_cpt(self._state.cpt)
 
-        step = max(1./8., min(2**round(math.log(delta) / math.log(2.)), 10.))
+        step = nice_value_circle(
+            max(1./8., min(2**round(math.log(delta) / math.log(2.)), 10.)))
+
         lat_min, lat_max, lon_min, lon_max, lon_closed = common.cover_region(
             pstate.lat, pstate.lon, delta*self._state.coverage_factor, step)
 
@@ -219,8 +236,8 @@ class TopoElement(Element):
 
         dems_ocean, dems_land = self.select_dems(delta, region)
 
-        lat_majors = util.arange2(lat_min, lat_max-step, step)
-        lon_majors = util.arange2(lon_min, lon_max-step, step)
+        lat_majors = ticks(lat_min, lat_max-step, step)
+        lon_majors = ticks(lon_min, lon_max-step, step)
 
         wanted = set()
         if visible:
