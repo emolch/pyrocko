@@ -10,7 +10,7 @@ import numpy as num
 import vtk
 
 from pyrocko import util, plot
-from pyrocko.guts import Bool
+from pyrocko.guts import Bool, Float
 from pyrocko.gui.qt_compat import qw
 from pyrocko.color import Color
 
@@ -41,7 +41,7 @@ def ticks(vmin, vmax, vstep):
 
 
 class LatLonGrid(object):
-    def __init__(self, r, step_major, step_minor, lat, lon, delta):
+    def __init__(self, r, step_major, step_minor, lat, lon, delta, depth):
 
         lat_min, lat_max, lon_min, lon_max, lon_closed = common.cover_region(
             lat, lon, delta, step_major, avoid_poles=True)
@@ -75,7 +75,7 @@ class LatLonGrid(object):
             lines.append(points)
 
         polyline_grid = vtk_util.make_multi_polyline(
-            lines_latlon=lines, depth=-1.*km)
+            lines_latlon=lines, depth=depth)
 
         mapper = vtk.vtkDataSetMapper()
         vtk_util.vtk_set_input(mapper, polyline_grid)
@@ -102,6 +102,7 @@ class LatLonGrid(object):
 class GridState(ElementState):
     visible = Bool.T(default=True)
     color = Color.T(default=Color.D('white'))
+    depth = Float.T(default=-1.0*km)
 
     def create(self):
         element = GridElement()
@@ -123,6 +124,7 @@ class GridElement(Element):
         Element.bind_state(self, state)
         self.register_state_listener3(self.update, state, 'visible')
         self.register_state_listener3(self.update, state, 'color')
+        self.register_state_listener3(self.update, state, 'depth')
 
     def set_parent(self, parent):
         Element.set_parent(self, parent)
@@ -169,7 +171,8 @@ class GridElement(Element):
         if state.visible and not self._grid:
             delta = pstate.distance * r2d * 0.5
             self._grid = LatLonGrid(
-                1.0, stepsizes[0], stepsizes[1], pstate.lat, pstate.lon, delta)
+                1.0, stepsizes[0], stepsizes[1], pstate.lat, pstate.lon, delta,
+                state.depth)
             self._parent.add_actor(self._grid.actor)
 
         if self._grid:
@@ -179,7 +182,8 @@ class GridElement(Element):
 
     def _get_controls(self):
         if not self._controls:
-            from ..state import state_bind_checkbox, state_bind_combobox_color
+            from ..state import state_bind_checkbox, \
+                state_bind_combobox_color, state_bind_lineedit
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
@@ -199,7 +203,15 @@ class GridElement(Element):
             layout.addWidget(cb, 1, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
 
-            layout.addWidget(qw.QFrame(), 2, 0)
+            layout.addWidget(qw.QLabel('Depth [km]'), 2, 0)
+            le = qw.QLineEdit()
+            layout.addWidget(le, 2, 1)
+            state_bind_lineedit(
+                self, self._state, 'depth', le,
+                from_string=lambda s: float(s)*1000.,
+                to_string=lambda v: str(v/1000.))
+
+            layout.addWidget(qw.QFrame(), 3, 0, 1, 2)
 
         self._controls = frame
 
