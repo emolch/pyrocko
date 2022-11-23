@@ -168,9 +168,11 @@ def state_bind(
 
 
 def state_bind_slider(owner, state, path, widget, factor=1., dtype=float):
+    app = common.get_app()
 
     def make_funcs():
         def update_state(widget, state):
+            app.status('%g' % (widget.value() * factor))
             state.set(path, dtype(widget.value() * factor))
 
         def update_widget(state, widget):
