@@ -997,7 +997,7 @@ class SparrowViewer(qw.QMainWindow):
             lat = self.state.lat
             lon = self.state.lon
             factor = self.state.distance / 10.0
-            factor_lat = (1.0 + 0.1)/(num.cos(lat*d2r) + 0.2)
+            factor_lat = 1.0/(num.cos(lat*d2r) + (0.1 * self.state.distance))
         else:
             lat = 90. - self.state.dip
             lon = -self.state.strike - 90.
