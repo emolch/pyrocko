@@ -144,6 +144,8 @@ class VolcanoesElement(Element):
             layout.addWidget(cb, 1, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
 
+            layout.addWidget(qw.QFrame(), 2, 0, 1, 2)
+
             self._controls = frame
 
         return self._controls
