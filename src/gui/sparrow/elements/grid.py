@@ -129,7 +129,10 @@ class GridElement(Element):
     def set_parent(self, parent):
         Element.set_parent(self, parent)
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
 
         upd = self.update
         self._listeners.append(upd)

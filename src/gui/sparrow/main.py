@@ -106,11 +106,48 @@ class QVTKWidget(QVTKRenderWindowInteractor):
         self._viewer.update_vtk_widget_size()
 
 
-class MyDockWidgetTitleBar(qw.QLabel):
+class MyDockWidgetTitleBarButton(qw.QPushButton):
+
+    def __init__(self, *args, **kwargs):
+        qw.QPushButton.__init__(self, *args, **kwargs)
+        self.setFlat(True)
+        self.setSizePolicy(
+            qw.QSizePolicy.Fixed, qw.QSizePolicy.Fixed)
+
+    def sizeHint(self):
+        s = qw.QPushButton.sizeHint(self)
+        return qc.QSize(s.height(), s.height())
+
+
+class MyDockWidgetTitleBar(qw.QFrame):
+
+    def __init__(self, title):
+        qw.QFrame.__init__(self)
+
+        lab = qw.QLabel('<strong>%s</strong>' % title)
+        lab.setSizePolicy(
+            qw.QSizePolicy.Expanding, qw.QSizePolicy.Minimum)
+
+        button_hide = MyDockWidgetTitleBarButton('-')
+        button_hide.setStatusTip('Hide Panel')
+        button_close = MyDockWidgetTitleBarButton('\u00d7')
+        button_close.setStatusTip('Remove Element')
+
+        layout = qw.QGridLayout()
+        layout.setSpacing(0)
+        layout.addWidget(lab, 0, 0)
+        layout.addWidget(button_hide, 0, 1)
+        layout.addWidget(button_close, 0, 2)
+
+        self.setLayout(layout)
+        self.setBackgroundRole(qg.QPalette.Mid)
+        self.setAutoFillBackground(True)
+        self.button_hide = button_hide
+        self.button_close = button_close
 
     def event(self, ev):
         ev.ignore()
-        return qw.QLabel.event(self, ev)
+        return qw.QFrame.event(self, ev)
 
 
 class MyDockWidget(qw.QDockWidget):
@@ -127,12 +164,10 @@ class MyDockWidget(qw.QDockWidget):
         self._visible = False
         self._blocked = False
 
-        lab = MyDockWidgetTitleBar('<strong>%s</strong>' % name)
-        lab.setMargin(10)
-        lab.setBackgroundRole(qg.QPalette.Mid)
-        lab.setAutoFillBackground(True)
-
-        self.setTitleBarWidget(lab)
+        tb = MyDockWidgetTitleBar(name)
+        tb.button_hide.clicked.connect(self.hide)
+        self.setTitleBarWidget(tb)
+        self.titlebar = tb
 
     def setVisible(self, visible):
         self._visible = visible
@@ -1499,7 +1534,8 @@ class SparrowViewer(qw.QMainWindow):
             visible=False,
             # volatile=False,
             tabify=True,
-            where=qc.Qt.RightDockWidgetArea):
+            where=qc.Qt.RightDockWidgetArea,
+            remove=None):
 
         dockwidget = MyDockWidget(name, self)
 
@@ -1510,6 +1546,11 @@ class SparrowViewer(qw.QMainWindow):
             dockwidget.block()
 
         dockwidget.setWidget(panel)
+        if remove is not None:
+            dockwidget.titlebar.button_close.clicked.connect(remove)
+        else:
+            dockwidget.titlebar.button_close.hide()
+
         panel.setParent(dockwidget)
 
         dockwidgets = self.findChildren(MyDockWidget)

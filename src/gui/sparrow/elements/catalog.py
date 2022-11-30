@@ -342,6 +342,7 @@ class OnlineCatalogSelection(CatalogSelection):
 
 class CatalogState(TableState):
     selection = CatalogSelection.T(optional=True)
+    size_parameter = String.T(default='magnitude', optional=True)
 
     @classmethod
     def get_name(self):

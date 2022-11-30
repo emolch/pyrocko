@@ -140,7 +140,11 @@ class RaysElement(Element):
             self._active_faults = ActiveFaults()
 
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
+
         self.update()
 
     def unset_parent(self):
@@ -249,10 +253,6 @@ class RaysElement(Element):
             cb = qw.QCheckBox('Show')
             layout.addWidget(cb, iy, 0)
             state_bind_checkbox(self, state, 'visible', cb)
-
-            pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, iy, 1)
-            pb.clicked.connect(self.remove)
 
             self._controls = frame
 

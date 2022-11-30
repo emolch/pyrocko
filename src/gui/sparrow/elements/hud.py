@@ -105,7 +105,10 @@ class HudElement(Element):
     def set_parent(self, parent):
         self._parent = parent
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
 
         self._listeners.append(
             self._parent.gui_state.add_listener(self.update, 'size'))

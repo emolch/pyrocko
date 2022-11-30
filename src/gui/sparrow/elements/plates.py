@@ -137,7 +137,11 @@ class PlatesBoundsElement(Element):
             self._plates = PB.get_plates()
 
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
+
         self.update()
 
     def unset_parent(self):
@@ -200,10 +204,6 @@ class PlatesBoundsElement(Element):
 
             layout.addWidget(cb, 1, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
-
-            pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 1, 1)
-            pb.clicked.connect(self.remove)
 
             self._controls = frame
 

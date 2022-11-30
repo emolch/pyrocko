@@ -81,7 +81,11 @@ class VolcanoesElement(Element):
             self._volcanoes = Volcanoes()
 
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
+
         self.update()
 
     def unset_parent(self):

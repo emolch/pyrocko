@@ -169,7 +169,11 @@ class SourceElement(base.Element):
     def set_parent(self, parent):
         self._parent = parent
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
+
         self.update()
 
     def unset_parent(self):
@@ -503,10 +507,6 @@ class SourceElement(base.Element):
             cb = qw.QCheckBox('Show')
             layout.addWidget(cb, il, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
-
-            pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, il, 2)
-            pb.clicked.connect(self.remove)
 
             il += 1
             layout.addWidget(qw.QFrame(), il, 0, 1, 3)

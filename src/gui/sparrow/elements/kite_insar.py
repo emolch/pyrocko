@@ -93,7 +93,11 @@ class KiteElement(Element):
 
         self._parent = parent
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
+
         self.update()
 
     def open_load_scene_dialog(self, *args):

@@ -57,7 +57,10 @@ class CustomTopoElement(Element):
         self._parent = parent
 
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
 
         self.update()
 
@@ -96,11 +99,7 @@ class CustomTopoElement(Element):
             self._lookuptables[cpt_name] = lut_combi
 
     def update(self, *args):
-
-
         visible = self._state.visible
-
-        print('xxx', self._state.opacity)
 
         self.update_cpt(self._state.cpt)
 
@@ -204,10 +203,6 @@ class CustomTopoElement(Element):
             layout.addWidget(qw.QLabel('CPT'), 4, 0)
             layout.addWidget(cb, 4, 1)
             state_bind_combobox(self, state, 'cpt', cb)
-
-            pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 5, 1)
-            pb.clicked.connect(self.remove)
 
             layout.addWidget(qw.QFrame(), 6, 0, 1, 2)
 
