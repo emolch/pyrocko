@@ -84,7 +84,11 @@ class IcosphereElement(Element):
         self._parent.state.add_listener(upd, 'dip')
 
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
+
         self.update()
 
     def unset_parent(self):

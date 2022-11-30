@@ -120,7 +120,10 @@ class StationsElement(Element):
     def set_parent(self, parent):
         self._parent = parent
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
         self.update()
 
     def unset_parent(self):
@@ -244,10 +247,6 @@ class StationsElement(Element):
             cb = qw.QCheckBox('Show')
             layout.addWidget(cb, 2, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
-
-            pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 2, 1)
-            pb.clicked.connect(self.remove)
 
             layout.addWidget(qw.QFrame(), 3, 0, 1, 3)
 

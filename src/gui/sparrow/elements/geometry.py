@@ -83,7 +83,10 @@ class GeometryElement(base.Element):
     def set_parent(self, parent):
         self._parent = parent
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
 
         update = self.update
         self._listeners.append(update)
@@ -361,9 +364,6 @@ class GeometryElement(base.Element):
                 self._opacity_slider = slider_opacity
 
                 il += 1
-                pb = qw.QPushButton('Remove')
-                layout.addWidget(pb, il, 1)
-                pb.clicked.connect(self.remove)
 
                 # visibility
                 cb = qw.QCheckBox('Show')

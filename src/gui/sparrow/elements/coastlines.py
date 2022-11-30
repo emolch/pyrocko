@@ -144,7 +144,10 @@ class CoastlinesElement(Element):
     def set_parent(self, parent):
         self._parent = parent
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
 
         upd = self.update_clipping
         self._listeners.append(upd)
@@ -253,10 +256,6 @@ class CoastlinesElement(Element):
             cb = qw.QCheckBox('Show')
             layout.addWidget(cb, 4, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
-
-            pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, 4, 1)
-            pb.clicked.connect(self.remove)
 
             layout.addWidget(qw.QFrame(), 5, 0, 1, 2)
 

@@ -154,7 +154,11 @@ class TopoElement(Element):
         self._parent.state.add_listener(upd, 'lon')
 
         self._parent.add_panel(
-            self.get_name(), self._get_controls(), visible=True)
+            self.get_name(),
+            self._get_controls(),
+            visible=True,
+            remove=self.remove)
+
         self.update()
 
     def unset_parent(self):
@@ -415,10 +419,6 @@ class TopoElement(Element):
             cb = qw.QCheckBox('Show')
             layout.addWidget(cb, iy, 0)
             state_bind_checkbox(self, state, 'visible', cb)
-
-            pb = qw.QPushButton('Remove')
-            layout.addWidget(pb, iy, 1)
-            pb.clicked.connect(self.remove)
 
             iy += 1
 
