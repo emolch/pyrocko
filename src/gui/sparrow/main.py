@@ -119,12 +119,19 @@ class MyDockWidgetTitleBarButton(qw.QPushButton):
         return qc.QSize(s.height(), s.height())
 
 
+class MyDockWidgetTitleBarLabel(qw.QLabel):
+
+    def event(self, ev):
+        ev.ignore()
+        return qw.QLabel.event(self, ev)
+
+
 class MyDockWidgetTitleBar(qw.QFrame):
 
     def __init__(self, title):
         qw.QFrame.__init__(self)
 
-        lab = qw.QLabel('<strong>%s</strong>' % title)
+        lab = MyDockWidgetTitleBarLabel('<strong>%s</strong>' % title)
         lab.setSizePolicy(
             qw.QSizePolicy.Expanding, qw.QSizePolicy.Minimum)
 
