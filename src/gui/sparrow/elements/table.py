@@ -73,14 +73,14 @@ class MaskingModeChoice(StringChoice):
 
 class TableState(base.ElementState):
     visible = Bool.T(default=True)
-    size = Float.T(default=5.0)
+    size = Float.T(default=3.0)
     color_parameter = String.T(optional=True)
     cpt = base.CPTState.T(default=base.CPTState.D())
     size_parameter = String.T(optional=True)
     depth_min = Float.T(default=-60*km)
     depth_max = Float.T(default=700*km)
     depth_offset = Float.T(default=0.0)
-    symbol = SymbolChoice.T(default='point')
+    symbol = SymbolChoice.T(default='sphere')
     time_masking_shape = MaskingShapeChoice.T(default='rect')
     time_masking_mode = MaskingModeChoice.T(default='zero-one-zero')
 
@@ -162,6 +162,12 @@ class TableElement(base.Element):
 
         self._istate += 1
         self._update_controls()
+
+    def get_size_parameter_extra_entries(self):
+        return []
+
+    def get_color_parameter_extra_entries(self):
+        return []
 
     def update_sizes(self, *args):
         self._istate += 1
@@ -518,15 +524,25 @@ class TableElement(base.Element):
         return self._controls
 
     def _update_controls(self):
-        for cb in (self._color_combobox, self._size_combobox):
+        for (cb, get_extra_entries) in [
+                (self._color_combobox, self.get_color_parameter_extra_entries),
+                (self._size_combobox, self.get_size_parameter_extra_entries)]:
+
             if cb is not None:
                 cb.clear()
 
+                have = set()
+                for s in get_extra_entries():
+                    if s not in have:
+                        cb.insertItem(len(have), s)
+                        have.add(s)
+
                 if self._table is not None:
-                    for i, s in enumerate(self._table.get_col_names()):
+                    for s in self._table.get_col_names():
                         h = self._table.get_header(s)
-                        if h.get_ncols() == 1:
-                            cb.insertItem(i, s)
+                        if h.get_ncols() == 1 and s not in have:
+                            cb.insertItem(len(have), s)
+                            have.add(s)
 
         self.cpt_handler._update_cpt_combobox()
         self.cpt_handler._update_cptscale_lineedit()
