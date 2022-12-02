@@ -407,7 +407,11 @@ class SparrowViewer(qw.QMainWindow):
 
         menu = mbar.addMenu('Add')
         for name, estate in [
-                ('Icosphere', elements.IcosphereState()),
+                ('Icosphere', elements.IcosphereState(
+                    level=4,
+                    smooth=True,
+                    opacity=0.5,
+                    ambient=0.1)),
                 ('Grid', elements.GridState()),
                 ('Stations', elements.StationsState()),
                 ('Topography', elements.TopoState()),
@@ -561,11 +565,18 @@ class SparrowViewer(qw.QMainWindow):
 
         self.state.add_listener(update_elements, 'elements')
         self.state.elements.append(elements.IcosphereState(
-            element_id='icosphere', level=4, smooth=True))
+            element_id='icosphere',
+            level=4,
+            smooth=True,
+            opacity=0.5,
+            ambient=0.1))
+
         self.state.elements.append(elements.GridState(
             element_id='grid'))
         self.state.elements.append(elements.CoastlinesState(
             element_id='coastlines'))
+        self.state.elements.append(elements.CrosshairState(
+            element_id='crosshair'))
 
         # self.state.elements.append(elements.StationsState())
         # self.state.elements.append(elements.SourceState())
@@ -963,7 +974,37 @@ class SparrowViewer(qw.QMainWindow):
         for element_id in deactivate:
             del self._elements_active[element_id]
 
+        self._update_crosshair_bindings()
+
         self._in_update_elements = False
+
+    def _update_crosshair_bindings(self):
+
+        def get_crosshair_element():
+            for element in self.state.elements:
+                if element.element_id == 'crosshair':
+                    return element
+
+            return None
+
+        crosshair = get_crosshair_element()
+        if crosshair is None or crosshair.is_connected:
+            return
+
+        def to_checkbox(state, widget):
+            widget.blockSignals(True)
+            widget.setChecked(state.visible)
+            widget.blockSignals(False)
+
+        def to_state(widget, state):
+            state.visible = widget.isChecked()
+
+        cb = self._crosshair_checkbox
+        vstate.state_bind(
+            self, crosshair, ['visible'], to_state,
+            cb, [cb.toggled], to_checkbox)
+
+        crosshair.is_connected = True
 
     def add_actor_2d(self, actor):
         if actor not in self._actors_2d:
@@ -1232,6 +1273,11 @@ class SparrowViewer(qw.QMainWindow):
         but.setStatusTip('Reset to north-up map view.')
         but.clicked.connect(self.reset_strike_dip)
         layout.addWidget(but, 3, 1, 1, 1)
+
+        # crosshair
+
+        self._crosshair_checkbox = qw.QCheckBox('Crosshair')
+        layout.addWidget(self._crosshair_checkbox, 4, 0, 1, 2)
 
         # camera bindings
 
