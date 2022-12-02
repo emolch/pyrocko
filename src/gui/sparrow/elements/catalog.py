@@ -343,6 +343,7 @@ class OnlineCatalogSelection(CatalogSelection):
 class CatalogState(TableState):
     selection = CatalogSelection.T(optional=True)
     size_parameter = String.T(default='magnitude', optional=True)
+    color_parameter = String.T(default='depth', optional=True)
 
     @classmethod
     def get_name(self):
@@ -375,6 +376,12 @@ class CatalogElement(TableElement):
 
     def get_name(self):
         return 'Catalog'
+
+    def get_size_parameter_extra_entries(self):
+        return ['magnitude']
+
+    def get_color_parameter_extra_entries(self):
+        return ['depth']
 
     def bind_state(self, state):
         TableElement.bind_state(self, state)
