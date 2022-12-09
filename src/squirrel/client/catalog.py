@@ -52,6 +52,9 @@ def get_catalog(name):
     elif name == 'gcmt':
         from pyrocko.client.globalcmt import GlobalCMT
         return GlobalCMT()
+    if name == 'usgs':
+        from pyrocko.client.usgs import USGS
+        return USGS()
     else:
         raise NoSuchCatalog(name)
 
