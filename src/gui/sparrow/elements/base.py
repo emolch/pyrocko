@@ -239,7 +239,7 @@ class CPTHandler(Element):
 
         iy = layout.rowCount() + 1
 
-        layout.addWidget(qw.QLabel('Color Map:'), iy, 0)
+        layout.addWidget(qw.QLabel('Color Map'), iy, 0)
 
         cb = common.CPTComboBox()
         layout.addWidget(cb, iy, 1)
@@ -253,7 +253,7 @@ class CPTHandler(Element):
         pb.clicked.connect(self.open_cpt_load_dialog)
 
         iy += 1
-        layout.addWidget(qw.QLabel('Color Scaling:'), iy, 0)
+        layout.addWidget(qw.QLabel('Color Scaling'), iy, 0)
 
         cb = common.string_choices_to_combobox(AutoScaleMode)
         layout.addWidget(cb, iy, 1)
