@@ -385,9 +385,7 @@ class CatalogElement(TableElement):
 
     def bind_state(self, state):
         TableElement.bind_state(self, state)
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'selection')
+        self.register_state_listener3(self.update, state, 'selection')
 
     def update(self, *args):
         state = self._state

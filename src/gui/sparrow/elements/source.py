@@ -150,13 +150,11 @@ class SourceElement(base.Element):
 
     def bind_state(self, state):
         base.Element.bind_state(self, state)
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'source_selection')
-        state.add_listener(upd, 'deltat')
-        state.add_listener(upd, 'display_parameter')
-        self.cpt_handler.bind_state(state.cpt, upd)
+        for var in ['visible', 'source_selection', 'deltat',
+                    'display_parameter']:
+            self.register_state_listener3(self.update, state, var)
+
+        self.cpt_handler.bind_state(state.cpt, self.update)
 
     def unbind_state(self):
         self._listeners = []

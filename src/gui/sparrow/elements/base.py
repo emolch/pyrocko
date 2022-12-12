@@ -104,7 +104,8 @@ class CPTHandler(Element):
         for state_attr in [
                 'cpt_name', 'cpt_mode', 'cpt_scale_min', 'cpt_scale_max']:
 
-            cpt_state.add_listener(update_function, state_attr)
+            self.register_state_listener3(
+                update_function, cpt_state, state_attr)
 
         self._state = cpt_state
 

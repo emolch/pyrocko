@@ -76,10 +76,8 @@ class KiteElement(Element):
 
     def bind_state(self, state):
         Element.bind_state(self, state)
-        self._listeners.append(
-            state.add_listener(self.update, 'visible'))
-        self._listeners.append(
-            state.add_listener(self.update, 'scenes'))
+        for var in ['visible', 'scenes']:
+            self.register_state_listener3(self.update, state, var)
 
     def get_name(self):
         return 'Kite InSAR Scenes'

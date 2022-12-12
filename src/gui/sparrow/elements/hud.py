@@ -79,23 +79,12 @@ class HudElement(Element):
 
     def bind_state(self, state):
         Element.bind_state(self, state)
-        self._listeners.append(
-            state.add_listener(self.update, 'visible'))
 
-        self._listeners.append(
-            state.add_listener(self.update, 'lightness'))
+        for var in ['visible', 'lightness', 'fontsize', 'template',
+                    'position']:
+            self.register_state_listener3(self.update, state, var)
 
-        self._listeners.append(
-            state.add_listener(self.update, 'fontsize'))
-
-        self._listeners.append(
-            state.add_listener(self.update, 'template'))
-
-        self._listeners.append(
-            state.add_listener(self.update, 'position'))
-
-        self._listeners.append(
-            state.add_listener(self.update_bindings, 'variables'))
+        self.register_state_listener3(self.update_bindings, state, 'variables')
 
     def unbind_state(self):
         self._listeners.clear()
@@ -110,8 +99,8 @@ class HudElement(Element):
             visible=True,
             remove=self.remove)
 
-        self._listeners.append(
-            self._parent.gui_state.add_listener(self.update, 'size'))
+        self.register_state_listener3(
+            self.update, self._parent.gui_state, 'size')
 
         self.update_bindings()
         self.update()

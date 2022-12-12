@@ -128,17 +128,11 @@ class TopoElement(Element):
 
     def bind_state(self, state):
         Element.bind_state(self, state)
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'exaggeration')
-        state.add_listener(upd, 'opacity')
-        state.add_listener(upd, 'smooth')
-        state.add_listener(upd, 'shading')
-        state.add_listener(upd, 'cpt')
-        state.add_listener(upd, 'resolution_min_factor')
-        state.add_listener(upd, 'resolution_max_factor')
-        state.add_listener(upd, 'coverage_factor')
+        for var in ['visible', 'exaggeration', 'opacity', 'smooth', 'shading',
+                    'cpt', 'resolution_min_factor', 'resolution_max_factor',
+                    'coverage_factor']:
+            self.register_state_listener3(self.update, state, var)
+
         self._state = state
 
     def unbind_state(self):
@@ -147,11 +141,9 @@ class TopoElement(Element):
     def set_parent(self, parent):
         self._parent = parent
 
-        upd = self.update
-        self._listeners.append(upd)
-        self._parent.state.add_listener(upd, 'distance')
-        self._parent.state.add_listener(upd, 'lat')
-        self._parent.state.add_listener(upd, 'lon')
+        for var in ['distance', 'lat', 'lon']:
+            self.register_state_listener3(
+                self.update, self._parent.state, var)
 
         self._parent.add_panel(
             self.get_name(),

@@ -134,11 +134,8 @@ class GridElement(Element):
             visible=True,
             remove=self.remove)
 
-        upd = self.update
-        self._listeners.append(upd)
-        self._parent.state.add_listener(upd, 'distance')
-        self._parent.state.add_listener(upd, 'lat')
-        self._parent.state.add_listener(upd, 'lon')
+        for var in ['distance', 'lat', 'lon']:
+            self.register_state_listener3(self.update, self._parent.state, var)
 
         self.update()
 

@@ -390,10 +390,8 @@ class SparrowViewer(qw.QMainWindow):
         self._add_vtk_widget_size_menu_entries(menu_sizes)
 
         # detached/attached
-
-        update_detached = self.update_detached
-        self.register_state_listener(update_detached)
-        self.gui_state.add_listener(update_detached, 'detached')
+        self.register_state_listener3(
+            self.update_detached, self.gui_state, 'detached')
 
         action = qw.QAction('Detach')
         action.setCheckable(True)
@@ -560,10 +558,9 @@ class SparrowViewer(qw.QMainWindow):
         self._elements = {}
         self._elements_active = {}
 
-        update_elements = self.update_elements
-        self.register_state_listener(update_elements)
+        self.register_state_listener3(
+            self.update_elements, self.state, 'elements')
 
-        self.state.add_listener(update_elements, 'elements')
         self.state.elements.append(elements.IcosphereState(
             element_id='icosphere',
             level=4,
@@ -622,9 +619,9 @@ class SparrowViewer(qw.QMainWindow):
         self.show()
         self.windowHandle().showMaximized()
 
-        update_vtk_widget_size = self.update_vtk_widget_size
-        self.register_state_listener(update_vtk_widget_size)
-        self.gui_state.add_listener(update_vtk_widget_size, 'fixed_size')
+        self.register_state_listener3(
+            self.update_vtk_widget_size, self.gui_state, 'fixed_size')
+
         self.update_vtk_widget_size()
 
     def _add_vtk_widget_size_menu_entries(self, menu):
@@ -688,8 +685,8 @@ class SparrowViewer(qw.QMainWindow):
             variable_size_action.blockSignals(False)
 
         update_widget()
-        self.register_state_listener(update_widget)
-        self.gui_state.add_listener(update_widget, 'fixed_size')
+        self.register_state_listener3(
+            update_widget, self.gui_state, 'fixed_size')
 
     def update_vtk_widget_size(self, *args):
         if self.gui_state.fixed_size:
@@ -1220,9 +1217,9 @@ class SparrowViewer(qw.QMainWindow):
 
         self.focal_point_checkbox = cb
 
-        update_focal_point = self.update_focal_point
-        self.register_state_listener(update_focal_point)
-        self.gui_state.add_listener(update_focal_point, 'focal_point')
+        self.register_state_listener3(
+            self.update_focal_point, self.gui_state, 'focal_point')
+
         self.update_focal_point()
 
         # strike, dip
@@ -1280,21 +1277,11 @@ class SparrowViewer(qw.QMainWindow):
         layout.addWidget(self._crosshair_checkbox, 4, 0, 1, 2)
 
         # camera bindings
+        for var in ['lat', 'lon', 'depth', 'strike', 'dip', 'distance']:
+            self.register_state_listener3(self.update_camera, self.state, var)
 
-        update_camera = self.update_camera        # this assignment is needed
-
-        self.register_state_listener(update_camera)
-
-        self.state.add_listener(update_camera, 'lat')
-        self.state.add_listener(update_camera, 'lon')
-        self.state.add_listener(update_camera, 'depth')
-        self.state.add_listener(update_camera, 'strike')
-        self.state.add_listener(update_camera, 'dip')
-        self.state.add_listener(update_camera, 'distance')
-
-        update_panel_visibility = self.update_panel_visibility
-        self.register_state_listener(update_panel_visibility)
-        self.gui_state.add_listener(update_panel_visibility, 'panels_visible')
+        self.register_state_listener3(
+            self.update_panel_visibility, self.gui_state, 'panels_visible')
 
         return frame
 
@@ -1444,17 +1431,15 @@ class SparrowViewer(qw.QMainWindow):
         layout.addWidget(label_effective_tmin, 5, 1)
         layout.addWidget(label_effective_tmax, 6, 1)
 
-        update_effective_time_labels = self.update_effective_time_labels
-        self.register_state_listener(update_effective_time_labels)
-        for k in ['tmin', 'tmax', 'tduration', 'tposition']:
-            self.state.add_listener(update_effective_time_labels, k)
+        for var in ['tmin', 'tmax', 'tduration', 'tposition']:
+            self.register_state_listener3(
+                self.update_effective_time_labels, self.state, var)
 
         self._label_effective_tmin = label_effective_tmin
         self._label_effective_tmax = label_effective_tmax
 
-        update_tcursor = self.update_tcursor
-        self.register_state_listener(update_tcursor)
-        self.gui_state.add_listener(update_tcursor, 'tcursor')
+        self.register_state_listener3(
+            self.update_tcursor, self.gui_state, 'tcursor')
 
         return frame
 
@@ -1471,10 +1456,8 @@ class SparrowViewer(qw.QMainWindow):
         layout.addWidget(cb, 0, 1)
         vstate.state_bind_combobox(self, self.state, 'lighting', cb)
 
-        update_render_settings = self.update_render_settings
-
-        self.register_state_listener(update_render_settings)
-        self.state.add_listener(update_render_settings, 'lighting')
+        self.register_state_listener3(
+            self.update_render_settings, self.state, 'lighting')
 
         # background
 
@@ -1487,8 +1470,8 @@ class SparrowViewer(qw.QMainWindow):
         vstate.state_bind_combobox_background(
             self, self.state, 'background', cb)
 
-        self.register_state_listener(update_render_settings)
-        self.state.add_listener(update_render_settings, 'background')
+        self.register_state_listener3(
+            self.update_render_settings, self.state, 'background')
 
         return frame
 
@@ -1517,6 +1500,9 @@ class SparrowViewer(qw.QMainWindow):
 
     def register_state_listener(self, listener):
         self.listeners.append(listener)  # keep listeners alive
+
+    def register_state_listener3(self, listener, state, path):
+        self.register_state_listener(state.add_listener(listener, path))
 
     def get_camera_geometry(self):
 
