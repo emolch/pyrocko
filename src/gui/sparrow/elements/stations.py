@@ -104,11 +104,9 @@ class StationsElement(Element):
 
     def bind_state(self, state):
         Element.bind_state(self, state)
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'size')
-        state.add_listener(upd, 'station_selection')
+        for var in ['visible', 'size', 'station_selection']:
+            self.register_state_listener3(self.update, state, var)
+
         self._current_selection = None
 
     def unbind_state(self):

@@ -51,13 +51,11 @@ class SpheroidElement(Element):
     def bind_state(self, state):
         Element.bind_state(self, state)
 
-        upd = self.update
-        self._listeners.append(upd)
-        for k in [
+        for var in [
                 'visible', 'level', 'opacity',
                 'lat', 'lon', 'depth', 'a', 'b', 'c', 'azimuth', 'dip']:
 
-            state.add_listener(upd, k)
+            self.register_state_listener3(self.update, state, var)
 
     def unbind_state(self):
         self._listeners = []

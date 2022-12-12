@@ -88,12 +88,8 @@ class GeometryElement(base.Element):
             visible=True,
             remove=self.remove)
 
-        update = self.update
-        self._listeners.append(update)
-        self._parent.state.add_listener(update, 'tmin')
-        self._parent.state.add_listener(update, 'tmax')
-        self._parent.state.add_listener(update, 'lat')
-        self._parent.state.add_listener(update, 'lon')
+        for var in ['tmin', 'tmax', 'lat', 'lon']:
+            self.register_state_listener3(self.update, self._parent.state, var)
 
         self.update()
 
@@ -112,14 +108,12 @@ class GeometryElement(base.Element):
 
     def bind_state(self, state):
         base.Element.bind_state(self, state)
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'geometry')
-        state.add_listener(upd, 'display_parameter')
-        state.add_listener(upd, 'time')
-        state.add_listener(upd, 'opacity')
-        self.cpt_handler.bind_state(state.cpt, upd)
+        for var in [
+                'visible', 'geometry', 'display_parameter', 'time', 'opacity']:
+
+            self.register_state_listener3(self.update, state, var)
+
+        self.cpt_handler.bind_state(state.cpt, self.update)
 
     def unbind_state(self):
         for listener in self._listeners:

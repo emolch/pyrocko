@@ -107,25 +107,19 @@ class TableElement(base.Element):
 
     def bind_state(self, state):
         base.Element.bind_state(self, state)
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'size')
+        for var in ['visible', 'size']:
+            self.register_state_listener3(self.update, state, var)
 
-        update_alpha = self._update_alpha
-        self._listeners.append(update_alpha)
-        state.add_listener(update_alpha, 'depth_min')
-        state.add_listener(update_alpha, 'depth_max')
-        state.add_listener(update_alpha, 'time_masking_shape')
-        state.add_listener(update_alpha, 'time_masking_mode')
+        for var in [
+                'depth_min', 'depth_max', 'time_masking_shape',
+                'time_masking_mode', 'time_masking_opacity']:
 
-        self.cpt_handler.bind_state(state.cpt, upd)
+            self.register_state_listener3(self.update_alpha, state, var)
 
-        upd_s = self.update_sizes
-        self._listeners.append(upd_s)
-        state.add_listener(upd_s, 'symbol')
-        state.add_listener(upd_s, 'size_parameter')
-        state.add_listener(upd_s, 'color_parameter')
+        self.cpt_handler.bind_state(state.cpt, self.update)
+
+        for var in ['symbol', 'size_parameter', 'color_parameter']:
+            self.register_state_listener3(self.update_sizes, state, var)
 
     def unbind_state(self):
         self.cpt_handler.unbind_state()
@@ -143,12 +137,9 @@ class TableElement(base.Element):
             visible=True,
             remove=self.remove)
 
-        update_alpha = self._update_alpha
-        self._listeners.append(update_alpha)
-        self._parent.state.add_listener(update_alpha, 'tmin')
-        self._parent.state.add_listener(update_alpha, 'tmax')
-        self._parent.state.add_listener(update_alpha, 'tduration')
-        self._parent.state.add_listener(update_alpha, 'tposition')
+        for var in ['tmin', 'tmax', 'tduration', 'tposition']:
+            self.register_state_listener3(
+                self.update_alpha, self._parent.state, var)
 
         self._parent.register_data_provider(self)
 
@@ -305,10 +296,10 @@ class TableElement(base.Element):
                 else:
                     self._update_pipes_scatter()
 
-        self._update_alpha()  # TODO: only if needed?
+        self.update_alpha()  # TODO: only if needed?
         self._parent.update_view()
 
-    def _update_alpha(self, *args, mask=None):
+    def update_alpha(self, *args, mask=None):
         if self._state.symbol == 'beachball':
             return
 

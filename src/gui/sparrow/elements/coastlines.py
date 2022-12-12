@@ -130,13 +130,8 @@ class CoastlinesElement(Element):
 
     def bind_state(self, state):
         Element.bind_state(self, state)
-        upd = self.update
-        self._listeners = [upd]
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'resolution')
-        state.add_listener(upd, 'opacity')
-        state.add_listener(upd, 'color')
-        state.add_listener(upd, 'line_width')
+        for var in ['visible', 'resolution', 'opacity', 'color', 'line_width']:
+            self.register_state_listener3(self.update, state, var)
 
     def unbind_state(self):
         self._listeners = []
@@ -149,15 +144,9 @@ class CoastlinesElement(Element):
             visible=True,
             remove=self.remove)
 
-        upd = self.update_clipping
-        self._listeners.append(upd)
-
-        self._parent.state.add_listener(upd, 'lat')
-        self._parent.state.add_listener(upd, 'lon')
-        self._parent.state.add_listener(upd, 'depth')
-        self._parent.state.add_listener(upd, 'distance')
-        self._parent.state.add_listener(upd, 'azimuth')
-        self._parent.state.add_listener(upd, 'dip')
+        for var in ['lat', 'lon', 'depth', 'distance', 'azimuth', 'dip']:
+            self.register_state_listener3(
+                self.update_clipping, self._parent.state, var)
 
         self.update()
         self.update_clipping()

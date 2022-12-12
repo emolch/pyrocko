@@ -120,11 +120,11 @@ class RaysElement(Element):
     def bind_state(self, state):
         upd = self.update
         self._listeners.append(upd)
-        for k in [
+        for var in [
                 'visible', 'line_width', 'opacity',
                 'lat', 'lon', 'depth']:
 
-            state.add_listener(upd, k)
+            self.register_state_listener(self.update, state, var)
 
         self._state = state
 

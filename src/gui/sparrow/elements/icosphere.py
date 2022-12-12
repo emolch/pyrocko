@@ -63,25 +63,14 @@ class IcosphereElement(Element):
 
     def bind_state(self, state):
         Element.bind_state(self, state)
-        upd = self.update
-        self._listeners.append(upd)
-        state.add_listener(upd, 'visible')
-        state.add_listener(upd, 'level')
-        state.add_listener(upd, 'base')
-        state.add_listener(upd, 'kind')
-        state.add_listener(upd, 'smooth')
-        state.add_listener(upd, 'color')
-        state.add_listener(upd, 'ambient')
-        state.add_listener(upd, 'diffuse')
-        state.add_listener(upd, 'specular')
-        state.add_listener(upd, 'depth')
-        state.add_listener(upd, 'opacity')
+        for var in ['visible', 'level', 'base', 'kind', 'smooth', 'color',
+                    'ambient', 'diffuse', 'specular', 'depth', 'opacity']:
+
+            self.register_state_listener3(self.update, state, var)
 
     def set_parent(self, parent):
         Element.set_parent(self, parent)
-        upd = self.update
-        self._listeners.append(upd)
-        self._parent.state.add_listener(upd, 'dip')
+        self.register_state_listener3(self.update, self._parent.state, 'dip')
 
         self._parent.add_panel(
             self.get_name(),
