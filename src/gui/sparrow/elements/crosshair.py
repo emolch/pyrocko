@@ -54,7 +54,6 @@ class Crosshair(object):
         return [self.actor_surface, self.actor_position]
 
     def make_multi_polyline(self, lat, lon, depth, size):
-        objs = []
         lines_ned = cross3d_flat()
         lines_lld = []
         for line_ned in lines_ned:
@@ -88,10 +87,11 @@ class Crosshair(object):
         return [mpl_surface, mpl_position]
 
     def set_geometry(self, lat, lon, depth, size):
-        mpl_surface, mpl_position = self.make_multi_polyline(lat, lon, depth, size)
+        mpl_surface, mpl_position = self.make_multi_polyline(
+            lat, lon, depth, size)
         vtk_util.vtk_set_input(self.mapper_surface, mpl_surface)
         vtk_util.vtk_set_input(self.mapper_position, mpl_position)
-        prop = self.actor_surface.GetProperty().SetOpacity(
+        self.actor_surface.GetProperty().SetOpacity(
             min(1.0, abs(depth) / size) * 0.5)
 
     def set_color(self, color):
