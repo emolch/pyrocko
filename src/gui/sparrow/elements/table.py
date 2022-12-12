@@ -57,18 +57,18 @@ class SymbolChoice(StringChoice):
 
 
 class MaskingShapeChoice(StringChoice):
-    choices = ['rect', 'ramp', 'square']
+    choices = ['rect', 'linear', 'quadratic']
 
 
 class MaskingModeChoice(StringChoice):
-    choices = ['zero-one-zero', 'low-one-low', 'low-one-zero']
+    choices = ['past + future', 'past', 'future']
 
     @classmethod
     def get_factors(cls, mode, value_low):
         return {
-            'zero-one-zero': (0.0, 1.0, 0.0),
-            'low-one-low': (value_low, 1.0, value_low),
-            'low-one-zero': (value_low, 1.0, 0.0)}[mode]
+            'past + future': (value_low, 1.0, value_low),
+            'past': (value_low, 1.0, 0.0),
+            'future': (0.0, 1.0, value_low)}[mode]
 
 
 class TableState(base.ElementState):
@@ -81,8 +81,9 @@ class TableState(base.ElementState):
     depth_max = Float.T(default=700*km)
     depth_offset = Float.T(default=0.0)
     symbol = SymbolChoice.T(default='sphere')
+    time_masking_opacity = Float.T(default=0.0)
     time_masking_shape = MaskingShapeChoice.T(default='rect')
-    time_masking_mode = MaskingModeChoice.T(default='zero-one-zero')
+    time_masking_mode = MaskingModeChoice.T(default='past + future')
 
 
 class TableElement(base.Element):
@@ -339,7 +340,7 @@ class TableElement(base.Element):
 
         m2 = num.logical_not(num.logical_or(m1, m3))
 
-        value_low = 0.05
+        value_low = self._state.time_masking_opacity
 
         f1, f2, f3 = MaskingModeChoice.get_factors(
             self._state.time_masking_mode, value_low)
@@ -352,11 +353,11 @@ class TableElement(base.Element):
         else:
             if self._state.time_masking_shape == 'rect':
                 amp[m2] == 1.0
-            elif self._state.time_masking_shape == 'ramp':
+            elif self._state.time_masking_shape == 'linear':
                 amp[m2] = time[m2]
                 amp[m2] -= tmin
                 amp[m2] /= (tmax - tmin)
-            elif self._state.time_masking_shape == 'square':
+            elif self._state.time_masking_shape == 'quadratic':
                 amp[m2] = time[m2]
                 amp[m2] -= tmin
                 amp[m2] /= (tmax - tmin)
@@ -492,6 +493,20 @@ class TableElement(base.Element):
 
             self._depth_min_slider.valueChanged.connect(sync_depth_max)
             self._depth_min_spinbox.valueChanged.connect(sync_depth_max)
+
+            iy += 1
+
+            layout.addWidget(qw.QLabel('Time Masking Opacity'), iy, 0)
+
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            slider.setMinimum(0)
+            slider.setMaximum(100)
+            layout.addWidget(slider, iy, 1)
+            state_bind_slider(
+                self, self._state, 'time_masking_opacity', slider, factor=0.01)
 
             iy += 1
 
