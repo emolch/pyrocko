@@ -269,7 +269,7 @@ class TableElement(base.Element):
         p = self._pipes[0]
 
         self._parent.add_actor(p.actor)
-        p.set_size_factor(state.size * 0.005)
+        p.set_size_factor(state.size * 0.00005)
 
     def update(self, *args):
         state = self._state

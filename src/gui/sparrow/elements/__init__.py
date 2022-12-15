@@ -14,6 +14,7 @@ from .custom_topo import *  # noqa
 from .geometry import *  # noqa
 from .grid import *  # noqa
 from .hud import *  # noqa
+from .lines import *  # noqa
 from .icosphere import *  # noqa
 from .kite_insar import *  # noqa
 from .plates import *  # noqa
