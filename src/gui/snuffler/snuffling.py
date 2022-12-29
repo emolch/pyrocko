@@ -19,15 +19,15 @@ import logging
 import traceback
 import tempfile
 
-from .qt_compat import qc, qw, getSaveFileName
+from ..qt_compat import qc, qw, getSaveFileName
 
 from pyrocko import pile, config
 from pyrocko.util import quote
 
-from .util import (ValControl, LinValControl, FigureFrame, SmartplotFrame,
-                   WebKitFrame, VTKFrame, PixmapFrame, Marker, EventMarker,
-                   PhaseMarker, load_markers, save_markers)
-
+from ..util import (
+    ValControl, LinValControl, FigureFrame, SmartplotFrame, WebKitFrame,
+    VTKFrame, PixmapFrame, Marker, EventMarker, PhaseMarker, load_markers,
+    save_markers)
 
 from importlib import reload
 

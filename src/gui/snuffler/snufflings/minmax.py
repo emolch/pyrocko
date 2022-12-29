@@ -5,7 +5,7 @@
 
 from __future__ import absolute_import, print_function, division
 
-from pyrocko.gui.snuffler.snuffling import Snuffling
+from ..snuffling import Snuffling
 from pyrocko import trace
 
 

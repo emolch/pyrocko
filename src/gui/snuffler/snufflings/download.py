@@ -10,7 +10,7 @@ import logging
 
 from pyrocko.gui.snuffler.marker import EventMarker
 
-from pyrocko.gui.snuffler.snuffling import Param, Snuffling, Switch, Choice
+from ..snuffling import Param, Snuffling, Switch, Choice
 from pyrocko import util, io, model
 from pyrocko.client import fdsn
 pjoin = os.path.join

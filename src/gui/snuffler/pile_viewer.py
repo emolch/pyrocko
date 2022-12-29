@@ -31,11 +31,11 @@ from pyrocko.util import hpfloat, gmtime_x, mystrftime
 
 from .marker import associate_phases_to_events, MarkerOneNSLCRequired
 
-from .util import (ValControl, LinValControl, Marker, EventMarker,
-                   PhaseMarker, make_QPolygonF, draw_label, Label,
-                   Progressbars, ColorbarControl)
+from ..util import (ValControl, LinValControl, Marker, EventMarker,
+                    PhaseMarker, make_QPolygonF, draw_label, Label,
+                    Progressbars, ColorbarControl)
 
-from .qt_compat import qc, qg, qw, qsvg
+from ..qt_compat import qc, qg, qw, qsvg
 
 from .pile_viewer_waterfall import TraceWaterfall
 

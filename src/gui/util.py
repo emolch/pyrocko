@@ -21,7 +21,6 @@ from .snuffler.marker import Marker, PhaseMarker, EventMarker  # noqa
 from .snuffler.marker import MarkerParseError, MarkerOneNSLCRequired  # noqa
 from .snuffler.marker import load_markers, save_markers  # noqa
 from pyrocko import plot, util
-from .sparrow import common
 
 
 try:
@@ -31,6 +30,14 @@ except ImportError:
 
 
 logger = logging.getLogger('pyrocko.gui.util')
+
+
+app = None
+
+
+def get_app():
+    global app
+    return app
 
 
 def rint(x):
@@ -1204,6 +1211,20 @@ def four_way_arrow(position, size):
     return poly
 
 
+def tmin_effective(tmin, tmax, tduration, tposition):
+    if None in (tmin, tmax, tduration, tposition):
+        return tmin
+    else:
+        return tmin + (tmax - tmin) * tposition
+
+
+def tmax_effective(tmin, tmax, tduration, tposition):
+    if None in (tmin, tmax, tduration, tposition):
+        return tmax
+    else:
+        return tmin + (tmax - tmin) * tposition + tduration
+
+
 class RangeEdit(qw.QFrame):
 
     rangeChanged = qc.pyqtSignal()
@@ -1403,11 +1424,11 @@ class RangeEdit(qw.QFrame):
         return p
 
     def tmin_effective(self):
-        return common.tmin_effective(
+        return tmin_effective(
             self.tmin, self.tmax, self.tduration, self.tposition)
 
     def tmax_effective(self):
-        return common.tmax_effective(
+        return tmax_effective(
             self.tmin, self.tmax, self.tduration, self.tposition)
 
     def upper_rect(self):
@@ -1580,7 +1601,7 @@ class RangeEdit(qw.QFrame):
 
                 tduration, tposition = self._track_focus
                 if tduration is not None:
-                    etmin0 = common.tmin_effective(
+                    etmin0 = tmin_effective(
                         tmin0, tmax0, tduration0, tposition0)
 
                     tposition = (etmin0 - tmin) / (tmax - tmin)
@@ -1593,9 +1614,9 @@ class RangeEdit(qw.QFrame):
                     dtr = tduration0 * (scale - 1.0)
                     dt = dx * tduration0 * scale
 
-                    etmin0 = common.tmin_effective(
+                    etmin0 = tmin_effective(
                         tmin0, tmax0, tduration0, tposition0)
-                    etmax0 = common.tmax_effective(
+                    etmax0 = tmax_effective(
                         tmin0, tmax0, tduration0, tposition0)
 
                     tmin = etmin0 - dt - dtr*xfrac
@@ -1633,7 +1654,7 @@ class RangeEdit(qw.QFrame):
             upper_projection = self.upper_projection()
             lower_projection = self.lower_projection()
 
-            app = common.get_app()
+            app = get_app()
             have_focus = lower_projection and self.tduration is not None
 
             if upper_rect.contains(point):

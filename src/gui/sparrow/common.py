@@ -14,13 +14,7 @@ from scipy.interpolate import interp1d
 from pyrocko import automap, plot, util
 from pyrocko.geometry import d2r
 from pyrocko.gui.qt_compat import qg, qw, qc
-
-app = None
-
-
-def get_app():
-    global app
-    return app
+from pyrocko.gui.util import tmin_effective, tmax_effective, get_app  # noqa
 
 
 def get_err_palette():
@@ -62,20 +56,6 @@ def time_or_none_to_str(t):
         return ''
     else:
         return util.time_to_str(t)
-
-
-def tmin_effective(tmin, tmax, tduration, tposition):
-    if None in (tmin, tmax, tduration, tposition):
-        return tmin
-    else:
-        return tmin + (tmax - tmin) * tposition
-
-
-def tmax_effective(tmin, tmax, tduration, tposition):
-    if None in (tmin, tmax, tduration, tposition):
-        return tmax
-    else:
-        return tmin + (tmax - tmin) * tposition + tduration
 
 
 def cover_region(lat, lon, delta, step=None, avoid_poles=False):

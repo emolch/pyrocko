@@ -38,7 +38,7 @@ app = None
 
 def get_snuffler_instance():
     from .snuffler_app import Snuffler
-    from .qt_compat import qg
+    from ..qt_compat import qg
     import locale
     locale.setlocale(locale.LC_ALL, 'C')
     global app

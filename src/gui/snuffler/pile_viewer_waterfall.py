@@ -8,7 +8,7 @@ from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
 
 from pyrocko.trace import t2ind
-from .qt_compat import qg
+from ..qt_compat import qg
 
 logger = logging.getLogger(__name__)
 

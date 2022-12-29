@@ -11,7 +11,7 @@ from collections import defaultdict
 
 import numpy as num
 
-from pyrocko.gui.snuffler.snuffling import Snuffling, Param, Switch
+from ..snuffling import Snuffling, Param, Switch
 from pyrocko.trace import Trace, NoData
 from pyrocko import util
 

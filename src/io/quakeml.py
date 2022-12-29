@@ -27,7 +27,7 @@ import logging
 from pyrocko.guts import StringPattern, StringChoice, String, Float, Int,\
     Timestamp, Object, List, Union, Bool, Unicode
 from pyrocko.model import event
-from pyrocko.gui import marker
+from pyrocko.gui.snuffler import marker
 from pyrocko import moment_tensor
 import numpy as num
 

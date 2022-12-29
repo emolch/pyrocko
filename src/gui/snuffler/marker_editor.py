@@ -4,7 +4,7 @@
 # ---|P------/S----------~Lg----------
 from __future__ import absolute_import
 
-from .qt_compat import qc, qg, qw, QPixmapCache
+from ..qt_compat import qc, qg, qw, QPixmapCache
 
 from .marker import EventMarker, PhaseMarker
 from ..util import make_QPolygonF

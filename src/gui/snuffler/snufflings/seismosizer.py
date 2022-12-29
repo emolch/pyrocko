@@ -9,8 +9,7 @@ import numpy as num
 import os
 
 from pyrocko import moment_tensor, model
-from pyrocko.gui.snuffler.snuffling import Snuffling, Param, Choice, Switch, \
-    EventMarker
+from ..snuffling import Snuffling, Param, Choice, Switch, EventMarker
 from pyrocko import gf
 
 km = 1000.

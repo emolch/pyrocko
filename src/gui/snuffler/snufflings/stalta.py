@@ -5,8 +5,8 @@
 from __future__ import print_function, absolute_import
 import numpy as num
 
-from pyrocko.gui.snuffler.snuffling import Param, Snuffling, Switch, Choice
-from pyrocko.gui.snuffler.marker import Marker
+from ..snuffling import Param, Snuffling, Switch, Choice
+from ..marker import Marker
 from pyrocko import trace
 
 h = 3600.

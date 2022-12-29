@@ -3,8 +3,7 @@ import numpy as num
 import matplotlib
 from matplotlib import patches
 from pyrocko import util, trace, plot
-from pyrocko.gui.snuffling import Snuffling, Param, Marker, Switch, \
-    EventMarker
+from ..snuffling import Snuffling, Param, Marker, Switch, EventMarker
 
 logger = logging.getLogger('pyrocko.gui.snufflings.polarization')
 

@@ -3,8 +3,8 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
-from pyrocko.gui.snuffling import Snuffling, Param, Switch, Choice
-from pyrocko.gui.marker import PhaseMarker
+from ..snuffling import Snuffling, Param, Switch, Choice
+from ..marker import PhaseMarker
 from pyrocko import gf
 from pyrocko import cake
 import numpy as num

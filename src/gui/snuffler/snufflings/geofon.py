@@ -5,8 +5,8 @@
 
 from __future__ import absolute_import, print_function, division
 
-from pyrocko.gui.snuffler.snuffling import Snuffling
-from pyrocko.gui.snuffler.marker import EventMarker
+from ..snuffling import Snuffling
+from ..marker import EventMarker
 
 from pyrocko.client import catalog
 

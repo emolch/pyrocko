@@ -13,7 +13,7 @@ from os import path as op
 from functools import reduce
 
 from pyrocko.guts import StringChoice, Float, List, Bool
-from pyrocko.gui.marker import PhaseMarker, EventMarker
+from pyrocko.gui.snuffler.marker import PhaseMarker, EventMarker
 from pyrocko import gf, model, util, trace, io
 from pyrocko.response import DifferentiationResponse
 from pyrocko.io.io_common import FileSaveError

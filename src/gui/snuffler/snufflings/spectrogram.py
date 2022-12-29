@@ -5,7 +5,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib import cm
 
 from pyrocko import plot, trace
-from pyrocko.gui.snuffling import Snuffling, Param, Choice
+from ..snuffling import Snuffling, Param, Choice
 
 logger = logging.getLogger('pyrocko.gui.snufflings.spectrogram')
 

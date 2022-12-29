@@ -1704,12 +1704,13 @@ class SparrowApp(qw.QApplication):
 def main(*args, **kwargs):
 
     from pyrocko import util
+    from pyrocko.gui import util as gui_util
     util.setup_logging('sparrow', 'info')
 
     global win
 
-    if common.app is None:
-        common.app = SparrowApp()
+    if gui_util.app is None:
+        gui_util.app = SparrowApp()
 
         # try:
         #     from qt_material import apply_stylesheet
@@ -1732,10 +1733,12 @@ def main(*args, **kwargs):
         #
     win = SparrowViewer(*args, **kwargs)
 
-    common.app.install_sigint_handler()
-    common.app.exec_()
-    common.app.uninstall_sigint_handler()
+    gui_util.app.install_sigint_handler()
+    gui_util.app.exec_()
+    gui_util.app.uninstall_sigint_handler()
 
     del win
 
     gc.collect()
+
+    del gui_util.app

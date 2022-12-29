@@ -16,7 +16,7 @@ import numpy as num
 
 from pyrocko.guts import List
 from pyrocko.plot import gmtpy
-from pyrocko.gui.marker import PhaseMarker
+from pyrocko.gui.snuffler.marker import PhaseMarker
 from pyrocko import pile, util, model
 from pyrocko.dataset import topo
 
