@@ -800,7 +800,7 @@ class GutsTestCase(unittest.TestCase):
         class A(Object):
             arr = List.T(Array.T(serialize_as='base64+meta'))
 
-        for dtype in (num.int, num.float):
+        for dtype in (int, float):
             a = A(arr=[num.zeros((3, 3), dtype=dtype)])
             b = load_string(a.dump())
             assert a.arr[0].shape == b.arr[0].shape
