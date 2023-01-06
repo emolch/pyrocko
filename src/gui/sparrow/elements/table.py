@@ -33,7 +33,7 @@ def inormalize(x, imin, imax, discrete=True):
         return num.clip(
             num.round(
                 rmin + (x - xmin) * (
-                    (rmax-rmin) / (xmax - xmin))).astype(num.int),
+                    (rmax-rmin) / (xmax - xmin))).astype(num.int64),
             imin, imax)
     else:
         return num.clip(
@@ -336,7 +336,7 @@ class TableElement(base.Element):
         f1, f2, f3 = MaskingModeChoice.get_factors(
             self._state.time_masking_mode, value_low)
 
-        amp = num.ones(time.size, dtype=num.float)
+        amp = num.ones(time.size, dtype=num.float64)
         amp[m1] = f1
         amp[m3] = f3
         if None in (tmin, tmax):

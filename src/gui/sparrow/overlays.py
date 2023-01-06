@@ -47,7 +47,7 @@ class TimeRangeOverlay(Overlay):
         vpoints.SetNumberOfPoints(vertices.shape[0])
         vpoints.SetData(vtk_util.numpy_to_vtk(vertices))
 
-        faces = num.array([[0, 1, 2, 3]], dtype=num.int)
+        faces = num.array([[0, 1, 2, 3]], dtype=num.int64)
         cells = vtk_util.faces_to_cells(faces)
 
         pd = vtk.vtkPolyData()

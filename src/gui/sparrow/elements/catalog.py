@@ -42,7 +42,7 @@ name_to_icol = dict(
 
 event_dtype = num.dtype(list(zip(attribute_names, attribute_dtypes)))
 
-t_time = num.float
+t_time = num.float64
 
 
 def binned_statistic(values, ibins, function):
@@ -61,7 +61,7 @@ def binned_statistic(values, ibins, function):
         results.append(function(values_part))
         ibins_result.append(ibins_sorted[ilow])
 
-    return num.array(ibins_result, dtype=num.int), num.array(results)
+    return num.array(ibins_result, dtype=num.int64), num.array(results)
 
 
 def load_text(
@@ -108,7 +108,7 @@ def load_text(
 
 
 def decimal_year_to_time(year):
-    iyear_start = num.floor(year).astype(num.int)
+    iyear_start = num.floor(year).astype(num.int64)
     iyear_end = iyear_start + 1
 
     iyear_min = num.min(iyear_start)
@@ -130,7 +130,7 @@ def decimal_year_to_time(year):
 def oa_to_array(objects, attribute):
     return num.fromiter(
         map(operator.attrgetter(attribute), objects),
-        num.float,
+        num.float64,
         len(objects))
 
 
@@ -180,7 +180,7 @@ def eventextras_to_array(events, tab):
         values = num.array(['' for x in range(n_extras.shape[0])], dtype=dtype)
 
         if type(val) is float:
-            dtype, values = num.float, num.ones_like(n_extras) * num.nan
+            dtype, values = num.float64, num.ones_like(n_extras) * num.nan
 
         elif type(val) is int:
             dtype = num.int64

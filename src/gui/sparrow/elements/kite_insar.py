@@ -5,12 +5,15 @@
 
 from __future__ import absolute_import, print_function, division
 
+import copy
 import logging
 try:
     from kite import Scene
 except ImportError as e:
     print(e)
     Scene = None
+
+import numpy as num
 
 from pyrocko import automap
 from pyrocko.guts import Bool, String, List
@@ -21,7 +24,7 @@ from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
 from .. import common
 
 from .topo import TopoMeshPipe
-from .base import Element, ElementState
+from .base import Element, ElementState, CPTHandler, CPTState
 
 logger = logging.getLogger('kite_scene')
 guts_prefix = 'sparrow'
@@ -34,14 +37,40 @@ class SceneTileAdapter(object):
     def __init__(self, scene):
         self._scene = scene
 
+        # import matplotlib.pyplot as plt
+        # coords = scene.frame.coordinates
+        # scat = plt.scatter(coords[:, 0], coords[:, 1], self.data)
+        # x = num.tile(self.x(), self.y().shape[0])
+        # y = num.repeat(self.y(), self.x().shape[0])
+        # x = self.x()
+        # y = self.y()
+        # scat = plt.pcolormesh(x, y, self.data)
+        # plt.colorbar(scat)
+        # plt.show()
+        # print(self._scene.frame.coordinates)
+
     def x(self):
+        # TODO how to handle E given in m
+        # return num.arange(5) * 2.
         return self._scene.frame.E + self._scene.frame.llLon
 
     def y(self):
+        # TODO how to handle N given in m
+        # return num.arange(10) * 2.
         return self._scene.frame.N + self._scene.frame.llLat
 
     @property
     def data(self):
+        # import numpy as num
+        # data = num.ones((self.y().shape[0], self.x().shape[0]))
+        # # data = num.ones_like(self._scene.displacement)
+        # x = num.linspace(-10, 10, data.shape[1])
+        # y = num.linspace(-10, 10, data.shape[0])
+        # xx, yy = num.meshgrid(x, y)
+        # dist = num.sqrt(xx**2 + yy**2)
+
+        # data = num.exp(-dist)
+        # return data
         return self._scene.displacement
 
 
@@ -54,6 +83,7 @@ class KiteSceneElement(ElementState):
 class KiteState(ElementState):
     visible = Bool.T(default=True)
     scenes = List.T(KiteSceneElement.T(), default=[])
+    cpt = CPTState.T(default=CPTState.D(cpt_name='seismic'))
 
     def create(self):
         element = KiteElement()
@@ -73,11 +103,19 @@ class KiteElement(Element):
         Element.__init__(self)
         self._controls = None
         self._meshes = {}
+        self.cpt_handler = CPTHandler()
 
     def bind_state(self, state):
         Element.bind_state(self, state)
         for var in ['visible', 'scenes']:
             self.register_state_listener3(self.update, state, var)
+
+        self.cpt_handler.bind_state(state.cpt, self.update)
+
+    def unbind_state(self):
+        self.cpt_handler.unbind_state()
+        self._listeners = []
+        self._state = None
 
     def get_name(self):
         return 'Kite InSAR Scenes'
@@ -123,30 +161,58 @@ class KiteElement(Element):
         self.update()
 
     def update(self, *args):
-        cpt_displacement = cpt_to_vtk_lookuptable(
-            automap.read_cpt(topo.cpt('light_land')))
+        from scipy.signal import convolve2d
+        state = self._state
+
+        for mesh in self._meshes.values():
+            self._parent.remove_actor(mesh.actor)
 
         if self._state.visible:
-
-            for scene_element in self._state.scenes:
+            for scene_element in state.scenes:
                 logger.info('drawing scene')
                 scene = scene_element.scene
+                scene_tile = SceneTileAdapter(scene)
 
-                if scene_element not in self._meshes:
-                    scene_tile = SceneTileAdapter(scene)
+                k = (scene_tile, state.cpt.cpt_name)
+
+                if k not in self._meshes:
+                    # TODO handle different limits of multiples scenes?!
+
+                    cpt = copy.deepcopy(
+                        self.cpt_handler._cpts[state.cpt.cpt_name])
+
                     mesh = TopoMeshPipe(
                         scene_tile,
                         cells_cache=None,
-                        lut=cpt_displacement)
-                    mesh.set_values(scene.displacement)
-                    self._meshes[scene_element] = mesh
+                        cpt=cpt,
+                        # lut=lut,
+                        backface_culling=False)
 
-                mesh = self._meshes[scene_element]
-                mesh.set_shading('phong')
+                    values = scene_tile.data.flatten()
+                    self.cpt_handler._values = values
+                    self.cpt_handler.update_cpt()
+
+                    mask = num.ones((2, 2))
+                    mesh.set_values(convolve2d(
+                        scene_tile.data, mask, 'valid').flatten() / len(mask))
+
+                    mesh.set_shading('phong')
+
+                    self._meshes[k] = mesh
+                else:
+                    # TODO Somehow buggy
+                    mesh = self._meshes[k]
+
+                    values = k[0].data.flatten()
+                    self.cpt_handler._values = values
+                    self.cpt_handler.update_cpt()
+
+                # self.cpt_handler.update_cpt()
+
                 if scene_element.visible:
                     self._parent.add_actor(mesh.actor)
-                else:
-                    self._parent.remove_actor(mesh.actor)
+                # else:
+                #     self._parent.remove_actor(mesh.actor)
 
         self._parent.update_view()
 
@@ -162,15 +228,26 @@ class KiteElement(Element):
             pb_load.clicked.connect(self.open_load_scene_dialog)
             layout.addWidget(pb_load, 0, 0)
 
+            self.cpt_handler.cpt_controls(
+                self._parent, self._state.cpt, layout)
+
             cb = qw.QCheckBox('Show')
-            layout.addWidget(cb, 1, 0)
+            layout.addWidget(cb, 4, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
 
-            layout.addWidget(qw.QFrame(), 3, 0, 1, 2)
+            # layout.addWidget(qw.QFrame(), 3, 0, 1, 2)
+
+            layout.addWidget(qw.QFrame(), 5, 0, 1, 3)
 
             self._controls = frame
 
+            self._update_controls()
+
         return self._controls
+
+    def _update_controls(self):
+        self.cpt_handler._update_cpt_combobox()
+        self.cpt_handler._update_cptscale_lineedit()
 
 
 __all__ = [

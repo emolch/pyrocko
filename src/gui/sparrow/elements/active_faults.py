@@ -23,7 +23,7 @@ km = 1e3
 
 
 def color(x):
-    return num.array(plot.to01(plot.color(x)), dtype=num.float)
+    return num.array(plot.to01(plot.color(x)), dtype=num.float64)
 
 
 fault_color_themes = {
