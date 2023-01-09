@@ -63,15 +63,6 @@ def dark(color, factor=0.5):
     return tuple(c*factor for c in color)
 
 
-def have_geographiclib():
-    try:
-        from geographiclib.geodesic import Geodesic  # noqa
-        return True
-
-    except ImportError:
-        return False
-
-
 class OrthodromeTestCase(unittest.TestCase):
 
     @classmethod
@@ -349,7 +340,6 @@ class OrthodromeTestCase(unittest.TestCase):
         assert orthodrome.wrap(10, -10, 10) == -10
         assert orthodrome.wrap(10.001, -10, 10) == -9.999
 
-    @unittest.skip('needs inspection')
     def test_local_distances(self):
 
         for reflat, reflon in [
@@ -361,14 +351,17 @@ class OrthodromeTestCase(unittest.TestCase):
                 (0.0, -180.0),
                 (90.0, 180.0)]:
 
-            north, east = serialgrid(num.linspace(-10*km, 10*km, 21),
-                                     num.linspace(-10*km, 10*km, 21))
+            north, east = serialgrid(
+                num.linspace(-10*km, 10*km, 21),
+                num.linspace(-10*km, 10*km, 21))
 
-            lat, lon = orthodrome.ne_to_latlon2(reflat, reflon, north, east)
-            north2, east2 = orthodrome.latlon_to_ne2(reflat, reflon, lat, lon)
+            lat, lon = orthodrome.ne_to_latlon_proj(
+                reflat, reflon, north, east)
+            north2, east2 = orthodrome.latlon_to_ne_proj(
+                reflat, reflon, lat, lon)
             dist1 = num.sqrt(north**2 + east**2)
             dist2 = num.sqrt(north2**2 + east2**2)
-            dist3 = orthodrome.distance_accurate15nm(reflat, reflon, lat, lon)
+            dist3 = orthodrome.distance_proj(reflat, reflon, lat, lon)
             assert num.all(num.abs(dist1-dist2) < 0.0001)
             assert num.all(num.abs(dist1-dist3) < 0.0001)
 
@@ -404,7 +397,6 @@ class OrthodromeTestCase(unittest.TestCase):
                                 '(maximum error)\n tested lat/lon: %s/%s' %
                                 (lat, lon))
 
-    @unittest.skipUnless(have_geographiclib(), 'geographiclib not available')
     def test_geodetic_to_ecef(self):
         orthodrome.geodetic_to_ecef(23., 0., 0.)
 
@@ -419,7 +411,6 @@ class OrthodromeTestCase(unittest.TestCase):
         for p in points:
             assert_ae(orthodrome.geodetic_to_ecef(*p[0]), p[1])
 
-    @unittest.skipUnless(have_geographiclib(), 'geographiclib not available')
     def test_ecef_to_geodetic(self):
         ncoords = 5
         lats = num.random.uniform(-90., 90, size=ncoords)
@@ -515,7 +506,7 @@ class OrthodromeTestCase(unittest.TestCase):
 
 
 def serialgrid(x, y):
-    return num.repeat(x, y.size), num.tile(y, x.size)
+    return [v.flatten() for v in num.meshgrid(x, y, indexing='ij')]
 
 
 def plot_erroneous_ne_to_latlon():
