@@ -15,11 +15,10 @@ except ImportError as e:
 
 import numpy as num
 
-from pyrocko import automap
+from pyrocko import geometry, cake
 from pyrocko.guts import Bool, String, List
 from pyrocko.gui.qt_compat import qw
-from pyrocko.dataset import topo
-from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
+from pyrocko.gui.vtk_util import TrimeshPipe, faces_to_cells
 
 from .. import common
 
@@ -30,6 +29,7 @@ logger = logging.getLogger('kite_scene')
 guts_prefix = 'sparrow'
 
 km = 1e3
+d2r = num.pi/180.
 
 
 class SceneTileAdapter(object):
@@ -37,41 +37,70 @@ class SceneTileAdapter(object):
     def __init__(self, scene):
         self._scene = scene
 
-        # import matplotlib.pyplot as plt
-        # coords = scene.frame.coordinates
-        # scat = plt.scatter(coords[:, 0], coords[:, 1], self.data)
-        # x = num.tile(self.x(), self.y().shape[0])
-        # y = num.repeat(self.y(), self.x().shape[0])
-        # x = self.x()
-        # y = self.y()
-        # scat = plt.pcolormesh(x, y, self.data)
-        # plt.colorbar(scat)
-        # plt.show()
-        # print(self._scene.frame.coordinates)
-
     def x(self):
         # TODO how to handle E given in m
-        # return num.arange(5) * 2.
-        return self._scene.frame.E + self._scene.frame.llLon
+        frame = self._scene.frame
+        x = num.zeros(frame.cols + 1)
+        x[0] = frame.E[0] - 0.5 * frame.dE
+        x[1:] = frame.E + 0.5 * frame.dE
+        x += frame.llLon
+        return x
+        # return self._scene.frame.E + self._scene.frame.llLon
 
     def y(self):
         # TODO how to handle N given in m
-        # return num.arange(10) * 2.
-        return self._scene.frame.N + self._scene.frame.llLat
+        frame = self._scene.frame
+        y = num.zeros(frame.rows + 1)
+        y[0] = frame.N[0] - 0.5 * frame.dN
+        y[1:] = frame.N + 0.5 * frame.dN
+        y += frame.llLat
+        return y
+        # return self._scene.frame.N + self._scene.frame.llLat
 
     @property
     def data(self):
-        # import numpy as num
-        # data = num.ones((self.y().shape[0], self.x().shape[0]))
-        # # data = num.ones_like(self._scene.displacement)
-        # x = num.linspace(-10, 10, data.shape[1])
-        # y = num.linspace(-10, 10, data.shape[0])
-        # xx, yy = num.meshgrid(x, y)
-        # dist = num.sqrt(xx**2 + yy**2)
+        disp = self._scene.displacement
+        disp[num.isnan(disp)] = None
+        return disp
 
-        # data = num.exp(-dist)
-        # return data
-        return self._scene.displacement
+
+class KiteMeshPipe(TrimeshPipe):
+    def __init__(self, tile, cells_cache=None, **kwargs):
+        lat_edge = tile.y()
+        lon_edge = tile.x()
+        data_center = tile.data
+
+        nlat = lat_edge.size
+        nlon = lon_edge.size
+        nvertices = nlat * nlon
+
+        assert nlat > 1 and nlon > 1
+        assert data_center.shape == (nlat-1, nlon-1)
+
+        rtp = num.empty((nvertices, 3))
+        rtp[:, 0] = 1.0
+        rtp[:, 1] = (num.repeat(lat_edge, nlon) + 90.) * d2r
+        rtp[:, 2] = num.tile(lon_edge, nlat) * d2r
+        vertices = geometry.rtp2xyz(rtp)
+
+        faces = geometry.topo_to_faces_quad(nlat, nlon)
+
+        self._tile = tile
+        self._raw_vertices = vertices
+
+        if cells_cache is not None:
+            if id(faces) not in cells_cache:
+                cells_cache[id(faces)] = faces_to_cells(faces)
+
+            cells = cells_cache[id(faces)]
+        else:
+            cells = faces_to_cells(faces)
+
+        data_center = data_center.flatten()
+
+        TrimeshPipe.__init__(
+            self, self._raw_vertices,
+            cells=cells, values=data_center, **kwargs)
 
 
 class KiteSceneElement(ElementState):
@@ -103,6 +132,7 @@ class KiteElement(Element):
         Element.__init__(self)
         self._controls = None
         self._meshes = {}
+        self._cells = {}
         self.cpt_handler = CPTHandler()
 
     def bind_state(self, state):
@@ -136,6 +166,22 @@ class KiteElement(Element):
 
         self.update()
 
+    def unset_parent(self):
+        self.unbind_state()
+        if self._parent:
+            for mesh in self._meshes:
+                self._parent.remove_actor(mesh.actor)
+
+            self._meshes.clear()
+            self._cells.clear()
+
+            if self._controls:
+                self._parent.remove_panel(self._controls)
+                self._controls = None
+
+            self._parent.update_view()
+            self._parent = None
+
     def open_load_scene_dialog(self, *args):
         caption = 'Select one or more Kite scenes to open'
 
@@ -152,7 +198,15 @@ class KiteElement(Element):
                     self._parent, 'Import Error',
                     'Could not load Kite scene from %s' % fname)
                 return
-            logger.info('adding Kite scene %s', fname)
+
+            if scene.frame.spacing != 'degree':
+                logger.warning(
+                    'Sparrow requires Scene spacing in degrees. '
+                    'Skipped %s', fname)
+
+                continue
+
+            logger.info('Adding Kite scene %s', fname)
 
             scene_element = KiteSceneElement(filename=fname)
             scene_element.scene = scene
@@ -160,8 +214,18 @@ class KiteElement(Element):
 
         self.update()
 
+    def clear_scenes(self, *args):
+        logger.info('Clearing all loaded Kite scenes')
+
+        for mesh in self._meshes.values():
+            self._parent.remove_actor(mesh.actor)
+
+        self._meshes.clear()
+        self._state.scenes = []
+
+        self.update()
+
     def update(self, *args):
-        from scipy.signal import convolve2d
         state = self._state
 
         for mesh in self._meshes.values():
@@ -169,7 +233,7 @@ class KiteElement(Element):
 
         if self._state.visible:
             for scene_element in state.scenes:
-                logger.info('drawing scene')
+                logger.info('Drawing Kite scene')
                 scene = scene_element.scene
                 scene_tile = SceneTileAdapter(scene)
 
@@ -181,38 +245,26 @@ class KiteElement(Element):
                     cpt = copy.deepcopy(
                         self.cpt_handler._cpts[state.cpt.cpt_name])
 
-                    mesh = TopoMeshPipe(
+                    mesh = KiteMeshPipe(
                         scene_tile,
                         cells_cache=None,
                         cpt=cpt,
-                        # lut=lut,
                         backface_culling=False)
 
                     values = scene_tile.data.flatten()
                     self.cpt_handler._values = values
                     self.cpt_handler.update_cpt()
 
-                    mask = num.ones((2, 2))
-                    mesh.set_values(convolve2d(
-                        scene_tile.data, mask, 'valid').flatten() / len(mask))
-
                     mesh.set_shading('phong')
+                    mesh.set_lookuptable(self.cpt_handler._lookuptable)
 
                     self._meshes[k] = mesh
                 else:
-                    # TODO Somehow buggy
                     mesh = self._meshes[k]
-
-                    values = k[0].data.flatten()
-                    self.cpt_handler._values = values
                     self.cpt_handler.update_cpt()
-
-                # self.cpt_handler.update_cpt()
 
                 if scene_element.visible:
                     self._parent.add_actor(mesh.actor)
-                # else:
-                #     self._parent.remove_actor(mesh.actor)
 
         self._parent.update_view()
 
@@ -226,7 +278,11 @@ class KiteElement(Element):
 
             pb_load = qw.QPushButton('Add Scene')
             pb_load.clicked.connect(self.open_load_scene_dialog)
-            layout.addWidget(pb_load, 0, 0)
+            layout.addWidget(pb_load, 0, 1)
+
+            pb_clear = qw.QPushButton('Clear Scenes')
+            pb_clear.clicked.connect(self.clear_scenes)
+            layout.addWidget(pb_clear, 0, 2)
 
             self.cpt_handler.cpt_controls(
                 self._parent, self._state.cpt, layout)
@@ -234,8 +290,6 @@ class KiteElement(Element):
             cb = qw.QCheckBox('Show')
             layout.addWidget(cb, 4, 0)
             state_bind_checkbox(self, self._state, 'visible', cb)
-
-            # layout.addWidget(qw.QFrame(), 3, 0, 1, 2)
 
             layout.addWidget(qw.QFrame(), 5, 0, 1, 3)
 

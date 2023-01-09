@@ -227,9 +227,10 @@ class CPTHandler(Element):
             self._cpts[state.cpt_name].scale(vmin, vmax)
             cpt = self._cpts[state.cpt_name]
 
-            vtk_cpt = cpt_to_vtk_lookuptable(cpt)
+            vtk_lut = cpt_to_vtk_lookuptable(cpt)
+            vtk_lut.SetNanColor(0.0, 0.0, 0.0, 0.0)
 
-            self._lookuptable = vtk_cpt
+            self._lookuptable = vtk_lut
             self._update_cptscale_lineedit()
 
         elif state.cpt_name and self._values is None:
