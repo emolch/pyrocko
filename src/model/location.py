@@ -87,8 +87,9 @@ class Location(Object):
             if self.north_shift == 0.0 and self.east_shift == 0.0:
                 self._latlon = self.lat, self.lon
             else:
-                self._latlon = tuple(float(x) for x in orthodrome.ne_to_latlon(
-                    self.lat, self.lon, self.north_shift, self.east_shift))
+                self._latlon = tuple(
+                    float(x) for x in orthodrome.ne_to_latlon_proj(
+                        self.lat, self.lon, self.north_shift, self.east_shift))
 
         return self._latlon
 
@@ -132,8 +133,8 @@ class Location(Object):
             slat, slon = self.effective_latlon
             rlat, rlon = get_effective_latlon(other)
 
-            return float(orthodrome.distance_accurate50m_numpy(
-                slat, slon, rlat, rlon)[0])
+            return float(orthodrome.distance_proj(
+                slat, slon, rlat, rlon))
 
     def distance_3d_to(self, other):
         '''
@@ -196,7 +197,7 @@ class Location(Object):
         else:
             slat, slon = self.effective_latlon
             rlat, rlon = get_effective_latlon(other)
-            azi, bazi = orthodrome.azibazi(slat, slon, rlat, rlon)
+            azi, bazi = orthodrome.azibazi_proj(slat, slon, rlat, rlon)
 
         return float(azi), float(bazi)
 
@@ -204,7 +205,7 @@ class Location(Object):
         lat = float(lat)
         lon = float(lon)
         elat, elon = self.effective_latlon
-        n, e = orthodrome.latlon_to_ne(lat, lon, elat, elon)
+        n, e = orthodrome.latlon_to_ne_proj(lat, lon, elat, elon)
         self.lat = lat
         self.lon = lon
         self.north_shift = float(n)

@@ -297,10 +297,10 @@ class OrthodromeTestCase(unittest.TestCase):
         b1.set_origin(lat=9., lon=11)
         b2 = Dummy(b0.lat, b0.lon, b0.depth)
 
-        dist_ab = orthodrome.distance_accurate50m(
+        dist_ab = orthodrome.distance_proj(
             a0.lat, a0.lon, b0.lat, b0.lon)
 
-        azi_ab, bazi_ab = orthodrome.azibazi(
+        azi_ab, bazi_ab = orthodrome.azibazi_proj(
             a0.lat, a0.lon, b0.lat, b0.lon)
 
         def g_to_e(*args):
@@ -311,7 +311,7 @@ class OrthodromeTestCase(unittest.TestCase):
 
         dist_3d_compare = math.sqrt(num.sum((a_vec - b_vec)**2))
 
-        north_shift_compare, east_shift_compare = orthodrome.latlon_to_ne(
+        north_shift_compare, east_shift_compare = orthodrome.latlon_to_ne_proj(
             a0.lat, a0.lon, b0.lat, b0.lon)
 
         for a in [a0, a1]:
