@@ -127,7 +127,7 @@ class ModelTestCase(unittest.TestCase):
         ev = model.Event(lat=-10, lon=150., depth=0.0)
 
         for azi in num.linspace(0., 360., 37):
-            lat, lon = orthodrome.ne_to_latlon(
+            lat, lon = orthodrome.ne_to_latlon_proj(
                 ev.lat, ev.lon, 10.*km * math.cos(azi), 10.*km * math.sin(azi))
 
             sta = model.Station(lat=lat, lon=lon)
