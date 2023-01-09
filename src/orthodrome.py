@@ -907,57 +907,44 @@ _wgs84 = None
 def get_wgs84():
     global _wgs84
     if _wgs84 is None:
-        from geographiclib.geodesic import Geodesic
-        _wgs84 = Geodesic.WGS84
+        from pyproj import Geod
+        _wgs84 = Geod(ellps='WGS84')
 
     return _wgs84
 
 
-def amap(n):
-    def wrap(f):
-        if n == 1:
-            def func(*args):
-                it = num.nditer(args + (None,))
-                for ops in it:
-                    ops[-1][...] = f(*ops[:-1])
-
-                return it.operands[-1]
-        elif n == 2:
-            def func(*args):
-                it = num.nditer(args + (None, None))
-                for ops in it:
-                    ops[-2][...], ops[-1][...] = f(*ops[:-2])
-
-                return it.operands[-2], it.operands[-1]
-
-        return func
-    return wrap
-
-
-@amap(2)
-def ne_to_latlon2(lat0, lon0, north_m, east_m):
+def ne_to_latlon_proj(lat0, lon0, north_m, east_m):
+    lat0, lon0, north_m, east_m = float_array_broadcast(
+        lat0, lon0, north_m, east_m)
     wgs84 = get_wgs84()
     az = num.arctan2(east_m, north_m)*r2d
     dist = num.sqrt(east_m**2 + north_m**2)
-    x = wgs84.Direct(lat0, lon0, az, dist)
-    return x['lat2'], x['lon2']
+    lon, lat, _ = wgs84.fwd(lon0, lat0, az, dist)
+    return lat, lon
 
 
-@amap(2)
-def latlon_to_ne2(lat0, lon0, lat1, lon1):
+def latlon_to_ne_proj(lat0, lon0, lat1, lon1):
+    lat0, lon0, lat1, lon1 = float_array_broadcast(
+        lat0, lon0, lat1, lon1)
     wgs84 = get_wgs84()
-    x = wgs84.Inverse(lat0, lon0, lat1, lon1)
-    dist = x['s12']
-    az = x['azi1']
+    az, _, dist = wgs84.inv(lon0, lat0, lon1, lat1)
     n = num.cos(az*d2r)*dist
     e = num.sin(az*d2r)*dist
     return n, e
 
 
-@amap(1)
-def distance_accurate15nm(lat1, lon1, lat2, lon2):
+def distance_proj(lat1, lon1, lat2, lon2):
+    lat1, lon1, lat2, lon2 = float_array_broadcast(
+        lat1, lon1, lat2, lon2)
     wgs84 = get_wgs84()
-    return wgs84.Inverse(lat1, lon1, lat2, lon2)['s12']
+    return wgs84.inv(lon1, lat1, lon2, lat2)[2]
+
+
+def azibazi_proj(lat1, lon1, lat2, lon2):
+    lat1, lon1, lat2, lon2 = float_array_broadcast(
+        lat1, lon1, lat2, lon2)
+    wgs84 = get_wgs84()
+    return wgs84.inv(lon1, lat1, lon2, lat2)[:2]
 
 
 def positive_region(region):
