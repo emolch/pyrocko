@@ -467,7 +467,7 @@ steps:
   commands:
   - C:\Windows\System32\cleanmgr.exe /dC
   - Remove-Item -Recurse -Force -ErrorAction Ignore C:\\Users\\IEUser\\miniconda3\\Lib\\site-packages\\pyrocko
-  - pip install --no-deps --no-build-isolation --force-reinstall --use-feature=in-tree-build .
+  - pip install --no-deps --no-build-isolation --force-reinstall .
   - xcopy C:\\vagrant\\test-data test\\data\\ /E /Y
 
 - name: tests-base
