@@ -467,30 +467,34 @@ steps:
   commands:
   - C:\Windows\System32\cleanmgr.exe /dC
   - Remove-Item -Recurse -Force -ErrorAction Ignore C:\\Users\\IEUser\\miniconda3\\Lib\\site-packages\\pyrocko
-  - pip install --no-deps --no-build-isolation --force-reinstall .
+  - conda create --name test_env_${DRONE_BUILD_NUMBER} --yes pytest
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python install.py deps conda --yes
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python install.py user --yes
   - xcopy C:\\vagrant\\test-data test\\data\\ /E /Y
+  # ensure config is there to prevent race conditions in parallel test runs
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pyrocko.config
 
 - name: tests-base
   commands:
-  - pytest -v test/base
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/base
   depends_on:
   - install
 
 - name: tests-gf
   commands:
-  - pytest -v test/gf
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gf
   depends_on:
   - install
 
 - name: tests-examples
   commands:
-  - pytest -v test/examples
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/examples
   depends_on:
   - install
 
 - name: tests-gui
   commands:
-  - pytest -v test/gui
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gui
   depends_on:
   - install
 
@@ -501,6 +505,79 @@ steps:
   - tests-gf
   - tests-examples
   - tests-gui
+
+- name: cleanup
+  commands:
+  - conda env remove --name test_env_${DRONE_BUILD_NUMBER} --yes
+  depends_on:
+  - finalize
+  when:
+    status:
+    - failure
+    - success
+
+---
+
+kind: pipeline
+type: exec
+name: tests-osx-m2
+
+platform:
+  os: darwin
+  arch: arm64
+
+steps:
+- name: install
+  commands:
+  - conda create --name test_env_${DRONE_BUILD_NUMBER} --yes pytest
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python install.py deps conda --yes
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python install.py user --yes
+  - cp -r /Users/drone/test-data test/data
+  # ensure config is there to prevent race conditions in parallel test runs
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pyrocko.config
+
+- name: tests-base
+  commands:
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/base
+  depends_on:
+  - install
+
+- name: tests-gf
+  commands:
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gf
+  depends_on:
+  - install
+
+- name: tests-examples
+  commands:
+  - conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/examples
+  depends_on:
+  - install
+
+# Segfaults while trying to do offscreen testing
+#- name: tests-gui
+#  commands:
+#  - QT_QPA_PLATFORM=offscreen conda run --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gui
+#  depends_on:
+#  - install
+
+- name: finalize
+  commands: []
+  depends_on:
+  - tests-base
+  - tests-gf
+  - tests-examples
+  # - tests-gui
+
+- name: cleanup
+  commands:
+  - conda env remove --name test_env_${DRONE_BUILD_NUMBER} --yes
+  depends_on:
+  - finalize
+  when:
+    status:
+    - failure
+    - success
 
 ---
 
@@ -745,6 +822,7 @@ steps:
   commands:
   - Remove-Item -Recurse -Force -ErrorAction Ignore C:\\Windows\\Temp\\pyrocko*
 
+
 ---
 
 kind: pipeline
@@ -756,6 +834,7 @@ depends_on:
 - flake8
 - docs
 - tests-windows
+- tests-osx-m2
 - pip-sdist
 - pip-manylinux2014
 - pip-windows

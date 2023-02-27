@@ -211,3 +211,7 @@ override_gui_toolkit = None
 
 def effective_gui_toolkit():
     return override_gui_toolkit or config().gui_toolkit
+
+
+if __name__ == '__main__':
+    print(config())
