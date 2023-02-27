@@ -8,12 +8,14 @@ import tempfile
 import numpy
 import glob
 
-from setuptools import setup, Extension
+from pkg_resources import parse_version as pv
+from setuptools import setup, Extension, __version__ as setuptools_version
 from setuptools.command.build_py import build_py
 from setuptools.command.build_ext import build_ext
 
 is_windows = sys.platform.startswith('win')
 
+have_pep621_support = pv(setuptools_version) >= pv('61.0.0')
 
 packname = 'pyrocko'
 version = '2023.01.20'
@@ -552,52 +554,73 @@ if not is_windows:
     ext_modules.extend(ext_modules_non_windows)
 
 
+if not have_pep621_support:
+    metadata = dict(
+        description='A versatile seismology toolkit for Python.',
+        long_description=open(
+            'maintenance/readme-pip.rst', 'rb').read().decode('utf8'),
+        author='The Pyrocko Developers',
+        author_email='info@pyrocko.org',
+        url='https://pyrocko.org',
+        license='GPLv3',
+        classifiers=[
+            'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+            'Development Status :: 5 - Production/Stable',
+            'Intended Audience :: Science/Research',
+            'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3',
+            'Programming Language :: C',
+            'Programming Language :: Python :: Implementation :: CPython',
+            'Operating System :: POSIX',
+            'Operating System :: MacOS',
+            'Topic :: Scientific/Engineering',
+            'Topic :: Scientific/Engineering :: Physics',
+            'Topic :: Scientific/Engineering :: Visualization',
+            'Topic :: Scientific/Engineering :: Information Analysis',
+            'Topic :: Software Development :: Libraries :: Application Frameworks',  # noqa
+            ],
+        keywords=[
+            'seismology, waveform analysis, earthquake modelling, geophysics,'
+            ' geophysical inversion'],
+        python_requires='>=3.7, <4',
+        # Removed in favor of PEP 518 advocating `pyproject.toml`:
+        # setup_requires=[
+        #     'numpy>=1.8'
+        # ],
+        install_requires=[
+            'numpy>=1.8',
+            'scipy>=1.0',
+            'pyyaml',
+            'matplotlib',
+            'requests',
+        ],
+
+        extras_require={
+            'gui_scripts': ['PyQt5'],
+        },
+
+        entry_points={
+            'console_scripts':
+                ['fomosto = pyrocko.apps.fomosto:main',
+                 'cake = pyrocko.apps.cake:main',
+                 'automap = pyrocko.apps.automap:main',
+                 'hamster = pyrocko.apps.hamster:main',
+                 'jackseis = pyrocko.apps.jackseis:main',
+                 'colosseo = pyrocko.apps.colosseo:main',
+                 'squirrel = pyrocko.apps.squirrel:main'],
+            'gui_scripts':
+                ['snuffler = pyrocko.apps.snuffler:main'],
+        },
+    )
+
+else:
+    metadata = {}
+
+
 setup(
     cmdclass=cmdclass,
     name=packname,
     version=version,
-    description='A versatile seismology toolkit for Python.',
-    long_description=open(
-        'maintenance/readme-pip.rst', 'rb').read().decode('utf8'),
-    author='The Pyrocko Developers',
-    author_email='info@pyrocko.org',
-    url='https://pyrocko.org',
-    license='GPLv3',
-    classifiers=[
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Science/Research',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: C',
-        'Programming Language :: Python :: Implementation :: CPython',
-        'Operating System :: POSIX',
-        'Operating System :: MacOS',
-        'Topic :: Scientific/Engineering',
-        'Topic :: Scientific/Engineering :: Physics',
-        'Topic :: Scientific/Engineering :: Visualization',
-        'Topic :: Scientific/Engineering :: Information Analysis',
-        'Topic :: Software Development :: Libraries :: Application Frameworks',
-        ],
-    keywords=[
-        'seismology, waveform analysis, earthquake modelling, geophysics,'
-        ' geophysical inversion'],
-    python_requires='>=3.7, <4',
-    # Removed in favor of PEP 518 advocating `pyproject.toml`:
-    # setup_requires=[
-    #     'numpy>=1.8'
-    # ],
-    install_requires=[
-        'numpy>=1.8',
-        'scipy>=1.0',
-        'pyyaml',
-        'matplotlib',
-        'requests',
-    ],
-
-    extras_require={
-        'gui_scripts': ['PyQt5'],
-    },
 
     packages=[packname] + subpacknames,
 
@@ -611,19 +634,6 @@ setup(
         'src/apps/gmtpy-epstopdf',
     ],
 
-    entry_points={
-        'console_scripts':
-            ['fomosto = pyrocko.apps.fomosto:main',
-             'cake = pyrocko.apps.cake:main',
-             'automap = pyrocko.apps.automap:main',
-             'hamster = pyrocko.apps.hamster:main',
-             'jackseis = pyrocko.apps.jackseis:main',
-             'colosseo = pyrocko.apps.colosseo:main',
-             'squirrel = pyrocko.apps.squirrel:main'],
-        'gui_scripts':
-            ['snuffler = pyrocko.apps.snuffler:main'],
-    },
-
     package_data={
         packname: ['data/*.png',
                    'data/*.html',
@@ -633,5 +643,7 @@ setup(
                    'data/fomosto_report/gfreport.*',
                    'gui/snufflings/map/*ml',
                    'gui/snufflings/map/*.js',
-                   ] + get_readme_paths()}
+                   ] + get_readme_paths()},
+
+    **metadata,
 )

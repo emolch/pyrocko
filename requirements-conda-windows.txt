@@ -10,3 +10,4 @@ matplotlib
 requests
 nose
 jinja2
+pyqt

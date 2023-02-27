@@ -1,9 +1,3 @@
-# Build dependencies as advocated by PEP 518.
-#
-#   https://www.python.org/dev/peps/pep-0518/
-#
-# Supersedes use of `setup_requires` in `setup.py`.
-
 [build-system]
 requires = ["setuptools", "wheel", "numpy>=1.8"]
 
@@ -49,8 +43,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gui_scripts = [
-    'PyQt5',
+gui = [
+    "PyQt5",
+    "PyQtWebEngine",
 ]
 
 [project.urls]
@@ -58,6 +53,18 @@ homepage = "https://pyrocko.org"
 documentation = "https://pyrocko.org/docs"
 repository = "https://git.pyrocko.org"
 changelog = "https://git.pyrocko.org/pyrocko/pyrocko/src/branch/master/CHANGELOG.md"
+
+[project.scripts]
+fomosto = "pyrocko.apps.fomosto:main"
+cake = "pyrocko.apps.cake:main"
+automap = "pyrocko.apps.automap:main"
+hamster = "pyrocko.apps.hamster:main"
+jackseis = "pyrocko.apps.jackseis:main"
+colosseo = "pyrocko.apps.colosseo:main"
+squirrel = "pyrocko.apps.squirrel:main"
+
+[project.gui-scripts]
+snuffler = "pyrocko.apps.snuffler:main"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
