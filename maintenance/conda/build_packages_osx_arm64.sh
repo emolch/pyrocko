@@ -2,7 +2,7 @@
 
 set -e
 
-if [ ! -f "build_packages_windows.sh" ] ; then
+if [ ! -f "build_packages_osx_arm64.sh" ] ; then
     echo 'must be run from inside maintenance/conda'
     exit 1
 fi
@@ -40,9 +40,8 @@ else
     conda config --set anaconda_upload no
 fi
 
-conda-build --python 3.7 build
-conda-build --python 3.8 build
-conda-build --python 3.9 build
+conda-build --python 3.8 --numpy 1.21 build
+conda-build --python 3.9 --numpy 1.21 build
 conda-build --python 3.10 --numpy 1.21 build
 
 if [ "$ACTION" == "upload" ] ; then

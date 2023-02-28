@@ -18,4 +18,4 @@ git clone -b "$branch" /vagrant/pyrocko.git "$pyrockodir"
 cd "$pyrockodir/maintenance/conda"
 
 source /vagrant/env.sh
-./build_packages.sh "$branch" "$action"
+./build_packages.sh "$action"

@@ -1,8 +1,9 @@
-{% set data = load_setup_py_data(setup_file='../../../setup.py', from_recipe_dir=True) %} 
+{% set pyproject = load_file_data("../../../pyproject.toml", from_recipe_dir=True)  %}
+{% set proj = pyproject.get('project') %}
 
 package:
-  name: pyrocko
-  version: {{ data.get('version') }}
+  name: {{ proj.get('name') }}
+  version: {{ proj.get('version') }}
 
 source:
   path: ../../..
@@ -32,6 +33,12 @@ requirements:
 
 build:
   script: {{PYTHON}} -m pip install --no-deps --no-build-isolation .
+  entry_points:
+  {% for module, entrypoints in proj.get('entry-points').items() %}
+  {% for name, path in entrypoints.items() %}
+    - {{ name }} = {{ path }}
+  {% endfor %}
+  {% endfor %}
 
 test:
   source_files:

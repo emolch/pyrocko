@@ -520,7 +520,16 @@ steps:
 
 kind: pipeline
 type: exec
-name: tests-osx-m2
+name: tests-osx-arm64
+
+trigger:
+  branch:
+    exclude:
+    - conda
+    - pip
+    - release
+    - deploy-docs
+    - deploy-pip
 
 platform:
   os: darwin
@@ -591,7 +600,6 @@ trigger:
   - candidate
   - pip
   - deploy-pip
-  - pip-windows-release
 
 platform:
   os: windows
@@ -635,7 +643,6 @@ steps:
   when:
     branch:
     - release
-    - pip-windows-release
     - deploy-pip
   commands:
   - pip install twine
@@ -701,7 +708,7 @@ steps:
 ---
 
 kind: pipeline
-type: exec
+type: docker
 name: conda-packages-linux
 
 trigger:
@@ -709,6 +716,7 @@ trigger:
     - candidate
     - release
     - conda
+    - deploy-conda
 
 platform:
   os: linux
@@ -716,20 +724,20 @@ platform:
 
 steps:
 - name: build-test
+  image: quay.io/pypa/manylinux2014_x86_64
   commands:
-  - ln -sf /data/local/home/pyrocko-testing/.vagrant.d $HOME/.vagrant.d
-  - cd maintenance/conda/boxes/centos-7
-  - ./outside.sh dryrun
+  - cd maintenance/conda
+  - ./build_packages.sh dryrun
   when:
     branch:
       - candidate
       - conda
 
 - name: build-test-upload
+  image: quay.io/pypa/manylinux2014_x86_64
   commands:
-  - ln -sf /data/local/home/pyrocko-testing/.vagrant.d $HOME/.vagrant.d
-  - cd maintenance/conda/boxes/centos-7
-  - ./outside.sh upload
+  - cd maintenance/conda
+  - ./build_packages.sh upload
   environment:
     CONDA_USERNAME:
       from_secret: conda-username
@@ -738,18 +746,20 @@ steps:
   when:
     branch:
       - release
+      - deploy-conda
 
 ---
 
 kind: pipeline
 type: exec
-name: conda-packages-osx
+name: conda-packages-osx-64
 
 trigger:
   branch:
     - candidate
     - release
     - conda
+    - deploy-conda
 
 platform:
   os: linux
@@ -779,6 +789,56 @@ steps:
   when:
     branch:
       - release
+      - deploy-conda
+
+---
+
+kind: pipeline
+type: exec
+name: conda-packages-osx-arm64
+
+trigger:
+  branch:
+    - candidate
+    - release
+    - conda
+    - deploy-conda
+
+platform:
+  os: darwin
+  arch: arm64
+
+steps:
+- name: build-test
+  commands:
+  - cd maintenance/conda
+  - conda run -n base bash build_packages_osx_arm64.sh dryrun
+  when:
+    branch:
+      - candidate
+      - conda
+
+- name: build-test-upload
+  commands:
+  - cd maintenance/conda
+  - conda run -n base bash build_packages_osx_arm64.sh upload
+  environment:
+    CONDA_USERNAME:
+      from_secret: conda-username
+    CONDA_PASSWORD:
+      from_secret: conda-password
+  when:
+    branch:
+      - release
+      - deploy-conda
+
+- name: cleanup
+  commands:
+  - conda build purge
+  when:
+    status:
+    - failure
+    - success
 
 ---
 
@@ -791,6 +851,7 @@ trigger:
     - candidate
     - release
     - conda
+    - deploy-conda
 
 platform:
   os: windows
@@ -817,6 +878,7 @@ steps:
   when:
     branch:
       - release
+      - deploy-conda
 
 - name: cleanup
   commands:
@@ -834,12 +896,13 @@ depends_on:
 - flake8
 - docs
 - tests-windows
-- tests-osx-m2
+- tests-osx-arm64
 - pip-sdist
 - pip-manylinux2014
 - pip-windows
 - conda-packages-linux
-- conda-packages-osx
+- conda-packages-osx-64
+- conda-packages-osx-arm64
 - conda-packages-windows
 
 trigger:

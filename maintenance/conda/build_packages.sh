@@ -13,11 +13,10 @@ if [ ! -z "$(git status --untracked-files=no --porcelain)" ]; then
 fi
 
 
-BRANCH="$1"
-ACTION="$2"
+ACTION="$1"
 
-if [ -z "$BRANCH" -o -z "$ACTION" ] ; then
-    echo "usage: build_packages.sh <branch> (dryrun|upload)"
+if [ -z "$ACTION" ] ; then
+    echo "usage: build_packages.sh (dryrun|upload)"
     exit 1
 fi
 

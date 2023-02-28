@@ -54,7 +54,7 @@ documentation = "https://pyrocko.org/docs"
 repository = "https://git.pyrocko.org"
 changelog = "https://git.pyrocko.org/pyrocko/pyrocko/src/branch/master/CHANGELOG.md"
 
-[project.scripts]
+[project.entry-points.console_scripts]
 fomosto = "pyrocko.apps.fomosto:main"
 cake = "pyrocko.apps.cake:main"
 automap = "pyrocko.apps.automap:main"
@@ -63,7 +63,7 @@ jackseis = "pyrocko.apps.jackseis:main"
 colosseo = "pyrocko.apps.colosseo:main"
 squirrel = "pyrocko.apps.squirrel:main"
 
-[project.gui-scripts]
+[project.entry-points.gui_scripts]
 snuffler = "pyrocko.apps.snuffler:main"
 
 [tool.pytest.ini_options]
