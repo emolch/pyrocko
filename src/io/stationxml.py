@@ -519,7 +519,7 @@ class Counter(Int):
     class __T(TBase):
 
         def regularize_extra(self, val):
-            print(val, len(val))
+
             if isinstance(val, str) and len(val) == 0:
                 return None  # empty Total Number of Stations empty
 
