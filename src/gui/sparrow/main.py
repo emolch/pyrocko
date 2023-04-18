@@ -393,6 +393,19 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             snapshots_panel, visible=False,
             where=qc.Qt.LeftDockWidgetArea)
 
+        menu = mbar.addMenu('Snapshots')
+        menu.addAction(
+            'Next',
+            snapshots_panel.transition_to_next_snapshot,
+            qg.QKeySequence(qc.Qt.Key_PageDown)).setShortcutContext(
+                qc.Qt.ApplicationShortcut)
+
+        menu.addAction(
+            'Previous',
+            snapshots_panel.transition_to_previous_snapshot,
+            qg.QKeySequence(qc.Qt.Key_PageUp)).setShortcutContext(
+                qc.Qt.ApplicationShortcut)
+
         self.setCentralWidget(self.main_frame)
 
         self.mesh = None

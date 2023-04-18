@@ -365,6 +365,41 @@ class SnapshotsPanel(qw.QFrame):
 
                 self.viewer.start_animation(ip)
 
+    def transition_to_next_snapshot(self, direction=1):
+        index = self.list_view.currentIndex()
+        if index.row() == -1:
+            if direction == 1:
+                index = self.model.createIndex(0, 0)
+
+        item = self.model.get_item_or_none(index)
+
+        if isinstance(item, Snapshot):
+            snap1 = item
+            transition = self.model.get_item_or_none(index.row()+1*direction)
+            snap2 = self.model.get_item_or_none(index.row()+2*direction)
+        elif isinstance(item, Transition):
+            snap1 = self.model.get_item_or_none(index.row()-1*direction)
+            transition = item
+            snap2 = self.model.get_item_or_none(index.row()+1*direction)
+
+        if None not in (snap1, transition, snap2):
+            ip = Interpolator(
+                [0.0, transition.effective_duration],
+                [snap1.state, snap2.state])
+
+            index = self.model.get_index_for_item(snap2)
+            self.list_view.setCurrentIndex(index)
+
+            self.viewer.start_animation(ip)
+
+        elif snap2 is not None:
+            index = self.model.get_index_for_item(snap2)
+            self.list_view.setCurrentIndex(index)
+            self.viewer.set_state(snap2.state)
+
+    def transition_to_previous_snapshot(self):
+        self.transition_to_next_snapshot(-1)
+
     def delete_snapshots(self):
         selected_indexes = self.list_view.selectedIndexes()
         self.model.remove_snapshots(selected_indexes)
@@ -710,6 +745,9 @@ class SnapshotsModel(qc.QAbstractListModel):
             i = index.row()
         else:
             i = index
+
+        if i < 0 or len(self._items) <= i:
+            return None
 
         try:
             return self._items[i]
