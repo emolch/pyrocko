@@ -1567,9 +1567,11 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
     def update_panel_visibility(self, *args):
         self.setUpdatesEnabled(False)
         mbar = self.menuBar()
+        sbar = self.statusBar()
         dockwidgets = self.findChildren(common.MyDockWidget)
 
         mbar.setVisible(self.gui_state.panels_visible)
+        sbar.setVisible(self.gui_state.panels_visible)
         for dockwidget in dockwidgets:
             dockwidget.setBlocked(not self.gui_state.panels_visible)
 
