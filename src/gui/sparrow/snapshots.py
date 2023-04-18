@@ -588,7 +588,8 @@ class SnapshotsModel(qc.QAbstractListModel):
 
         elif role == qc.Qt.ToolTipRole:
             if is_snap:
-                return qc.QVariant(str(item.state))
+                # return qc.QVariant(str(item.state))
+                return qc.QVariant()
             else:
                 if item.animate:
                     label = 'Interpolation: %s' % \
