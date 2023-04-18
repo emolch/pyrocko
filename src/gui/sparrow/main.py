@@ -304,6 +304,12 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         menu.addAction(action)
 
         self.panels_menu = mbar.addMenu('Panels')
+        self.panels_menu.addAction(
+            'Stack Panels',
+            self.stack_panels)
+        self.panels_menu.addSeparator()
+
+        snapshots_menu = mbar.addMenu('Snapshots')
 
         menu = mbar.addMenu('Add')
         for name, estate in [
@@ -392,6 +398,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             'Snapshots',
             snapshots_panel, visible=False,
             where=qc.Qt.LeftDockWidgetArea)
+
+        snapshots_panel.setup_menu(snapshots_menu)
 
         self.setCentralWidget(self.main_frame)
 
@@ -1530,6 +1538,21 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             dockwidget.setFocus()
             dockwidget.raise_()
 
+    def stack_panels(self):
+        dockwidgets = self.findChildren(common.MyDockWidget)
+        by_area = defaultdict(list)
+        for dw in dockwidgets:
+            area = self.dockWidgetArea(dw)
+            by_area[area].append(dw)
+
+        for dockwidgets in by_area.values():
+            dw_last = None
+            for dw in dockwidgets:
+                if dw_last is not None:
+                    self.tabifyDockWidget(dw_last, dw)
+
+                dw_last = dw
+
     def update_slug_abbreviated_lengths(self):
         dockwidgets = self.findChildren(common.MyDockWidget)
         title_labels = []
@@ -1570,7 +1593,12 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         sbar = self.statusBar()
         dockwidgets = self.findChildren(common.MyDockWidget)
 
-        mbar.setVisible(self.gui_state.panels_visible)
+        # Set height to zero instead of hiding so that shortcuts still work
+        # otherwise one would have to mess around with separate QShortcut
+        # objects.
+        mbar.setFixedHeight(
+            qw.QWIDGETSIZE_MAX if self.gui_state.panels_visible else 0)
+
         sbar.setVisible(self.gui_state.panels_visible)
         for dockwidget in dockwidgets:
             dockwidget.setBlocked(not self.gui_state.panels_visible)
