@@ -201,8 +201,8 @@ class SourceElement(base.Element):
 
         if fns:
             try:
-                self.load_file(str(fns[0]))
-            except gf.FileNotFoundError as e:
+                self.load_source_file(str(fns[0]))
+            except FileNotFoundError as e:
                 raise e
 
         else:
