@@ -279,23 +279,55 @@ class SnapshotsPanel(qw.QFrame):
         pb.clicked.connect(self.delete_snapshots)
         layout.addWidget(pb, 1, 2, 1, 1)
 
-        pb = qw.QPushButton('Import')
-        pb.clicked.connect(self.import_snapshots)
-        layout.addWidget(pb, 2, 0, 1, 1)
-
-        pb = qw.QPushButton('Export')
-        pb.clicked.connect(self.export_snapshots)
-        layout.addWidget(pb, 2, 1, 1, 1)
-
-        pb = qw.QPushButton('Animate')
-        pb.clicked.connect(self.animate_snapshots)
-        layout.addWidget(pb, 2, 2, 1, 1)
-
-        pb = qw.QPushButton('Movie')
-        pb.clicked.connect(self.render_movie)
-        layout.addWidget(pb, 3, 1, 1, 1)
-
         self.window_to_image_filter = None
+
+    def setup_menu(self, menu):
+        menu.addAction(
+            'New',
+            self.take_snapshot,
+            qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_N)).setShortcutContext(
+                qc.Qt.ApplicationShortcut)
+
+        menu.addSeparator()
+
+        menu.addAction(
+            'Next',
+            self.transition_to_next_snapshot,
+            qg.QKeySequence(qc.Qt.Key_PageDown)).setShortcutContext(
+                qc.Qt.ApplicationShortcut)
+
+        menu.addAction(
+            'Previous',
+            self.transition_to_previous_snapshot,
+            qg.QKeySequence(qc.Qt.Key_PageUp)).setShortcutContext(
+                qc.Qt.ApplicationShortcut)
+
+        menu.addSeparator()
+
+        menu.addAction(
+            'Import...',
+            self.import_snapshots)
+
+        menu.addAction(
+            'Export...',
+            self.export_snapshots)
+
+        menu.addAction(
+            'Animate',
+            self.animate_snapshots)
+
+        menu.addAction(
+            'Export Movie...',
+            self.render_movie)
+
+        menu.addSeparator()
+
+        menu.addAction(
+            'Show Panel',
+            self.show_and_raise)
+
+    def show_and_raise(self):
+        self.viewer.raise_panel(self)
 
     def get_snapshot_image(self):
         if not self.window_to_image_filter:
@@ -337,6 +369,7 @@ class SnapshotsPanel(qw.QFrame):
             Snapshot(
                 state=clone(self.viewer.state),
                 thumb=self.get_snapshot_thumbnail_png()))
+        self.viewer.raise_panel(self)
 
     def replace_snapshot(self):
         state = clone(self.viewer.state)
@@ -372,6 +405,8 @@ class SnapshotsPanel(qw.QFrame):
                 index = self.model.createIndex(0, 0)
 
         item = self.model.get_item_or_none(index)
+        if item is None:
+            return
 
         if isinstance(item, Snapshot):
             snap1 = item
@@ -720,7 +755,7 @@ class SnapshotsModel(qc.QAbstractListModel):
                         items[i-1].state, items[i+1].state)
 
                     if item.animate:
-                        item.auto_duration = 3.
+                        item.auto_duration = 1.
                     else:
                         item.auto_duration = 0.
 
@@ -729,7 +764,7 @@ class SnapshotsModel(qc.QAbstractListModel):
                 if 0 < i < len(items)-1:
                     if items[i-1].effective_duration == 0 \
                             and items[i+1].effective_duration == 0:
-                        item.auto_duration = 3.
+                        item.auto_duration = 1.
                     else:
                         item.auto_duration = 0.
 
