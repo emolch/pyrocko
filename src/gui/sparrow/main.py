@@ -20,7 +20,9 @@ import numpy as num
 from pyrocko import cake
 from pyrocko import guts
 from pyrocko import geonames
+from pyrocko import config
 from pyrocko import moment_tensor as pmt
+from pyrocko import util
 
 from pyrocko.gui.util import Progressbars, RangeEdit
 from pyrocko.gui.talkie import TalkieConnectionOwner
@@ -353,6 +355,12 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
             menu.addAction(mitem)
 
+        menu = mbar.addMenu('Help')
+
+        menu.addAction(
+            'Introduction Tour',
+            self.start_tour)
+
         self.data_providers = []
         self.elements = {}
 
@@ -394,6 +402,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             where=qc.Qt.LeftDockWidgetArea)
 
         snapshots_panel = self.controls_snapshots()
+        self.snapshots_panel = snapshots_panel
         self.add_panel(
             'Snapshots',
             snapshots_panel, visible=False,
@@ -532,6 +541,23 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             self.gui_state, 'fixed_size', self.update_vtk_widget_size)
 
         self.update_vtk_widget_size()
+
+        hatch_path = config.expand(os.path.join(
+            config.pyrocko_dir_tmpl, '.sparrow-has-hatched'))
+
+        if not os.path.exists(hatch_path):
+            with open(hatch_path, 'w') as f:
+                f.write('%s\n' % util.time_to_str(time.time()))
+
+            self.start_tour()
+
+    def start_tour(self):
+        snapshots_ = snapshots_mod.load_snapshots(
+            'https://data.pyrocko.org/examples/'
+            'sparrow-tour-v0.1.snapshots.yaml')
+        self.snapshots_panel.add_snapshots(snapshots_)
+        self.raise_panel(self.snapshots_panel)
+        self.snapshots_panel.transition_to_next_snapshot()
 
     def _add_vtk_widget_size_menu_entries(self, menu):
 
