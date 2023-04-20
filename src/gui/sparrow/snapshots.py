@@ -1,7 +1,8 @@
 from subprocess import check_call, CalledProcessError
 import logging
+import tempfile
 
-
+from pyrocko import util
 from pyrocko.guts import Object, String, Float, Bytes, clone, \
     dump_all, load_all
 
@@ -823,6 +824,12 @@ class SnapshotsModel(qc.QAbstractListModel):
 
 
 def load_snapshots(path):
+
+    if path.startswith('http://') or path.startswith('https://'):
+        with tempfile.NamedTemporaryFile() as fp:
+            util.download_file(path, fp.name)
+            return load_snapshots(fp.name)
+
     items = load_all(filename=path)
     for i in range(len(items)):
         if not isinstance(

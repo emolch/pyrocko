@@ -426,6 +426,12 @@ def load_events(filename, format='detect'):
     :returns: list of :py:class:`Event` objects
     '''
 
+    if filename.startswith('http://') or filename.startswith('https://'):
+        import tempfile
+        with tempfile.NamedTemporaryFile() as fp:
+            util.download_file(filename, fp.name)
+            return load_events(fp.name, format=format)
+
     if format == 'detect':
         format = detect_format(filename)
 
