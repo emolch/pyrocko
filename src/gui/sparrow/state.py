@@ -174,6 +174,10 @@ def state_bind_slider(
 
     app = common.get_app()
 
+    viewer = app.get_main_window()
+    widget.sliderPressed.connect(viewer.disable_capture)
+    widget.sliderReleased.connect(viewer.enable_capture)
+
     def make_funcs():
         def update_state(widget, state):
             val = widget.value()
@@ -212,6 +216,10 @@ def state_bind_slider_float(
     assert isinstance(widget, gui_util.QSliderFloat)
 
     app = common.get_app()
+
+    viewer = app.get_main_window()
+    widget.sliderPressed.connect(viewer.disable_capture)
+    widget.sliderReleased.connect(viewer.enable_capture)
 
     def make_funcs():
         def update_state(widget, state):
