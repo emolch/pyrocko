@@ -25,7 +25,7 @@ from pyrocko import moment_tensor as pmt
 from pyrocko import util
 
 from pyrocko.gui.util import Progressbars, RangeEdit
-from pyrocko.gui.talkie import TalkieConnectionOwner
+from pyrocko.gui.talkie import TalkieConnectionOwner, equal as state_equal
 from pyrocko.gui.qt_compat import qw, qc, qg
 # from pyrocko.gui import vtk_util
 
@@ -122,6 +122,14 @@ class QVTKWidget(QVTKRenderWindowInteractor):
     def focusOutEvent(self, event):
         self._update_ctrl_state(False)
         QVTKRenderWindowInteractor.focusOutEvent(self, event)
+
+    def mousePressEvent(self, event):
+        self._viewer.disable_capture()
+        QVTKRenderWindowInteractor.mousePressEvent(self, event)
+
+    def mouseReleaseEvent(self, event):
+        self._viewer.enable_capture()
+        QVTKRenderWindowInteractor.mouseReleaseEvent(self, event)
 
     def _update_ctrl_state(self, state=None):
         if state is None:
@@ -293,6 +301,10 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self.planet_radius = cake.earthradius
         self.feature_radius_min = cake.earthradius - 1000. * km
 
+        self._block_capture = 0
+        self._undo_stack = []
+        self._redo_stack = []
+
         self._panel_togglers = {}
         self._actors = set()
         self._actors_2d = set()
@@ -317,6 +329,22 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             self.request_quit,
             qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_Q)).setShortcutContext(
                 qc.Qt.ApplicationShortcut)
+
+        menu = mbar.addMenu('Edit')
+
+        menu.addAction(
+            'Undo',
+            self.undo,
+            qg.QKeySequence(
+                qc.Qt.CTRL | qc.Qt.Key_Z)).setShortcutContext(
+                    qc.Qt.ApplicationShortcut)
+
+        menu.addAction(
+            'Redo',
+            self.redo,
+            qg.QKeySequence(
+                qc.Qt.CTRL | qc.Qt.SHIFT | qc.Qt.Key_Z)).setShortcutContext(
+                    qc.Qt.ApplicationShortcut)
 
         menu = mbar.addMenu('View')
         menu_sizes = menu.addMenu('Size')
@@ -576,11 +604,78 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         hatch_path = config.expand(os.path.join(
             config.pyrocko_dir_tmpl, '.sparrow-has-hatched'))
 
+        self._undo_stack.append(guts.clone(self.state))
+        self.talkie_connect(self.state, '', self.capture_state)
+
         if not os.path.exists(hatch_path):
             with open(hatch_path, 'w') as f:
                 f.write('%s\n' % util.time_to_str(time.time()))
 
             self.start_tour()
+
+    def disable_capture(self):
+        self._block_capture += 1
+
+    def enable_capture(self, drop=False):
+        if self._block_capture > 0:
+            self._block_capture -= 1
+
+        if self._block_capture == 0 and not drop:
+            self.capture_state()
+
+    def capture_state(self, *args):
+        if not self._block_capture:
+            if len(self._undo_stack) == 0 or not state_equal(
+                    self.state, self._undo_stack[-1]):
+
+                logger.debug('Capture undo state (%i)\n%s' % (
+                    len(self._undo_stack) + 1,
+                    '\n'.join(
+                        ' - %s' % s
+                        for s in self._undo_stack[-1].str_diff(
+                            self.state).splitlines())))
+
+                self._undo_stack.append(guts.clone(self.state))
+                self._redo_stack.clear()
+            else:
+                pass
+                # print('capture skipped (equal)')
+        else:
+            pass
+            # print('capture blocked %i' % self._block_capture)
+
+    def undo(self):
+        if len(self._undo_stack) <= 1:
+            return
+
+        state = self._undo_stack.pop()
+        self._redo_stack.append(state)
+        state = self._undo_stack[-1]
+
+        logger.debug('Undo (%i)\n%s' % (
+            len(self._undo_stack),
+            '\n'.join(
+                ' - %s' % s for s in self.state.str_diff(state).splitlines())))
+
+        self.disable_capture()
+        self.set_state(state)
+        self.enable_capture(True)
+
+    def redo(self):
+        if len(self._redo_stack) == 0:
+            return
+
+        state = self._redo_stack.pop()
+        self._undo_stack.append(state)
+
+        logger.debug('Redo (%i)\n%s' % (
+            len(self._redo_stack),
+            '\n'.join(
+                ' - %s' % s for s in self.state.str_diff(state).splitlines())))
+
+        self.disable_capture()
+        self.set_state(state)
+        self.enable_capture(True)
 
     def start_tour(self):
         snapshots_ = snapshots_mod.load_snapshots(
@@ -797,6 +892,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self.update_view()
 
     def start_animation(self, interpolator, output_path=None):
+        self.disable_capture()
         self._animation = interpolator
         if output_path is None:
             self._animation_tstart = time.time()
@@ -894,8 +990,10 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self._animation_tstart = None
         self._animation_iframe = None
         self._animation = None
+        self.enable_capture()
 
     def set_state(self, state):
+        self.disable_capture()
         self._update_elements_enabled = False
         self.setUpdatesEnabled(False)
         self.state.diff_update(state)
@@ -903,6 +1001,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self.setUpdatesEnabled(True)
         self._update_elements_enabled = True
         self.update_elements()
+        self.enable_capture()
 
     def periodical(self):
         pass
@@ -1154,13 +1253,18 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 widget.selectAll()
 
         def lineedit_to_lat_lon_depth(widget, state):
-            s = str(widget.text())
-            choices = location_to_choices(s)
-            if len(choices) > 0:
-                self.state.lat, self.state.lon, self.state.depth = \
-                    choices[0].get_lat_lon_depth()
-            else:
-                raise NoLocationChoices(s)
+            self.disable_capture()
+            try:
+                s = str(widget.text())
+                choices = location_to_choices(s)
+                if len(choices) > 0:
+                    self.state.lat, self.state.lon, self.state.depth = \
+                        choices[0].get_lat_lon_depth()
+                else:
+                    raise NoLocationChoices(s)
+
+            finally:
+                self.enable_capture()
 
         self._state_bind(
             ['lat', 'lon', 'depth'],
@@ -1228,6 +1332,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 'top': (90., 0.),
                 'bottom': (90., 180.)}
 
+            self.disable_capture()
             if s in string_to_strike_dip:
                 state.strike, state.dip = string_to_strike_dip[s]
 
@@ -1236,6 +1341,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 state.strike, state.dip = map(float, s.split())
             except Exception:
                 raise ValueError('need two numerical values: <strike>, <dip>')
+            finally:
+                self.enable_capture()
 
         self._state_bind(
             ['strike', 'dip'], lineedit_to_strike_dip,
@@ -1326,6 +1433,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self.tmax_lineedit = le_tmax
 
         range_edit = RangeEdit()
+        range_edit.rangeEditPressed.connect(self.disable_capture)
+        range_edit.rangeEditReleased.connect(self.enable_capture)
         range_edit.set_data_provider(self)
         range_edit.set_data_name('time')
 

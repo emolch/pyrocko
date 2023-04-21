@@ -7,7 +7,7 @@ import difflib
 from collections import defaultdict
 
 from pyrocko import util
-from pyrocko.guts import Object, List, clone
+from pyrocko.guts import Object, List, clone, path_to_str
 from weakref import ref
 
 
@@ -34,7 +34,7 @@ def root_and_path(obj, name=None):
 
 
 def lclone(xs):
-    [clone(x) for x in xs]
+    return [clone(x) for x in xs]
 
 
 g_uid = 0
@@ -171,8 +171,15 @@ class Talkie(Object):
                     elif tag == 'insert':
                         yield (
                             'insert',
-                            path + ((s_prop.name, i1, i2)),
+                            path + ((s_prop.name, i1, i2),),
                             lclone(o_val[j1:j2]))
+
+    def str_diff(self, other):
+        lines = []
+        for tag, path, value in self.diff(other):
+            lines.append('%s %s' % (tag, path_to_str(path)))
+
+        return '\n'.join(lines)
 
     def diff_update(self, other, path=()):
         assert type(self) is type(other), '%s %s' % (type(self), type(other))
