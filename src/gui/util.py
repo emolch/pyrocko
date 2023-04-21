@@ -1298,6 +1298,8 @@ class RangeEdit(qw.QFrame):
     rangeChanged = qc.pyqtSignal()
     focusChanged = qc.pyqtSignal()
     tcursorChanged = qc.pyqtSignal()
+    rangeEditPressed = qc.pyqtSignal()
+    rangeEditReleased = qc.pyqtSignal()
 
     def __init__(self, parent=None):
         qw.QFrame.__init__(self, parent)
@@ -1566,6 +1568,8 @@ class RangeEdit(qw.QFrame):
     def mousePressEvent(self, mouse_ev):
 
         if mouse_ev.button() == qc.Qt.LeftButton:
+            self.rangeEditPressed.emit()
+
             if None in (self.tmin, self.tmax):
                 self.set_range(*g_initial_time_range)
 
@@ -1607,6 +1611,7 @@ class RangeEdit(qw.QFrame):
 
     def mouseReleaseEvent(self, mouse_ev):
         if self._track_start:
+            self.rangeEditReleased.emit()
             self.update()
 
         self._track_start = None
