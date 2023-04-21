@@ -100,9 +100,38 @@ class QVTKWidget(QVTKRenderWindowInteractor):
     def __init__(self, viewer, *args):
         QVTKRenderWindowInteractor.__init__(self, *args)
         self._viewer = viewer
+        self._ctrl_state = False
 
     def wheelEvent(self, event):
         return self._viewer.myWheelEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() == qc.Qt.Key_Control:
+            self._update_ctrl_state(True)
+        QVTKRenderWindowInteractor.keyPressEvent(self, event)
+
+    def keyReleaseEvent(self, event):
+        if event.key() == qc.Qt.Key_Control:
+            self._update_ctrl_state(False)
+        QVTKRenderWindowInteractor.keyReleaseEvent(self, event)
+
+    def focusInEvent(self, event):
+        self._update_ctrl_state()
+        QVTKRenderWindowInteractor.focusInEvent(self, event)
+
+    def focusOutEvent(self, event):
+        self._update_ctrl_state(False)
+        QVTKRenderWindowInteractor.focusOutEvent(self, event)
+
+    def _update_ctrl_state(self, state=None):
+        if state is None:
+            app = common.get_app()
+            if not app:
+                return
+            state = app.keyboardModifiers() == qc.Qt.ControlModifier
+        if self._ctrl_state != state:
+            self._viewer.gui_state.next_focal_point()
+            self._ctrl_state = state
 
     def container_resized(self, ev):
         self._viewer.update_vtk_widget_size()
@@ -465,7 +494,6 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         iren.AddObserver('RightButtonReleaseEvent', self.button_event)
         iren.AddObserver('MouseMoveEvent', self.mouse_move_event)
         iren.AddObserver('KeyPressEvent', self.key_down_event)
-        iren.AddObserver('KeyReleaseEvent', self.key_up_event)
         iren.AddObserver('ModifiedEvent', self.check_vtk_resize)
 
         renwin.Render()
@@ -1060,8 +1088,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
     def key_down_event(self, obj, event):
         k = obj.GetKeyCode()
-        s = obj.GetKeySym()
-        if k == 'f' or s == 'Control_L':
+        if k == 'f':
             self.gui_state.next_focal_point()
 
         elif k == 'r':
@@ -1093,11 +1120,6 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
         elif k == ' ':
             self.toggle_panel_visibility()
-
-    def key_up_event(self, obj, event):
-        s = obj.GetKeySym()
-        if s == 'Control_L':
-            self.gui_state.next_focal_point()
 
     def _state_bind(self, *args, **kwargs):
         vstate.state_bind(self, self.state, *args, **kwargs)
