@@ -374,11 +374,11 @@ def state_bind_lineedit(
 def interpolateables(state_a, state_b):
 
     animate = []
-    for tag, path, values in state_a.diff(state_b):
+    for tag, path, values in state_b.diff(state_a):
         if tag == 'set':
             ypath = path_to_str(path)
-            v_old = get_elements(state_a, ypath)[0]
-            v_new = values
+            v_new = get_elements(state_b, ypath)[0]
+            v_old = values
             for type in [float, Color, Background]:
                 if isinstance(v_old, type) and isinstance(v_new, type):
                     animate.append((ypath, v_old, v_new))
