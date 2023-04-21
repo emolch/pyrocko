@@ -479,7 +479,7 @@ class Interpolator(object):
 
                 for ypath, v_old, v_new in animate:
                     if isinstance(v_old, float) and isinstance(v_new, float):
-                        if ypath == 'strike':
+                        if ypath in ('lon', 'strike'):
                             if v_new - v_old > 180.:
                                 v_new -= 360.
                             elif v_new - v_old < -180.:
