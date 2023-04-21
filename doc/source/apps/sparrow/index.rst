@@ -91,8 +91,9 @@ lift the focal point above sea-level.
 
 The scene shown in the view is composed of a variable number of elements. By
 default the *Icosphere*, *Grid* and *Coastline* elements are shown. More
-elements can be added through the *Add* menu. The elements can be configured
-with their associated control panels. Their title bar controls do as follows:
+elements can be added through the *Elements* menu. The elements can be
+configured with their associated control panels. Their title bar controls do as
+follows:
 
 * ✖ Remove the element from the scene.
 * ⭓/⭔ Toggle the visibility of an element.

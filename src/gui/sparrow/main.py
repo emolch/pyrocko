@@ -313,7 +313,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
         snapshots_menu = mbar.addMenu('Snapshots')
 
-        menu = mbar.addMenu('Add')
+        menu = mbar.addMenu('Elements')
         for name, estate in sorted([
                 ('Icosphere', elements.IcosphereState(
                     level=4,
