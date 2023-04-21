@@ -89,8 +89,10 @@ class VolcanoesElement(Element):
         self.unbind_state()
         if not self._parent:
             return
-        self._parent.remove_actor(self._pipe.actor)
-        self._pipe = None
+
+        if self._pipe:
+            self._parent.remove_actor(self._pipe.actor)
+            self._pipe = None
 
         self._parent.remove_panel(self._controls)
         self._controls = None
@@ -114,7 +116,8 @@ class VolcanoesElement(Element):
             self._parent.add_actor(self._pipe.actor)
 
         else:
-            self._parent.remove_actor(self._pipe.actor)
+            if self._pipe is not None:
+                self._parent.remove_actor(self._pipe.actor)
 
         self._parent.update_view()
 
