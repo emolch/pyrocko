@@ -34,8 +34,11 @@ app = None
 
 
 def get_app():
-    global app
-    return app
+    try:
+        global app
+        return app
+    except NameError:  # can happen during shutdown
+        return None
 
 
 def rint(x):
