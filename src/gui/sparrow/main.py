@@ -337,8 +337,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 ('Plate bounds', elements.PlatesBoundsState()),
                 ('InSAR Surface Displacements', elements.KiteState()),
                 ('Geometry', elements.GeometryState()),
-                ('Spheroid', elements.SpheroidState()),
-                ('Rays', elements.RaysState())]):
+                ('Spheroid', elements.SpheroidState())]):
 
             def wrap_add_element(estate):
                 def add_element(*args):

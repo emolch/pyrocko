@@ -15,7 +15,6 @@ from .hud import *  # noqa
 from .icosphere import *  # noqa
 from .kite_insar import *  # noqa
 from .plates import *  # noqa
-from .rays import *  # noqa
 from .source import *  # noqa
 from .spheroid import *  # noqa
 from .stations import *  # noqa
