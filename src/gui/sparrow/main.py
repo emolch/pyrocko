@@ -314,7 +314,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         snapshots_menu = mbar.addMenu('Snapshots')
 
         menu = mbar.addMenu('Add')
-        for name, estate in [
+        for name, estate in sorted([
                 ('Icosphere', elements.IcosphereState(
                     level=4,
                     smooth=True,
@@ -338,7 +338,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 ('InSAR Surface Displacements', elements.KiteState()),
                 ('Geometry', elements.GeometryState()),
                 ('Spheroid', elements.SpheroidState()),
-                ('Rays', elements.RaysState())]:
+                ('Rays', elements.RaysState())]):
 
             def wrap_add_element(estate):
                 def add_element(*args):
