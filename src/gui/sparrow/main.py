@@ -358,8 +358,12 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         menu = mbar.addMenu('Help')
 
         menu.addAction(
-            'Introduction Tour',
+            'Interactive Tour',
             self.start_tour)
+
+        menu.addAction(
+            'Online Manual',
+            self.open_manual)
 
         self.data_providers = []
         self.elements = {}
@@ -558,6 +562,11 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self.snapshots_panel.add_snapshots(snapshots_)
         self.raise_panel(self.snapshots_panel)
         self.snapshots_panel.transition_to_next_snapshot()
+
+    def open_manual(self):
+        import webbrowser
+        webbrowser.open(
+            'https://pyrocko.org/docs/current/apps/sparrow/index.html')
 
     def _add_vtk_widget_size_menu_entries(self, menu):
 
