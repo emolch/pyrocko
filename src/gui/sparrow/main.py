@@ -304,6 +304,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self._block_capture = 0
         self._undo_stack = []
         self._redo_stack = []
+        self._undo_aggregate = None
 
         self._panel_togglers = {}
         self._actors = set()
@@ -604,8 +605,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         hatch_path = config.expand(os.path.join(
             config.pyrocko_dir_tmpl, '.sparrow-has-hatched'))
 
-        self._undo_stack.append(guts.clone(self.state))
         self.talkie_connect(self.state, '', self.capture_state)
+        self.capture_state()
 
         if not os.path.exists(hatch_path):
             with open(hatch_path, 'w') as f:
@@ -616,35 +617,43 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
     def disable_capture(self):
         self._block_capture += 1
 
-    def enable_capture(self, drop=False):
+    def enable_capture(self, drop=False, aggregate=None):
         if self._block_capture > 0:
             self._block_capture -= 1
 
         if self._block_capture == 0 and not drop:
-            self.capture_state()
+            self.capture_state(aggregate=aggregate)
 
-    def capture_state(self, *args):
-        if not self._block_capture:
-            if len(self._undo_stack) == 0 or not state_equal(
-                    self.state, self._undo_stack[-1]):
+    def capture_state(self, *args, aggregate=None):
+        if self._block_capture:
+            return
 
-                logger.debug('Capture undo state (%i)\n%s' % (
-                    len(self._undo_stack) + 1,
-                    '\n'.join(
-                        ' - %s' % s
-                        for s in self._undo_stack[-1].str_diff(
-                            self.state).splitlines())))
+        if len(self._undo_stack) == 0 or not state_equal(
+                self.state, self._undo_stack[-1]):
 
-                self._undo_stack.append(guts.clone(self.state))
-                self._redo_stack.clear()
+            if aggregate is not None:
+                if aggregate == self._undo_aggregate:
+                    self._undo_stack.pop()
+
+                self._undo_aggregate = aggregate
             else:
-                pass
-                # print('capture skipped (equal)')
-        else:
-            pass
-            # print('capture blocked %i' % self._block_capture)
+                self._undo_aggregate = None
+
+            logger.debug('Capture undo state (%i%s)\n%s' % (
+                len(self._undo_stack) + 1,
+                '' if aggregate is None else ', aggregate=%s' % aggregate,
+                '\n'.join(
+                    ' - %s' % s
+                    for s in self._undo_stack[-1].str_diff(
+                        self.state).splitlines())
+                if len(self._undo_stack) > 0 else 'initial'))
+
+            self._undo_stack.append(guts.clone(self.state))
+            self._redo_stack.clear()
 
     def undo(self):
+        self._undo_aggregate = None
+
         if len(self._undo_stack) <= 1:
             return
 
@@ -659,9 +668,11 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
         self.disable_capture()
         self.set_state(state)
-        self.enable_capture(True)
+        self.enable_capture(drop=True)
 
     def redo(self):
+        self._undo_aggregate = None
+
         if len(self._redo_stack) == 0:
             return
 
@@ -675,7 +686,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
         self.disable_capture()
         self.set_state(state)
-        self.enable_capture(True)
+        self.enable_capture(drop=True)
 
     def start_tour(self):
         snapshots_ = snapshots_mod.load_snapshots(
@@ -1144,7 +1155,9 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         if angle < -200:
             angle = -200
 
+        self.disable_capture()
         self.do_dolly(-angle/100.)
+        self.enable_capture(aggregate='distance')
 
     def do_rotate(self, x, y, x0, y0, center_x, center_y):
 
