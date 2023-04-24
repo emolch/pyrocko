@@ -394,6 +394,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 ('HUD (tmax_effective)', elements.HudState(
                     template='tmax: {tmax_effective|date}',
                     position='top-left')),
+                ('AxesBox', elements.AxesBoxState()),
                 ('Volcanoes', elements.VolcanoesState()),
                 ('Faults', elements.ActiveFaultsState()),
                 ('Plate bounds', elements.PlatesBoundsState()),

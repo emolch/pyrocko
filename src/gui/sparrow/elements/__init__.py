@@ -4,6 +4,7 @@
 # ---|P------/S----------~Lg----------
 
 from .active_faults import *  # noqa
+from .axes_box import *  # noqa
 from .base import *  # noqa
 from .catalog import *  # noqa
 from .coastlines import *  # noqa
