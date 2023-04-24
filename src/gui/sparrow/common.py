@@ -9,7 +9,8 @@ import math
 import numpy as num
 from scipy.interpolate import interp1d
 
-from pyrocko import automap, plot, util
+from pyrocko import plot, util
+from pyrocko.plot import automap
 from pyrocko.geometry import d2r
 from pyrocko.gui.qt_compat import qg, qw, qc
 from pyrocko.gui.util import tmin_effective, tmax_effective, get_app  # noqa

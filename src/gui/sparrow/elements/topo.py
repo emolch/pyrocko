@@ -7,7 +7,8 @@ import math
 import numpy as num
 
 from pyrocko.guts import Bool, Float, StringChoice
-from pyrocko import cake, automap, plot
+from pyrocko import cake, plot
+from pyrocko.plot import automap
 from pyrocko.dataset import topo
 from pyrocko.gui.qt_compat import qw, qc
 

@@ -19,7 +19,7 @@ import numpy as num
 
 from pyrocko import cake
 from pyrocko import guts
-from pyrocko import geonames
+from pyrocko.dataset import geonames
 from pyrocko import config
 from pyrocko import moment_tensor as pmt
 from pyrocko import util

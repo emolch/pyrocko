@@ -8,7 +8,7 @@ import base64
 
 import numpy as num
 
-from pyrocko import automap
+from pyrocko.plot import automap
 from pyrocko.guts import String, Float, StringChoice
 from pyrocko.plot import AutoScaler, AutoScaleMode
 from pyrocko.dataset import topo
