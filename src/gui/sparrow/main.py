@@ -1278,12 +1278,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         layout.addWidget(le, 1, 0, 1, 1)
 
         def lat_lon_depth_to_lineedit(state, widget):
-            sel = str(widget.selectedText()) == str(widget.text())
             widget.setText('%g, %g, %g' % (
                 state.lat, state.lon, state.depth / km))
-
-            if sel:
-                widget.selectAll()
 
         def lineedit_to_lat_lon_depth(widget, state):
             self.disable_capture()
@@ -1306,9 +1302,6 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             lat_lon_depth_to_lineedit)
 
         self.lat_lon_lineedit = le
-
-        self.lat_lon_lineedit.returnPressed.connect(
-            lambda *args: self.lat_lon_lineedit.selectAll())
 
         # focal point
 
@@ -1350,10 +1343,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         layout.addWidget(le, 3, 0, 1, 1)
 
         def strike_dip_to_lineedit(state, widget):
-            sel = widget.selectedText() == widget.text()
             widget.setText('%g, %g' % (state.strike, state.dip))
-            if sel:
-                widget.selectAll()
 
         def lineedit_to_strike_dip(widget, state):
             s = str(widget.text())
@@ -1382,8 +1372,6 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             le, [le.editingFinished, le.returnPressed], strike_dip_to_lineedit)
 
         self.strike_dip_lineedit = le
-        self.strike_dip_lineedit.returnPressed.connect(
-            lambda *args: self.strike_dip_lineedit.selectAll())
 
         but = qw.QPushButton('Reset')
         but.setStatusTip('Reset to north-up map view.')
@@ -1431,14 +1419,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self._label_tcursor = label_tcursor
 
         def time_to_lineedit(state, attribute, widget):
-            sel = widget.selectedText() == widget.text() \
-                and widget.text() != ''
-
             widget.setText(
                 common.time_or_none_to_str(getattr(state, attribute)))
-
-            if sel:
-                widget.selectAll()
 
         def lineedit_to_time(widget, state, attribute):
             from pyrocko.util import str_to_time_fillup
@@ -1505,18 +1487,12 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         layout.addWidget(le_focus, 4, 1)
 
         def focus_to_lineedit(state, widget):
-            sel = widget.selectedText() == widget.text() \
-                and widget.text() != ''
-
             if state.tduration is None:
                 widget.setText('')
             else:
                 widget.setText('%s, %g' % (
                     guts.str_duration(state.tduration),
                     state.tposition))
-
-            if sel:
-                widget.selectAll()
 
         def lineedit_to_focus(widget, state):
             s = str(widget.text())
