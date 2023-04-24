@@ -314,6 +314,10 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self._in_update_elements = False
         self._update_elements_enabled = True
 
+        self._animation_tstart = None
+        self._animation_iframe = None
+        self._animation = None
+
         mbar = qw.QMenuBar()
         self.setMenuBar(mbar)
 
@@ -617,9 +621,13 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
     def disable_capture(self):
         self._block_capture += 1
 
+        logger.debug('Undo capture block (+1): %i' % self._block_capture)
+
     def enable_capture(self, drop=False, aggregate=None):
         if self._block_capture > 0:
             self._block_capture -= 1
+
+        logger.debug('Undo capture block (-1): %i' % self._block_capture)
 
         if self._block_capture == 0 and not drop:
             self.capture_state(aggregate=aggregate)
@@ -667,8 +675,10 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 ' - %s' % s for s in self.state.str_diff(state).splitlines())))
 
         self.disable_capture()
-        self.set_state(state)
-        self.enable_capture(drop=True)
+        try:
+            self.set_state(state)
+        finally:
+            self.enable_capture(drop=True)
 
     def redo(self):
         self._undo_aggregate = None
@@ -685,8 +695,10 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 ' - %s' % s for s in self.state.str_diff(state).splitlines())))
 
         self.disable_capture()
-        self.set_state(state)
-        self.enable_capture(drop=True)
+        try:
+            self.set_state(state)
+        finally:
+            self.enable_capture(drop=True)
 
     def start_tour(self):
         snapshots_ = snapshots_mod.load_snapshots(
@@ -903,6 +915,10 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self.update_view()
 
     def start_animation(self, interpolator, output_path=None):
+        if self._animation:
+            logger.debug('Aborting animation in progress to start a new one.')
+            self.stop_animation()
+
         self.disable_capture()
         self._animation = interpolator
         if output_path is None:
@@ -1005,14 +1021,16 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
     def set_state(self, state):
         self.disable_capture()
-        self._update_elements_enabled = False
-        self.setUpdatesEnabled(False)
-        self.state.diff_update(state)
-        self.state.sort_elements()
-        self.setUpdatesEnabled(True)
-        self._update_elements_enabled = True
-        self.update_elements()
-        self.enable_capture()
+        try:
+            self._update_elements_enabled = False
+            self.setUpdatesEnabled(False)
+            self.state.diff_update(state)
+            self.state.sort_elements()
+            self.setUpdatesEnabled(True)
+            self._update_elements_enabled = True
+            self.update_elements()
+        finally:
+            self.enable_capture()
 
     def periodical(self):
         pass
@@ -1156,8 +1174,10 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             angle = -200
 
         self.disable_capture()
-        self.do_dolly(-angle/100.)
-        self.enable_capture(aggregate='distance')
+        try:
+            self.do_dolly(-angle/100.)
+        finally:
+            self.enable_capture(aggregate='distance')
 
     def do_rotate(self, x, y, x0, y0, center_x, center_y):
 
