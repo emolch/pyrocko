@@ -120,7 +120,8 @@ class SparrowTest(unittest.TestCase):
         self.viewer.snapshots_panel.transition_to_next_snapshot()
         for i in range(40):
             self.press_key(Qt.Key_PageDown)
-            QTest.qWait(100)
+            self.viewer.renwin.Render()
+            QTest.qWait(10)
 
     # def test_elements(self):
     #     self.trigger_all_actions(self.get_menu('Elements'))
