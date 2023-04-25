@@ -111,6 +111,17 @@ class SparrowTest(unittest.TestCase):
         self.trigger_all_actions(self.get_menu('Panels'))
         self.trigger_all_actions(self.get_menu('Panels'))
 
+    def test_snapshots(self):
+        from pyrocko.gui.sparrow import snapshots as snapshots_mod
+        snapshots_ = snapshots_mod.load_snapshots(
+            'https://data.pyrocko.org/testing/pyrocko/'
+            'test-v0.snapshots.yaml')
+        self.viewer.snapshots_panel.add_snapshots(snapshots_)
+        self.viewer.snapshots_panel.transition_to_next_snapshot()
+        for i in range(40):
+            self.press_key(Qt.Key_PageDown)
+            QTest.qWait(100)
+
     # def test_elements(self):
     #     self.trigger_all_actions(self.get_menu('Elements'))
     #
