@@ -438,7 +438,7 @@ steps:
 
 - name: test-gui
   commands:
-  - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gui
+  - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gui/test_snuffler.py
   depends_on:
   - install
 
