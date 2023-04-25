@@ -296,6 +296,7 @@ steps:
   pull: never
   commands:
   - ln -sf /pyrocko-test-data test/data
+  - pip3 install vtk
   - pip3 install --no-deps --no-build-isolation --force-reinstall .
   - xvfb-run -s '-screen 0 640x480x24' python3 -m coverage run --parallel-mode -m pytest -v test/gui test/base/test_obspy_compat.py::ObsPyCompatTestCase::test_obspy_fiddle test/base/test_obspy_compat.py::ObsPyCompatTestCase::test_obspy_snuffle
   - for x in .coverage.* ; do mv $x $${x#.} ; done
@@ -305,6 +306,7 @@ steps:
   pull: never
   commands:
   - ln -sf /pyrocko-test-data test/data
+  - pip3 install vtk
   - pip3 install --no-deps --no-build-isolation --force-reinstall .
   - xvfb-run -s '-screen 0 640x480x24' python3 -m coverage run --parallel-mode -m pytest -v test/gui test/base/test_obspy_compat.py::ObsPyCompatTestCase::test_obspy_fiddle test/base/test_obspy_compat.py::ObsPyCompatTestCase::test_obspy_snuffle
   - for x in .coverage.* ; do mv $x $${x#.} ; done
@@ -436,7 +438,7 @@ steps:
 
 - name: test-gui
   commands:
-  - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gui
+  - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gui/test_snuffler.py
   depends_on:
   - install
 

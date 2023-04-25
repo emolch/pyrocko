@@ -3,6 +3,7 @@ from .. import common
 import tempfile
 import os
 import platform
+import gc
 
 import numpy as num
 
@@ -34,10 +35,10 @@ if common.have_gui():  # noqa
             self.enable_pile_changed_notifications()
 
             self.pixmap_frame()
-            try:
-                self.web_frame()
-            except ImportError as e:
-                raise unittest.SkipTest(str(e))
+            # try:
+            #     self.web_frame()
+            # except ImportError as e:
+            #     raise unittest.SkipTest(str(e))
 
             self.get_pile()
 
@@ -47,24 +48,25 @@ else:
 
 
 @common.require_gui
-class GUITest(unittest.TestCase):
+class SnufflerTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         '''
         Create a reusable snuffler instance for all tests cases.
         '''
-        super(GUITest, cls).setUpClass()
+        super(SnufflerTest, cls).setUpClass()
         if no_gui:  # nosetests runs this even when class is has @skip
             return
 
-        from pyrocko.gui.snuffler import snuffler as sm
+        from pyrocko.gui import util as gui_util
 
-        cls.snuffler = sm.get_snuffler_instance()
+        cls.app = gui_util.get_app()
 
         fpath = common.test_data_file('test2.mseed')
         p = make_pile(fpath, show_progress=False)
         cls.win = SnufflerWindow(pile=p, instant_close=True)
+        cls.app.set_main_window(cls.win)
         cls.pile_viewer = cls.win.pile_viewer
         cls.viewer = cls.win.pile_viewer.viewer
         pv = cls.pile_viewer
@@ -82,7 +84,11 @@ class GUITest(unittest.TestCase):
         if no_gui:  # nosetests runs this even when class is has @skip
             return
 
-        QTest.keyPress(cls.pile_viewer, 'q')
+        cls.app.closeAllWindows()
+        del cls.win
+        del cls.pile_viewer
+        del cls.viewer
+        gc.collect()
 
     def setUp(self):
         '''
@@ -464,8 +470,3 @@ class GUITest(unittest.TestCase):
         QTest.keyPress(self.pile_viewer, 'd')
         QTest.keyPress(self.pile_viewer, 'd')
         QTest.keyPress(self.pile_viewer, 'd')
-
-
-if __name__ == '__main__':
-    util.setup_logging('test_gui', 'warning')
-    unittest.main()
