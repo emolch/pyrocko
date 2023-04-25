@@ -3,12 +3,14 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+import sys
 import math
 import time
 import numpy as num
 import logging
 import enum
 import calendar
+import signal
 
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
@@ -21,21 +23,148 @@ from .snuffler.marker import load_markers, save_markers  # noqa
 from pyrocko import plot, util
 
 
-try:
-    from PyQt5.QtWebEngineWidgets import QWebEngineView as WebView
-except ImportError:
-    from PyQt5.QtWebKitWidgets import QWebView as WebView
-
-
 logger = logging.getLogger('pyrocko.gui.util')
+
+
+class _Getch:
+    '''
+    Gets a single character from standard input.
+
+    Does not echo to the screen.
+
+    https://stackoverflow.com/questions/510357/how-to-read-a-single-character-from-the-user
+    '''
+    def __init__(self):
+        try:
+            self.impl = _GetchWindows()
+        except ImportError:
+            self.impl = _GetchUnix()
+
+    def __call__(self): return self.impl()
+
+
+class _GetchUnix:
+    def __init__(self):
+        import tty, sys  # noqa
+
+    def __call__(self):
+        import sys
+        import tty
+        import termios
+
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+        return ch
+
+
+class _GetchWindows:
+    def __init__(self):
+        import msvcrt  # noqa
+
+    def __call__(self):
+        import msvcrt
+        return msvcrt.getch()
+
+
+getch = _Getch()
+
+
+class PyrockoQApplication(qw.QApplication):
+
+    def __init__(self):
+        qw.QApplication.__init__(self, [])
+        self._main_window = None
+
+    def install_sigint_handler(self):
+        self._old_signal_handler = signal.signal(
+            signal.SIGINT,
+            self.request_close_all_windows)
+
+    def uninstall_sigint_handler(self):
+        signal.signal(signal.SIGINT, self._old_signal_handler)
+
+    def set_main_window(self, win):
+        self._main_window = win
+        name = win.windowTitle() if win is not None else ''
+        self.setApplicationName(name)
+        self.setApplicationDisplayName(name)
+        self.setDesktopFileName(name)
+
+    def unset_main_window(self):
+        self.set_main_window(None)
+
+    def get_main_window(self):
+        return self._main_window
+
+    def get_main_windows(self):
+        return [self.get_main_window()]
+
+    def status(self, message, duration=None):
+        win = self.get_main_window()
+        if not win:
+            print(' - %s' % message, file=sys.stderr)
+        else:
+            win.statusBar().showMessage(
+                message, int((duration or 0) * 1000))
+
+    def event(self, e):
+        if isinstance(e, qg.QFileOpenEvent):
+            path = str(e.file())
+            if path != sys.argv[0]:
+                wins = self.get_main_windows()
+                if wins:
+                    wins[0].get_view().load_soon([path])
+
+            return True
+        else:
+            return qw.QApplication.event(self, e)
+
+    def request_close_all_windows(self, *args):
+
+        def confirm():
+            try:
+                print(
+                    '\nQuit %s? [y/n]' % self.applicationName(),
+                    file=sys.stderr)
+
+                confirmed = getch() == 'y'
+                if not confirmed:
+                    print(
+                        'Continuing.',
+                        file=sys.stderr)
+                else:
+                    print(
+                        'Quitting %s.' % self.applicationName(),
+                        file=sys.stderr)
+
+                return confirmed
+
+            except Exception:
+                return False
+
+        if confirm():
+            for win in self.get_main_windows():
+                win.instant_close = True
+
+            self.closeAllWindows()
 
 
 app = None
 
 
 def get_app():
+    from .qt_compat import qg
     try:
         global app
+        if app is None:
+            qg.QSurfaceFormat.setDefaultFormat(qg.QSurfaceFormat())
+            app = PyrockoQApplication()
         return app
     except NameError:  # can happen during shutdown
         return None
@@ -1108,6 +1237,10 @@ class SmartplotFrame(FigureFrame):
 class WebKitFrame(qw.QFrame):
 
     def __init__(self, url=None, parent=None):
+        try:
+            from PyQt5.QtWebEngineWidgets import QWebEngineView as WebView
+        except ImportError:
+            from PyQt5.QtWebKitWidgets import QWebView as WebView
         qw.QFrame.__init__(self, parent)
         layout = qw.QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)

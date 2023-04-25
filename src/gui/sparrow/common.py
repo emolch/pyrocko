@@ -16,6 +16,25 @@ from pyrocko.gui.qt_compat import qg, qw, qc
 from pyrocko.gui.util import tmin_effective, tmax_effective, get_app  # noqa
 
 
+g_viewer = None
+
+
+def get_viewer():
+    return g_viewer
+
+
+def set_viewer(viewer):
+    global g_viewer
+    if viewer is not None and g_viewer:
+        raise Exception('Global viewer object already set.')
+
+    g_viewer = viewer
+
+
+def release_viewer():
+    set_viewer(None)
+
+
 def get_err_palette():
     err_palette = qg.QPalette()
     err_palette.setColor(qg.QPalette.Text, qg.QColor(255, 200, 200))

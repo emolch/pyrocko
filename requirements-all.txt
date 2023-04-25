@@ -10,3 +10,4 @@ jinja2
 pybtex
 PyQt5
 PyQtWebEngine
+vtk
