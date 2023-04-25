@@ -4,7 +4,6 @@
 # ---|P------/S----------~Lg----------
 
 import math
-import signal
 import gc
 import logging
 import time
@@ -284,11 +283,19 @@ class StateEditor(qw.QFrame, TalkieConnectionOwner):
 
 
 class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
-    def __init__(self, use_depth_peeling=True, events=None, snapshots=None):
+    def __init__(
+            self,
+            use_depth_peeling=True,
+            events=None,
+            snapshots=None,
+            instant_close=False):
+
+        common.set_viewer(self)
+
         qw.QMainWindow.__init__(self)
         TalkieConnectionOwner.__init__(self)
 
-        common.get_app().set_main_window(self)
+        self.instant_close = instant_close
 
         self.state = vstate.ViewerState()
         self.gui_state = vstate.ViewerGuiState()
@@ -331,7 +338,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
         menu.addAction(
             'Quit',
-            self.request_quit,
+            self.close,
             qg.QKeySequence(qc.Qt.CTRL | qc.Qt.Key_Q)).setShortcutContext(
                 qc.Qt.ApplicationShortcut)
 
@@ -596,8 +603,11 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
         self.update_detached()
 
-        common.get_app().status('Pyrocko Sparrow - A bird\'s eye view.', 2.0)
-        common.get_app().status('Let\'s fly.', 2.0)
+        self.status(
+            'Pyrocko Sparrow - A bird\'s eye view.', 2.0)
+
+        self.status(
+            'Let\'s fly.', 2.0)
 
         self.show()
         self.windowHandle().showMaximized()
@@ -618,6 +628,10 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 f.write('%s\n' % util.time_to_str(time.time()))
 
             self.start_tour()
+
+    def status(self, message, duration=None):
+        self.statusBar().showMessage(
+            message, int((duration or 0) * 1000))
 
     def disable_capture(self):
         self._block_capture += 1
@@ -1035,10 +1049,6 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
     def periodical(self):
         pass
-
-    def request_quit(self):
-        app = common.get_app()
-        app.myQuit()
 
     def check_vtk_resize(self, *args):
         render_window_size = self.renwin.GetSize()
@@ -1799,96 +1809,48 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             for data in provider.iter_data(name):
                 yield data
 
+    def confirm_close(self):
+        ret = qw.QMessageBox.question(
+            self,
+            'Sparrow',
+            'Close Sparrow window?',
+            qw.QMessageBox.Cancel | qw.QMessageBox.Ok,
+            qw.QMessageBox.Ok)
+
+        return ret == qw.QMessageBox.Ok
+
     def closeEvent(self, event):
-        self.attach()
-        event.accept()
-        self.closing = True
-        common.get_app().set_main_window(None)
+        if self.instant_close or self.confirm_close():
+            self.attach()
+            self.closing = True
+            event.accept()
+        else:
+            event.ignore()
 
     def is_closing(self):
         return self.closing
-
-
-class SparrowApp(qw.QApplication):
-    def __init__(self):
-        qw.QApplication.__init__(self, ['Sparrow'])
-        self.lastWindowClosed.connect(self.myQuit)
-        self._main_window = None
-        self.setApplicationDisplayName('Sparrow')
-        self.setDesktopFileName('Sparrow')
-
-    def install_sigint_handler(self):
-        self._old_signal_handler = signal.signal(
-            signal.SIGINT, self.myCloseAllWindows)
-
-    def uninstall_sigint_handler(self):
-        signal.signal(signal.SIGINT, self._old_signal_handler)
-
-    def myQuit(self, *args):
-        self.quit()
-
-    def myCloseAllWindows(self, *args):
-        self.closeAllWindows()
-
-    def set_main_window(self, win):
-        self._main_window = win
-
-    def get_main_window(self):
-        return self._main_window
-
-    def get_progressbars(self):
-        if self._main_window:
-            return self._main_window.progressbars
-        else:
-            return None
-
-    def status(self, message, duration=None):
-        win = self.get_main_window()
-        if not win:
-            return
-
-        win.statusBar().showMessage(
-            message, int((duration or 0) * 1000))
 
 
 def main(*args, **kwargs):
 
     from pyrocko import util
     from pyrocko.gui import util as gui_util
+    from . import common
     util.setup_logging('sparrow', 'info')
 
     global win
 
-    if gui_util.app is None:
-        gui_util.app = SparrowApp()
-
-        # try:
-        #     from qt_material import apply_stylesheet
-        #
-        #     apply_stylesheet(app, theme='dark_teal.xml')
-        #
-        #
-        #     import qdarkgraystyle
-        #     app.setStyleSheet(qdarkgraystyle.load_stylesheet())
-        #     import qdarkstyle
-        #
-        #     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-        #
-        #
-        # except ImportError:
-        #     logger.info(
-        #         'Module qdarkgraystyle not available.\n'
-        #         'If wanted, install qdarkstyle with "pip install '
-        #         'qdarkgraystyle".')
-        #
+    app = gui_util.get_app()
     win = SparrowViewer(*args, **kwargs)
+    app.set_main_window(win)
 
     gui_util.app.install_sigint_handler()
-    gui_util.app.exec_()
-    gui_util.app.uninstall_sigint_handler()
 
-    del win
-
-    gc.collect()
-
-    del gui_util.app
+    try:
+        gui_util.app.exec_()
+    finally:
+        gui_util.app.uninstall_sigint_handler()
+        app.unset_main_window()
+        common.set_viewer(None)
+        del win
+        gc.collect()

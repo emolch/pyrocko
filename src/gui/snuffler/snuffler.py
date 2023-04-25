@@ -32,20 +32,6 @@ from . import marker
 
 logger = logging.getLogger('pyrocko.gui.snuffler.snuffler')
 
-app = None
-
-
-def get_snuffler_instance():
-    from .snuffler_app import Snuffler
-    from ..qt_compat import qg
-    import locale
-    locale.setlocale(locale.LC_ALL, 'C')
-    global app
-    if app is None:
-        qg.QSurfaceFormat.setDefaultFormat(qg.QSurfaceFormat())
-        app = Snuffler()
-    return app
-
 
 def extend_paths(paths):
     paths_r = []
@@ -95,7 +81,8 @@ def snuffle(pile=None, **kwargs):
     if pile is None:
         pile = pile_mod.make_pile()
 
-    app = get_snuffler_instance()
+    from pyrocko.gui import util as gui_util
+    app = gui_util.get_app()
 
     kwargs_load = {}
     for k in ('paths', 'regex', 'format', 'cache_dir', 'force_cache'):
@@ -110,6 +97,8 @@ def snuffle(pile=None, **kwargs):
     launch_hook = kwargs.pop('launch_hook', None)
 
     win = SnufflerWindow(pile, **kwargs)
+    app.set_main_window(win)
+
     if launch_hook:
         if not isinstance(launch_hook, list):
             launch_hook = [launch_hook]
@@ -156,6 +145,7 @@ def snuffle(pile=None, **kwargs):
 
         finally:
             app.uninstall_sigint_handler()
+            app.set_main_window(None)
 
     for source in sources:
         source.stop()

@@ -8,7 +8,6 @@ Effective seismological trace viewer.
 '''
 
 import sys
-import signal
 import logging
 import time
 import re
@@ -36,55 +35,6 @@ from . import pile_viewer     # noqa
 from ..qt_compat import qc, qg, qw
 
 logger = logging.getLogger('pyrocko.gui.snuffler.snuffler_app')
-
-
-class _Getch:
-    '''
-    Gets a single character from standard input.
-
-    Does not echo to the screen.
-
-    https://stackoverflow.com/questions/510357/how-to-read-a-single-character-from-the-user
-    '''
-    def __init__(self):
-        try:
-            self.impl = _GetchWindows()
-        except ImportError:
-            self.impl = _GetchUnix()
-
-    def __call__(self): return self.impl()
-
-
-class _GetchUnix:
-    def __init__(self):
-        import tty, sys  # noqa
-
-    def __call__(self):
-        import sys
-        import tty
-        import termios
-
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(fd)
-            ch = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
-        return ch
-
-
-class _GetchWindows:
-    def __init__(self):
-        import msvcrt  # noqa
-
-    def __call__(self):
-        import msvcrt
-        return msvcrt.getch()
-
-
-getch = _Getch()
 
 
 class AcquisitionThread(qc.QThread):
@@ -878,73 +828,3 @@ class SnufflerWindow(qw.QMainWindow):
 
     def is_closing(self):
         return self.closing
-
-
-class Snuffler(qw.QApplication):
-
-    def __init__(self):
-        qw.QApplication.__init__(self, [])
-        self.setApplicationName('Snuffler')
-        self.setApplicationDisplayName('Snuffler')
-        self.lastWindowClosed.connect(self.myQuit)
-        self.server = None
-        self.loader = None
-
-    def install_sigint_handler(self):
-        self._old_signal_handler = signal.signal(
-            signal.SIGINT,
-            self.myCloseAllWindows)
-
-    def uninstall_sigint_handler(self):
-        signal.signal(signal.SIGINT, self._old_signal_handler)
-
-    def snuffler_windows(self):
-        return [w for w in self.topLevelWidgets()
-                if isinstance(w, SnufflerWindow) and not w.is_closing()]
-
-    def event(self, e):
-        if isinstance(e, qg.QFileOpenEvent):
-            path = str(e.file())
-            if path != sys.argv[0]:
-                wins = self.snuffler_windows()
-                if wins:
-                    wins[0].get_view().load_soon([path])
-
-            return True
-        else:
-            return qw.QApplication.event(self, e)
-
-    def load(self, pathes, cachedirname, pattern, format):
-        if not self.loader:
-            self.start_loader()
-
-        self.loader.ship(
-            ('load', pathes, cachedirname, pattern, format))
-
-    def update_progress(self, task, percent):
-        self.pile_viewer.progressbars.set_status(task, percent)
-
-    def myCloseAllWindows(self, *args):
-
-        def confirm():
-            try:
-                print('\nQuit Snuffler? [y/n]', file=sys.stderr)
-                confirmed = getch() == 'y'
-                if not confirmed:
-                    print('Continuing.', file=sys.stderr)
-                else:
-                    print('Quitting Snuffler.', file=sys.stderr)
-
-                return confirmed
-
-            except Exception:
-                return False
-
-        if confirm():
-            for win in self.snuffler_windows():
-                win.instant_close = True
-
-            self.closeAllWindows()
-
-    def myQuit(self, *args):
-        self.quit()

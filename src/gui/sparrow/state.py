@@ -172,9 +172,7 @@ def state_bind_slider(
         min_is_none=False,
         max_is_none=False):
 
-    app = common.get_app()
-
-    viewer = app.get_main_window()
+    viewer = common.get_viewer()
     widget.sliderPressed.connect(viewer.disable_capture)
     widget.sliderReleased.connect(viewer.enable_capture)
 
@@ -185,7 +183,7 @@ def state_bind_slider(
                     or (max_is_none and val == widget.maximum()):
                 state.set(path, None)
             else:
-                app.status('%g' % (val * factor))
+                viewer.status('%g' % (val * factor))
                 state.set(path, dtype(val * factor))
 
         def update_widget(state, widget):
@@ -215,9 +213,7 @@ def state_bind_slider_float(
 
     assert isinstance(widget, gui_util.QSliderFloat)
 
-    app = common.get_app()
-
-    viewer = app.get_main_window()
+    viewer = common.get_viewer()
     widget.sliderPressed.connect(viewer.disable_capture)
     widget.sliderReleased.connect(viewer.enable_capture)
 
@@ -228,7 +224,7 @@ def state_bind_slider_float(
                     or (max_is_none and val == widget.maximumFloat()):
                 state.set(path, None)
             else:
-                app.status('%g' % (val))
+                viewer.status('%g' % (val))
                 state.set(path, val)
 
         def update_widget(state, widget):
