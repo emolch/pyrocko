@@ -117,11 +117,12 @@ class SparrowTest(unittest.TestCase):
             'https://data.pyrocko.org/testing/pyrocko/'
             'test-v0.snapshots.yaml')
         self.viewer.snapshots_panel.add_snapshots(snapshots_)
-        self.viewer.snapshots_panel.transition_to_next_snapshot()
-        for i in range(40):
-            self.press_key(Qt.Key_PageDown)
+        for i in range(len(snapshots_)+1):
+            self.viewer.snapshots_panel.transition_to_next_snapshot()
+            self.viewer.update()
             self.viewer.renwin.Render()
-            QTest.qWait(10)
+            self.viewer.repaint()
+            QTest.qWait(100)
 
     # def test_elements(self):
     #     self.trigger_all_actions(self.get_menu('Elements'))
