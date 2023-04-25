@@ -10,3 +10,4 @@ matplotlib
 requests
 jinja2
 pyqt
+vtk
