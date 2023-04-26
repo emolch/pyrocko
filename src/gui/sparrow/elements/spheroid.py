@@ -109,7 +109,7 @@ class SpheroidElement(Element):
 
         if self._mesh:
             vertices = self._vertices0 * s[num.newaxis, :]
-            bc = num.matrix(
+            bc = num.array(
                 [[1, 0, 0], [0, 0, 1], [0, 1, 0]], dtype=num.float64)
             rot = num.dot(
                 bc,
