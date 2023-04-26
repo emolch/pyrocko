@@ -22,6 +22,7 @@ from pyrocko.dataset import geonames
 from pyrocko import config
 from pyrocko import moment_tensor as pmt
 from pyrocko import util
+from pyrocko.dataset.util import set_download_callback
 
 from pyrocko.gui.util import Progressbars, RangeEdit
 from pyrocko.gui.talkie import TalkieConnectionOwner, equal as state_equal
@@ -283,6 +284,9 @@ class StateEditor(qw.QFrame, TalkieConnectionOwner):
 
 
 class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
+
+    download_progress_update = qc.pyqtSignal()
+
     def __init__(
             self,
             use_depth_peeling=True,
@@ -623,11 +627,16 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self.talkie_connect(self.state, '', self.capture_state)
         self.capture_state()
 
+        set_download_callback(self.update_download_progress)
+
         if not os.path.exists(hatch_path):
             with open(hatch_path, 'w') as f:
                 f.write('%s\n' % util.time_to_str(time.time()))
 
             self.start_tour()
+
+    def update_download_progress(self, message, args):
+        self.download_progress_update.emit()
 
     def status(self, message, duration=None):
         self.statusBar().showMessage(

@@ -1016,17 +1016,19 @@ class Progressbars(qw.QFrame):
         self.start_times = {}
         self.hide()
 
-    def set_status(self, name, value, can_abort=True):
+    def set_status(self, name, value, can_abort=True, force=False):
         value = int(round(value))
         now = time.time()
         if name not in self.start_times:
             self.start_times[name] = now
-            return False
+            if not force:
+                return False
         else:
             if now < self.start_times[name] + 1.0:
                 if value == 100:
                     del self.start_times[name]
-                return False
+                if not force:
+                    return False
 
         self.start_times.get(name, 0.0)
         if name not in self.bars:
@@ -1042,7 +1044,8 @@ class Progressbars(qw.QFrame):
 
         if value == 100:
             del self.bars[name]
-            del self.start_times[name]
+            if name in self.start_times:
+                del self.start_times[name]
             self.make_layout()
             for w in bar.widgets():
                 w.setParent(None)

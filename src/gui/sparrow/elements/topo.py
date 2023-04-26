@@ -237,8 +237,26 @@ class TopoElement(Element):
 
         wanted = set()
         if visible:
+
+            show_progress = [False]
+            abort = [False]
+            ntiles = lat_majors.size * lon_majors.size
+            itile = 0
+
+            def download_progress_update():
+                abort[0] = self._parent.progressbars.set_status(
+                    'Downloading topography data',
+                    itile/ntiles * 100., can_abort=False)
+
+                show_progress[0] = True
+                self._parent.update()
+
+            self._parent.download_progress_update.connect(
+                download_progress_update)
+
             for ilat, lat in enumerate(lat_majors):
                 for ilon, lon in enumerate(lon_majors):
+                    itile = ilon + ilat * lon_majors.size
                     lon = ((lon + 180.) % 360.) - 180.
 
                     region = topo.positive_region(
@@ -271,6 +289,25 @@ class TopoElement(Element):
                         # vtk produces artifacts when showing the two masked
                         # meshes (like this, mask_land is never used):
                         break
+
+                    if show_progress[0]:
+                        download_progress_update()
+
+                    if abort[0]:
+                        break
+
+                if abort[0]:
+                    break
+
+            itile = ntiles
+            if show_progress[0]:
+                download_progress_update()
+
+            self._parent.download_progress_update.disconnect(
+                download_progress_update)
+
+            if abort[0]:
+                self._state.visible = False
 
         unwanted = set()
         for k in self._active_meshes:
