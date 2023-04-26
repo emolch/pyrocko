@@ -51,6 +51,15 @@ else:
     g_modifier_key = 'Ctrl'
 
 
+supported_outformats = {
+    '.eps': 'EPS',
+    '.pdf': 'PDF',
+    '.ps': 'PS',
+    '.svg': 'SVG',
+    '.tex': 'TeX',
+    '.png': None}
+
+
 class ZeroFrame(qw.QFrame):
 
     def sizeHint(self):
@@ -894,24 +903,40 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
     def save_image(self, path):
 
-        original_fixed_size = self.gui_state.fixed_size
-        if original_fixed_size is None:
-            self.gui_state.fixed_size = (1920., 1080.)
+        filename, ext = os.path.splitext(path)
 
-        wif = vtk.vtkWindowToImageFilter()
-        wif.SetInput(self.renwin)
-        wif.SetInputBufferTypeToRGBA()
-        wif.SetScale(1, 1)
-        wif.ReadFrontBufferOff()
-        writer = vtk.vtkPNGWriter()
-        writer.SetInputConnection(wif.GetOutputPort())
+        if ext not in supported_outformats:
+            raise TypeError('Image output format %s is not supported!' % ext)
 
-        self.renwin.Render()
-        wif.Modified()
-        writer.SetFileName(path)
-        writer.Write()
+        if ext == '.png':
+            original_fixed_size = self.gui_state.fixed_size
+            if original_fixed_size is None:
+                self.gui_state.fixed_size = (1920., 1080.)
 
-        self.gui_state.fixed_size = original_fixed_size
+            wif = vtk.vtkWindowToImageFilter()
+            wif.SetInput(self.renwin)
+            wif.SetInputBufferTypeToRGBA()
+            wif.SetScale(1, 1)
+            wif.ReadFrontBufferOff()
+            writer = vtk.vtkPNGWriter()
+            writer.SetInputConnection(wif.GetOutputPort())
+
+            self.renwin.Render()
+            wif.Modified()
+            writer.SetFileName(path)
+            writer.Write()
+
+            self.gui_state.fixed_size = original_fixed_size
+
+        else:
+            writer = vtk.vtkGL2PSExporter()
+            writer.SetRenderWindow(self.renwin)
+            getattr(writer, 'SetFileFormatTo%s' % supported_outformats[ext])()
+            writer.SetFilePrefix(filename)
+            writer.Write3DPropsAsRasterImageOff()
+            writer.TextAsPathOn()
+            writer.SetCompress(0)
+            writer.Write()
 
     def update_render_settings(self, *args):
         if self._lighting is None or self._lighting != self.state.lighting:
