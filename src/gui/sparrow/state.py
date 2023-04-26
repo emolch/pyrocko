@@ -456,6 +456,10 @@ class Interpolator(object):
             self.tmin, self.tmax, self.dt, error='floor')
         times_inter[-1] = times[-1]
 
+        if times_inter.size == 1:
+            self._states_inter = [clone(states[-1])]
+            return
+
         states_inter = []
         for i in range(len(times) - 1):
 
