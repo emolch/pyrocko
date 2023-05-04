@@ -5,7 +5,7 @@
 
 import logging
 
-from pyrocko.guts import Bool, String, load, StringChoice, Float
+from pyrocko.guts import Bool, String, load, Float
 from pyrocko.geometry import arr_vertices, arr_faces
 from pyrocko.gui.qt_compat import qw, qc
 from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, OutlinesPipe
@@ -21,11 +21,6 @@ logger = logging.getLogger('geometry')
 guts_prefix = 'sparrow'
 
 km = 1e3
-
-
-class CPTChoices(StringChoice):
-
-    choices = ['slip_colors', 'seismic', 'jet', 'hot_r', 'gist_earth_r']
 
 
 class GeometryState(base.ElementState):

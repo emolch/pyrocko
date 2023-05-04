@@ -17,6 +17,13 @@ from pyrocko.gui.talkie import TalkieRoot, TalkieConnectionOwner
 from pyrocko.gui.qt_compat import qc, qw
 from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
 
+try:
+    from matplotlib import colormaps as mpl_cmaps
+    mpl_cmap_choices = list(mpl_cmaps.keys())
+except ImportError:
+    mpl_cmap_choices = ['seismic', 'seismic_r', 'jet', 'hot_r', 'gist_earth_r']
+
+
 from .. import common
 from ..state import \
     state_bind_combobox, state_bind
@@ -103,8 +110,8 @@ class Element(TalkieConnectionOwner):
 
 
 class CPTChoice(StringChoice):
-    choices = [
-        'slip_colors', 'seismic', 'seismic_r', 'jet', 'hot_r', 'gist_earth_r']
+
+    choices = ['slip_colors'] + mpl_cmap_choices
 
 
 class CPTState(ElementState):
