@@ -2429,6 +2429,9 @@ class RectangularSource(SourceWithDerivedMagnitude):
         geom.add_property(
             'moment', ds.moments().reshape(ds.nl*ds.nw, -1))
 
+        geom.add_property(
+            'slip', num.ones_like(ds.times) * self.slip)
+
         return geom
 
     def get_nucleation_abs_coord(self, cs='xy'):

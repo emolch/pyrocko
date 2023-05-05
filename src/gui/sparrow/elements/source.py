@@ -111,7 +111,28 @@ class ProxyStore(Object):
 
 
 parameter_label = {
-    'time (s)': 'times'}
+    'time (s)': 'times',
+    'slip (m)': 'slip',
+    'moment (Nm)': 'moment'
+}
+
+parameter_geometry = {
+    'time (s)': 't_arrival',
+    'slip (m)': 'slip',
+    'moment (Nm)': 'moment'
+}
+
+unit_label = {
+    'lat': '(deg)',
+    'lon': '(deg)',
+    'depth': '(m)',
+    'strike': '(deg)',
+    'dip': '(deg)',
+    'rake': '(deg)',
+    'length': '(m)',
+    'width': '(m)',
+    'slip': '(m)'
+}
 
 
 class SourceState(base.ElementState):
@@ -123,7 +144,7 @@ class SourceState(base.ElementState):
 
     @classmethod
     def get_name(self):
-        return 'Source'
+        return 'Rectangular Source'
 
     def create(self):
         element = SourceElement()
@@ -317,17 +338,53 @@ class SourceElement(base.Element):
 
         faces = source_geom.get_faces()
 
-        if parameter_label[param] == 'times' and \
-                source_geom.has_property('t_arrival'):
+        if param not in parameter_label:
+            raise NameError('No parameter label given for %s', param)
 
-            self.cpt_handler._values = source_geom.get_property('t_arrival')
-            cbar_title = 'T arr [s]'
+        if not source_geom.has_property(parameter_geometry[param]):
+            raise AttributeError(
+                'No property within source geometry called %s',
+                parameter_geometry[param])
+
+        self.cpt_handler._values = source_geom.get_property(
+            parameter_geometry[param])
+        cbar_title = parameter_label[param]
 
         self.cpt_handler.update_cpt()
 
         poly_pipe = PolygonPipe(
             vertices, faces,
-            values=self.cpt_handler._values, lut=self.cpt_handler._lookuptable)
+            values=self.cpt_handler._values,
+            lut=self.cpt_handler._lookuptable)
+
+        if not source_geom.has_property(parameter_geometry[param]):
+            raise AttributeError(
+                'No property within source geometry called %s',
+                parameter_geometry[param])
+
+        tmin = self._parent.state.tmin_effective
+        tmax = self._parent.state.tmax_effective
+
+        times = source_geom.get_property(parameter_geometry[param])
+        times += self._state.source_selection.time
+
+        if tmin is not None:
+            m1 = times < tmin
+        else:
+            m1 = num.zeros(times.size, dtype=bool)
+
+        if tmax is not None:
+            m3 = tmax < times
+        else:
+            m3 = num.zeros(times.size, dtype=bool)
+
+        m2 = num.logical_not(num.logical_or(m1, m3))
+
+        if not any(m2):
+            poly_pipe.set_alpha(0.)
+        # print(m2.astype(num.float_))
+        # poly_pipe.set_alpha(m2.copy().astype(num.float_))
+        # print(self.cpt_handler._lookuptable.GetRange())
 
         self._pipe.append(poly_pipe)
         self._parent.add_actor(self._pipe[-1].actor)
@@ -399,8 +456,6 @@ class SourceElement(base.Element):
                 sel = getattr(state, attribute)
 
                 widget.setText('%g' % sel)
-                # if sel:
-                #     widget.selectAll()
 
             def lineedit_to_state(widget, state, attribute):
                 s = float(widget.text())
@@ -411,11 +466,31 @@ class SourceElement(base.Element):
                         'Value of %s needs to be a float or integer'
                         % string.capwords(attribute))
 
-            for il, label in enumerate(source.T.propnames):
+            il = 0
+
+            # Origin time controls
+            layout.addWidget(qw.QLabel('Origin time'), il, 0)
+            le_time = qw.QLineEdit()
+            layout.addWidget(le_time, il, 1, 1, 2)
+
+            self._state_bind_source(
+                ['time'], common.lineedit_to_time, le_time,
+                [le_time.editingFinished, le_time.returnPressed],
+                common.time_to_lineedit,
+                attribute='time')
+
+            for var in ['tmin', 'tmax', 'tduration', 'tposition']:
+                self.talkie_connect(
+                    self._parent.state, var, self.update)
+
+            # Source property controls
+            for il, label in enumerate(source.T.propnames, start=il+1):
                 if label in source._ranges.keys():
 
+                    unit = unit_label[label] if label in unit_label else ''
+
                     layout.addWidget(qw.QLabel(
-                        string.capwords(label) + ':'), il, 0)
+                        f'{string.capwords(label)} {unit}'), il, 0)
 
                     slider = qw.QSlider(qc.Qt.Horizontal)
                     slider.setSizePolicy(
@@ -448,7 +523,7 @@ class SourceElement(base.Element):
                         state_to_lineedit, attribute=label)
 
             for label, name in zip(
-                    ['GF dt:'], ['deltat']):
+                    ['Sampling int. (s)'], ['deltat']):
                 il += 1
                 layout.addWidget(qw.QLabel(label), il, 0)
                 slider = qw.QSlider(qc.Qt.Horizontal)
@@ -472,7 +547,7 @@ class SourceElement(base.Element):
                     state_to_lineedit, attribute=name)
 
             il += 1
-            layout.addWidget(qw.QLabel('Anchor:'), il, 0)
+            layout.addWidget(qw.QLabel('Anchor'), il, 0)
 
             cb = qw.QComboBox()
             for i, s in enumerate(gf.RectangularSource.anchor.choices):
@@ -482,7 +557,7 @@ class SourceElement(base.Element):
                 self, self._state.source_selection, 'anchor', cb)
 
             il += 1
-            layout.addWidget(qw.QLabel('Display Param.:'), il, 0)
+            layout.addWidget(qw.QLabel('Display Param.'), il, 0)
 
             cb = qw.QComboBox()
             for i, s in enumerate(parameter_label.keys()):
@@ -495,7 +570,7 @@ class SourceElement(base.Element):
                 self._parent, self._state.cpt, layout)
 
             il = layout.rowCount() + 1
-            pb = qw.QPushButton('Move Source Here')
+            pb = qw.QPushButton('Move Here')
             layout.addWidget(pb, il, 0)
             pb.clicked.connect(self.update_loc)
 
