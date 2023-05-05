@@ -73,7 +73,7 @@ def computed(depends_on):
 
 
 class Talkie(Object):
-    _computed = None
+    _computed = ()
     _computed_rev = None
 
     def __setattr__(self, name, value):
