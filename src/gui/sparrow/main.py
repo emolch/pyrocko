@@ -378,6 +378,14 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         vstate.state_bind_checkbox(self, self.gui_state, 'detached', action)
         menu.addAction(action)
 
+        # hide controls
+        action = qw.QAction('Hide Controls', self)
+        action.setCheckable(True)
+        action.setShortcut(qc.Qt.Key_Space)
+        action.setShortcutContext(qc.Qt.ApplicationShortcut)
+        action.triggered.connect(self.toggle_panel_visibility)
+        menu.addAction(action)
+
         self.panels_menu = mbar.addMenu('Panels')
         self.panels_menu.addAction(
             'Stack Panels',
@@ -1270,8 +1278,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                     if isinstance(elem, elements.TopoState):
                         elem.visible = not elem.visible
 
-        elif k == ' ':
-            self.toggle_panel_visibility()
+        # elif k == ' ':
+        #     self.toggle_panel_visibility()
 
     def _state_bind(self, *args, **kwargs):
         vstate.state_bind(self, self.state, *args, **kwargs)
@@ -1438,30 +1446,15 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         layout.addWidget(label_tcursor, 2, 1)
         self._label_tcursor = label_tcursor
 
-        def time_to_lineedit(state, attribute, widget):
-            widget.setText(
-                common.time_or_none_to_str(getattr(state, attribute)))
-
-        def lineedit_to_time(widget, state, attribute):
-            from pyrocko.util import str_to_time_fillup
-
-            s = str(widget.text())
-            if not s.strip():
-                setattr(state, attribute, None)
-            else:
-                try:
-                    setattr(state, attribute, str_to_time_fillup(s))
-                except Exception:
-                    raise ValueError(
-                        'Use time format: YYYY-MM-DD HH:MM:SS.FFF')
-
         self._state_bind(
-            ['tmin'], lineedit_to_time, le_tmin,
-            [le_tmin.editingFinished, le_tmin.returnPressed], time_to_lineedit,
+            ['tmin'], common.lineedit_to_time, le_tmin,
+            [le_tmin.editingFinished, le_tmin.returnPressed],
+            common.time_to_lineedit,
             attribute='tmin')
         self._state_bind(
-            ['tmax'], lineedit_to_time, le_tmax,
-            [le_tmax.editingFinished, le_tmax.returnPressed], time_to_lineedit,
+            ['tmax'], common.lineedit_to_time, le_tmax,
+            [le_tmax.editingFinished, le_tmax.returnPressed],
+            common.time_to_lineedit,
             attribute='tmax')
 
         self.tmin_lineedit = le_tmin
