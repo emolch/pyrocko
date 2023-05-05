@@ -966,10 +966,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             self._animation_iframe = None
         else:
             self._animation_iframe = 0
-            self.showFullScreen()
-            self.update_view()
-            self.gui_state.panels_visible = False
-            self.update_view()
+            mess = 'Rendering movie'
+            self.progressbars.set_status(mess, 0, can_abort=True)
 
         self._animation_timer = qc.QTimer(self)
         self._animation_timer.timeout.connect(self.next_animation_frame)
@@ -1011,7 +1009,13 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
         self.set_state(state)
         self.renwin.Render()
+        abort = False
         if self._animation_saver:
+            abort = self.progressbars.set_status(
+                'Rendering movie',
+                100*self._animation_iframe*ani.dt / (ani.tmax - ani.tmin),
+                can_abort=True)
+
             wif, writer, temp_path, _, _ = self._animation_saver
             wif.Modified()
             fn = os.path.join(temp_path, 'f%09i.png')
@@ -1023,7 +1027,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         else:
             t = tnow - self._animation_tstart
 
-        if t > ani.tmax - ani.tmin:
+        if t > ani.tmax - ani.tmin or abort:
             self.stop_animation()
 
     def stop_animation(self):
@@ -1051,8 +1055,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             self._animation_saver = None
             self._animation_saver
 
-            self.showNormal()
-            self.gui_state.panels_visible = True
+            self.progressbars.set_status(
+                'Rendering movie', 100, can_abort=True)
 
         self._animation_tstart = None
         self._animation_iframe = None
