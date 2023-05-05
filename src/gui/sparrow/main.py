@@ -407,7 +407,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 ('Custom Topography', elements.CustomTopoState()),
                 ('Catalog', elements.CatalogState()),
                 ('Coastlines', elements.CoastlinesState()),
-                ('Source', elements.SourceState()),
+                ('Rectangular Source', elements.SourceState()),
                 ('HUD Subtitle', elements.HudState(
                     template='Subtitle')),
                 ('HUD (tmax_effective)', elements.HudState(

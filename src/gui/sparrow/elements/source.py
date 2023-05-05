@@ -182,7 +182,7 @@ class SourceElement(base.Element):
         base.Element.unbind_state(self)
 
     def get_name(self):
-        return 'Source'
+        return 'Rectangular Source'
 
     def set_parent(self, parent):
         self._parent = parent
