@@ -1253,7 +1253,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             self.state.lon = float(lon)
         else:
             self.state.dip = float(90. - lat)
-            self.state.strike = float(-(lon + 90.))
+            self.state.strike = float(((-(lon + 90.))+180.) % 360. - 180.)
 
     def do_dolly(self, v):
         self.state.distance *= float(1.0 + 0.1*v)
