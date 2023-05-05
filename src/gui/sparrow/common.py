@@ -431,6 +431,26 @@ class MyDockWidget(qw.QDockWidget):
         self.setBlocked(False)
 
 
+class MyScrollArea(qw.QScrollArea):
+
+    def sizeHint(self):
+        s = qc.QSize()
+        s.setWidth(self.widget().sizeHint().width())
+        s.setHeight(self.widget().sizeHint().height())
+        return s
+
+    def minimumSizeHint(self):
+        s = qc.QSize()
+        s.setWidth(self.widget().minimumSizeHint().width())
+        s.setHeight(0)
+        return s
+
+    def resizeEvent(self, event):
+        s = event.size()
+        s.setHeight(self.widget().height())
+        self.widget().resize(s)
+
+
 class MyDoubleSpinBox(qw.QDoubleSpinBox):
     def __init__(self, *args, **kwargs):
         qw.QDoubleSpinBox.__init__(self, *args, **kwargs)

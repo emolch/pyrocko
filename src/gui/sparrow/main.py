@@ -473,24 +473,32 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
 
         self.add_panel(
             'Navigation',
-            self.controls_navigation(), visible=True,
+            self.controls_navigation(),
+            visible=True,
+            scrollable=False,
             where=qc.Qt.LeftDockWidgetArea)
 
         self.add_panel(
             'Time',
-            self.controls_time(), visible=True,
+            self.controls_time(),
+            visible=True,
+            scrollable=False,
             where=qc.Qt.LeftDockWidgetArea)
 
         self.add_panel(
             'Appearance',
-            self.controls_appearance(), visible=True,
+            self.controls_appearance(),
+            visible=True,
+            scrollable=False,
             where=qc.Qt.LeftDockWidgetArea)
 
         snapshots_panel = self.controls_snapshots()
         self.snapshots_panel = snapshots_panel
         self.add_panel(
             'Snapshots',
-            snapshots_panel, visible=False,
+            snapshots_panel,
+            visible=False,
+            scrollable=False,
             where=qc.Qt.LeftDockWidgetArea)
 
         snapshots_panel.setup_menu(snapshots_menu)
@@ -1681,7 +1689,8 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             tabify=True,
             where=qc.Qt.RightDockWidgetArea,
             remove=None,
-            title_controls=[]):
+            title_controls=[],
+            scrollable=True):
 
         dockwidget = common.MyDockWidget(
             self, title_label, title_controls=title_controls)
@@ -1692,9 +1701,17 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         if not self.gui_state.panels_visible:
             dockwidget.block()
 
-        dockwidget.setWidget(panel)
+        if scrollable:
+            scrollarea = common.MyScrollArea()
+            scrollarea.setWidget(panel)
+            scrollarea.setHorizontalScrollBarPolicy(qc.Qt.ScrollBarAlwaysOff)
+            scrollarea.setSizeAdjustPolicy(
+                qw.QAbstractScrollArea.AdjustToContents)
+            scrollarea.setFrameShape(qw.QFrame.NoFrame)
 
-        panel.setParent(dockwidget)
+            dockwidget.setWidget(scrollarea)
+        else:
+            dockwidget.setWidget(panel)
 
         dockwidgets = self.findChildren(common.MyDockWidget)
         dws = [x for x in dockwidgets if self.dockWidgetArea(x) == where]
@@ -1765,8 +1782,15 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
             for tl in group:
                 tl.set_slug_abbreviated_length(n)
 
+    def get_dockwidget(self, panel):
+        dockwidget = panel
+        while not isinstance(dockwidget, qw.QDockWidget):
+            dockwidget = dockwidget.parent()
+
+        return dockwidget
+
     def raise_panel(self, panel):
-        dockwidget = panel.parent()
+        dockwidget = self.get_dockwidget(panel)
         dockwidget.setVisible(True)
         dockwidget.setFocus()
         dockwidget.raise_()
@@ -1793,7 +1817,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         self.setUpdatesEnabled(True)
 
     def remove_panel(self, panel):
-        dockwidget = panel.parent()
+        dockwidget = self.get_dockwidget(panel)
         self.removeDockWidget(dockwidget)
         dockwidget.setParent(None)
         self.panels_menu.removeAction(self._panel_togglers[dockwidget])
