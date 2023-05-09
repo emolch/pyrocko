@@ -533,9 +533,11 @@ class TrimeshPipe(object):
 
 class OutlinesPipe(object):
 
-    def __init__(self, geom, color, cs='latlon'):
+    def __init__(self, geom, color=Color('white'), cs='latlon'):
 
         self._polyline_grid = None
+        self._line_width = 1.0
+        self._color = color
         self.actors = None
 
         lines = []
@@ -567,10 +569,29 @@ class OutlinesPipe(object):
         actor.SetMapper(mapper)
 
         prop = actor.GetProperty()
-        prop.SetDiffuseColor(color)
         prop.SetOpacity(1.)
 
+        if isinstance(self._color, Color):
+            color = self._color.rgb
+        else:
+            color = self._color
+
+        prop.SetDiffuseColor(color)
+        prop.SetLineWidth(self._line_width)
+
         self.actor = actor
+        self.prop = prop
+
+    def set_color(self, color):
+        if self._color != color:
+            self.prop.SetDiffuseColor(color.rgb)
+            self._color = color
+
+    def set_line_width(self, width):
+        width = float(width)
+        if self._line_width != width:
+            self.prop.SetLineWidth(width)
+            self._line_width = width
 
 
 class PolygonPipe(object):

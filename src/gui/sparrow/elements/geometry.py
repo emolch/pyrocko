@@ -8,7 +8,7 @@ import logging
 from pyrocko.guts import Bool, String, load, Float
 from pyrocko.geometry import arr_vertices, arr_faces
 from pyrocko.gui.qt_compat import qw, qc
-from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, OutlinesPipe
+from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, OutlinesPipe, Color
 
 from pyrocko.model import Geometry
 
@@ -27,9 +27,11 @@ class GeometryState(base.ElementState):
     opacity = Float.T(default=1.0)
     visible = Bool.T(default=True)
     geometry = Geometry.T(default=None, optional=True)
-    display_parameter = String.T(default='slip')
+    display_parameter = String.T(default="")
     time = Float.T(default=0., optional=True)
     cpt = base.CPTState.T(default=base.CPTState.D())
+    color = Color.T(default=Color.D('white'))
+    line_width = Float.T(default=1.0)
 
     def create(self):
         element = GeometryElement()
@@ -108,7 +110,8 @@ class GeometryElement(base.Element):
 
         self.talkie_connect(
             state,
-            ['visible', 'geometry', 'display_parameter', 'time', 'opacity'],
+            ['visible', 'geometry', 'display_parameter', 'time',
+             'opacity', 'color', 'line_width'],
             self.update)
 
         self.cpt_handler.bind_state(state.cpt, self.update)
@@ -122,13 +125,14 @@ class GeometryElement(base.Element):
 
     def update_cpt(self, state):
 
-        values = state.geometry.get_property(state.display_parameter)
-        # TODO Check
-        # if values.ndim == 2:
-        #     values = values.sum(1)
+        if len(state.display_parameter) != 0:
+            values = state.geometry.get_property()
+            # TODO Check
+            # if values.ndim == 2:
+            #     values = values.sum(1)
 
-        self.cpt_handler._values = values
-        self.cpt_handler.update_cpt()
+            self.cpt_handler._values = values
+            self.cpt_handler.update_cpt()
 
     def get_name(self):
         return 'Geometry'
@@ -151,9 +155,6 @@ class GeometryElement(base.Element):
         if props:
             if self._state.display_parameter not in props:
                 self._state.display_parameter = props[0]
-        else:
-            raise ValueError(
-                'Imported geometry contains no property to be displayed!')
 
         self._parent.remove_panel(self._controls)
         self._controls = None
@@ -216,6 +217,22 @@ class GeometryElement(base.Element):
 
         self.update()
 
+    def update_outlines(self, geo):
+        state = self._state
+        if len(self._outlines_pipe) == 0:
+            for cs in ['latlondepth']:
+                outline_pipe = OutlinesPipe(
+                    geo, color=state.color, cs=cs)
+                outline_pipe.set_line_width(state.line_width)
+                self._outlines_pipe.append(outline_pipe)
+                self._parent.add_actor(
+                    self._outlines_pipe[-1].actor)
+
+        else:
+            for outline_pipe in self._outlines_pipe:
+                outline_pipe.set_color(state.color)
+                outline_pipe.set_line_width(state.line_width)
+
     def update(self, *args):
 
         state = self._state
@@ -229,41 +246,34 @@ class GeometryElement(base.Element):
                 # cpt_name = self.get_cpt_name(
                 # state.cpt, state.display_parameter)
                 geo = state.geometry
-                values = self.get_values(geo)
                 lut = self.cpt_handler._lookuptable
-                if not isinstance(self._pipe, TrimeshPipe):
-                    vertices = arr_vertices(geo.get_vertices('xyz'))
-                    faces = arr_faces(geo.get_faces())
-                    self._pipe = TrimeshPipe(
-                        vertices, faces,
-                        values=values,
-                        lut=lut,
-                        backface_culling=False)
-                    self._cbar_pipe = ColorbarPipe(
-                        lut=lut, cbar_title=state.display_parameter)
-                    self._parent.add_actor(self._pipe.actor)
-                    self._parent.add_actor(self._cbar_pipe.actor)
+                no_faces = geo.no_faces()
+                if no_faces:
+                    values = self.get_values(geo)
+                    if not isinstance(self._pipe, TrimeshPipe):
+                        vertices = arr_vertices(geo.get_vertices('xyz'))
+                        faces = arr_faces(geo.get_faces())
+                        self._pipe = TrimeshPipe(
+                            vertices, faces,
+                            values=values,
+                            lut=lut,
+                            backface_culling=False)
+                        self._cbar_pipe = ColorbarPipe(
+                            lut=lut, cbar_title=state.display_parameter)
+                        self._parent.add_actor(self._pipe.actor)
+                        self._parent.add_actor(self._cbar_pipe.actor)
+                    else:
+                        self._pipe.set_values(values)
+                        self._pipe.set_lookuptable(lut)
+                        self._pipe.set_opacity(self._state.opacity)
 
-                    if geo.outlines:
-                        self._outlines_pipe.append(OutlinesPipe(
-                            geo, color=(1., 1., 1.), cs='latlondepth'))
-                        self._parent.add_actor(
-                            self._outlines_pipe[-1].actor)
-                        self._outlines_pipe.append(OutlinesPipe(
-                            geo, color=(0.6, 0.6, 0.6), cs='latlon'))
-                        self._parent.add_actor(
-                            self._outlines_pipe[-1].actor)
+                        self._cbar_pipe.set_lookuptable(lut)
+                        self._cbar_pipe.set_title(state.display_parameter)
 
-                else:
-                    self._pipe.set_values(values)
-                    self._pipe.set_lookuptable(lut)
-                    self._pipe.set_opacity(self._state.opacity)
-
-                    self._cbar_pipe.set_lookuptable(lut)
-                    self._cbar_pipe.set_title(state.display_parameter)
+                if geo.outlines:
+                    self.update_outlines(geo)
             else:
-                if self._pipe:
-                    self.remove_pipes()
+                self.remove_pipes()
 
         self._parent.update_view()
 
@@ -271,7 +281,7 @@ class GeometryElement(base.Element):
         state = self._state
         if not self._controls:
             from ..state import state_bind_combobox, \
-                state_bind_slider
+                state_bind_slider, state_bind_combobox_color
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
@@ -307,36 +317,44 @@ class GeometryElement(base.Element):
                 layout.addWidget(cb, il, 1)
                 state_bind_combobox(self, state, 'display_parameter', cb)
 
-                # color maps
-                self.cpt_handler.cpt_controls(
-                    self._parent, self._state.cpt, layout)
+                if state.geometry.no_faces != 0:
+                    # color maps
+                    self.cpt_handler.cpt_controls(
+                        self._parent, self._state.cpt, layout)
+
+                    il += 1
+                    layout.addWidget(qw.QFrame(), il, 0, 1, 3)
+
+                    self.cpt_handler._update_cpt_combobox()
+                    self.cpt_handler._update_cptscale_lineedit()
 
                 # times slider
+                if state.geometry.times:
+                    il = layout.rowCount() + 1
+                    slider = qw.QSlider(qc.Qt.Horizontal)
+                    slider.setSizePolicy(
+                        qw.QSizePolicy(
+                            qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+
+                    def iround(x):
+                        return int(round(x))
+
+                    slider.setMinimum(iround(state.geometry.times.min()))
+                    slider.setMaximum(iround(state.geometry.times.max()))
+                    slider.setSingleStep(iround(state.geometry.deltat))
+                    slider.setPageStep(iround(state.geometry.deltat))
+
+                    time_label = qw.QLabel('Time')
+                    layout.addWidget(time_label, il, 0)
+                    layout.addWidget(slider, il, 1)
+
+                    state_bind_slider(
+                        self, state, 'time', slider, dtype=int)
+
+                    self._time_label = time_label
+                    self._time_slider = slider
+
                 il = layout.rowCount() + 1
-                slider = qw.QSlider(qc.Qt.Horizontal)
-                slider.setSizePolicy(
-                    qw.QSizePolicy(
-                        qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-
-                def iround(x):
-                    return int(round(x))
-
-                slider.setMinimum(iround(state.geometry.times.min()))
-                slider.setMaximum(iround(state.geometry.times.max()))
-                slider.setSingleStep(iround(state.geometry.deltat))
-                slider.setPageStep(iround(state.geometry.deltat))
-
-                time_label = qw.QLabel('Time')
-                layout.addWidget(time_label, il, 0)
-                layout.addWidget(slider, il, 1)
-
-                state_bind_slider(
-                    self, state, 'time', slider, dtype=int)
-
-                self._time_label = time_label
-                self._time_slider = slider
-
-                il += 1
                 slider_opacity = qw.QSlider(qc.Qt.Horizontal)
                 slider_opacity.setSizePolicy(
                     qw.QSizePolicy(
@@ -354,11 +372,29 @@ class GeometryElement(base.Element):
                 self._opacity_label = opacity_label
                 self._opacity_slider = slider_opacity
 
+                # color
                 il += 1
-                layout.addWidget(qw.QFrame(), il, 0, 1, 3)
+                layout.addWidget(qw.QLabel('Color'), il, 0)
 
-                self.cpt_handler._update_cpt_combobox()
-                self.cpt_handler._update_cptscale_lineedit()
+                cb = common.strings_to_combobox(
+                    ['black', 'white', 'blue', 'red'])
+
+                layout.addWidget(cb, il, 1)
+                state_bind_combobox_color(self, state, 'color', cb)
+
+                # linewidth outline
+                il += 1
+                layout.addWidget(qw.QLabel('Line width'), il, 0)
+
+                slider = qw.QSlider(qc.Qt.Horizontal)
+                slider.setSizePolicy(
+                    qw.QSizePolicy(
+                        qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+                slider.setMinimum(0)
+                slider.setMaximum(100)
+                layout.addWidget(slider, il, 1)
+                state_bind_slider(
+                    self, state, 'line_width', slider, factor=0.1)
 
             self._controls = frame
 
@@ -369,18 +405,19 @@ class GeometryElement(base.Element):
     def _update_controls(self):
         state = self._state
         if state.geometry:
-            values = state.geometry.get_property(state.display_parameter)
+            if len(state.display_parameter) != 0:
+                values = state.geometry.get_property()
 
-            if values.ndim == 2:
-                self._time_label.setVisible(True)
-                self._time_slider.setVisible(True)
-                self._opacity_label.setVisible(True)
-                self._opacity_slider.setVisible(True)
-            else:
-                self._time_label.setVisible(False)
-                self._time_slider.setVisible(False)
-                self._opacity_label.setVisible(False)
-                self._opacity_slider.setVisible(False)
+                if values.ndim == 2:
+                    self._time_label.setVisible(True)
+                    self._time_slider.setVisible(True)
+                    self._opacity_label.setVisible(True)
+                    self._opacity_slider.setVisible(True)
+                else:
+                    self._time_label.setVisible(False)
+                    self._time_slider.setVisible(False)
+                    self._opacity_label.setVisible(False)
+                    self._opacity_slider.setVisible(False)
 
 
 __all__ = [
