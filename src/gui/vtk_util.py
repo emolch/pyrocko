@@ -548,9 +548,6 @@ class OutlinesPipe(object):
             points = num.concatenate(
                 (latlon, depth.reshape(len(depth), 1)),
                 axis=1)
-            points = num.concatenate(
-                (points, points[0].reshape(1, -1)), axis=0)
-
             lines.append(points)
 
         mapper = vtk.vtkDataSetMapper()

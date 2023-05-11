@@ -2414,11 +2414,10 @@ class RectangularSource(SourceWithDerivedMagnitude):
         xyz = self.outline('xyz')
         latlon = num.ones((5, 2)) * num.array([self.lat, self.lon])
         patchverts = num.hstack((latlon, xyz))
-        face_outlines = patchverts[:-1, :]  # last vertex double
 
         geom = Geometry()
         geom.setup(vertices, faces)
-        geom.set_outlines([face_outlines])
+        geom.set_outlines([patchverts])
 
         if self.stf:
             geom.times = num.unique(ds.times)
