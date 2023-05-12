@@ -233,6 +233,21 @@ class GeometryElement(base.Element):
 
         self.update()
 
+    def clear(self):
+        self._parent.remove_panel(self._controls)
+        self._controls = None
+        self._state.geometry = None
+
+        self._parent.add_panel(
+            self.get_title_label(),
+            self._get_controls(),
+            visible=True,
+            title_controls=[
+                self.get_title_control_remove(),
+                self.get_title_control_visible()])
+
+        self.update()
+
     def update_outlines(self, geo):
         state = self._state
         if len(self._outlines_pipe) == 0:
@@ -290,6 +305,9 @@ class GeometryElement(base.Element):
                     self.update_outlines(geo)
             else:
                 self.remove_pipes()
+
+        else:
+            self.remove_pipes()
 
         self._parent.update_view()
 
@@ -407,10 +425,15 @@ class GeometryElement(base.Element):
                 state_bind_slider(
                     self, state, 'line_width', slider, factor=0.1)
 
-                # Change view to source
+                # Clear scene
                 il += 1
-                pb = qw.QPushButton('Move to')
-                layout.addWidget(pb, il, 0, 1, 3)
+                pb = qw.QPushButton('Clear')
+                layout.addWidget(pb, il, 1)
+                pb.clicked.connect(self.clear)
+
+                # Change view to source
+                pb = qw.QPushButton('Move To')
+                layout.addWidget(pb, il, 2)
                 pb.clicked.connect(self.update_view)
 
             self._controls = frame
