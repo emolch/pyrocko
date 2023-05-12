@@ -4,11 +4,13 @@
 # ---|P------/S----------~Lg----------
 
 import logging
+import numpy as num
 
 from pyrocko.guts import Bool, String, load, Float
 from pyrocko.geometry import arr_vertices, arr_faces
 from pyrocko.gui.qt_compat import qw, qc
 from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, OutlinesPipe, Color
+from pyrocko.orthodrome import geographic_midpoint
 
 from pyrocko.model import Geometry
 
@@ -212,15 +214,23 @@ class GeometryElement(base.Element):
         pstate = self._parent.state
         geom = self._state.geometry
 
-        # if geom.no_faces() > 0:
-        #     geom.get_vertices('latlon')
-        # else:
-        #     for outline in geom.outlines:
-        #         latlon = outline.get_col('latlon')
-
-        if geom.event:
+        if geom.no_faces() > 0:
+            latlon = geom.get_vertices('latlon')
+            pstate.lat, pstate.lon = geographic_midpoint(
+                latlon[:, 0],
+                latlon[:, 1])
+        elif geom.outlines:
+            latlon = num.concatenate([
+                outline.get_col('latlon') for outline in geom.outlines
+            ])
+            pstate.lat, pstate.lon = geographic_midpoint(
+                latlon[:, 0],
+                latlon[:, 1])
+        elif geom.event:
             pstate.lat = geom.event.lat
             pstate.lon = geom.event.lon
+        else:
+            raise ValueError('Geometry Element has no location information.')
 
         self.update()
 
