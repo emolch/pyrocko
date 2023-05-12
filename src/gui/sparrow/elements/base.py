@@ -9,18 +9,20 @@ import base64
 import numpy as num
 
 from pyrocko.plot import automap
-from pyrocko.guts import String, Float, StringChoice
+from pyrocko.guts import String, Float, StringChoice, Bool
 from pyrocko.plot import AutoScaler, AutoScaleMode
 from pyrocko.dataset import topo
 
-from pyrocko.gui.talkie import TalkieRoot, TalkieConnectionOwner
+from pyrocko.gui.talkie import (TalkieRoot, TalkieConnectionOwner,
+                                has_computed, computed)
+
 from pyrocko.gui.qt_compat import qc, qw
 from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
 
 
 from .. import common
 from ..state import \
-    state_bind_combobox, state_bind
+    state_bind_combobox, state_bind, state_bind_checkbox
 
 
 mpl_cmap_blacklist = [
@@ -137,11 +139,20 @@ class CPTChoice(StringChoice):
     choices = ['slip_colors'] + get_mpl_cmap_choices()
 
 
+@has_computed
 class CPTState(ElementState):
     cpt_name = String.T(default=CPTChoice.choices[0])
     cpt_mode = String.T(default=AutoScaleMode.choices[1])
     cpt_scale_min = Float.T(optional=True)
     cpt_scale_max = Float.T(optional=True)
+    cpt_revert = Bool.T(default=False)
+
+    @computed(['cpt_name', 'cpt_revert'])
+    def effective_cpt_name(self):
+        if self.cpt_revert:
+            return '%s_r' % self.cpt_name
+        else:
+            return self.cpt_name
 
 
 class CPTHandler(Element):
@@ -159,7 +170,8 @@ class CPTHandler(Element):
 
     def bind_state(self, cpt_state, update_function):
         for state_attr in [
-                'cpt_name', 'cpt_mode', 'cpt_scale_min', 'cpt_scale_max']:
+                'effective_cpt_name', 'cpt_mode',
+                'cpt_scale_min', 'cpt_scale_max']:
 
             self.talkie_connect(
                 cpt_state, state_attr, update_function)
@@ -225,10 +237,11 @@ class CPTHandler(Element):
                         [(s, automap.read_cpt(os.path.join(cpt_dir, f)))])
 
             for i, (s, cpt) in enumerate(self._cpts.items()):
-                cb.insertItem(i, s, qc.QVariant(self._cpts[s]))
-                cb.setItemData(i, qc.QVariant(s), qc.Qt.ToolTipRole)
+                if s[-2::] != "_r":
+                    cb.insertItem(i, s, qc.QVariant(self._cpts[s]))
+                    cb.setItemData(i, qc.QVariant(s), qc.Qt.ToolTipRole)
 
-        cb.setCurrentIndex(cb.findText(self._state.cpt_name))
+        cb.setCurrentIndex(cb.findText(self._state.effective_cpt_name))
 
     def _update_cptscale_lineedit(self):
         le = self._cpt_scale_lineedit
@@ -272,7 +285,7 @@ class CPTHandler(Element):
                 if state.cpt_scale_max is not None:
                     state.cpt_scale_max = None
 
-        if state.cpt_name is not None and self._values is not None:
+        if state.effective_cpt_name is not None and self._values is not None:
             if self._values.size == 0:
                 vscale = (0., 1.)
             else:
@@ -285,16 +298,15 @@ class CPTHandler(Element):
                 vmin, vmax, _ = self._autoscaler.make_scale(
                     vscale, override_mode=state.cpt_mode)
 
-            self._cpts[state.cpt_name].scale(vmin, vmax)
-            cpt = self._cpts[state.cpt_name]
-
+            self._cpts[state.effective_cpt_name].scale(vmin, vmax)
+            cpt = self._cpts[state.effective_cpt_name]
             vtk_lut = cpt_to_vtk_lookuptable(cpt)
             vtk_lut.SetNanColor(0.0, 0.0, 0.0, 0.0)
 
             self._lookuptable = vtk_lut
             self._update_cptscale_lineedit()
 
-        elif state.cpt_name and self._values is None:
+        elif state.effective_cpt_name and self._values is None:
             raise ValueError('No values passed to colormapper!')
 
     def cpt_controls(self, parent, state, layout):
@@ -333,6 +345,11 @@ class CPTHandler(Element):
             self._cptscale_to_lineedit)
 
         self._cpt_scale_lineedit = le
+
+        iy += 1
+        cb = qw.QCheckBox('Revert')
+        layout.addWidget(cb, iy, 1)
+        state_bind_checkbox(self, state, 'cpt_revert', cb)
 
 
 def _lineedit_to_cptscale(widget, cpt_state):

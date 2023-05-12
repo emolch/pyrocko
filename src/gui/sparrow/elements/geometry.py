@@ -122,9 +122,6 @@ class GeometryElement(base.Element):
         self.cpt_handler.unbind_state()
         base.Element.unbind_state(self)
 
-    def get_cpt_name(self, cpt, display_parameter):
-        return '{}_{}'.format(cpt, display_parameter)
-
     def update_cpt(self, state):
 
         if len(state.display_parameter) != 0:
@@ -270,12 +267,9 @@ class GeometryElement(base.Element):
 
         if state.geometry and self._controls:
             self._update_controls()
-            # base.update_cpt(self)
             self.update_cpt(state)
 
             if state.visible:
-                # cpt_name = self.get_cpt_name(
-                # state.cpt, state.display_parameter)
                 geo = state.geometry
                 lut = self.cpt_handler._lookuptable
                 no_faces = geo.no_faces()

@@ -266,7 +266,7 @@ class TableElement(base.Element):
             self.cpt_handler.update_cpt()
 
             cpt = copy.deepcopy(
-                self.cpt_handler._cpts[self._state.cpt.cpt_name])
+                self.cpt_handler._cpts[self._state.cpt.effective_cpt_name])
             colors2 = cpt(values)
             colors2 = colors2 / 255.
 
