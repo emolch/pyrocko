@@ -128,7 +128,7 @@ class GeometryElement(base.Element):
     def update_cpt(self, state):
 
         if len(state.display_parameter) != 0:
-            values = state.geometry.get_property()
+            values = state.geometry.get_property(state.display_parameter)
             # TODO Check
             # if values.ndim == 2:
             #     values = values.sum(1)
@@ -174,7 +174,6 @@ class GeometryElement(base.Element):
 
     def get_values(self, geom):
         values = geom.get_property(self._state.display_parameter)
-
 
         if geom.event is not None:
             ref_time = geom.event.time
@@ -306,25 +305,20 @@ class GeometryElement(base.Element):
             frame.setLayout(layout)
 
             # load geometry
-            pb = qw.QPushButton('Load')
-            layout.addWidget(pb, 0, 0)
-
-            pb.clicked.connect(self.open_file_load_dialog)
+            il = 0
+            if not state.geometry:
+                pb = qw.QPushButton('Load')
+                layout.addWidget(pb, il, 0)
+                pb.clicked.connect(self.open_file_load_dialog)
 
             # property choice
-            il = 1
-            if state.geometry:
-
-                pb = qw.QPushButton('Move to')
-                layout.addWidget(pb, 0, 1)
-                pb.clicked.connect(self.update_view)
-
+            else:
                 props = []
                 for prop in state.geometry.properties.get_col_names(
                         sub_headers=False):
                     props.append(prop)
 
-                layout.addWidget(qw.QLabel('Display parameter'), il, 0)
+                layout.addWidget(qw.QLabel('Display Parameter'), il, 0)
                 cb = qw.QComboBox()
 
                 unique_props = list(set(props))
@@ -346,7 +340,7 @@ class GeometryElement(base.Element):
                     self.cpt_handler._update_cptscale_lineedit()
 
                 # times slider
-                if state.geometry.times:
+                if state.geometry.times is not None:
                     il = layout.rowCount() + 1
                     slider = qw.QSlider(qc.Qt.Horizontal)
                     slider.setSizePolicy(
@@ -401,7 +395,7 @@ class GeometryElement(base.Element):
 
                 # linewidth outline
                 il += 1
-                layout.addWidget(qw.QLabel('Line width'), il, 0)
+                layout.addWidget(qw.QLabel('Line Width'), il, 0)
 
                 slider = qw.QSlider(qc.Qt.Horizontal)
                 slider.setSizePolicy(
@@ -413,6 +407,12 @@ class GeometryElement(base.Element):
                 state_bind_slider(
                     self, state, 'line_width', slider, factor=0.1)
 
+                # Change view to source
+                il += 1
+                pb = qw.QPushButton('Move to')
+                layout.addWidget(pb, il, 0, 1, 3)
+                pb.clicked.connect(self.update_view)
+
             self._controls = frame
 
             self._update_controls()
@@ -423,7 +423,7 @@ class GeometryElement(base.Element):
         state = self._state
         if state.geometry:
             if len(state.display_parameter) != 0:
-                values = state.geometry.get_property()
+                values = state.geometry.get_property(state.display_parameter)
 
                 if values.ndim == 2:
                     self._time_label.setVisible(True)
