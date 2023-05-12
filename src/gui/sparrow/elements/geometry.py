@@ -95,7 +95,7 @@ class GeometryElement(base.Element):
     def unset_parent(self):
         self.unbind_state()
         if self._parent:
-            if self._pipe:
+            if self._pipe or self._cbar_pipe or self._outlines_pipe:
                 self.remove_pipes()
 
             if self._controls:
@@ -173,6 +173,7 @@ class GeometryElement(base.Element):
     def get_values(self, geom):
         values = geom.get_property(self._state.display_parameter)
 
+
         if geom.event is not None:
             ref_time = geom.event.time
         else:
@@ -210,6 +211,12 @@ class GeometryElement(base.Element):
     def update_view(self, *args):
         pstate = self._parent.state
         geom = self._state.geometry
+
+        # if geom.no_faces() > 0:
+        #     geom.get_vertices('latlon')
+        # else:
+        #     for outline in geom.outlines:
+        #         latlon = outline.get_col('latlon')
 
         if geom.event:
             pstate.lat = geom.event.lat
