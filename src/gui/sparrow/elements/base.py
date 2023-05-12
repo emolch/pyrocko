@@ -17,16 +17,39 @@ from pyrocko.gui.talkie import TalkieRoot, TalkieConnectionOwner
 from pyrocko.gui.qt_compat import qc, qw
 from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
 
-try:
-    from matplotlib import colormaps as mpl_cmaps
-    mpl_cmap_choices = list(mpl_cmaps.keys())
-except ImportError:
-    mpl_cmap_choices = ['seismic', 'seismic_r', 'jet', 'hot_r', 'gist_earth_r']
-
 
 from .. import common
 from ..state import \
     state_bind_combobox, state_bind
+
+
+mpl_cmap_blacklist = [
+    "prism", "flag",
+    "Accent", "Dark2",
+    "Paired", "Pastel1", "Pastel2",
+    "Set1", "Set2", "Set3",
+    "tab10", "tab20", "tab20b", "tab20c"
+]
+
+
+def get_mpl_cmap_choices():
+    try:
+        from matplotlib import colormaps as mpl_cmaps
+        mpl_cmap_choices = list(mpl_cmaps.keys())
+
+        for cmap_name in mpl_cmap_blacklist:
+            try:
+                mpl_cmap_choices.remove(cmap_name)
+                mpl_cmap_choices.remove("%s_r" % cmap_name)
+            except ValueError:
+                pass
+
+    except ImportError:
+        mpl_cmap_choices = [
+            'seismic', 'seismic_r', 'jet', 'hot_r', 'gist_earth_r']
+
+    mpl_cmap_choices.sort()
+    return mpl_cmap_choices
 
 
 def random_id():
@@ -111,7 +134,7 @@ class Element(TalkieConnectionOwner):
 
 class CPTChoice(StringChoice):
 
-    choices = ['slip_colors'] + mpl_cmap_choices
+    choices = ['slip_colors'] + get_mpl_cmap_choices()
 
 
 class CPTState(ElementState):
