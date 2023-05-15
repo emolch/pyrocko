@@ -159,6 +159,7 @@ class SnapshotItemDelegate(qw.QStyledItemDelegate):
                     ('0 s', 0.0),
                     ('1/2 s', 0.5),
                     ('1 s', 1.0),
+                    ('2 s', 2.0),
                     ('3 s', 3.0),
                     ('5 s', 5.0),
                     ('10 s', 10.0),
