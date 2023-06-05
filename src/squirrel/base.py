@@ -871,7 +871,7 @@ class Squirrel(Selection):
         cond.append('%(db)s.%(nuts)s.tmax_seconds >= ?')
         args.append(tmin_seconds)
 
-    def _codes_match_sql(self, kind_id, codes, cond, args):
+    def _codes_match_sql(self, positive, kind_id, codes, cond, args):
         pats = codes_patterns_for_kind(kind_id, codes)
         if pats is None:
             return
@@ -882,32 +882,28 @@ class Squirrel(Selection):
             spat = pat.safe_str
             (pats_exact if _is_exact(spat) else pats_nonexact).append(spat)
 
-        cond_exact = None
+        codes_cond = []
         if pats_exact:
-            cond_exact = ' ( kind_codes.codes IN ( %s ) ) ' % ', '.join(
-                '?'*len(pats_exact))
+            codes_cond.append(' ( kind_codes.codes IN ( %s ) ) ' % ', '.join(
+                '?'*len(pats_exact)))
 
             args.extend(pats_exact)
 
-        cond_nonexact = None
         if pats_nonexact:
-            cond_nonexact = ' ( %s ) ' % ' OR '.join(
-                    ('kind_codes.codes GLOB ?',) * len(pats_nonexact))
+            codes_cond.append(' ( %s ) ' % ' OR '.join(
+                    ('kind_codes.codes GLOB ?',) * len(pats_nonexact)))
 
             args.extend(pats_nonexact)
 
-        if cond_exact and cond_nonexact:
-            cond.append(' ( %s OR %s ) ' % (cond_exact, cond_nonexact))
-
-        elif cond_exact:
-            cond.append(cond_exact)
-
-        elif cond_nonexact:
-            cond.append(cond_nonexact)
+        if codes_cond:
+            cond.append('%s ( %s )' % (
+                'NOT' if not positive else '',
+                ' OR '.join(codes_cond)))
 
     def iter_nuts(
-            self, kind=None, tmin=None, tmax=None, codes=None, naiv=False,
-            kind_codes_ids=None, path=None, limit=None):
+            self, kind=None, tmin=None, tmax=None, codes=None,
+            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
+            naiv=False, kind_codes_ids=None, path=None, limit=None):
 
         '''
         Iterate over content entities matching given constraints.
@@ -992,7 +988,18 @@ class Squirrel(Selection):
         args.append(kind_id)
 
         if codes is not None:
-            self._codes_match_sql(kind_id, codes, cond, args)
+            self._codes_match_sql(True, kind_id, codes, cond, args)
+
+        if codes_exclude is not None:
+            self._codes_match_sql(False, kind_id, codes_exclude, cond, args)
+
+        if sample_rate_min is not None:
+            cond.append('kind_codes.deltat <= ?')
+            args.append(1.0/sample_rate_min)
+
+        if sample_rate_max is not None:
+            cond.append('? <= kind_codes.deltat')
+            args.append(1.0/sample_rate_max)
 
         if kind_codes_ids is not None:
             cond.append(
@@ -1095,7 +1102,7 @@ class Squirrel(Selection):
                 self._timerange_sql(tmin, tmax, kind, cond, args, False)
 
                 if codes is not None:
-                    self._codes_match_sql(kind_id, codes, cond, args)
+                    self._codes_match_sql(True, kind_id, codes, cond, args)
 
                 if path is not None:
                     cond.append('files.path == ?')
@@ -1944,7 +1951,7 @@ class Squirrel(Selection):
 
         return [self.get_content(nut) for nut in nuts]
 
-    def _redeem_promises(self, *args, codes_exclude=None, order_only=False):
+    def _redeem_promises(self, *args, order_only=False):
 
         def split_promise(order):
             self._split_nuts(
@@ -1953,14 +1960,10 @@ class Squirrel(Selection):
                 codes=order.codes,
                 path=order.source_id)
 
-        tmin, tmax, _ = args
+        tmin, tmax = args[:2]
 
         waveforms = list(self.iter_nuts('waveform', *args))
         promises = list(self.iter_nuts('waveform_promise', *args))
-        if codes_exclude is not None:
-            promises = [
-                promise for promise in promises
-                if promise.codes not in codes_exclude]
 
         codes_to_avail = defaultdict(list)
         for nut in waveforms:
@@ -2130,7 +2133,8 @@ class Squirrel(Selection):
     @filldocs
     def get_waveform_nuts(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
-            codes_exclude=None, order_only=False):
+            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
+            order_only=False):
 
         '''
         Get waveform content entities matching given constraints.
@@ -2145,13 +2149,16 @@ class Squirrel(Selection):
         '''
 
         args = self._get_selection_args(WAVEFORM, obj, tmin, tmax, time, codes)
+
         self._redeem_promises(
-            *args, codes_exclude=codes_exclude, order_only=order_only)
+            *args,
+            codes_exclude,
+            sample_rate_min,
+            sample_rate_max,
+            order_only=order_only)
+
         nuts = sorted(
             self.iter_nuts('waveform', *args), key=lambda nut: nut.dkey)
-
-        if codes_exclude is not None:
-            nuts = [nut for nut in nuts if nut.codes not in codes_exclude]
 
         return nuts
 
@@ -2175,15 +2182,28 @@ class Squirrel(Selection):
     @filldocs
     def get_waveforms(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
-            codes_exclude=None, uncut=False, want_incomplete=True, degap=True,
+            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
+            uncut=False, want_incomplete=True, degap=True,
             maxgap=5, maxlap=None, snap=None, include_last=False,
             load_data=True, accessor_id='default', operator_params=None,
-            order_only=False, channel_priorities=None, target_deltat=None):
+            order_only=False, channel_priorities=None):
 
         '''
         Get waveforms matching given constraints.
 
         %(query_args)s
+
+        :param sample_rate_min:
+            Consider only waveforms with a sampling rate equal to or greater
+            than the given value [Hz].
+        :type sample_rate_min:
+            float
+
+        :param sample_rate_max:
+            Consider only waveforms with a sampling rate equal to or less than
+            the given value [Hz].
+        :type sample_rate_max:
+            float
 
         :param uncut:
             Set to ``True``, to disable cutting traces to [``tmin``, ``tmax``]
@@ -2245,6 +2265,16 @@ class Squirrel(Selection):
         :type accessor_id:
             str
 
+        :param channel_priorities:
+            List of band/instrument code combinations to try. For example,
+            giving ``['HH', 'BH']`` would first try to get ``HH?`` channels and
+            then fallback to ``BH?`` if these are not available. The first
+            matching waveforms are returned. Use in combination with
+            ``sample_rate_min`` and ``sample_rate_max`` to constrain the sample
+            rate.
+        :type channel_priorities:
+            list of str
+
         See :py:meth:`iter_nuts` for details on time span matching.
 
         Loaded data is kept in memory (at least) until
@@ -2260,13 +2290,14 @@ class Squirrel(Selection):
 
         if channel_priorities is not None:
             return self._get_waveforms_prioritized(
-                tmin=tmin, tmax=tmax, codes=codes,
+                tmin=tmin, tmax=tmax, codes=codes, codes_exclude=codes_exclude,
+                sample_rate_min=sample_rate_min,
+                sample_rate_max=sample_rate_max,
                 uncut=uncut, want_incomplete=want_incomplete, degap=degap,
                 maxgap=maxgap, maxlap=maxlap, snap=snap,
                 include_last=include_last, load_data=load_data,
                 accessor_id=accessor_id, operator_params=operator_params,
-                order_only=order_only, channel_priorities=channel_priorities,
-                target_deltat=target_deltat)
+                order_only=order_only, channel_priorities=channel_priorities)
 
         self_tmin, self_tmax = self.get_time_span(
             ['waveform', 'waveform_promise'])
@@ -2292,8 +2323,8 @@ class Squirrel(Selection):
                     accessor_id=accessor_id, params=operator_params)
 
         nuts = self.get_waveform_nuts(
-            obj, tmin, tmax, time, codes, codes_exclude=codes_exclude,
-            order_only=order_only)
+            obj, tmin, tmax, time, codes, codes_exclude, sample_rate_min,
+            sample_rate_max, order_only=order_only)
 
         if order_only:
             return []
@@ -2334,8 +2365,8 @@ class Squirrel(Selection):
         return processed
 
     def _get_waveforms_prioritized(
-            self, tmin=None, tmax=None, codes=None,
-            channel_priorities=None, target_deltat=None, **kwargs):
+            self, tmin=None, tmax=None, codes=None, codes_exclude=None,
+            channel_priorities=None, **kwargs):
 
         trs_all = []
         codes_have = set()
@@ -2347,9 +2378,12 @@ class Squirrel(Selection):
             else:
                 codes_now = model.CodesNSLCE('*', '*', '*', channel+'?')
 
-            codes_exclude_now = set(
+            codes_exclude_now = list(set(
                 codes_.replace(channel=channel+codes_.channel[-1])
-                for codes_ in codes_have)
+                for codes_ in codes_have))
+
+            if codes_exclude:
+                codes_exclude_now.extend(codes_exclude)
 
             trs = self.get_waveforms(
                 tmin=tmin,
@@ -2366,12 +2400,13 @@ class Squirrel(Selection):
     @filldocs
     def chopper_waveforms(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
+            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
             tinc=None, tpad=0.,
             want_incomplete=True, snap_window=False,
             degap=True, maxgap=5, maxlap=None,
             snap=None, include_last=False, load_data=True,
             accessor_id=None, clear_accessor=True, operator_params=None,
-            grouping=None, channel_priorities=None, target_deltat=None):
+            grouping=None, channel_priorities=None):
 
         '''
         Iterate window-wise over waveform archive.
@@ -2529,6 +2564,9 @@ class Squirrel(Selection):
                         tmin=wmin-tpad,
                         tmax=wmax+tpad,
                         codes=scl,
+                        codes_exclude=codes_exclude,
+                        sample_rate_min=sample_rate_min,
+                        sample_rate_max=sample_rate_max,
                         snap=snap,
                         include_last=include_last,
                         load_data=load_data,
@@ -2538,8 +2576,7 @@ class Squirrel(Selection):
                         maxlap=maxlap,
                         accessor_id=accessor_id,
                         operator_params=operator_params,
-                        channel_priorities=channel_priorities,
-                        target_deltat=target_deltat)
+                        channel_priorities=channel_priorities)
 
                     self.advance_accessor(accessor_id)
 

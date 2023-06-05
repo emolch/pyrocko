@@ -28,7 +28,27 @@ def setup(parser):
         '--channel-priorities',
         dest='channel_priorities',
         metavar='CHA',
-        help='TODO')
+        help='''
+List of 2-character band/instrument code combinations to try. For example,
+giving ```HH,BH``` would first try to get ```HH?``` channels and then fallback
+to ```BH?``` if these are not available. The first matching waveforms are
+returned. Use in combination with ``--sample-rate-min`` and
+``--sample-rate-max`` to constrain the sample rate.
+'''.strip())
+
+    parser.add_argument(
+        '--sample-rate-min',
+        dest='sample_rate_min',
+        metavar='FLOAT',
+        type=float,
+        help='Minimum sample rate [Hz] to consider.')
+
+    parser.add_argument(
+        '--sample-rate-max',
+        dest='sample_rate_max',
+        metavar='FLOAT',
+        type=float,
+        help='Maximum sample rate [Hz] to consider.')
 
 
 def run(parser, args):
@@ -53,6 +73,8 @@ def run(parser, args):
                 tinc=tinc,
                 load_data=False,
                 channel_priorities=channel_priorities,
+                sample_rate_min=args.sample_rate_min,
+                sample_rate_max=args.sample_rate_max,
                 **d):
 
             iwindow += 1
