@@ -861,7 +861,7 @@ class MultiplyResponse(FrequencyResponse):
 
     @property
     def summary(self):
-        if self.is_scalar(self):
+        if self.is_scalar():
             return str_gain(self.get_scalar())
         else:
             xs = [x.summary for x in self.responses]
