@@ -1666,7 +1666,8 @@ class Trace(Object):
             ndata = self.ydata.size
             ntrans = nextpow2(ndata*1.2)
             coeffs = self._get_tapered_coeffs(
-                ntrans, freqlimits, transfer_function, invert=invert)
+                ntrans, freqlimits, transfer_function, invert=invert,
+                demean=demean)
 
             data = self.ydata
 
@@ -1884,10 +1885,12 @@ class Trace(Object):
         return centroid_freqs, signal_tf
 
     def _get_tapered_coeffs(
-            self, ntrans, freqlimits, transfer_function, invert=False):
+            self, ntrans, freqlimits, transfer_function, invert=False,
+            demean=True):
 
         cache_key = (
-            ntrans, self.deltat, freqlimits, transfer_function.uuid, invert)
+            ntrans, self.deltat, freqlimits, transfer_function.uuid, invert,
+            demean)
 
         if cache_key in g_tapered_coeffs_cache:
             return g_tapered_coeffs_cache[cache_key]
@@ -1918,9 +1921,11 @@ class Trace(Object):
             freqs = num.arange(nfreqs) * deltaf
             tapered_transfer = transfer_function.evaluate(freqs)
 
-        tapered_transfer[0] = 0.0  # don't introduce static offsets
-
         g_tapered_coeffs_cache[cache_key] = tapered_transfer
+
+        if demean:
+            tapered_transfer[0] = 0.0  # don't introduce static offsets
+
         return tapered_transfer
 
     def fill_template(self, template, **additional):

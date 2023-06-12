@@ -47,6 +47,8 @@ subcommand_descriptions = {
     'addref':        'import citation references to GF store config',
     'qc':            'quality check',
     'report':        "report for Green's Function databases",
+    'trans2rot':     'create rotational from translational store',
+    'fd2trans':      'extract elastic10 from elastic10_fd store',
 }
 
 subcommand_usages = {
@@ -73,7 +75,9 @@ subcommand_usages = {
     'upgrade':       'upgrade [store-dir] ...',
     'addref':        'addref [store-dir] ... <filename> ...',
     'qc':            'qc [store-dir]',
-    'report':        'report <subcommand> <arguments>... [options]'
+    'report':        'report <subcommand> <arguments>... [options]',
+    'trans2rot':     'trans2rot <source> <destination>',
+    'fd2trans':      'fd2trans <source> <destination>',
 }
 
 subcommands = subcommand_descriptions.keys()
@@ -107,6 +111,8 @@ Subcommands:
     addref        %(addref)s
     qc            %(qc)s
     report        %(report)s
+    trans2rot     %(trans2rot)s
+    fd2trans      %(fd2trans)s
 
 To get further help and a list of available options for any subcommand run:
 
@@ -463,6 +469,66 @@ def command_redeploy(args):
     finally:
         if show_progress:
             pbar.finish()
+
+
+def command_trans2rot(args):
+    from pyrocko.fomosto.elastic10_to_rotational8 \
+        import elastic10_to_rotational8
+
+    details = '''
+
+Create a rotational GF store from a translational one using finite differences
+approximations (elastic10 or elastic10_fd to rotational8).
+
+If the source store is of type A and receivers at the surface, the free
+surface condition is used to replace the vertical derivatives with horizontal
+ones. If the input is of type B, the complete set of derivatives are used. It
+is important that the spatial sampling of the source store is high enough so
+that the finite difference approximations are sufficiently accurate.
+
+If the destination store directory does not exist, it is created and the extent
+and spacing of the source store is used for the rotational store. If it does
+exist and contains a valid `config`, it is used in place in order to allow for
+different input and output extents and spacings. The store must be empty in the
+latter case (delete the `index` and `traces` files if needed).
+'''
+
+    parser, options, args = cl_parse(
+        'trans2rot', args, details=details)
+
+    if not len(args) == 2:
+        sys.exit(parser.format_help())
+
+    source_store_dir, dest_store_dir = args
+
+    try:
+        elastic10_to_rotational8(source_store_dir, dest_store_dir)
+    except gf.store.StoreError as e:
+        die(e)
+
+
+def command_fd2trans(args):
+    from pyrocko.fomosto.elastic10_fd_to_elastic10 \
+        import elastic10_fd_to_elastic10
+
+    details = '''
+
+Extract regular GF store (elastic10) from a finite difference support GF store
+(elastic10_fd).
+'''
+
+    parser, options, args = cl_parse(
+        'fd2trans', args, details=details)
+
+    if not len(args) == 2:
+        sys.exit(parser.format_help())
+
+    source_store_dir, dest_store_dir = args
+
+    try:
+        elastic10_fd_to_elastic10(source_store_dir, dest_store_dir)
+    except gf.store.StoreError as e:
+        die(e)
 
 
 def command_view(args):

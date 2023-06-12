@@ -177,6 +177,13 @@ component_scheme_descriptions = [
         provided_components=[
             'n', 'e', 'd']),
     ComponentSchemeDescription(
+        name='elastic10_fd',
+        source_terms=['mnn', 'mee', 'mdd', 'mne', 'mnd', 'med'],
+        ncomponents=30,
+        default_stored_quantity='displacement',
+        provided_components=[
+            'n', 'e', 'd']),
+    ComponentSchemeDescription(
         name='elastic18',
         source_terms=['mnn', 'mee', 'mdd', 'mne', 'mnd', 'med'],
         ncomponents=18,
@@ -188,6 +195,13 @@ component_scheme_descriptions = [
         source_terms=['fn', 'fe', 'fd'],
         ncomponents=5,
         default_stored_quantity='displacement',
+        provided_components=[
+            'n', 'e', 'd']),
+    ComponentSchemeDescription(
+        name='rotational8',
+        source_terms=['mnn', 'mee', 'mdd', 'mne', 'mnd', 'med'],
+        ncomponents=8,
+        default_stored_quantity='rotation_displacement',
         provided_components=[
             'n', 'e', 'd']),
     ComponentSchemeDescription(
@@ -251,6 +265,10 @@ class ComponentScheme(StringChoice):
                       sources only
     ``poroelastic10`` Poroelastic for :py:class:`~pyrocko.gf.meta.ConfigTypeA`
                       and :py:class:`~pyrocko.gf.meta.ConfigTypeB` stores
+    ``rotational8``   Elastodynamic rotational motions for
+                      :py:class:`~pyrocko.gf.meta.ConfigTypeA` and
+                      :py:class:`~pyrocko.gf.meta.ConfigTypeB` stores, MT
+                      sources only
     ================= =========================================================
     '''
 
@@ -305,9 +323,11 @@ class NearfieldTermsType(StringChoice):
 class QuantityType(StringChoice):
     choices = [
         'displacement',
-        'rotation',
         'velocity',
         'acceleration',
+        'rotation_displacement',
+        'rotation_velocity',
+        'rotation_acceleration',
         'pressure',
         'tilt',
         'pore_pressure',
@@ -1056,6 +1076,7 @@ class DiscretizedExplosionSource(DiscretizedSource):
         'elastic2',
         'elastic8',
         'elastic10',
+        'rotational8',
     )
 
     def get_source_terms(self, scheme):
@@ -1064,7 +1085,7 @@ class DiscretizedExplosionSource(DiscretizedSource):
         if scheme == 'elastic2':
             return self.m0s[:, num.newaxis].copy()
 
-        elif scheme in ('elastic8', 'elastic10'):
+        elif scheme in ('elastic8', 'elastic10', 'rotational8'):
             m6s = num.zeros((self.m0s.size, 6))
             m6s[:, 0:3] = self.m0s[:, num.newaxis]
             return m6s
@@ -1108,6 +1129,15 @@ class DiscretizedExplosionSource(DiscretizedSource):
             g_e = rep((0, 2, 8), n)
             w_d = cat((m0s, m0s, m0s))
             g_d = rep((5, 7, 9), n)
+
+        elif scheme == 'rotational8':
+            w_n = cat((sb*m0s, sb*m0s, sb*m0s))
+            g_n = rep((2, 4, 7), n)
+            w_e = cat((sb*m0s, sb*m0s, sb*m0s))
+            g_e = rep((2, 4, 7), n)
+            w_d = num.zeros(0)
+            g_d = num.zeros(0, dtype=int)
+            logger.warning('untested code executed, check for sign errors')
 
         else:
             assert False
@@ -1267,6 +1297,7 @@ class DiscretizedMTSource(DiscretizedSource):
         'elastic8',
         'elastic10',
         'elastic18',
+        'rotational8',
     )
 
     def get_source_terms(self, scheme):
@@ -1322,6 +1353,14 @@ class DiscretizedMTSource(DiscretizedSource):
                 g_e = rep((0, 1, 2, 8, 3, 4), n)
                 w_d = cat((f0, f1, f2, f5))
                 g_d = rep((5, 6, 7, 9), n)
+
+            elif scheme == 'rotational18':
+                w_n = cat((cb*f3, cb*f4, -sb*f0, -sb*f1, -sb*f2, -sb*f5))
+                g_n = rep((0, 1, 2, 3, 4, 7), n)
+                w_n = cat((sb*f3, sb*f4, cb*f0, cb*f1, cb*f2, cb*f5))
+                g_e = rep((0, 1, 2, 3, 4, 7), n)
+                w_d = cat((f3, f4))
+                g_d = rep((5, 6), n)
 
             else:
                 assert False
@@ -1992,6 +2031,12 @@ class Config(Object):
             'Cannot fix travel time table holes in GF stores of type %s.'
             % self.short_type)
 
+    @property
+    def effective_stored_quantity(self):
+        return self.stored_quantity if self.stored_quantity is not None else \
+            component_scheme_to_description[self.component_scheme] \
+            .default_stored_quantity
+
 
 class ConfigTypeA(Config):
     '''
@@ -2030,10 +2075,15 @@ class ConfigTypeA(Config):
     distance_delta = Float.T(
         help='Grid spacing of source-receiver surface distance [m].')
 
+    fd_distance_delta = Float.T(
+        optional=True,
+        help='Finite differences interval for FD stores [m].')
+
     short_type = 'A'
 
     provided_schemes = [
-        'elastic2', 'elastic5', 'elastic8', 'elastic10', 'poroelastic10']
+        'elastic2', 'elastic5', 'elastic8', 'elastic10', 'poroelastic10',
+        'rotational8']
 
     def get_surface_distance(self, args):
         return args[1]
@@ -2284,10 +2334,19 @@ class ConfigTypeB(Config):
     distance_delta = Float.T(
         help='Grid spacing of source-receiver surface distances [m].')
 
+    fd_distance_delta = Float.T(
+        optional=True,
+        help='Finite differences interval for FD stores [m].')
+
+    fd_receiver_depth_delta = Float.T(
+        optional=True,
+        help='Finite differences interval for FD stores [m].')
+
     short_type = 'B'
 
     provided_schemes = [
-        'elastic2', 'elastic5', 'elastic8', 'elastic10', 'poroelastic10']
+        'elastic2', 'elastic5', 'elastic8', 'elastic10', 'poroelastic10',
+        'rotational8']
 
     def get_distance(self, args):
         return math.sqrt((args[1] - args[0])**2 + args[2]**2)

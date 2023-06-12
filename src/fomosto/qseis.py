@@ -746,7 +746,7 @@ in the directory %s'''.lstrip() % (
             vred = self.config.time_reduction_velocity
             deltat = (data[-1, 0] - data[0, 0])/(nsamples-1)
 
-            for itrace, distance, azimuth in zip(
+            for ireceiver, distance, azimuth in zip(
                     range(ntraces), distances, azimuths):
 
                 tmin = self.config.time_start
@@ -755,9 +755,10 @@ in the directory %s'''.lstrip() % (
 
                 tmin += deltat
                 tr = trace.Trace(
-                    '', '%04i' % itrace, '', comp,
-                    tmin=tmin, deltat=deltat, ydata=data[:, itrace+1],
+                    '', '%04i' % ireceiver, '', comp,
+                    tmin=tmin, deltat=deltat, ydata=data[:, ireceiver+1],
                     meta=dict(
+                        ireceiver=ireceiver,
                         distance=distance*km,
                         azimuth=azimuth))
 
@@ -775,14 +776,22 @@ in the directory %s'''.lstrip() % (
                     'not removing temporary directory: %s' % self.tempdir)
 
 
+def in_array_almost_equal(x, arr, eps):
+    return num.any(num.abs(x - arr) < eps)
+
+
 class QSeisGFBuilder(gf.builder.Builder):
     def __init__(self, store_dir, step, shared, block_size=None, tmp=None,
                  force=False):
 
         self.store = gf.store.Store(store_dir, 'w')
 
+        ndistances = 100
+        if self.store.config.component_scheme == 'elastic10_fd':
+            ndistances = 33
+
         if block_size is None:
-            block_size = (1, 1, 100)
+            block_size = (1, 1, ndistances)
 
         if len(self.store.config.ns) == 2:
             block_size = block_size[1:]
@@ -842,16 +851,31 @@ class QSeisGFBuilder(gf.builder.Builder):
         conf.source_depth = float(sz/km)
         conf.receiver_depth = float(rz/km)
 
+        component_scheme = self.store.config.component_scheme
+
         runner = QSeisRunner(tmp=self.tmp)
 
         dx = self.gf_config.distance_delta
 
-        distances = num.linspace(firstx, firstx + (nx-1)*dx, nx).tolist()
+        distances = num.linspace(firstx, firstx + (nx-1)*dx, nx)
+        if component_scheme == 'elastic10_fd':
 
-        if distances[-1] < self.gf_config.distance_max:
-            # add global max distance, because qseis does some adjustments with
-            # this value
-            distances.append(self.gf_config.distance_max)
+            fd_distances = [
+                distances - self.gf_config.fd_distance_delta,
+                distances,
+                distances + self.gf_config.fd_distance_delta]
+
+            n_fd_distances = distances.size
+
+            distances = num.concatenate(fd_distances)
+
+        distances = distances.tolist()
+
+        # add global max distance, because qseis does some adjustments with
+        # this value
+        distances.append(self.gf_config.distance_max)
+
+        nreceivers = len(distances)
 
         mex = (MomentTensor(m=symmat6(1, 1, 1, 0, 0, 0)),
                {'r': (0, +1), 'z': (1, +1)})
@@ -865,7 +889,6 @@ class QSeisGFBuilder(gf.builder.Builder):
         mmt4 = (MomentTensor(m=symmat6(0, 1, 0, 0, 0, 0)),
                 {'r': (8, +1), 'z': (9, +1)})
 
-        component_scheme = self.store.config.component_scheme
         off = 0
         if component_scheme == 'elastic8':
             off = 8
@@ -890,7 +913,7 @@ class QSeisGFBuilder(gf.builder.Builder):
             gfsneeded = (1, 1, 1, 1, 0, 0)
             gfmapping = [mmt1, mmt2, mmt3]
 
-        elif component_scheme == 'elastic10':
+        elif component_scheme in ('elastic10', 'elastic10_fd'):
             gfsneeded = (1, 1, 1, 1, 0, 0)
             gfmapping = [mmt1, mmt2, mmt3, mmt4]
 
@@ -904,7 +927,7 @@ class QSeisGFBuilder(gf.builder.Builder):
 
         conf.gf_sw_source_types = gfsneeded
         conf.receiver_distances = [d/km for d in distances]
-        conf.receiver_azimuths = [0.0] * len(distances)
+        conf.receiver_azimuths = [0.0] * nreceivers
 
         for mt, gfmap in gfmapping:
             if mt:
@@ -932,15 +955,25 @@ class QSeisGFBuilder(gf.builder.Builder):
             original = signal.signal(signal.SIGINT, signal_handler)
             self.store.lock()
             try:
-                for itr, tr in enumerate(rawtraces):
+                for tr in rawtraces:
                     if tr.channel not in gfmap:
                         continue
 
-                    x = tr.meta['distance']
-                    if x > firstx + (nx-1)*dx:
+                    ireceiver = tr.meta['ireceiver']
+                    if ireceiver == nreceivers - 1:
                         continue
 
+                    if component_scheme != 'elastic10_fd':
+                        x = distances[ireceiver]
+
+                    else:
+                        x = distances[
+                            n_fd_distances + ireceiver % n_fd_distances]
+                        ifd = ireceiver // n_fd_distances
+
                     ig, factor = gfmap[tr.channel]
+                    if component_scheme == 'elastic10_fd':
+                        ig += ifd*10
 
                     if len(self.store.config.ns) == 2:
                         args = (sz, x, ig)

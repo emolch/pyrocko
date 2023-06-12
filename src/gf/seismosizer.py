@@ -4840,7 +4840,7 @@ class StaticDisplacement(Rule):
 
 channel_rules = {
     'displacement': [VectorRule('displacement')],
-    'rotation': [VectorRule('rotation')],
+    'rotation_displacement': [VectorRule('rotation_displacement')],
     'velocity': [
         VectorRule('velocity'),
         VectorRule('displacement', differentiate=1)],

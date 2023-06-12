@@ -216,7 +216,7 @@ class QSSPConfigFull(QSSPConfig):
     @property
     def components(self):
         if self.qssp_version in ('2017', '2020'):
-            if self.stored_quantity == 'rotation':
+            if self.stored_quantity == 'rotation_displacement':
                 fmt = 5
             else:
                 fmt = 3
@@ -268,7 +268,7 @@ class QSSPConfigFull(QSSPConfig):
         model_str, nlines = cake_model_to_config(self.earthmodel_1d)
         d['n_model_lines'] = nlines
         d['model_lines'] = model_str
-        if self.stored_quantity == 'rotation':
+        if self.stored_quantity == 'rotation_displacement':
             d['output_rotation'] = 1
             d['output_displacement'] = 0
         else:
@@ -786,20 +786,20 @@ class QSSPGFBuilder(gf.builder.Builder):
         self.store = gf.store.Store(store_dir, 'w')
         baseconf = self.store.get_extra('qssp')
         if baseconf.qssp_version in ('2017', '2020'):
-            if self.store.config.stored_quantity == 'rotation':
+            if self.store.config.component_scheme == 'rotational8':
                 self.gfmapping = [
                     (MomentTensor(m=symmat6(1, 0, 0, 1, 0, 0)),
-                     {'_rota_n': (0, -1), '_rota_e': (3, -1),
+                     {'_rota_n': (0, -1), '_rota_e': (2, -1),
                       '_rota_z': (5, -1)}),
                     (MomentTensor(m=symmat6(0, 0, 0, 0, 1, 1)),
-                     {'_rota_n': (1, -1), '_rota_e': (4, -1),
+                     {'_rota_n': (1, -1), '_rota_e': (3, -1),
                       '_rota_z': (6, -1)}),
                     (MomentTensor(m=symmat6(0, 0, 1, 0, 0, 0)),
-                     {'_rota_n': (2, -1), '_rota_z': (7, -1)}),
+                     {'_rota_e': (4, -1)}),
                     (MomentTensor(m=symmat6(0, 1, 0, 0, 0, 0)),
-                     {'_rota_n': (8, -1), '_rota_z': (9, -1)}),
+                     {'_rota_e': (7, -1)}),
                 ]
-            else:
+            elif self.store.config.component_scheme == 'elastic10':
                 self.gfmapping = [
                     (MomentTensor(m=symmat6(1, 0, 0, 1, 0, 0)),
                      {'_disp_n': (0, -1), '_disp_e': (3, -1),
@@ -811,6 +811,17 @@ class QSSPGFBuilder(gf.builder.Builder):
                      {'_disp_n': (2, -1), '_disp_z': (7, -1)}),
                     (MomentTensor(m=symmat6(0, 1, 0, 0, 0, 0)),
                      {'_disp_n': (8, -1), '_disp_z': (9, -1)}),
+                ]
+            elif self.store.config.component_scheme == 'elastic8':
+                self.gfmapping = [
+                    (MomentTensor(m=symmat6(1, 0, 0, 1, 0, 0)),
+                     {'_disp_n': (0, -1), '_disp_e': (3, -1),
+                      '_disp_z': (5, -1)}),
+                    (MomentTensor(m=symmat6(0, 0, 0, 0, 1, 1)),
+                     {'_disp_n': (1, -1), '_disp_e': (4, -1),
+                      '_disp_z': (6, -1)}),
+                    (MomentTensor(m=symmat6(0, 0, 1, 0, 0, 0)),
+                     {'_disp_n': (2, -1), '_disp_z': (7, -1)}),
                 ]
 
         elif baseconf.qssp_version == 'ppeg2017':
@@ -909,7 +920,20 @@ class QSSPGFBuilder(gf.builder.Builder):
         runner = QSSPRunner(tmp=self.tmp)
 
         conf.receiver_depth = rz/km
-        conf.stored_quantity = self.store.config.stored_quantity
+
+        component_scheme = self.store.config.component_scheme
+        stored_quantity = self.store.config.effective_stored_quantity
+
+        if (component_scheme, stored_quantity) not in [
+                ('rotational8', 'rotation_displacement'),
+                ('elastic10', 'displacement'),
+                ('elastic8', 'displacement')]:
+
+            raise QSSPError(
+                'componentent_scheme "%s" is inconsistent with '
+                'stored_quantity "%s"' % (component_scheme, stored_quantity))
+
+        conf.stored_quantity = stored_quantity
         conf.sampling_interval = 1.0 / self.gf_config.sample_rate
         dx = self.gf_config.distance_delta
 
@@ -953,8 +977,7 @@ class QSSPGFBuilder(gf.builder.Builder):
                 os.rename(s, d)
 
         else:
-            for mt, gfmap in self.gfmapping[
-                    :[3, 4][self.gf_config.ncomponents == 10]]:
+            for mt, gfmap in self.gfmapping:
                 m = mt.m_up_south_east()
 
                 conf.sources = [QSSPSourceMT(
