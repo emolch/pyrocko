@@ -380,6 +380,7 @@ static PyObject* w_parstack(PyObject *module, PyObject *args, PyObject *kwds){
     PyObject *result = Py_None;
     int method;
     int nparallel = 1;
+    int passed_result = 0;
     size_t narrays, nshifts, nweights;
     size_t *clengths;
     size_t lengthout;
@@ -486,7 +487,8 @@ static PyObject* w_parstack(PyObject *module, PyObject *args, PyObject *kwds){
             PyErr_SetString(st->error, "results is of unexpected size");
             goto cleanup;
         }
-        Py_INCREF(result);
+        Py_INCREF(result)
+        passed_result = 1;
     } else {
         result = PyArray_ZEROS(1, array_dims, dtype, 0);
         if (result == NULL) {
@@ -504,8 +506,6 @@ static PyObject* w_parstack(PyObject *module, PyObject *args, PyObject *kwds){
                     PyArray_DATA((PyArrayObject*)weights), method, lengthout, offsetout, (double *) cresult, nparallel);
     }
 
-
-
     if (err != 0) {
         PyErr_SetString(st->error, "parstack() failed");
         Py_DECREF(result);
@@ -514,6 +514,8 @@ static PyObject* w_parstack(PyObject *module, PyObject *args, PyObject *kwds){
 
     free(carrays);
     free(clengths);
+    if (passed_result)
+        Py_DECREF(result)
     return Py_BuildValue("Ni", (PyObject *)result, offsetout);
 
     cleanup:
