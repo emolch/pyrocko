@@ -2085,6 +2085,184 @@ def _configure_downsampling(deltat_in, deltat_out, allow_upsample_max):
     raise util.UnavailableDecimation('ratio = %g' % (deltat_out / deltat_in))
 
 
+def _all_same(xs):
+    return all(x == xs[0] for x in xs)
+
+
+def _incompatibilities(traces):
+    if not traces:
+        return None
+
+    params = [
+        (tr.ydata.size, tr.ydata.dtype, tr.deltat, tr.tmin)
+        for tr in traces]
+
+    if not _all_same(params):
+        return params
+    else:
+        return None
+
+
+def _raise_incompatible_traces(params):
+    raise IncompatibleTraces(
+        'Given traces are incompatible. Sampling rate, start time, '
+        'number of samples and data type must match.\n%s\n%s' % (
+            '  %10s %-10s %12s %22s' % (
+                'nsamples', 'dtype', 'deltat', 'tmin'),
+            '\n'.join(
+                '  %10i %-10s %12.5e %22s' % (
+                    nsamples, dtype, deltat, util.time_to_str(tmin))
+                for (nsamples, dtype, deltat, tmin) in params)))
+
+
+def _ensure_compatible(traces):
+    params = _incompatibilities(traces)
+    if params:
+        _raise_incompatible_traces(params)
+
+
+def _almost_equal(a, b, atol):
+    return abs(a-b) < atol
+
+
+def get_traces_data_as_array(traces):
+    '''
+    Merge data samples from multiple traces into a 2D array.
+
+    :param traces:
+        Input waveforms.
+    :type traces:
+        list of :py:class:`pyrocko.Trace <pyrocko.trace.Trace>` objects
+
+    :raises:
+        :py:class:`IncompatibleTraces` if traces have different time
+        span, sample rate or data type, or if traces is an empty list.
+
+    :returns:
+        2D array as ``data[itrace, isample]``.
+    :rtype:
+        :py:class:`numpy.ndarray`
+    '''
+
+    if not traces:
+        raise IncompatibleTraces('Need at least one trace.')
+
+    _ensure_compatible(traces)
+
+    return num.vstack([tr.ydata for tr in traces])
+
+
+def make_traces_compatible(
+        traces,
+        dtype=None,
+        deltat=None,
+        enforce_global_snap=True,
+        warn_snap=False):
+
+    eps_snap = 1e-3
+
+    if not traces:
+        return []
+
+    traces = list(traces)
+
+    dtypes = [tr.ydata.dtype for tr in traces]
+    if not _all_same(dtypes) or dtype is not None:
+
+        if dtype is None:
+            dtype = float
+            logger.warning(
+                'make_traces_compatible: Inconsistent data types - converting '
+                'sample datatype to %s.' % str(dtype))
+
+        for itr, tr in enumerate(traces):
+            tr_copy = tr.copy(data=False)
+            tr_copy.set_ydata(tr.ydata.astype(dtype))
+            traces[itr] = tr_copy
+
+    deltats = [tr.deltat for tr in traces]
+    if not _all_same(deltats) or deltat is not None:
+        if deltat is None:
+            deltat = max(deltats)
+            logger.warning(
+                'make_traces_compatible: Inconsistent sampling rates - '
+                'downsampling to lowest rate among input traces: %g Hz.'
+                % (1.0 / deltat))
+
+        for itr, tr in enumerate(traces):
+            if tr.deltat != deltat:
+                tr_copy = tr.copy()
+                tr_copy.downsample_to(deltat, snap=True, cut=True)
+                traces[itr] = tr_copy
+
+    tmins = num.array([tr.tmin for tr in traces])
+    is_aligned = num.abs(num.round(tmins / deltat) * deltat - tmins) \
+        > deltat * eps_snap
+
+    if enforce_global_snap or any(is_aligned):
+        tref = util.to_time_float(0.0)
+    else:
+        # to keep a common subsample shift
+        tref = num.max(tmins)
+
+    tmins_snap = num.round((tmins - tref) / deltat) * deltat + tref
+    need_snap = num.abs(tmins_snap - tmins) > deltat * eps_snap
+    if num.any(need_snap):
+        if warn_snap:
+            logger.warning(
+                'make_traces_compatible: Misaligned sampling - introducing '
+                'subsample shifts for proper alignment.')
+
+        for itr, tr in enumerate(traces):
+            if need_snap[itr]:
+                tr_copy = tr.copy()
+                if tref != 0.0:
+                    tr_copy.shift(-tref)
+
+                tr_copy.snap(interpolate=True)
+                if tref != 0.0:
+                    tr_copy.shift(tref)
+
+                traces[itr] = tr_copy
+
+    tmins = num.array([tr.tmin for tr in traces])
+    nsamples = num.array([tr.ydata.size for tr in traces])
+    tmaxs = tmins + (nsamples - 1) * deltat
+
+    tmin = num.max(tmins)
+    tmax = num.min(tmaxs)
+
+    if tmin > tmax:
+        raise IncompatibleTraces('Traces do not overlap.')
+
+    nsamples_must = int(round((tmax - tmin) / deltat)) + 1
+    for itr, tr in enumerate(traces):
+        if not (_almost_equal(tr.tmin, tmin, deltat*eps_snap)
+                and _almost_equal(tr.tmax, tmax, deltat*eps_snap)):
+
+            traces[itr] = tr.chop(
+                tmin, tmax,
+                inplace=False,
+                want_incomplete=False,
+                include_last=True)
+
+        xtr = traces[itr]
+        assert _almost_equal(xtr.tmin, tmin, deltat*eps_snap)
+        assert int(round((xtr.tmax - xtr.tmin) / deltat)) + 1 == nsamples_must
+        xtr.tmin = tmin
+        xtr.tmax = tmax
+        xtr.deltat = deltat
+        xtr._update_ids()
+
+    return traces
+
+
+class IncompatibleTraces(Exception):
+    '''
+    Raised when traces have incompatible sampling rate, time span or data type.
+    '''
+
+
 class InfiniteResponse(Exception):
     '''
     This exception is raised by :py:class:`Trace` operations when deconvolution
