@@ -1761,7 +1761,7 @@ class Squirrel(Selection):
     @filldocs
     def get_stations(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
-            model='squirrel'):
+            model='squirrel', on_error='raise'):
 
         '''
         Get stations matching given constraints.
@@ -1785,7 +1785,8 @@ class Squirrel(Selection):
         '''
 
         if model == 'pyrocko':
-            return self._get_pyrocko_stations(obj, tmin, tmax, time, codes)
+            return self._get_pyrocko_stations(
+                obj, tmin, tmax, time, codes, on_error=on_error)
         elif model in ('squirrel', 'stationxml', 'stationxml+'):
             args = self._get_selection_args(
                 STATION, obj, tmin, tmax, time, codes)
@@ -2682,7 +2683,8 @@ class Squirrel(Selection):
         return chopped
 
     def _get_pyrocko_stations(
-            self, obj=None, tmin=None, tmax=None, time=None, codes=None):
+            self, obj=None, tmin=None, tmax=None, time=None, codes=None,
+            on_error='raise'):
 
         from pyrocko import model as pmodel
 
@@ -2709,7 +2711,8 @@ class Squirrel(Selection):
         for nsl in nsls:
             sargs_list, channels_list = by_nsl[nsl]
             sargs = util.consistency_merge(
-                [('',) + x for x in sargs_list])
+                [('',) + x for x in sargs_list],
+                error=on_error)
 
             by_c = defaultdict(list)
             for ch in channels_list:
@@ -2721,7 +2724,8 @@ class Squirrel(Selection):
             for cha in chas:
                 list_of_cargs = by_c[cha]
                 cargs = util.consistency_merge(
-                    [('',) + x for x in list_of_cargs])
+                    [('',) + x for x in list_of_cargs],
+                    error=on_error)
                 pchannels.append(pmodel.Channel(*cargs))
 
             pstations.append(
