@@ -20,4 +20,5 @@ def setup(parser):
 
 def run(parser, args):
     squirrel = args.make_squirrel()
+    squirrel.downloads_enabled = False
     squirrel.pile.snuffle()

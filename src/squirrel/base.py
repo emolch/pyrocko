@@ -314,6 +314,8 @@ class Squirrel(Selection):
         self._pile = None
         self._n_choppers_active = 0
 
+        self.downloads_enabled = True
+
         self._names.update({
             'nuts': self.name + '_nuts',
             'kind_codes_count': self.name + '_kind_codes_count',
@@ -2201,12 +2203,13 @@ class Squirrel(Selection):
 
         args = self._get_selection_args(WAVEFORM, obj, tmin, tmax, time, codes)
 
-        self._redeem_promises(
-            *args,
-            codes_exclude,
-            sample_rate_min,
-            sample_rate_max,
-            order_only=order_only)
+        if self.downloads_enabled:
+            self._redeem_promises(
+                *args,
+                codes_exclude,
+                sample_rate_min,
+                sample_rate_max,
+                order_only=order_only)
 
         nuts = sorted(
             self.iter_nuts('waveform', *args), key=lambda nut: nut.dkey)
@@ -2227,8 +2230,8 @@ class Squirrel(Selection):
         args = self._get_selection_args(WAVEFORM, obj, tmin, tmax, time, codes)
         return bool(list(
                 self.iter_nuts('waveform', *args, limit=1))) \
-            or bool(list(
-                self.iter_nuts('waveform_promise', *args, limit=1)))
+            or (self.downloads_enabled and bool(list(
+                self.iter_nuts('waveform_promise', *args, limit=1))))
 
     @filldocs
     def get_waveforms(
@@ -2350,8 +2353,11 @@ class Squirrel(Selection):
                 accessor_id=accessor_id, operator_params=operator_params,
                 order_only=order_only, channel_priorities=channel_priorities)
 
-        self_tmin, self_tmax = self.get_time_span(
-            ['waveform', 'waveform_promise'])
+        kinds = ['waveform']
+        if self.downloads_enabled:
+            kinds.append('waveform_promise')
+
+        self_tmin, self_tmax = self.get_time_span(kinds)
 
         if None in (self_tmin, self_tmax):
             logger.warning(
@@ -2559,8 +2565,11 @@ class Squirrel(Selection):
         tmin, tmax, codes = self._get_selection_args(
             WAVEFORM, obj, tmin, tmax, time, codes)
 
-        self_tmin, self_tmax = self.get_time_span(
-            ['waveform', 'waveform_promise'])
+        kinds = ['waveform']
+        if self.downloads_enabled:
+            kinds.append('waveform_promise')
+
+        self_tmin, self_tmax = self.get_time_span(kinds)
 
         if None in (self_tmin, self_tmax):
             logger.warning(
@@ -2599,7 +2608,8 @@ class Squirrel(Selection):
                     grouping=grouping)
 
                 available = set(self.get_codes(kind='waveform'))
-                available.update(self.get_codes(kind='waveform_promise'))
+                if self.downloads_enabled:
+                    available.update(self.get_codes(kind='waveform_promise'))
                 operator.update_mappings(sorted(available))
 
                 codes_list = [
