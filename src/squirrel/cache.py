@@ -206,7 +206,10 @@ class ContentCache(object):
             logger.debug('Forgetting (clear): %s %s' % path_segment)
             del self._entries[path_segment]
 
-        del self._accessor_ticks[accessor]
+        try:
+            del self._accessor_ticks[accessor]
+        except KeyError:
+            pass
 
     def clear(self):
         '''
