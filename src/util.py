@@ -1587,6 +1587,9 @@ def str_to_time_fillup(s):
     `'2010-01-01 00'`, ..., or `'2010'`.
     '''
 
+    if s == 'now':
+        return time.time()
+
     if len(s) in (4, 7, 10, 13, 16):
         s += '0000-01-01 00:00:00'[len(s):]
 
