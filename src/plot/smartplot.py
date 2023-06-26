@@ -630,7 +630,8 @@ class Plot(object):
             nx, ny = self._shape
 
             # data_r = data_h / data_w
-            em = self.config.font_size / self._pixels
+            em = self.config.font_size
+            em_pixels = em / self._pixels
             w = self._width
             h = self._height
             fig_w_avail = w - mr - ml - (nx-1) * sw
@@ -696,12 +697,12 @@ class Plot(object):
                 self.set_label_coords(
                     axes, 'x', [
                         wcenter(rect),
-                        self.config.label_offset_em[0]*em
+                        self.config.label_offset_em[0]*em_pixels
                         + self._colorbar_height])
 
                 self.set_label_coords(
                     axes, 'y', [
-                        self.config.label_offset_em[1]*em,
+                        self.config.label_offset_em[1]*em_pixels,
                         hcenter(rect)])
 
                 axes.get_xaxis().set_tick_params(
@@ -753,12 +754,13 @@ class Plot(object):
                     xmax = self.window_xmax(position[1])
                     ymin = mb - self._colorbar_height
                     ymax = mb - self._colorbar_height \
-                        + self.config.colorbar_width_em * em
+                        + self.config.colorbar_width_em * em_pixels
                 else:
                     ymin = self.window_ymin(position[0])
                     ymax = self.window_ymax(position[1])
                     xmin = w - mr + 2 * sw
-                    xmax = w - mr + 2 * sw + self.config.colorbar_width_em * em
+                    xmax = w - mr + 2 * sw \
+                        + self.config.colorbar_width_em * em_pixels
 
                 rect = [xmin, ymin, xmax-xmin, ymax-ymin]
                 axes.set_position(
@@ -831,13 +833,13 @@ class Plot(object):
             else:
                 position = (0, self._shape[0])
 
-        em = self.config.font_size / self._pixels
+        em_pixels = self.config.font_size / self._pixels
 
         if orientation == 'vertical':
-            self._colorbar_width = self.config.colorbar_width_em*em + \
+            self._colorbar_width = self.config.colorbar_width_em*em_pixels + \
                 self.separator * 2.0
         else:
-            self._colorbar_height = self.config.colorbar_width_em*em + \
+            self._colorbar_height = self.config.colorbar_width_em*em_pixels + \
                 self.separator + self.margins[3]
 
         axes = SmartplotAxes(self.fig, [0., 0., 1., 1.])
