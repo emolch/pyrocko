@@ -28,7 +28,7 @@ import numpy as num
 
 from pyrocko import util
 from pyrocko.guts import Object, SObject, String, Timestamp, Float, Int, \
-    Unicode, Tuple, List, StringChoice, Any, Dict, clone
+    Unicode, Tuple, List, StringChoice, Any, Dict, Duration, clone
 from pyrocko.model import squirrel_content, Location
 from pyrocko.response import FrequencyResponse, MultiplyResponse, \
     IntegrationResponse, DifferentiationResponse, simplify_responses, \
@@ -1195,6 +1195,8 @@ class WaveformOrder(Object):
     tmin = Timestamp.T()
     tmax = Timestamp.T()
     gaps = List.T(Tuple.T(2, Timestamp.T()))
+    time_created = Timestamp.T()
+    anxious = Duration.T(default=600.)
 
     @property
     def client(self):
@@ -1221,6 +1223,9 @@ class WaveformOrder(Object):
 
     def estimate_nsamples(self):
         return int(round((self.tmax - self.tmin) / self.deltat))+1
+
+    def is_near_real_time(self):
+        return self.tmax > self.time_created - self.anxious
 
 
 def order_summary(orders):

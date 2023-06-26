@@ -167,6 +167,9 @@ class CatalogSource(Source):
             tnow = time.time()
             modified = False
 
+            if tmax > tnow:
+                tmax = tnow
+
             if not self._chain:
                 self._chain = [Link(tmin, tmax, tnow)]
                 modified = True

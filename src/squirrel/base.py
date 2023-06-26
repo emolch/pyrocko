@@ -5,7 +5,7 @@
 
 import sys
 import os
-
+import time
 import math
 import logging
 import threading
@@ -2007,10 +2007,10 @@ class Squirrel(Selection):
 
     def _redeem_promises(self, *args, order_only=False):
 
-        def split_promise(order):
+        def split_promise(order, tmax=None):
             self._split_nuts(
                 'waveform_promise',
-                order.tmin, order.tmax,
+                order.tmin, tmax if tmax is not None else order.tmax,
                 codes=order.codes,
                 path=order.source_id)
 
@@ -2031,6 +2031,7 @@ class Squirrel(Selection):
             else:
                 return util.time_to_str(x)
 
+        now = time.time()
         orders = []
         for promise in promises:
             waveforms_avail = codes_to_avail[promise.codes]
@@ -2039,6 +2040,9 @@ class Squirrel(Selection):
                     min(tmax, promise.tmax),
                     promise.deltat):
 
+                if block_tmin > now:
+                    continue
+
                 orders.append(
                     WaveformOrder(
                         source_id=promise.file_path,
@@ -2046,7 +2050,8 @@ class Squirrel(Selection):
                         tmin=block_tmin,
                         tmax=block_tmax,
                         deltat=promise.deltat,
-                        gaps=gaps(waveforms_avail, block_tmin, block_tmax)))
+                        gaps=gaps(waveforms_avail, block_tmin, block_tmax),
+                        time_created=now))
 
         orders_noop, orders = lpick(lambda order: order.gaps, orders)
 
@@ -2107,7 +2112,8 @@ class Squirrel(Selection):
         def release_order_group(order):
             okey = order_key(order)
             for followup in order_groups[okey]:
-                split_promise(followup)
+                if followup is not order:
+                    split_promise(followup)
 
             del order_groups[okey]
 
@@ -2117,9 +2123,19 @@ class Squirrel(Selection):
         def noop(order):
             pass
 
-        def success(order):
+        def success(order, trs):
             release_order_group(order)
-            split_promise(order)
+            if order.is_near_real_time():
+                if not trs:
+                    return  # keep promise when no data received at real time
+                else:
+                    tmax = max(tr.tmax+tr.deltat for tr in trs)
+                    tmax = order.tmin \
+                        + round((tmax - order.tmin) / order.deltat) \
+                        * order.deltat
+                    split_promise(order, tmax)
+            else:
+                split_promise(order)
 
         def batch_add(paths):
             self.add(paths)
@@ -2756,11 +2772,11 @@ class Squirrel(Selection):
 
         return self._pile
 
-    def snuffle(self):
+    def snuffle(self, **kwargs):
         '''
         Look at dataset in Snuffler.
         '''
-        self.pile.snuffle()
+        self.pile.snuffle(**kwargs)
 
     def _gather_codes_keys(self, kind, gather, selector):
         return set(

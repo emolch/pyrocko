@@ -547,7 +547,6 @@ class FDSNSource(Source, has_paths.HasPaths):
 
     def update_waveform_promises(self, squirrel, constraint):
         from ..base import gaps
-        now = time.time()
         cpath = os.path.abspath(self._get_channels_path())
 
         ctmin = constraint.tmin
@@ -589,12 +588,8 @@ class FDSNSource(Source, has_paths.HasPaths):
 
         def wanted(nuts):
             for nut in nuts:
-                if nut.tmin < now:
-                    if nut.tmax > now:
-                        nut.tmax = now
-
-                    for nut in sgaps(nut):
-                        yield nut
+                for nut in sgaps(nut):
+                    yield nut
 
         path = self._source_id
         squirrel.add_virtual(
@@ -706,7 +701,10 @@ class FDSNSource(Source, has_paths.HasPaths):
                                 err_this = ('empty result', '')
 
                             elog.append(now, order, *err_this)
-                            error_permanent(order)
+                            if order.is_near_real_time():
+                                error_temporary(order)
+                            else:
+                                error_permanent(order)
                         else:
                             def tsame(ta, tb):
                                 return abs(tb - ta) < 2 * order.deltat
@@ -729,13 +727,16 @@ class FDSNSource(Source, has_paths.HasPaths):
                             all_paths.extend(paths)
 
                             nsuccess += 1
-                            success(order)
+                            success(order, trs_order)
 
                 except fdsn.EmptyResult:
                     now = time.time()
                     for order in orders_now:
                         elog.append(now, order, 'empty result')
-                        error_permanent(order)
+                        if order.is_near_real_time():
+                            error_temporary(order)
+                        else:
+                            error_permanent(order)
 
                 except Aborted as e:
                     now = time.time()
