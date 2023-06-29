@@ -7,4 +7,5 @@ matplotlib
 requests
 jinja2
 pyqt
+pyqtwebengine
 vtk
