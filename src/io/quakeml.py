@@ -587,9 +587,8 @@ class WaveformStreamID(Object):
     value = ResourceReferenceOptional.T(xmlstyle='content')
     network_code = AnonymousNetworkCode.T(xmlstyle='attribute')
     station_code = AnonymousStationCode.T(xmlstyle='attribute')
-    channel_code = AnonymousChannelCode.T(optional=True, xmlstyle='attribute')
-    location_code = AnonymousLocationCode.T(
-        optional=True, xmlstyle='attribute')
+    channel_code = AnonymousChannelCode.T(default='', xmlstyle='attribute')
+    location_code = AnonymousLocationCode.T(default='', xmlstyle='attribute')
 
     @property
     def nslc_id(self):
