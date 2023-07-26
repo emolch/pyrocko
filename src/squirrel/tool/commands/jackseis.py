@@ -4,6 +4,7 @@
 # ---|P------/S----------~Lg----------
 
 import re
+import sys
 import logging
 import os.path as op
 
@@ -16,15 +17,21 @@ from pyrocko.guts import Dict, String, Choice, Float, List, Timestamp, \
     StringChoice, IntChoice, Defer, load_all, clone
 from pyrocko.squirrel.dataset import Dataset
 from pyrocko.squirrel.client.local import LocalData
-from pyrocko.squirrel.error import ToolError
-from pyrocko.squirrel.model import CodesNSLCE
+from pyrocko.squirrel.error import ToolError, SquirrelError
+from pyrocko.squirrel.model import CodesNSLCE, QuantityType
 from pyrocko.squirrel.operators.base import NetworkGrouping, StationGrouping, \
     ChannelGrouping, SensorGrouping
+from pyrocko.squirrel.tool.common import ldq
 
 tts = util.time_to_str
 
 guts_prefix = 'jackseis'
 logger = logging.getLogger('psq.cli.jackseis')
+
+
+def dset(kwargs, keys, values):
+    for k, v in zip(keys, values):
+        kwargs[k] = v
 
 
 def make_task(*args):
@@ -120,6 +127,13 @@ class Converter(HasPaths):
 
     downsample = Float.T(optional=True)
 
+    quantity = QuantityType.T(optional=True)
+    fmin = Float.T(optional=True)
+    fmax = Float.T(optional=True)
+    fcut_factor = Float.T(optional=True)
+    fmin_cut = Float.T(optional=True)
+    fmax_cut = Float.T(optional=True)
+
     out_path = Path.T(optional=True)
     out_sds_path = Path.T(optional=True)
     out_format = OutputFormatChoice.T(optional=True)
@@ -135,6 +149,26 @@ class Converter(HasPaths):
     traversal = TraversalChoice.T(optional=True)
 
     parts = List.T(Defer('Converter.T'))
+
+    def get_effective_frequency_taper(self, chain):
+        fmin = chain.get('fmin')
+        fmax = chain.get('fmax')
+
+        if None in (fmin, fmax):
+            if fmin is not None:
+                raise JackseisError('Converter: fmax not specified.')
+            if fmax is not None:
+                raise JackseisError('Converter: fmin not specified.')
+
+            return None
+
+        fcut_factor = chain.get('fcut_factor') or 2.0
+        fmin_cut = chain.get('fmin_cut')
+        fmax_cut = chain.get('fmax_cut')
+        fmin_cut = fmin_cut if fmin_cut is not None else fmin / fcut_factor
+        fmax_cut = fmax_cut if fmax_cut is not None else fmax * fcut_factor
+
+        return fmin_cut, fmin, fmax, fmax_cut
 
     @classmethod
     def add_arguments(cls, p):
@@ -155,28 +189,55 @@ class Converter(HasPaths):
             help='Downsample to RATE [Hz].')
 
         p.add_argument(
+            '--quantity',
+            dest='quantity',
+            metavar='QUANTITY',
+            choices=QuantityType.choices,
+            help='''
+Restitute waveforms to selected ``QUANTITY``. Restitution is performed by
+multiplying the waveform spectra with a tapered inverse of the instrument
+response transfer function. The frequency band of the taper can be adjusted
+using the ``--band`` option. Choices: %s.
+'''.strip() % ldq(QuantityType.choices))
+
+        p.add_argument(
+            '--band',
+            metavar='FMIN,FMAX or FMIN,FMAX,CUTFACTOR or '
+                    'FMINCUT,FMIN,FMAX,FMAXCUT',
+            help='''
+Frequency band used in restitution (see ``--quantity``) or for (acausal)
+filtering. Waveform spectra are multiplied with a taper with cosine-shaped
+flanks and which is flat between ``FMIN`` and ``FMAX``. The flanks of the taper
+drop to zero at ``FMINCUT`` and ``FMAXCUT``. If ``CUTFACTOR`` is given,
+``FMINCUT`` and ``FMAXCUT`` are set to ``FMIN/CUTFACTOR`` and
+``FMAX*CUTFACTOR`` respectively. ``CUTFACTOR`` defaults to 2.
+'''.strip())
+
+        p.add_argument(
             '--out-path',
             dest='out_path',
             metavar='TEMPLATE',
-            help='Set output path to TEMPLATE. Available placeholders '
-                 'are %%n: network, %%s: station, %%l: location, %%c: '
-                 'channel, %%b: begin time, %%e: end time, %%j: julian day of '
-                 'year. The following additional placeholders use the window '
-                 'begin and end times rather than trace begin and end times '
-                 '(to suppress producing many small files for gappy traces), '
-                 '%%(wmin_year)s, %%(wmin_month)s, %%(wmin_day)s, %%(wmin)s, '
-                 '%%(wmin_jday)s, %%(wmax_year)s, %%(wmax_month)s, '
-                 '%%(wmax_day)s, %%(wmax)s, %%(wmax_jday)s. '
-                 "Example: --out-path='data/%%s/trace-%%s-%%c.mseed'")
+            help='''
+Set output path to ``TEMPLATE``. Available placeholders are ``%%n``: network,
+``%%s``: station, ``%%l``: location, ``%%c``: channel, ``%%b``: begin time,
+``%%e``: end time, ``%%j``: julian day of year. The following additional
+placeholders use the current processing window's begin and end times rather
+than trace begin and end times (to suppress producing many small files for
+gappy traces), ``%%(wmin_year)s``, ``%%(wmin_month)s``, ``%%(wmin_day)s``,
+``%%(wmin)s``, ``%%(wmin_jday)s``, ``%%(wmax_year)s``, ``%%(wmax_month)s``,
+``%%(wmax_day)s``, ``%%(wmax)s``, ``%%(wmax_jday)s``. Example: ``--out-path
+'data/%%s/trace-%%s-%%c.mseed'``
+'''.strip())
 
         p.add_argument(
             '--out-sds-path',
             dest='out_sds_path',
             metavar='PATH',
-            help='Set output path to create SDS (https://www.seiscomp.de'
-                 '/seiscomp3/doc/applications/slarchive/SDS.html), rooted at '
-                 'the given path. Implies --tinc=86400. '
-                 'Example: --out-sds-path=data/sds')
+            help='''
+Set output path to create an SDS archive
+(https://www.seiscomp.de/seiscomp3/doc/applications/slarchive/SDS.html), rooted
+at PATH. Implies ``--tinc 86400``. Example: ``--out-sds-path data/sds``
+'''.strip())
 
         p.add_argument(
             '--out-format',
@@ -193,7 +254,7 @@ class Converter(HasPaths):
             metavar='DTYPE',
             help='Set numerical data type. Choices: %s. The output file '
                  'format must support the given type. By default, the data '
-                 'type is kept unchanged.' % ', '.join(
+                 'type is kept unchanged.' % ldq(
                     OutputDataTypeChoice.choices))
 
         p.add_argument(
@@ -202,9 +263,9 @@ class Converter(HasPaths):
             type=int,
             choices=io.mseed.VALID_RECORD_LENGTHS,
             metavar='INT',
-            help='Set the mseed record length in bytes. Choices: %s. '
+            help='Set the Mini-SEED record length in bytes. Choices: %s. '
                  'Default is 4096 bytes, which is commonly used for archiving.'
-                 % ', '.join(str(b) for b in io.mseed.VALID_RECORD_LENGTHS))
+                 % ldq(str(b) for b in io.mseed.VALID_RECORD_LENGTHS))
 
         p.add_argument(
             '--out-mseed-steim',
@@ -212,9 +273,9 @@ class Converter(HasPaths):
             type=int,
             choices=(1, 2),
             metavar='INT',
-            help='Set the mseed STEIM compression. Choices: 1 or 2. '
-                 'Default is STEIM-2, which can compress full range int32. '
-                 'Note: STEIM-2 is limited to 30 bit dynamic range.')
+            help='Set the Mini-SEED STEIM compression. Choices: ``1`` or '
+                 '``2``. Default is STEIM-2. Note: STEIM-2 is limited to 30 '
+                 'bit dynamic range.')
 
         p.add_argument(
             '--out-meta-path',
@@ -229,7 +290,7 @@ class Converter(HasPaths):
             choices=TraversalChoice.choices,
             help='By default the outermost processing loop is over time. '
                  'Add outer loop with given GROUPING. Choices: %s'
-                 % ', '.join(TraversalChoice.choices))
+                 % ldq(TraversalChoice.choices))
 
         p.add_argument(
             '--rename-network',
@@ -284,8 +345,26 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
             if v is not None:
                 rename[k] = parse_rename_rule_from_string(v)
 
+        if args.band:
+            try:
+                values = list(map(float, args.band.split(',')))
+                if len(values) not in (2, 3, 4):
+                    raise ValueError()
+
+                if len(values) == 2:
+                    dset(kwargs, 'fmin fmax'.split(), values)
+                elif len(values) == 3:
+                    dset(kwargs, 'fmin fmax fcut_factor'.split(), values)
+                elif len(values) == 4:
+                    dset(kwargs, 'fmin_cut fmin fmax fmax_cut'.split(), values)
+
+            except ValueError:
+                raise JackseisError(
+                    'Invalid argument to --band: %s' % args.band) from None
+
         obj = cls(
             downsample=args.downsample,
+            quantity=args.quantity,
             out_format=args.out_format,
             out_path=args.out_path,
             tinc=args.tinc,
@@ -455,9 +534,31 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
             else:
                 grouping = None
 
+            frequency_taper = self.get_effective_frequency_taper(chain)
+
+            if frequency_taper is not None:
+                if frequency_taper[0] != 0.0:
+                    frequency_taper_tpad = 1.0 / frequency_taper[0]
+                else:
+                    if frequency_taper[1] == 0.0:
+                        raise JackseisError(
+                            'Converter: fmin must be greater than zero.')
+
+                    frequency_taper_tpad = 2.0 / frequency_taper[1]
+            else:
+                frequency_taper_tpad = 0.0
+
+            quantity = chain.get('quantity')
+
+            do_transfer = \
+                quantity is not None or frequency_taper is not None
+
             tpad = 0.0
             if target_deltat is not None:
                 tpad += target_deltat * 50.
+
+            if do_transfer:
+                tpad += frequency_taper_tpad
 
             task = None
             rename_rules = self.get_effective_rename_rules(chain)
@@ -485,19 +586,41 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
                 traces = batch.traces
 
                 if target_deltat is not None:
-                    out_traces = []
+                    downsampled_traces = []
                     for tr in traces:
                         try:
                             tr.downsample_to(
                                 target_deltat, snap=True, demean=False,
                                 allow_upsample_max=4)
 
-                            out_traces.append(tr)
+                            downsampled_traces.append(tr)
 
-                        except (trace.TraceTooShort, trace.NoData):
-                            pass
+                        except (trace.TraceTooShort, trace.NoData) as e:
+                            logger.warning(str(e))
 
-                    traces = out_traces
+                    traces = downsampled_traces
+
+                if do_transfer:
+                    restituted_traces = []
+                    for tr in traces:
+                        try:
+                            if quantity is not None:
+                                resp = sq.get_response(tr).get_effective(
+                                    input_quantity=quantity)
+                            else:
+                                resp = None
+
+                            restituted_traces.append(tr.transfer(
+                                frequency_taper_tpad,
+                                frequency_taper,
+                                transfer_function=resp,
+                                invert=True))
+
+                        except (trace.NoData, trace.TraceTooShort,
+                                SquirrelError) as e:
+                            logger.warning(str(e))
+
+                    traces = restituted_traces
 
                 for tr in traces:
                     self.do_rename(rename_rules, tr)
@@ -541,7 +664,7 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
 
                 else:
                     for tr in traces:
-                        print(tr.summary)
+                        print(tr.summary_stats)
 
             if task:
                 task.done()
@@ -573,6 +696,18 @@ def setup(parser):
         help='File containing `jackseis.Converter` settings.')
 
     parser.add_argument(
+        '--dump-config',
+        dest='dump_config',
+        action='store_true',
+        default=False,
+        help='''
+Print configuration file snippet representing given command line arguments to
+standard output and exit. Only command line options affecting the conversion
+are included in the dump. Additional ``--config`` settings, data collection and
+data query options are ignored.
+'''.strip())
+
+    parser.add_argument(
         '--force',
         dest='force',
         action='store_true',
@@ -583,6 +718,11 @@ def setup(parser):
 
 
 def run(parser, args):
+    if args.dump_config:
+        converter = Converter.from_arguments(args)
+        print(converter)
+        sys.exit(0)
+
     if args.config_path:
         try:
             converters = load_all(filename=args.config_path)
