@@ -7,6 +7,7 @@
 
 import math
 import logging
+import uuid
 
 import numpy as num
 from scipy import signal
@@ -70,6 +71,10 @@ class FrequencyResponse(Object):
     '''
 
     checkpoints = List.T(FrequencyResponseCheckpoint.T())
+
+    def __init__(self, *args, **kwargs):
+        Object.__init__(self, *args, **kwargs)
+        self.uuid = uuid.uuid4()
 
     def evaluate(self, freqs):
         return num.ones(freqs.size, dtype=complex)

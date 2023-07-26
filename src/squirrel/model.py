@@ -1019,6 +1019,7 @@ class Response(Object):
     def __init__(self, **kwargs):
         kwargs['codes'] = CodesNSLCE(kwargs['codes'])
         Object.__init__(self, **kwargs)
+        self._effective_responses_cache = {}
 
     @property
     def time_span(self):
@@ -1085,6 +1086,10 @@ class Response(Object):
         return util.fmt_summary(self.summary_entries, (10, 20, 55, 3, 35, 0))
 
     def get_effective(self, input_quantity=None, stages=(None, None)):
+        cache_key = (input_quantity, stages)
+        if cache_key in self._effective_responses_cache:
+            return self._effective_responses_cache[cache_key]
+
         try:
             elements = response_converters(input_quantity, self.input_quantity)
         except ConversionError as e:
@@ -1099,9 +1104,12 @@ class Response(Object):
         else:
             checkpoints = []
 
-        return MultiplyResponse(
+        resp = MultiplyResponse(
             responses=simplify_responses(elements),
             checkpoints=checkpoints)
+
+        self._effective_responses_cache[cache_key] = resp
+        return resp
 
 
 @squirrel_content
