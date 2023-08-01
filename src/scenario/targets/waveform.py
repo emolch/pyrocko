@@ -11,10 +11,9 @@ import numpy as num
 from os import path as op
 from functools import reduce
 
-from pyrocko.guts import StringChoice, Float, List, Bool
+from pyrocko.guts import Float, List, Bool, Dict, String
 from pyrocko.gui.snuffler.marker import PhaseMarker, EventMarker
 from pyrocko import gf, model, util, trace, io
-from pyrocko.response import DifferentiationResponse
 from pyrocko.io.io_common import FileSaveError
 from pyrocko import pile
 
@@ -88,9 +87,12 @@ class WaveformGenerator(TargetGenerator):
         default=DEFAULT_STORE_ID,
         help='The GF store to use for forward-calculations.')
 
-    seismogram_quantity = StringChoice.T(
-        choices=['displacement', 'velocity', 'acceleration', 'counts'],
+    seismogram_quantity = gf.QuantityType.T(
         default='displacement')
+
+    nsl_to_store_id = Dict.T(
+        String.T(), gf.StringID.T(),
+        help='Selectively use different GF stores for different stations.')
 
     vmin_cut = Float.T(
         default=2000.,
@@ -188,21 +190,18 @@ class WaveformGenerator(TargetGenerator):
                         model.guess_azimuth_from_name(c_name),
                         model.guess_dip_from_name(c_name)])
 
+            nsl = (station.network, station.station, station.location)
             for c_name, c_azi, c_dip in channel_data:
-
                 target = gf.Target(
-                    codes=(
-                        station.network,
-                        station.station,
-                        station.location,
-                        c_name),
-                    quantity='displacement',
+                    codes=nsl + (c_name,),
+                    quantity=self.seismogram_quantity,
                     lat=station.lat,
                     lon=station.lon,
                     north_shift=station.north_shift,
                     east_shift=station.east_shift,
                     depth=station.depth,
-                    store_id=self.store_id,
+                    store_id=self.nsl_to_store_id.get(
+                        '.'.join(nsl), self.store_id),
                     optimization='enable',
                     interpolation='nearest_neighbor',
                     azimuth=c_azi,
@@ -309,10 +308,6 @@ class WaveformGenerator(TargetGenerator):
             if self.taper:
                 tr.taper(self.taper)
 
-            resp = self.get_transfer_function(target.codes)
-            if resp:
-                tr = tr.transfer(transfer_function=resp)
-
             candidate.add(tr)
             trs[target.codes] = candidate
 
@@ -356,16 +351,6 @@ class WaveformGenerator(TargetGenerator):
                             )
                         )
         return markers
-
-    def get_transfer_function(self, codes):
-        if self.seismogram_quantity == 'displacement':
-            return None
-        elif self.seismogram_quantity == 'velocity':
-            return DifferentiationResponse(1)
-        elif self.seismogram_quantity == 'acceleration':
-            return DifferentiationResponse(2)
-        elif self.seismogram_quantity == 'counts':
-            raise NotImplementedError()
 
     def ensure_data(self, engine, sources, path, tmin=None, tmax=None):
         self.ensure_waveforms(engine, sources, path, tmin, tmax)
@@ -477,7 +462,7 @@ class WaveformGenerator(TargetGenerator):
                 value=1.,
                 frequency=1.,
                 input_units=stationxml.Units(sunit),
-                output_units=stationxml.Units('COUNTS')),
+                output_units=stationxml.Units('COUNT')),
             stage_list=[])
 
         for net, station, channel in sxml.iter_network_station_channels():
