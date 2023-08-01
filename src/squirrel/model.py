@@ -843,7 +843,7 @@ class Sensor(ChannelBase):
 
 observational_quantities = [
     'acceleration', 'velocity', 'displacement', 'pressure',
-    'rotation-displacement', 'rotation-velocity', 'rotation-acceleration',
+    'rotation_displacement', 'rotation_velocity', 'rotation_acceleration',
     'temperature']
 
 

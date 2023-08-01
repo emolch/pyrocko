@@ -37,43 +37,62 @@ conversion = {
     ('M/S**2', 'M/S'): response.IntegrationResponse(1),
     ('M', 'M/S**2'): response.DifferentiationResponse(2),
     ('M/S', 'M/S**2'): response.DifferentiationResponse(1),
-    ('M/S**2', 'M/S**2'): None}
+    ('M/S**2', 'M/S**2'): None,
+    ('RAD', 'RAD'): None,
+    ('RAD/S', 'RAD'): response.IntegrationResponse(1),
+    ('RAD/S**2', 'RAD'): response.IntegrationResponse(2),
+    ('RAD', 'RAD/S'): response.DifferentiationResponse(1),
+    ('RAD/S', 'RAD/S'): None,
+    ('RAD/S**2', 'RAD/S'): response.IntegrationResponse(1),
+    ('RAD', 'RAD/S**2'): response.DifferentiationResponse(2),
+    ('RAD/S', 'RAD/S**2'): response.DifferentiationResponse(1),
+    ('RAD/S**2', 'RAD/S**2'): None}
 
 
-unit_to_quantity = {
+units_to_quantity = {
     'M/S': 'velocity',
     'M': 'displacement',
     'M/S**2': 'acceleration',
     'V': 'voltage',
-    'COUNTS': 'counts',
     'COUNT': 'counts',
     'PA': 'pressure',
-    'RAD': 'rotation-displacement',
-    'R': 'rotation-displacement',
-    'RAD/S': 'rotation-velocity',
-    'R/S': 'rotation-velocity',
-    'RAD/S**2': 'rotation-acceleration',
-    'R/S**2': 'rotation-acceleration'}
+    'RAD': 'rotation_displacement',
+    'RAD/S': 'rotation_velocity',
+    'RAD/S**2': 'rotation_acceleration'}
 
 
-def to_quantity(unit, context, delivery):
+quantity_to_units = dict((v, k) for (k, v) in units_to_quantity.items())
 
-    if unit is None:
+
+units_fixes = {
+    'R': 'RAD',
+    'R/S': 'RAD/S',
+    'R/S**2': 'RAD/S**2',
+    'COUNTS': 'COUNT'}
+
+
+def sanitize_units(s):
+    s = s.upper()
+    return units_fixes.get(s, s)
+
+
+def to_quantity(units, context, delivery):
+
+    if units is None:
         return None
 
-    name = unit.name.upper()
-    if name in unit_to_quantity:
-        return unit_to_quantity[name]
+    name = sanitize_units(units.name)
+    if name in units_to_quantity:
+        return units_to_quantity[name]
     else:
         delivery.log.append((
             'warning',
             'Units not supported by Squirrel framework: %s' % (
-                unit.name.upper() + (
-                    ' (%s)' % unit.description
-                    if unit.description else '')),
+                name + (
+                    ' (%s)' % units.description if units.description else '')),
             context))
 
-        return 'unsupported_quantity(%s)' % unit
+        return 'unsupported_quantity(%s)' % units
 
 
 class StationXMLError(Exception):
@@ -1157,8 +1176,10 @@ class ResponseStage(Object):
         return '%i: %s %s -> %s' % (
             self.number,
             ', '.join(elements),
-            self.input_units.name.upper() if self.input_units else '?',
-            self.output_units.name.upper() if self.output_units else '?')
+            sanitize_units(self.input_units.name)
+            if self.input_units else '?',
+            sanitize_units(self.output_units.name)
+            if self.output_units else '?')
 
     def get_squirrel_response_stage(self, context):
         from pyrocko.squirrel.model import ResponseStage
@@ -1377,12 +1398,13 @@ class Response(Object):
         if self.instrument_sensitivity \
                 and self.instrument_sensitivity.input_units:
 
-            units = self.instrument_sensitivity.input_units.name.upper()
+            units = sanitize_units(
+                self.instrument_sensitivity.input_units.name)
 
         if self.stage_list:
             for stage in self.stage_list:
                 if units and stage.input_units \
-                        and stage.input_units.name.upper() != units:
+                        and sanitize_units(stage.input_units.name) != units:
 
                     logger.warning(
                         'Input units of stage %i (%s) do not match %s (%s).'
@@ -1395,20 +1417,21 @@ class Response(Object):
                             units))
 
                 if stage.output_units:
-                    units = stage.output_units.name.upper()
+                    units = sanitize_units(stage.output_units.name)
                 else:
                     units = None
 
             sout_units = self.instrument_sensitivity.output_units
             if self.instrument_sensitivity and sout_units:
-                if units is not None and units != sout_units.name.upper():
+                if units is not None and units != sanitize_units(
+                        sout_units.name):
                     logger.warning(
                         'Output units of stage %i (%s) do not match %s (%s).'
                         % (
                             stage.number,
                             units,
                             'sensitivity output units',
-                            sout_units.name.upper()))
+                            sanitize_units(sout_units.name)))
 
     def _sensitivity_checkpoints(self, responses, context):
         delivery = Delivery()
@@ -1498,6 +1521,8 @@ class Response(Object):
     def get_pyrocko_response(
             self, context, fake_input_units=None, stages=(0, 1)):
 
+        fake_input_units = sanitize_units(fake_input_units)
+
         delivery = Delivery()
         if self.stage_list:
             for istage, stage in enumerate(self.stage_list):
@@ -1520,17 +1545,18 @@ class Response(Object):
                 delivery.errors.append((
                     'NoResponseInformation',
                     'No input units given, so cannot convert to requested '
-                    'units: %s' % fake_input_units.upper(),
+                    'units: %s' % fake_input_units,
                     context))
 
                 return delivery
 
-            input_units = self.instrument_sensitivity.input_units.name.upper()
+            input_units = sanitize_units(
+                self.instrument_sensitivity.input_units.name)
 
             conresp = None
             try:
                 conresp = conversion[
-                    fake_input_units.upper(), input_units]
+                    fake_input_units, input_units]
 
             except KeyError:
                 delivery.errors.append((
@@ -2088,8 +2114,8 @@ class FDSNStationXML(Object):
                     channel.response.instrument_sensitivity and \
                     channel.response.instrument_sensitivity.input_units:
 
-                unit = channel.response.instrument_sensitivity\
-                    .input_units.name.upper()
+                unit = sanitize_units(
+                    channel.response.instrument_sensitivity.input_units.name)
             else:
                 unit = None
 
@@ -2278,8 +2304,8 @@ class FDSNStationXML(Object):
             if channel.response:
                 sens = channel.response.instrument_sensitivity
                 if sens:
-                    in_units = sens.input_units.name.upper()
-                    out_units = sens.output_units.name.upper()
+                    in_units = sanitize_units(sens.input_units.name)
+                    out_units = sanitize_units(sens.output_units.name)
 
                 for stage in channel.response.stage_list:
                     stages.append(stage.summary())
