@@ -812,9 +812,17 @@ class QSeisGFBuilder(gf.builder.Builder):
                 conf.time_region[0], conf.time_region[1],
                 force=force)
 
-            shared['time_window_min'] = d['tlenmax_vred']
-            shared['time_start'] = d['tmin_vred']
-            shared['time_reduction_velocity'] = d['vred'] / km
+            if self.store.config.component_scheme == 'elastic10_fd':
+                # using reduction velocity is not possible here
+                tmax = math.ceil(d['tmax'] / deltat) * deltat
+                tmin = math.floor(d['tmin'] / deltat) * deltat
+                shared['time_window_min'] = tmax - tmin
+                shared['time_start'] = tmin
+                shared['time_reduction_velocity'] = 0.0
+            else:
+                shared['time_window_min'] = d['tlenmax_vred']
+                shared['time_start'] = d['tmin_vred']
+                shared['time_reduction_velocity'] = d['vred'] / km
 
         time_window_min = shared['time_window_min']
         conf.time_start = shared['time_start']
