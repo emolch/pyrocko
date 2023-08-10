@@ -1123,7 +1123,19 @@ def command_tttlsd(args):
     def setup(parser):
         pass
 
-    parser, options, args = cl_parse('tttlsd', args, setup=setup)
+    parser, options, args = cl_parse(
+        'tttlsd', args,
+        setup=setup,
+        details='''
+
+This subcommand fills holes in travel-time-tables by using an eikonal solver to
+predict travel-times for the missing values. The approach works best for simple
+P or S phases without any reflections or conversions. It creates new
+travel-time-tables which are named by adding the suffix `.lsd` to the original
+name. E.g. running `fomosto tttlsd begin` would produce a new travel-time-table
+`begin.lsd`. The new name can be referenced anywhere where a stored
+travel-time-table can be used, e.g. in `extra/qseis`.
+''')
 
     try:
         sphase_ids = args.pop()
