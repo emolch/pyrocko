@@ -468,12 +468,16 @@ def offset(axes, x, y):
     from matplotlib import transforms
     return axes.transData + transforms.ScaledTranslation(x/72., y/72., axes.get_figure().dpi_scale_trans)
 
-def plot_receivers(zstop, distances, axes=None):
+def plot_receivers(zstop, distances, axes=None, **kwargs):
+    if 'color' not in kwargs and 'c' not in kwargs:
+        kwargs['color'] = 'black'
+    if 'markersize' not in kwargs and 'ms' not in kwargs:
+        kwargs['markersize'] = 6
     axes = getaxes(axes)
     for distance in distances:
         axes.plot(
-            distance, zstop, marker=(3, 0, -distance), color='black',
-            clip_on=False, transform=offset(axes, num.sin(distance*d2r)*3, num.cos(distance*d2r)*3), ms=6)
+            distance, zstop, marker=(3, 0, -distance),
+            clip_on=False, transform=offset(axes, num.sin(distance*d2r)*3, num.cos(distance*d2r)*3), **kwargs)
 
 def getaxes(axes=None):
     from matplotlib import pyplot as plt

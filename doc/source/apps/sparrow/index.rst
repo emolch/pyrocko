@@ -61,7 +61,7 @@ interface (GUI). To get a list of its options, run ``sparrow --help``.
     :alt: Sparrow initial screen
     :figwidth: 100%
 
-    Figure 1: Startup state of the Squirrel GUI, with Icosphere, Grid and
+    Figure 1: Startup state of the Sparrow GUI, with Icosphere, Grid and
     Coastline elements. Tipps are shown in the status bar at the bottom.
 
 First flaps
