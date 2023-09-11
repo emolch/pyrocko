@@ -131,7 +131,7 @@ class GeometryElement(base.Element):
             #     values = values.sum(1)
 
             self.cpt_handler._values = values
-            self.cpt_handler.update_cpt()
+            self.cpt_handler.update_cpt(mask_zeros=True)
 
     def get_name(self):
         return 'Geometry'
@@ -179,7 +179,8 @@ class GeometryElement(base.Element):
 
         if len(values.shape) == 2:
             tmin = self._parent.state.tmin
-            tmax = self._parent.state.tmax
+            tmax = self._parent.state.tmax_effective
+
             if tmin is not None:
                 ref_tmin = tmin - ref_time
                 ref_idx_min = geom.time2idx(ref_tmin)
@@ -199,9 +200,9 @@ class GeometryElement(base.Element):
             elif ref_idx_max < ref_idx_min:
                 out = values[:, ref_idx_max]
             else:
-                # TODO CHECK
-                # out = values[:, ref_idx_min:ref_idx_max].sum(1)
-                out = values[:, ref_idx_max]
+                # for cumulative display
+                out = values[:, ref_idx_min:ref_idx_max].sum(1)
+                # out = values[:, ref_idx_max]
         else:
             out = values.ravel()
         return out
