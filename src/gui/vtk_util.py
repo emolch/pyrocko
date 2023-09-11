@@ -44,15 +44,23 @@ def numpy_to_vtk_colors(a):
     return c
 
 
-def cpt_to_vtk_lookuptable(cpt, n=1024):
+def cpt_to_vtk_lookuptable(cpt, n=1024, mask_zeros=False):
     lut = vtk.vtkLookupTable()
     lut.Allocate(n, n)
     values = num.linspace(cpt.vmin, cpt.vmax, n)
     colors = cpt(values)
     lut.SetTableRange(cpt.vmin, cpt.vmax)
+
+    err = values[1] - values[0]
+    zeroinds = num.argwhere(num.logical_and(values < err, values > -err))
+
     for i in range(n):
+        if i in zeroinds and mask_zeros:
+            alpha = 0
+        else:
+            alpha = 1
         lut.SetTableValue(
-            i, colors[i, 0]/255., colors[i, 1]/255., colors[i, 2]/255.)
+            i, colors[i, 0]/255., colors[i, 1]/255., colors[i, 2]/255., alpha)
 
     return lut
 

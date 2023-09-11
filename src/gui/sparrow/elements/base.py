@@ -258,7 +258,7 @@ class CPTHandler(Element):
         # if sel:
         #     widget.selectAll()
 
-    def update_cpt(self):
+    def update_cpt(self, mask_zeros=False):
         state = self._state
 
         if self._autoscaler is None:
@@ -291,7 +291,7 @@ class CPTHandler(Element):
 
             self._cpts[state.effective_cpt_name].scale(vmin, vmax)
             cpt = self._cpts[state.effective_cpt_name]
-            vtk_lut = cpt_to_vtk_lookuptable(cpt)
+            vtk_lut = cpt_to_vtk_lookuptable(cpt, mask_zeros=mask_zeros)
             vtk_lut.SetNanColor(0.0, 0.0, 0.0, 0.0)
 
             self._lookuptable = vtk_lut
