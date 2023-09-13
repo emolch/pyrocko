@@ -689,7 +689,10 @@ class PolygonPipe(object):
 
 class ColorbarPipe(object):
 
-    def __init__(self, parent_pipe=None, cbar_title=None, cpt=None, lut=None):
+    def __init__(
+            self, parent_pipe=None, cbar_title=None, cpt=None, lut=None,
+            position=(0.95, 0.05)):
+
         act = vtk.vtkScalarBarActor()
 
         act.SetMaximumHeightInPixels(500)
@@ -704,7 +707,7 @@ class ColorbarPipe(object):
         self.actor = act
 
         self._format_text()
-        self._set_position(0.95, 0.05)
+        self._set_position(*position)
 
         if cbar_title is not None:
             self.set_title(cbar_title)
