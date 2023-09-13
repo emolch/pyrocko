@@ -6,7 +6,7 @@
 import logging
 import numpy as num
 
-from pyrocko.guts import Bool, String, load, Float
+from pyrocko.guts import Bool, String, load, Float, StringChoice
 from pyrocko.geometry import arr_vertices, arr_faces
 from pyrocko.gui.qt_compat import qw, qc
 from pyrocko.gui.vtk_util import TrimeshPipe, ColorbarPipe, OutlinesPipe, Color
@@ -16,6 +16,8 @@ from pyrocko.model import Geometry
 
 from . import base
 from .. import common
+from ..state import state_bind_combobox, state_bind_slider, \
+    state_bind_combobox_color, state_bind_checkbox
 
 
 logger = logging.getLogger('geometry')
@@ -23,6 +25,10 @@ logger = logging.getLogger('geometry')
 guts_prefix = 'sparrow'
 
 km = 1e3
+
+
+class ColorBarPositionChoice(StringChoice):
+    choices = ['bottom-left', 'bottom-right', 'top-left', 'top-right']
 
 
 class GeometryState(base.ElementState):
@@ -34,6 +40,8 @@ class GeometryState(base.ElementState):
     cpt = base.CPTState.T(default=base.CPTState.D())
     color = Color.T(default=Color.D('white'))
     line_width = Float.T(default=1.0)
+    show_color_bar = Bool.T(default=True)
+    position_color_bar = ColorBarPositionChoice.T(default='bottom-right')
 
     def create(self):
         element = GeometryElement()
@@ -64,19 +72,23 @@ class GeometryElement(base.Element):
         if not self._pipe:
             self._pipe.append([])
 
+    def remove_cbar_pipe(self):
+        if self._cbar_pipe is not None:
+            self._parent.remove_actor(self._cbar_pipe.actor)
+
+        self._cbar_pipe = None
+
     def remove_pipes(self):
         if self._pipe is not None:
             self._parent.remove_actor(self._pipe.actor)
 
-        if self._cbar_pipe is not None:
-            self._parent.remove_actor(self._cbar_pipe.actor)
+        self.remove_cbar_pipe()
 
         if len(self._outlines_pipe) > 0:
             for pipe in self._outlines_pipe:
                 self._parent.remove_actor(pipe.actor)
 
         self._pipe = None
-        self._cbar_pipe = None
         self._outlines_pipe = []
 
     def set_parent(self, parent):
@@ -91,7 +103,7 @@ class GeometryElement(base.Element):
 
         self.talkie_connect(
             self._parent.state,
-            ['tmin', 'tmax', 'lat', 'lon'],
+            ['tmin', 'tmax', 'lat', 'lon', 'tmax_effective'],
             self.update)
 
         self.update()
@@ -115,7 +127,8 @@ class GeometryElement(base.Element):
         self.talkie_connect(
             state,
             ['visible', 'geometry', 'display_parameter', 'time',
-             'opacity', 'color', 'line_width'],
+             'opacity', 'color', 'line_width',
+             'show_color_bar', 'position_color_bar'],
             self.update)
 
         self.cpt_handler.bind_state(state.cpt, self.update)
@@ -286,17 +299,34 @@ class GeometryElement(base.Element):
                             values=values,
                             lut=lut,
                             backface_culling=False)
-                        self._cbar_pipe = ColorbarPipe(
-                            lut=lut, cbar_title=state.display_parameter)
-                        self._parent.add_actor(self._pipe.actor)
-                        self._parent.add_actor(self._cbar_pipe.actor)
                     else:
                         self._pipe.set_values(values)
                         self._pipe.set_lookuptable(lut)
                         self._pipe.set_opacity(self._state.opacity)
 
-                        self._cbar_pipe.set_lookuptable(lut)
-                        self._cbar_pipe.set_title(state.display_parameter)
+                    if state.show_color_bar:
+                        sx, sy = 1, 1
+                        off = 0.08 * sy
+                        pos = {
+                            'top-left': (off, sy/2 + off, 0, 2),
+                            'top-right': (sx - off, sy/2 + off, 2, 2),
+                            'bottom-left': (off, off, 0, 0),
+                            'bottom-right': (sx - off, off, 2, 0)}
+                        x, y, _, _ = pos[state.position_color_bar]
+
+                        if not isinstance(self._cbar_pipe, ColorbarPipe):
+                            self._cbar_pipe = ColorbarPipe(
+                                lut=lut,
+                                cbar_title=state.display_parameter,
+                                position=(x, y))
+                            self._parent.add_actor(self._pipe.actor)
+                            self._parent.add_actor(self._cbar_pipe.actor)
+                        else:
+                            self._cbar_pipe.set_lookuptable(lut)
+                            self._cbar_pipe.set_title(state.display_parameter)
+                            self._cbar_pipe._set_position(x, y)
+                    else:
+                        self.remove_cbar_pipe()
 
                 if geo.outlines:
                     self.update_outlines(geo)
@@ -311,8 +341,6 @@ class GeometryElement(base.Element):
     def _get_controls(self):
         state = self._state
         if not self._controls:
-            from ..state import state_bind_combobox, \
-                state_bind_slider, state_bind_combobox_color
 
             frame = qw.QFrame()
             layout = qw.QGridLayout()
@@ -353,6 +381,20 @@ class GeometryElement(base.Element):
 
                     self.cpt_handler._update_cpt_combobox()
                     self.cpt_handler._update_cptscale_lineedit()
+
+                    # color scale checkbox
+                    il = layout.rowCount() + 1
+                    layout.addWidget(qw.QLabel('Color Bar'), il, 0)
+
+                    chb = qw.QCheckBox('show')
+                    layout.addWidget(chb, il, 1)
+                    state_bind_checkbox(self, state, 'show_color_bar', chb)
+
+                    cb = common.string_choices_to_combobox(
+                        ColorBarPositionChoice)
+                    layout.addWidget(cb, il, 2)
+                    state_bind_combobox(
+                        self, self._state, 'position_color_bar', cb)
 
                 # times slider
                 if state.geometry.times is not None:
