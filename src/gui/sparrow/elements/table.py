@@ -264,6 +264,7 @@ class TableElement(base.Element):
 
             self.cpt_handler._values = values
             self.cpt_handler.update_cpt()
+            self.cpt_handler.update_cbar(state.color_parameter)
 
             cpt = copy.deepcopy(
                 self.cpt_handler._cpts[self._state.cpt.effective_cpt_name])
