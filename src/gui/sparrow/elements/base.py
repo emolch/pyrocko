@@ -17,12 +17,12 @@ from pyrocko.gui.talkie import (TalkieRoot, TalkieConnectionOwner,
                                 has_computed, computed)
 
 from pyrocko.gui.qt_compat import qc, qw
-from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable
+from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable, ColorbarPipe
 
 
 from .. import common
 from ..state import \
-    state_bind_combobox, state_bind, state_bind_checkbox
+    state_bind_combobox, state_bind, state_bind_checkbox, state_bind_slider
 
 
 mpl_cmap_blacklist = [
@@ -131,6 +131,10 @@ class CPTChoice(StringChoice):
     choices = ['slip_colors'] + get_mpl_cmap_choices()
 
 
+class ColorBarPositionChoice(StringChoice):
+    choices = ['bottom-left', 'bottom-right', 'top-left', 'top-right']
+
+
 @has_computed
 class CPTState(ElementState):
     cpt_name = String.T(default=CPTChoice.choices[0])
@@ -138,6 +142,12 @@ class CPTState(ElementState):
     cpt_scale_min = Float.T(optional=True)
     cpt_scale_max = Float.T(optional=True)
     cpt_revert = Bool.T(default=False)
+    cbar_show = Bool.T(default=True)
+    cbar_position = ColorBarPositionChoice.T(default='bottom-right')
+    cbar_annotation_lightness = Float.T(default=1.0)
+    cbar_annotation_fontsize = Float.T(default=0.03)
+    cbar_height = Float.T(default=1.)
+    cbar_width = Float.T(default=1.)
 
     @computed(['cpt_name', 'cpt_revert'])
     def effective_cpt_name(self):
@@ -159,11 +169,16 @@ class CPTHandler(Element):
         self._values = None
         self._state = None
         self._cpt_scale_lineedit = None
+        self._cbar_pipe = None
 
     def bind_state(self, cpt_state, update_function):
         for state_attr in [
                 'effective_cpt_name', 'cpt_mode',
-                'cpt_scale_min', 'cpt_scale_max']:
+                'cpt_scale_min', 'cpt_scale_max',
+                'cbar_show', 'cbar_position',
+                'cbar_annotation_lightness',
+                'cbar_annotation_fontsize',
+                'cbar_height', 'cbar_width']:
 
             self.talkie_connect(
                 cpt_state, state_attr, update_function)
@@ -300,6 +315,52 @@ class CPTHandler(Element):
         elif state.effective_cpt_name and self._values is None:
             raise ValueError('No values passed to colormapper!')
 
+    def update_cbar(self, display_parameter):
+
+        state = self._state
+        lut = self._lookuptable
+
+        if state.cbar_show and lut:
+            sx, sy = 1, 1
+            off = 0.08 * sy
+            pos = {
+                'top-left': (off, sy/2 + off, 0, 2),
+                'top-right': (sx - off, sy/2 + off, 2, 2),
+                'bottom-left': (off, off, 0, 0),
+                'bottom-right': (sx - off, off, 2, 0)}
+            x, y, _, _ = pos[state.cbar_position]
+
+            if not isinstance(self._cbar_pipe, ColorbarPipe):
+                self._cbar_pipe = ColorbarPipe(
+                    parent_pipe=self._parent,
+                    lut=lut,
+                    cbar_title=display_parameter,
+                    position=(x, y))
+                self._parent.add_actor(self._cbar_pipe.actor)
+            else:
+                self._cbar_pipe.set_lookuptable(lut)
+                self._cbar_pipe.set_title(display_parameter)
+                self._cbar_pipe._set_position(x, y)
+
+            sx, sy = self._parent.gui_state.size
+            fontsize = round(state.cbar_annotation_fontsize*sy)
+            lightness = 0.9 * state.cbar_annotation_lightness
+            self._cbar_pipe._format_text(
+                lightness=lightness, fontsize=fontsize)
+
+            height_px = int(round(sy / 3 * state.cbar_height))
+            width_px = int(round(50 * state.cbar_width))
+            self._cbar_pipe._format_size(height_px, width_px)
+
+        else:
+            self.remove_cbar_pipe()
+
+    def remove_cbar_pipe(self):
+        if self._cbar_pipe is not None:
+            self._parent.remove_actor(self._cbar_pipe.actor)
+
+        self._cbar_pipe = None
+
     def cpt_controls(self, parent, state, layout):
         self._parent = parent
 
@@ -341,6 +402,94 @@ class CPTHandler(Element):
         cb = qw.QCheckBox('Revert')
         layout.addWidget(cb, iy, 1)
         state_bind_checkbox(self, state, 'cpt_revert', cb)
+
+        # color bar
+        iy += 1
+        layout.addWidget(qw.QLabel('Color Bar'), iy, 0)
+
+        chb = qw.QCheckBox('show')
+        layout.addWidget(chb, iy, 1)
+        state_bind_checkbox(self, state, 'cbar_show', chb)
+
+        cb = common.string_choices_to_combobox(
+            ColorBarPositionChoice)
+        layout.addWidget(cb, iy, 2)
+        state_bind_combobox(
+            self, self._state, 'cbar_position', cb)
+
+        # cbar text
+        iy += 1
+        layout.addWidget(qw.QLabel('Lightness'), iy, 1)
+
+        slider = qw.QSlider(qc.Qt.Horizontal)
+        slider.setSizePolicy(
+            qw.QSizePolicy(
+                qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+        slider.setMinimum(0)
+        slider.setMaximum(1000)
+        layout.addWidget(slider, iy, 2)
+
+        state_bind_slider(
+            self,
+            self._state,
+            'cbar_annotation_lightness',
+            slider,
+            factor=0.001)
+
+        iy += 1
+        layout.addWidget(qw.QLabel('Fontsize'), iy, 1)
+
+        slider = qw.QSlider(qc.Qt.Horizontal)
+        slider.setSizePolicy(
+            qw.QSizePolicy(
+                qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+        slider.setMinimum(0)
+        slider.setMaximum(100)
+        layout.addWidget(slider, iy, 2)
+
+        state_bind_slider(
+            self,
+            self._state,
+            'cbar_annotation_fontsize',
+            slider,
+            factor=0.001)
+
+        # cbar size
+        iy += 1
+        layout.addWidget(qw.QLabel('Height'), iy, 1)
+
+        slider = qw.QSlider(qc.Qt.Horizontal)
+        slider.setSizePolicy(
+            qw.QSizePolicy(
+                qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+        slider.setMinimum(1)
+        slider.setMaximum(200)
+        layout.addWidget(slider, iy, 2)
+
+        state_bind_slider(
+            self,
+            self._state,
+            'cbar_height',
+            slider,
+            factor=0.01)
+
+        iy += 1
+        layout.addWidget(qw.QLabel('Width'), iy, 1)
+
+        slider = qw.QSlider(qc.Qt.Horizontal)
+        slider.setSizePolicy(
+            qw.QSizePolicy(
+                qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+        slider.setMinimum(1)
+        slider.setMaximum(200)
+        layout.addWidget(slider, iy, 2)
+
+        state_bind_slider(
+            self,
+            self._state,
+            'cbar_width',
+            slider,
+            factor=0.01)
 
 
 def _lineedit_to_cptscale(widget, cpt_state):

@@ -700,13 +700,9 @@ class ColorbarPipe(object):
 
     def __init__(
             self, parent_pipe=None, cbar_title=None, cpt=None, lut=None,
-            position=(0.95, 0.05)):
+            position=(0.95, 0.05), size=(500, 50)):
 
         act = vtk.vtkScalarBarActor()
-
-        act.SetMaximumHeightInPixels(500)
-        act.SetMaximumWidthInPixels(50)
-
         try:
             act.SetUnconstrainedFontSize(True)
         except AttributeError:
@@ -714,9 +710,11 @@ class ColorbarPipe(object):
 
         self.prop = act.GetProperty()
         self.actor = act
+        self.prop_title = None
+        self.prop_label = None
 
-        self._format_text()
         self._set_position(*position)
+        self._format_size(*size)
 
         if cbar_title is not None:
             self.set_title(cbar_title)
@@ -734,12 +732,15 @@ class ColorbarPipe(object):
     def set_title(self, cbar_title):
         self.actor.SetTitle(cbar_title)
 
-    def _format_text(self):
+    def _format_text(self, lightness, fontsize):
 
-        prop_title = vtk.vtkTextProperty()
+        if self.prop_title is None:
+            self.prop_title = vtk.vtkTextProperty()
+
+        prop_title = self.prop_title
         prop_title.SetFontFamilyToArial()
-        prop_title.SetColor(.8, .8, .8)
-        prop_title.SetFontSize(int(prop_title.GetFontSize() * 1.3))
+        prop_title.SetColor(lightness, lightness, lightness)
+        prop_title.SetFontSize(int(fontsize * 1.3))
         prop_title.BoldOn()
         self.actor.SetTitleTextProperty(prop_title)
         try:
@@ -747,11 +748,18 @@ class ColorbarPipe(object):
         except AttributeError:
             pass
 
-        prop_label = vtk.vtkTextProperty()
+        if self.prop_label is None:
+            self.prop_label = vtk.vtkTextProperty()
+
+        prop_label = self.prop_label
         prop_label.SetFontFamilyToArial()
-        prop_label.SetColor(.8, .8, .8)
-        prop_label.SetFontSize(int(prop_label.GetFontSize() * 1.1))
+        prop_label.SetColor(lightness, lightness, lightness)
+        prop_label.SetFontSize(int(fontsize * 1.1))
         self.actor.SetLabelTextProperty(prop_label)
+
+    def _format_size(self, height_px, width_px):
+        self.actor.SetMaximumHeightInPixels(height_px)
+        self.actor.SetMaximumWidthInPixels(width_px)
 
     def _set_position(self, xpos, ypos):
         pos = self.actor.GetPositionCoordinate()
