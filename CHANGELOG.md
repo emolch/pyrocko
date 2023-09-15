@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
-*empty*
+### Added
+- Sparrow:
+    - global colorbar handling added to CPTHandler
+
+### Fixed
+- Sparrow:
+    - GeometryElement: aware to global and focal time windows for animations
 
 ## v2024.01.10
 
