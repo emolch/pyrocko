@@ -14,7 +14,7 @@ from pyrocko.gui.qt_compat import qc, qw
 from pyrocko.gui.talkie import TalkieRoot
 
 from pyrocko.gui.vtk_util import \
-    ArrowPipe, ColorbarPipe, PolygonPipe, ScatterPipe, OutlinesPipe
+    ArrowPipe, PolygonPipe, ScatterPipe, OutlinesPipe
 
 from .. import state as vstate
 from .. import common
@@ -351,6 +351,7 @@ class SourceElement(base.Element):
         cbar_title = parameter_label[param]
 
         self.cpt_handler.update_cpt()
+        self.cpt_handler.update_cbar(cbar_title)
 
         poly_pipe = PolygonPipe(
             vertices, faces,
@@ -388,14 +389,6 @@ class SourceElement(base.Element):
 
         self._pipe.append(poly_pipe)
         self._parent.add_actor(self._pipe[-1].actor)
-
-        if cbar_title is not None:
-            cbar_pipe = ColorbarPipe(
-                parent_pipe=poly_pipe, cbar_title=cbar_title,
-                lut=self.cpt_handler._lookuptable)
-
-            self._pipe.append(cbar_pipe)
-            self._parent.add_actor(self._pipe[-1].actor)
 
     def _update_rake_arrow(self, fault):
         source = self._state.source_selection
