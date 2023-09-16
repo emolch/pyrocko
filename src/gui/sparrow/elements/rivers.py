@@ -10,27 +10,27 @@ from .gshhg import GSHHGElement, GSHHGState
 guts_prefix = 'sparrow'
 
 
-class CoastlinesState(GSHHGState):
+class RiversState(GSHHGState):
 
-    dataset = String.T(default='coastlines')
+    dataset = String.T(default='rivers')
 
     def create(self):
-        element = CoastlinesElement()
+        element = RiversElement()
         return element
 
 
-class CoastlinesElement(GSHHGElement):
+class RiversElement(GSHHGElement):
 
     def __init__(self):
         GSHHGElement.__init__(self)
 
     def get_name(self):
-        return 'Coastlines'
+        return 'Rivers'
 
     def bind_state(self, state):
         GSHHGElement.bind_state(self, state)
 
 
 __all__ = [
-    'CoastlinesElement',
-    'CoastlinesState']
+    'RiversElement',
+    'RiversState']

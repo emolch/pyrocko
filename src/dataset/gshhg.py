@@ -231,6 +231,7 @@ class Polygon(object):
         self.north *= micro_deg
 
         self.level_no = (self._flag & 255)
+        print(self.level_no, self.LEVELS)
         self.level = self.LEVELS[self.level_no - 1]
         self.version = (self._flag >> 8) & 255
 
@@ -389,7 +390,25 @@ Dateline crossed:   {p.dateline_crossed}
         return rstr
 
 
-class GSHHG(object):
+class RiverPolygon(Polygon):
+
+    LEVELS = [
+        'DOUBLE_LINED_RIVERS',
+        'PERMANENT_MAJOR_RIVERS',
+        'ADDITIONAL_MAJOR_RIVERS',
+        'ADDITIONAL_RIVERS',
+        'MINOR_RIVERS',
+        'INTERMITTENT_RIVERS-MAJOR',
+        'INTERMITTENT_RIVERS-ADDITIONAL',
+        'INTERMITTENT_RIVERS-MINOR',
+        'MAJOR_CANALS',
+        'MINOR_CANALS',
+        'IRRIGATION_CANALS',
+        'DOCS_MISS',
+        'DOCS_MISS', 'DOCS_MISS', 'DOCS_MISS', 'DOCS_MISS', 'DOCS_MISS']
+
+
+class GSHHGBase(object):
     '''
     GSHHG database access.
 
@@ -423,7 +442,14 @@ class GSHHG(object):
                 if not buf:
                     break
                 header = self._header_struct.unpack_from(buf)
-                p = Polygon(
+                dataset = path.basename(self._file).split("_")[1]
+                print(dataset)
+                if dataset == 'rivers':
+                    LoadPolygon = RiverPolygon
+                else:
+                    LoadPolygon = Polygon
+
+                p = LoadPolygon(
                     self._file,
                     db.tell(),
                     *header)
@@ -496,6 +522,9 @@ class GSHHG(object):
 
                 rp.append(p)
         return rp
+
+
+class Coastlines(GSHHGBase):
 
     def is_point_on_land(self, lat, lon):
         '''
@@ -588,3 +617,83 @@ class GSHHG(object):
         Return the crude-resolution GSHHG database.
         '''
         return cls(cls._get_database('gshhs_c.b'))
+
+
+class GSHHG(Coastlines):
+    pass
+
+
+class Borders(GSHHGBase):
+
+    @classmethod
+    def full(cls):
+        '''
+        Return the full-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_borders_f.b'))
+
+    @classmethod
+    def high(cls):
+        '''
+        Return the high-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_borders_h.b'))
+
+    @classmethod
+    def intermediate(cls):
+        '''
+        Return the intermediate-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_borders_.b'))
+
+    @classmethod
+    def low(cls):
+        '''
+        Return the low-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_borders_l.b'))
+
+    @classmethod
+    def crude(cls):
+        '''
+        Return the crude-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_borders_c.b'))
+
+
+class Rivers(GSHHGBase):
+
+    @classmethod
+    def full(cls):
+        '''
+        Return the full-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_rivers_f.b'))
+
+    @classmethod
+    def high(cls):
+        '''
+        Return the high-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_rivers_h.b'))
+
+    @classmethod
+    def intermediate(cls):
+        '''
+        Return the intermediate-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_rivers_.b'))
+
+    @classmethod
+    def low(cls):
+        '''
+        Return the low-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_rivers_l.b'))
+
+    @classmethod
+    def crude(cls):
+        '''
+        Return the crude-resolution GSHHG database.
+        '''
+        return cls(cls._get_database('wdb_rivers_c.b'))
