@@ -71,7 +71,7 @@ class GSHHGPipe(object):
         if resolution not in self._polyline_grid:
             pb = common.get_viewer().progressbars
             if pb:
-                mess = 'Loading %s resolution coastlines' % resolution
+                mess = 'Loading %s resolution %s' % (resolution, dataset)
                 pb.set_status(mess, 0, can_abort=False)
 
             dataset = gshhg_dataset_mapping[dataset]

@@ -681,7 +681,7 @@ class Rivers(GSHHGBase):
         '''
         Return the intermediate-resolution GSHHG database.
         '''
-        return cls(cls._get_database('wdb_rivers_.b'))
+        return cls(cls._get_database('wdb_rivers_i.b'))
 
     @classmethod
     def low(cls):

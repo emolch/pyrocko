@@ -24,12 +24,12 @@ CITIES_ORIENTATION = (0, -45, 45)
 COUNTRIES_ORIENTATION = (0, 0, 0)
 
 
-def locations_to_points(locations):
+def locations_to_points(locations, depth=0):
     locations = [loc for loc in locations if loc.lat is not None]
     coords = num.zeros((len(locations), 3))
 
     for i, v in enumerate(locations):
-        coords[i, :] = v.lat, v.lon, 0 - 10*km
+        coords[i, :] = v.lat, v.lon, depth
 
     loc_table = table.Table()
     loc_table.add_col(('coords', '', ('lat', 'lon', 'depth')), coords)
@@ -136,7 +136,7 @@ class GeonamesElement(Element):
         state = self._state
 
         if state.show_cities:
-            points, _ = locations_to_points(self._cities)
+            points, _ = locations_to_points(self._cities, depth=-10*km)
             colors = cities_to_color(self._cities, state.lightness_cities)
             if self._cities_pipe is None:
                 self._cities_pipe = ScatterPipe(points)
@@ -168,7 +168,8 @@ class GeonamesElement(Element):
         state = self._state
 
         if state.show_country_names:
-            points, countries = locations_to_points(self._countries)
+            points, countries = locations_to_points(
+                self._countries, depth=-50*km)
             if self._countries_pipe is None:
                 camera = self._parent.ren.GetActiveCamera()
                 labels = [c.name for c in countries]
