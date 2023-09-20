@@ -408,6 +408,7 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
                 ('Catalog', elements.CatalogState()),
                 ('Coastlines', elements.CoastlinesState()),
                 ('Borders', elements.BordersState()),
+                ('Geonames', elements.GeonamesState()),
                 ('Rivers', elements.RiversState()),
                 ('Rectangular Source', elements.SourceState()),
                 ('HUD Subtitle', elements.HudState(

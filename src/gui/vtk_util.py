@@ -914,3 +914,38 @@ class Glyph3DPipe(object):
         leader.GetProperty().SetColor(1., 1., 0.69)
 
         return leader
+
+
+class TextPipe(object):
+
+    def __init__(self, points, labels, camera, fontsize=12):
+
+        self.text_actors = []
+        for xyz, label in zip(points, labels):
+            atext = vtk.vtkVectorText()
+            atext.SetText(label)
+
+            textMapper = vtk.vtkPolyDataMapper()
+            textMapper.SetInputConnection(atext.GetOutputPort())
+
+            tact = vtk.vtkFollower()
+            tact.SetMapper(textMapper)
+            tact.AddPosition(*xyz)
+            tact.SetCamera(camera)
+            self.text_actors.append(tact)
+
+    def set_colors(self, color):
+        for act in self.text_actors:
+            act.GetProperty().SetColor(color)
+
+    def set_label_size(self, size):
+        for act in self.text_actors:
+            act.SetScale(size, size, size)
+
+    def set_orientation(self, orientation):
+        for act in self.text_actors:
+            act.SetOrientation(*orientation)
+
+    @property
+    def actor(self):
+        return self.text_actors

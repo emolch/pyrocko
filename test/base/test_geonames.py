@@ -15,7 +15,7 @@ class GeonamesTestCase(unittest.TestCase):
 
     def test_geonames_countries(self):
 
-        countries = geonames.load_all_countries()
+        countries = geonames.get_countries_region()
         for country in countries:
             print(country)
 

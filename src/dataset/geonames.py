@@ -147,7 +147,7 @@ def get_file(zfn, fn):
     return f, z
 
 
-def load_country_info(zfn, fn, minpop=1000000):
+def load_country_info(zfn, fn, minpop=1000000, minarea=10000):
 
     f, z = get_file(zfn, fn)
 
@@ -157,11 +157,11 @@ def load_country_info(zfn, fn, minpop=1000000):
         start = t[0].decode('utf8')[0]
         if start != '#':
             population = int(t[7])
-            if minpop <= population:
+            area = float(t[6])
+            if minpop <= population and minarea <= area:
                 iso = t[0].decode('utf8')
                 name = t[4].decode('utf8')
                 capital = t[5].decode('utf8')
-                area = t[6].decode('utf8')
                 feature_code = str(t[16].decode('ascii'))
                 countries[feature_code] = (
                     iso, name, capital, population, area, feature_code)
@@ -188,18 +188,21 @@ def load_country_shapes_json(zfn, fn):
         coords = ft["geometry"]["coordinates"]
         coords_arr = num.vstack(
             [num.array(sco) for co in chain(coords) for sco in chain(co)])
-        latlon = od.geographic_midpoint(coords_arr[:, 0], coords_arr[:, 1])
+        latlon = od.geographic_midpoint(coords_arr[:, 1], coords_arr[:, 0])
         mid_points_countries[geonameid] = latlon
 
     return mid_points_countries
 
 
-def load_all_countries(minpop=1000000):
+def get_countries_region(minpop=0, minarea=0, region=None):
 
     country_infos = load_country_info(
-        None, "countryInfo.txt", minpop=minpop)
+        None, "countryInfo.txt", minpop=minpop, minarea=minarea)
     mid_points = load_country_shapes_json(
         "shapes_simplified_low.json.zip", "shapes_simplified_low.json")
+
+    if region:
+        w, e, s, n = positive_region(region)
 
     for geonameid, infos in country_infos.items():
         try:
@@ -207,7 +210,10 @@ def load_all_countries(minpop=1000000):
         except KeyError:
             lat = lon = None
 
-        yield Country(*infos, lat, lon)
+        if not region or (
+                (w <= lon <= e or w <= lon + 360. <= e)
+                and (s <= lat <= n)):
+            yield Country(*infos, lat, lon)
 
 
 def load_cities(zfn, fn, minpop=1000000, region=None):

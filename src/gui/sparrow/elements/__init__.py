@@ -11,6 +11,7 @@ from .catalog import *  # noqa
 from .coastlines import *  # noqa
 from .crosshair import *  # noqa
 from .custom_topo import *  # noqa
+from .geonames import * # noqa
 from .geometry import *  # noqa
 from .grid import *  # noqa
 from .hud import *  # noqa

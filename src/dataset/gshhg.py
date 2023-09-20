@@ -231,7 +231,6 @@ class Polygon(object):
         self.north *= micro_deg
 
         self.level_no = (self._flag & 255)
-        print(self.level_no, self.LEVELS)
         self.level = self.LEVELS[self.level_no - 1]
         self.version = (self._flag >> 8) & 255
 
@@ -443,7 +442,7 @@ class GSHHGBase(object):
                     break
                 header = self._header_struct.unpack_from(buf)
                 dataset = path.basename(self._file).split("_")[1]
-                print(dataset)
+
                 if dataset == 'rivers':
                     LoadPolygon = RiverPolygon
                 else:
@@ -644,7 +643,7 @@ class Borders(GSHHGBase):
         '''
         Return the intermediate-resolution GSHHG database.
         '''
-        return cls(cls._get_database('wdb_borders_.b'))
+        return cls(cls._get_database('wdb_borders_i.b'))
 
     @classmethod
     def low(cls):
