@@ -194,7 +194,7 @@ def load_country_shapes_json(zfn, fn):
     return mid_points_countries
 
 
-def get_countries_region(minpop=0, minarea=0, region=None):
+def load_all_countries_keep(minpop=0, minarea=0, region=None):
 
     country_infos = load_country_info(
         None, "countryInfo.txt", minpop=minpop, minarea=minarea)
@@ -214,6 +214,11 @@ def get_countries_region(minpop=0, minarea=0, region=None):
                 (w <= lon <= e or w <= lon + 360. <= e)
                 and (s <= lat <= n)):
             yield Country(*infos, lat, lon)
+
+
+def get_countries_region(minpop=0, minarea=0, region=None):
+    return list(load_all_countries_keep(
+        minpop=minpop, minarea=minarea, region=region))
 
 
 def load_cities(zfn, fn, minpop=1000000, region=None):
