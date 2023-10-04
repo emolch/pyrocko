@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Event data access interface (*deprecated*).
+'''
+
 from pyrocko import model, response
 
 import logging
@@ -80,7 +84,8 @@ class EventDataAccess(object):
 
     def get_pyrocko_events(self):
         '''
-        Extract :py:class:`model.Event` instances from the volume.
+        Extract :py:class:`~pyrocko.model.event.Event` instances from the
+        volume.
         '''
 
         if not self._events:
@@ -91,9 +96,9 @@ class EventDataAccess(object):
         '''
         Get station information for a given trace.
 
-        :param tr: :py:class:`trace.Trace` instance
+        :param tr: :py:class:`~pyrocko.trace.Trace` instance
 
-        :returns: :py:class:`model.station.Station` objects.
+        :returns: :py:class:`~pyrocko.model.station.Station` objects.
         '''
 
         self._update_stations()
@@ -106,16 +111,17 @@ class EventDataAccess(object):
         '''
         Get channel information for a given trace.
 
-        :param tr: :py:class:`trace.Trace` instance
+        :param tr: :py:class:`~pyrocko.trace.Trace` instance
 
-        :returns: :py:class:`model.station.Channel` objects.
+        :returns: :py:class:`~pyrocko.model.station.Channel` objects.
         '''
         sta = self.get_station(tr)
         return sta.get_channel(tr.channel)
 
     def get_pyrocko_stations(self):
         '''
-        Exctract a list of :py:class:`model.Station` instances.
+        Exctract a list of :py:class:`~pyrocko.model.station.Station`
+        instances.
         '''
         return list(self._get_stations().values())
 

@@ -3,10 +3,17 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+IO related exception definitions and utilities.
+'''
+
 import os
 
 
 class FileError(Exception):
+    '''
+    Base class for errors occurring when loading or saving data.
+    '''
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
         self.context = {}

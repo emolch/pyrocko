@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for GSE2.0 (IMS) waveform files.
+'''
+
 import os
 import random
 

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for KAN files.
+'''
+
 import os
 import numpy as num
 

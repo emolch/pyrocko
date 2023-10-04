@@ -3,7 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
-'''This module provides convenience objects to handle frequency responses.'''
+'''
+Frequency response parameterizations useful as transfer functions in signal
+processing.
+'''
 
 import math
 import logging
@@ -29,7 +32,7 @@ def asarray_1d(x, dtype):
     else:
         a = num.asarray(x, dtype=dtype)
         if not a.ndim == 1:
-            raise ValueError('could not convert to 1D array')
+            raise ValueError('Could not convert to 1D array.')
         return a
 
 
@@ -67,19 +70,48 @@ def str_fmax_failsafe(resp):
 
 class FrequencyResponse(Object):
     '''
-    Evaluates frequency response at given frequencies.
+    Base class for parameterized frequency responses.
     '''
 
-    checkpoints = List.T(FrequencyResponseCheckpoint.T())
+    checkpoints = List.T(
+        FrequencyResponseCheckpoint.T())
 
     def __init__(self, *args, **kwargs):
         Object.__init__(self, *args, **kwargs)
         self.uuid = uuid.uuid4()
 
     def evaluate(self, freqs):
+        '''
+        Evaluate the response at given frequencies.
+
+        :param freqs:
+            Frequencies [Hz].
+        :type freqs:
+            :py:class:`numpy.ndarray` of shape ``(N,)`` and dtype
+            :py:class:`float`
+
+        :returns:
+            Complex coefficients of the response.
+        :rtype:
+            :py:class:`numpy.ndarray` of shape ``(N,)`` and dtype
+            :py:class:`complex`
+        '''
         return num.ones(freqs.size, dtype=complex)
 
     def evaluate1(self, freq):
+        '''
+        Evaluate the response at a single frequency.
+
+        :param freq:
+            Frequency [Hz].
+        :type freqs:
+            float
+
+        :returns:
+            Complex response coefficient.
+        :rtype:
+            complex
+        '''
         return self.evaluate(num.atleast_1d(freq))[0]
 
     def is_scalar(self):
@@ -102,6 +134,15 @@ class FrequencyResponse(Object):
             raise IsNotScalar()  # default for derived classes
 
     def get_fmax(self):
+        '''
+        Get maximum frequency for which the response is defined.
+
+        :returns:
+            ``None`` if the response has no upper limit, otherwise the maximum
+            frequency in [Hz] for which the response is valid is returned.
+        :rtype:
+            float or None
+        '''
         return None
 
     def construction(self):
@@ -109,6 +150,9 @@ class FrequencyResponse(Object):
 
     @property
     def summary(self):
+        '''
+        Short summary with key information about the response object.
+        '''
         if type(self) is FrequencyResponse:
             return 'one'
         else:
@@ -271,9 +315,9 @@ class PoleZeroResponse(FrequencyResponse):
     Evaluates frequency response from pole-zero representation.
 
     :param zeros: positions of zeros
-    :type zeros: list of complex
+    :type zeros: :py:class:`list` of :py:class:`complex`
     :param poles: positions of poles
-    :type poles: list of complex
+    :type poles: :py:class:`list` of :py:class:`complex`
     :param constant: gain factor
     :type constant: complex
 
@@ -392,9 +436,9 @@ class DigitalPoleZeroResponse(FrequencyResponse):
     Evaluates frequency response from digital filter pole-zero representation.
 
     :param zeros: positions of zeros
-    :type zeros: list of complex
+    :type zeros: :py:class:`list` of :py:class:`complex`
     :param poles: positions of poles
-    :type poles: list of complex
+    :type poles: :py:class:`list` of :py:class:`complex`
     :param constant: gain factor
     :type constant: complex
     :param deltat: sampling interval
@@ -423,7 +467,7 @@ class DigitalPoleZeroResponse(FrequencyResponse):
         if deltat is None:
             raise ValueError(
                 'Sampling interval `deltat` must be given for '
-                'DigitalPoleZeroResponse')
+                'DigitalPoleZeroResponse.')
 
         FrequencyResponse.__init__(
             self, zeros=aslist(zeros), poles=aslist(poles), constant=constant,
@@ -432,7 +476,7 @@ class DigitalPoleZeroResponse(FrequencyResponse):
     def check_sampling_rate(self):
         if self.deltat == 0.0:
             raise InvalidResponseError(
-                'Invalid digital response: sampling rate undefined')
+                'Invalid digital response: sampling rate undefined.')
 
     def get_fmax(self):
         self.check_sampling_rate()
@@ -665,7 +709,7 @@ class DigitalFilterResponse(FrequencyResponse):
     def check_sampling_rate(self):
         if self.deltat == 0.0:
             raise InvalidResponseError(
-                'Invalid digital response: sampling rate undefined')
+                'Invalid digital response: sampling rate undefined.')
 
     def is_scalar(self):
         return len(self.a) == 1 and len(self.b) == 1
@@ -825,8 +869,12 @@ class MultiplyResponse(FrequencyResponse):
 
 
 class DelayResponse(FrequencyResponse):
+    '''
+    Frequency response of a time delay.
+    '''
 
-    delay = Float.T()
+    delay = Float.T(
+        help='Time delay [s]')
 
     def evaluate(self, freqs):
         return num.exp(-2.0J * self.delay * num.pi * freqs)
@@ -842,7 +890,15 @@ class InvalidResponseError(Exception):
 
 class InvalidResponse(FrequencyResponse):
 
-    message = String.T()
+    '''
+    Frequency response returning NaN for all frequencies.
+
+    When using :py:meth:`FrequencyResponse.evaluate` for the first time after
+    instantiation, the user supplied warning :py:gattr:`message` is emitted.
+    '''
+
+    message = String.T(
+        help='Warning message to be emitted when the response is used.')
 
     def __init__(self, message):
         FrequencyResponse.__init__(self, message=message)

@@ -3,6 +3,12 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Read/write MiniSEED files (wraps `libmseed
+<https://github.com/EarthScope/libmseed>`_).
+'''
+
+
 from struct import unpack
 import os
 import re

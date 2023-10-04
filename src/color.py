@@ -3,6 +3,56 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Color utilities and built-in color palettes for a consistent look.
+
+.. _color:
+
+Color formats
+.............
+
+.. list-table::
+    :widths: 15 85
+
+    * - ``RGB``, ``RGBA``
+      - Integer values for red, green blue, alpha, in the range ``[0, 255]``.::
+
+            Color('RGBA(255, 255, 255, 255)')  # from string
+            Color('RGB(255, 255, 255)')
+            Color(255, 255, 255, 255)          # from values
+            Color(255, 255, 255)
+
+    * - ``rgb``, ``rgba``
+      - Floating point values in the range ``[0.0, 1.0]``.::
+
+            Color('rgba(1, 1, 1, 1)')   # from string
+            Color('rgb(1, 1, 1)')
+            Color(1.0, 1.0, 1.0, 1.0)   # from values
+            Color(1.0, 1.0, 1.0)
+
+    * - ``hex``
+      - Hexadecimal value with 3, 4, 6 or 8 digits.::
+
+            Color('#fff')
+            Color('#ffff')
+            Color('#ffffff')
+            Color('#ffffffff')
+
+    * - ``name``
+      - See :py:data:`g_named_colors` for a complete list of
+        available colors.::
+
+            Color('white')
+            Color('butter1')
+            Color('skyblue2')
+
+
+.. py:data:: g_named_colors
+
+    Dict mapping color names to :py:class:`Color` objects.
+'''
+
+
 import re
 
 from pyrocko.guts import Object, Dict, SObject, Float, String, TBase, \
@@ -13,10 +63,16 @@ guts_prefix = 'pf'
 
 
 class ColorError(ValueError):
+    '''
+    Raised for invalid color specifications and conversions.
+    '''
     pass
 
 
 class InvalidColorString(ColorError):
+    '''
+    Raised for invalid color string definitions.
+    '''
     def __init__(self, s):
         ColorError.__init__(self, 'Invalid color string: %s' % s)
 
@@ -75,26 +131,13 @@ g_named_colors.update(g_standard_colors)
 
 def parse_color(s):
     '''
-    Translate color string into rgba values (range [0.0, 1.0])
+    Translate color string into :ref:`rgba tuple <color>`.
 
-    The color string can be defined as
-        - **integer RGB(A) values** (range [0, 255])
-            e.g. 'RGBA(255, 255, 255, 255)'
-            or 'RGB(255, 255, 255)' (alpha set to 255),
-        - **floating point rgb(a) values** (range [0.0, 1.0])
-            e.g. 'rgba(1.0, 1.0, 1.0, 1.0)'
-            or 'rgba(1.0, 1.0, 1.0)' (alpha set to 255),
-        - **hex color** with 3, 4, 6 or 8 digits after #
-            e.g. #fff, #ffff, #ffffff or #ffffffff
-        - **name of predefined colors**,
-            e.g. 'butter1' or 'white'.
-            See pyrocko.plot.color.g_groups for complete list.
+    :param s: :ref:`Color definition <color>`.
+    :type s: str
 
-    :param s: Color string as name, RGB(A), rgb(a) or hex
-    :type s: string
-
-    :return: floating point rgba values between 0.0 and 1.0.
-    :rtype: tuple of float, `len(rgba) = 4`
+    :return: Color value in ``rgba`` form.
+    :rtype: :py:class:`tuple` of 4 :py:class:`float`
     '''
 
     orig_s = s
@@ -179,7 +222,7 @@ def to_int_255(f):
 
 def to_float_1(i):
     '''
-    Convert floating point to integer color component
+    Convert integer to floating point color component
 
     Convert an integer color component (range [0, 255]) to a floating point
     color component (range [0.0, 1.0])
@@ -237,16 +280,40 @@ class Component(Float):
 
 class Color(SObject):
     '''
-    Color class with red, green, blue and alpha values ranging [0.0, 1.0].
+    Color with red, green, blue and alpha values.
 
-    A name of color can be given instead of the RGBA/rgba/hex color.
+    The color can be specified as a :ref:`color string <color>` or by giving
+    the component values in :py:class:`int` or :py:class:`float` format.
+
+    Examples::
+
+        Color('black')
+        Color('RGBA(255, 255, 255, 255)')
+        Color('RGB(255, 255, 255)')
+        Color('rgba(1.0, 1.0, 1.0, 1.0')')
+        Color('rgb(1.0, 1.0, 1.0')')
+        Color(255, 255, 255, 255)
+        Color(255, 255, 255)
+        Color(1.0, 1.0, 1.0, 1.0)
+        Color(1.0, 1.0, 1.0)
+        Color(r=1.0, g=1.0, b=1.0, a=1.0)
+
+    The internal representation is ``rgba``.
     '''
 
     name__ = String.T(optional=True)
-    r__ = Component.T(default=0.0)
-    g__ = Component.T(default=0.0)
-    b__ = Component.T(default=0.0)
-    a__ = Component.T(default=1.0)
+    r__ = Component.T(
+        default=0.0,
+        help='Red component ``[0., 1.]``.')
+    g__ = Component.T(
+        default=0.0,
+        help='Green component ``[0., 1.]``.')
+    b__ = Component.T(
+        default=0.0,
+        help='Blue component ``[0., 1.]``.')
+    a__ = Component.T(
+        default=1.0,
+        help='Alpha (opacity) component ``[0., 1.]``.')
 
     def __init__(self, *args, **kwargs):
         if len(args) == 1:
@@ -294,10 +361,6 @@ class Color(SObject):
 
     @property
     def r(self):
-        '''
-        Red floating point color component
-        '''
-
         return self.r__
 
     @r.setter
@@ -307,10 +370,6 @@ class Color(SObject):
 
     @property
     def g(self):
-        '''
-        Green floating point color component
-        '''
-
         return self.g__
 
     @g.setter
@@ -320,10 +379,6 @@ class Color(SObject):
 
     @property
     def b(self):
-        '''
-        Blue floating point color component
-        '''
-
         return self.b__
 
     @b.setter
@@ -333,10 +388,6 @@ class Color(SObject):
 
     @property
     def a(self):
-        '''
-        Transparency (alpha) floating point color component
-        '''
-
         return self.a__
 
     @a.setter
@@ -347,7 +398,7 @@ class Color(SObject):
     @property
     def rgb(self):
         '''
-        Red, green and blue floating point color components
+        Red, green and blue floating point color components.
         '''
 
         return self.r__, self.g__, self.b__
@@ -360,7 +411,7 @@ class Color(SObject):
     @property
     def rgba(self):
         '''
-        Red, green, blue and alpha floating point color components
+        Red, green, blue and alpha floating point color components.
         '''
 
         return self.r__, self.g__, self.b__, self.a__
@@ -373,7 +424,7 @@ class Color(SObject):
     @property
     def RGB(self):
         '''
-        Red, green and blue integer color components
+        Red, green and blue integer color components.
         '''
 
         return tuple(to_int_255(x) for x in self.rgb)
@@ -386,7 +437,7 @@ class Color(SObject):
     @property
     def RGBA(self):
         '''
-        Red, green, blue and alpha integer color components
+        Red, green, blue and alpha integer color components.
         '''
 
         return tuple(to_int_255(x) for x in self.rgba)
@@ -399,7 +450,7 @@ class Color(SObject):
     @property
     def str_hex(self):
         '''
-        Hex color string
+        Hex color string.
         '''
 
         return simplify_hex('#%02x%02x%02x%02x' % self.RGBA)
@@ -410,9 +461,9 @@ class Color(SObject):
     @property
     def str_rgb(self):
         '''
-        red, green and blue floating point color components as string
+        Red, green and blue floating point color components as string.
 
-        Output will be of type 'rgb(<red>, <green>, <blue>)'
+        Output will be like ``'rgb(<red>, <green>, <blue>)'.``
         '''
 
         return 'rgb(%5.3f, %5.3f, %5.3f)' % self.rgb
@@ -420,9 +471,9 @@ class Color(SObject):
     @property
     def str_RGB(self):
         '''
-        Red, green and blue integer color components as string
+        Red, green and blue integer color components as string.
 
-        Output will be of type 'RGB(<red>, <green>, <blue>)'
+        Output will be like ``'RGB(<red>, <green>, <blue>)'``
         '''
 
         return 'RGB(%i, %i, %i)' % self.RGB
@@ -430,9 +481,9 @@ class Color(SObject):
     @property
     def str_rgba(self):
         '''
-        Red, green, blue and alpha floating point color components as string
+        Red, green, blue and alpha floating point color components as string.
 
-        Output will be of type 'rgba(<red>, <green>, <blue>, <alpha>)'
+        Output will be like ``'rgba(<red>, <green>, <blue>, <alpha>)'``.
         '''
 
         return 'rgba(%5.3f, %5.3f, %5.3f, %5.3f)' % self.rgba
@@ -440,16 +491,16 @@ class Color(SObject):
     @property
     def str_RGBA(self):
         '''
-        Red, green, blue and alpha integer color components as string
+        Red, green, blue and alpha integer color components as string'
 
-        Output will be of type 'RGBA(<red>, <green>, <blue>, <alpha>)'
+        Output will be like ``'RGBA(<red>, <green>, <blue>, <alpha>)'``.
         '''
 
         return 'RGBA(%i, %i, %i, %i)' % self.RGBA
 
     def describe(self):
         '''
-        Returns all possible definitions of the color
+        Returns all possible definitions of the color.
         '''
 
         return '''

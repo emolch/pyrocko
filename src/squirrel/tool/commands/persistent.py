@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel persistent`.
+'''
+
 from pyrocko.squirrel import error, environment, database, base
 
 headline = 'Manage persistent selections.'

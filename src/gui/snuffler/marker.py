@@ -66,6 +66,10 @@ class MarkerParseError(Exception):
 
 
 class MarkerOneNSLCRequired(Exception):
+    '''
+    Raised when a marker with exactly one NSLC entry is required but there are
+    zero or more than one.
+    '''
     pass
 
 
@@ -220,9 +224,11 @@ class Marker(object):
 
     def one_nslc(self):
         '''
-        If one *nslc_id* defines this marker return this id.
-        If more than one *nslc_id* is defined in the :py:class:`Marker`s
-        *nslc_ids* raise :py:exc:`MarkerOneNSLCRequired`.
+        Get single NSLC pattern or raise an exception if there is not exactly
+        one.
+
+        If *nslc_ids* contains a single entry, return it. If more than one is
+        available, raise :py:exc:`MarkerOneNSLCRequired`.
         '''
         if len(self.nslc_ids) != 1:
             raise MarkerOneNSLCRequired()
@@ -501,11 +507,11 @@ class EventMarker(Marker):
     '''
     GUI element representing a seismological event.
 
-    :param event: A :py:class:`pyrocko.model.Event` object containing meta
-        information of a seismological event
+    :param event: A :py:class:`~pyrocko.model.event.Event` object containing
+        meta information of a seismological event
     :param kind: (optional) integer to distinguish groups of markers
     :param event_hash:  (optional) hash code of event (see:
-        :py:meth:`pyrocko.model.Event.get_hash`)
+        :py:meth:`~pyrocko.model.event.Event.get_hash`)
     '''
 
     def __init__(self, event, kind=0, event_hash=None):
@@ -561,8 +567,8 @@ class EventMarker(Marker):
 
     def get_event(self):
         '''
-        Return an instance of the :py:class:`pyrocko.model.Event` associated
-        to this :py:class:`EventMarker`
+        Return an instance of the :py:class:`~pyrocko.model.event.Event`
+        associated to this :py:class:`EventMarker`
         '''
         return self._event
 
@@ -628,10 +634,10 @@ class PhaseMarker(Marker):
     :param tmax: end time
     :param kind: (optional) integer to distinguish groups of markers
         (color-coded)
-    :param event: a :py:class:`pyrocko.model.Event` object containing meta
-        information of a seismological event
+    :param event: a :py:class:`~pyrocko.model.event.Event` object containing
+        meta information of a seismological event
     :param event_hash: (optional) hash code of event (see:
-        :py:meth:`pyrocko.model.Event.get_hash`)
+        :py:meth:`~pyrocko.model.event.Event.get_hash`)
     :param event_time: (optional) time of the associated event
     :param phasename: (optional) name of the phase associated with the marker
     :param polarity: (optional) polarity of arriving phase
@@ -685,8 +691,8 @@ class PhaseMarker(Marker):
 
     def get_event(self):
         '''
-        Return an instance of the :py:class:`pyrocko.model.Event` associated
-        to this :py:class:`EventMarker`
+        Return an instance of the :py:class:`~pyrocko.model.event.Event`
+        associated to this :py:class:`EventMarker`
         '''
         return self._event
 

@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Live stream reader for SeedLink streams (via `slinktool
+<https://www.seiscomp.de/doc/apps/slinktool.html>`_).
+'''
+
 import subprocess
 import time
 import os

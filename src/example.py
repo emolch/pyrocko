@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Example data download helpers.
+'''
+
 import os
 from pyrocko import util
 import logging

@@ -32,6 +32,6 @@ of markers: event markers, phase markers, and basic markers.
 * phase markers can be associated to an event marker
 
 The rules how to parse these files are somewhat cumbersome. Use the library
-functions :py:func:`pyrocko.marker.load_markers`
-:py:func:`pyrocko.marker.save_markers`. The marker file format is subject to be
-replaced by a YAML based variant.
+functions :py:func:`~pyrocko.gui.snuffler.marker.load_markers`
+and :py:func:`~pyrocko.gui.snuffler.marker.save_markers`. The marker file
+format is subject to be replaced by a YAML based variant.

@@ -203,7 +203,7 @@ static int autopick_ext_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "autopick_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.autopick`.",
         sizeof(struct module_state),
         AutoPickMethods,
         NULL,

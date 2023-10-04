@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Fast weight-delay-and-sum implementation for seismic array processing and
+migration.
+'''
+
 import numpy as num
 
 from . import parstack_ext

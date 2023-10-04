@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel scan`.
+'''
+
 headline = 'Scan and index files and directories.'
 
 

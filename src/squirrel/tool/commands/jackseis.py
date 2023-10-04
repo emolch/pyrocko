@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel jackseis`.
+'''
+
 import re
 import sys
 import logging

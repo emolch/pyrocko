@@ -137,7 +137,7 @@ static int evalresp_ext_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "evalresp_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.evalresp`.",
         sizeof(struct module_state),
         evalresp_ext_methods,
         NULL,

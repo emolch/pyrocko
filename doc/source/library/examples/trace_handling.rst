@@ -246,8 +246,8 @@ function object which 'knows' how to compute values of the transfer function at
 given frequencies. The trace module provides a few different transfer
 functions, but it is also possible to write a custom transfer function. For a
 transfer function given as poles and zeros, we can use instances of the class
-:class:`pyrocko.trace.PoleZeroResponse`. There is also a class
-:class:`pyrocko.trace.InverseEvalrespResponse`, which uses the common ``RESP``
+:class:`pyrocko.response.PoleZeroResponse`. There is also a class
+:class:`pyrocko.response.InverseEvalresp`, which uses the common ``RESP``
 files through the ``evalresp`` library.
 
 Here is a complete example using a SAC pole-zero file

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Common base for Green's function store builders (:py:mod:`~pyrocko.fomosto`).
+'''
+
 import os
 import signal
 import errno

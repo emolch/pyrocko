@@ -1286,7 +1286,7 @@ static int okada_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
     "okada_ext",
-    NULL,
+    "C-extension supporting :py:mod:`pyrocko.modelling.okada`.",
     sizeof(struct module_state),
     okada_ext_methods,
     NULL,

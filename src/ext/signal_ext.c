@@ -326,7 +326,7 @@ static int signal_ext_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "signal_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.trace`.",
         sizeof(struct module_state),
         signal_ext_methods,
         NULL,

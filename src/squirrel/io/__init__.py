@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Local file reading and indexing.
+'''
+
 from . import base
 from .base import *  # noqa
 

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Data-model free processing of :py:mod:`pyrocko.guts` generated YAML files.
+'''
+
 import copy
 
 try:

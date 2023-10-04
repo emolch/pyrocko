@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Recursive STA/LTA.
+'''
+
 from . import autopick_ext
 import numpy as num
 

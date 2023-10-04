@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Registry for dataset download progress notifications.
+'''
+
 DOWNLOAD_CALLBACK = None
 
 

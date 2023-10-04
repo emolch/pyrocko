@@ -86,14 +86,16 @@ class PoelConfig(Object):
     source_function_p = Float.T(default=1.0)
     source_function_i = PoelSourceFunction.T(
         default=PoelSourceFunction.D(
-            data=num.array([[0., 0.], [10., 1.]], dtype=float)))
+            data=num.array(
+                [[0., 0.], [10., 1.]], dtype=float)))
 
     t_window = Float.T(default=500.)
     accuracy = Float.T(default=0.025)
     isurfcon = Int.T(default=1)
     model = PoelModel.T(
-        default=PoelModel(data=num.array([[
-            0.00, 0.4E+09, 0.2, 0.4, 0.75, 5.00]], dtype=float)))
+        default=PoelModel.D(
+            data=num.array(
+                [[0.00, 0.4E+09, 0.2, 0.4, 0.75, 5.00]], dtype=float)))
 
     def items(self):
         return dict(self.T.inamevals(self))

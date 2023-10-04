@@ -4,7 +4,7 @@
 # ---|P------/S----------~Lg----------
 
 '''
-This module provides basic signal processing for seismic traces.
+Basic signal processing for seismic waveforms.
 '''
 
 import time
@@ -752,10 +752,10 @@ class Trace(Object):
         Downsample to given sampling rate.
 
         Tries to downsample the trace to a target sampling interval of
-        ``deltat``. This runs the :py:meth:`Trace.downsample` one or several
-        times. If ``allow_upsample_max`` is set to a value larger than 1,
-        intermediate upsampling steps are allowed, in order to increase the
-        number of possible downsampling ratios.
+        ``deltat``. This runs :py:meth:`downsample` one or several times. If
+        ``allow_upsample_max`` is set to a value larger than 1, intermediate
+        upsampling steps are allowed, in order to increase the number of
+        possible downsampling ratios.
 
         If the requested ratio is not supported, an exception of type
         :py:exc:`pyrocko.util.UnavailableDecimation` is raised.
@@ -767,7 +767,7 @@ class Trace(Object):
         given downsampling configuration can be estimated with
         :py:func:`downsample_tpad`.
 
-        See also: :meth:`Trace.downample`
+        See also: :meth:`Trace.downsample`.
 
         :param deltat:
             Desired sampling interval in [s].
@@ -1989,9 +1989,9 @@ class Trace(Object):
         '''
         Show trace in a snuffler window.
 
-        :param stations: list of :py:class:`pyrocko.model.Station` objects or
-            ``None``
-        :param events: list of :py:class:`pyrocko.model.Event` objects or
+        :param stations: list of :py:class:`pyrocko.model.station.Station`
+            objects or ``None``
+        :param events: list of :py:class:`pyrocko.model.event.Event` objects or
             ``None``
         :param markers: list of :py:class:`pyrocko.gui.snuffler.marker.Marker`
             objects or ``None``
@@ -2011,12 +2011,13 @@ def snuffle(traces, **kwargs):
     '''
     Show traces in a snuffler window.
 
-    :param stations: list of :py:class:`pyrocko.model.Station` objects or
+    :param stations: list of :py:class:`pyrocko.model.station.Station` objects
+        or ``None``
+    :param events: list of :py:class:`pyrocko.model.event.Event` objects or
         ``None``
-    :param events: list of :py:class:`pyrocko.model.Event` objects or ``None``
     :param markers: list of :py:class:`pyrocko.gui.snuffler.marker.Marker`
         objects or ``None``
-    :param ntracks: float, number of tracks to be shown initially (default: 12)
+    :param ntracks: int, number of tracks to be shown initially (default: 12)
     :param follow: time interval (in seconds) for real time follow mode or
         ``None``
     :param controls: bool, whether to show the main controls (default:
@@ -2414,7 +2415,7 @@ def rotate_to_rt(n, e, source, receiver, out_channels=('R', 'T')):
     :param out_channels:
         Channel codes of the output channels (radial, transversal).
         Default is ('R', 'T').
-        .
+
     :type out_channels
         optional, tuple[str, str]
 
@@ -3552,12 +3553,12 @@ class DomainChoice(StringChoice):
 
 class MisfitSetup(Object):
     '''
-    Contains misfit setup to be used in :py:func:`trace.misfit`
+    Contains misfit setup to be used in :py:meth:`Trace.misfit`
 
     :param description: Description of the setup
     :param norm: L-norm classifier
     :param taper: Object of :py:class:`Taper`
-    :param filter: Object of :py:class:`FrequencyResponse`
+    :param filter: Object of :py:class:`~pyrocko.response.FrequencyResponse`
     :param domain: ['time_domain', 'frequency_domain', 'envelope', 'absolute',
         'cc_max_norm']
 
@@ -3603,13 +3604,13 @@ def equalize_sampling_rates(trace_1, trace_2):
 
 def Lx_norm(u, v, norm=2):
     '''
-    Calculate the misfit denominator *m* and the normalization devisor *n*
+    Calculate the misfit denominator *m* and the normalization divisor *n*
     according to norm.
 
     The normalization divisor *n* is calculated from ``v``.
 
-    :param u: :py:class:`numpy.array`
-    :param v: :py:class:`numpy.array`
+    :param u: :py:class:`numpy.ndarray`
+    :param v: :py:class:`numpy.ndarray`
     :param norm: (default = 2)
 
     ``u`` and ``v`` must be of same size.

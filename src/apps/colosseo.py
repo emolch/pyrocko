@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Colosseo - earthquake scenario generator.
+'''
+
 import sys
 import logging
 import os.path as op
@@ -275,6 +279,9 @@ def command_snuffle(args):
 
 
 def main(args=None):
+    '''
+    CLI entry point for Pyrocko's ``colosseo`` app.
+    '''
     if args is None:
         args = sys.argv[1:]
 

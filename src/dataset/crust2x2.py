@@ -7,20 +7,17 @@ Interface to use CRUST2.0 model by Laske, Masters and Reif.
 
 All functions defined in this module return SI units (m, m/s, kg/m^3).
 
-.. note::
-  Please refer to the REM web site if you use this model:
+.. rubric:: Citation
 
-    http://igppweb.ucsd.edu/~gabi/rem.html
+If you use this model, please refer to the
+`REM web site <http://igppweb.ucsd.edu/~gabi/rem.html>`_  or cite:
 
-  or
+Bassin, C., Laske, G. and Masters, G., The Current Limits of Resolution for
+Surface Wave Tomography in North America, EOS Trans AGU, 81, F897, 2000. A
+description of CRUST 5.1 can be found in: Mooney, Laske and Masters, Crust
+5.1: a global crustal model at 5x5 degrees, JGR, 103, 727-747, 1998.
 
-    Bassin, C., Laske, G. and Masters, G., The Current Limits of Resolution for
-    Surface Wave Tomography in North America, EOS Trans AGU, 81, F897, 2000. A
-    description of CRUST 5.1 can be found in: Mooney, Laske and Masters, Crust
-    5.1: a global crustal model at 5x5 degrees, JGR, 103, 727-747, 1998.
-
-Usage
------
+.. rubric:: Usage
 
 ::
 
@@ -47,8 +44,7 @@ Usage
      [  2100.   2100.   2800.   2800.   2850.   2850.   2950.   2950.   3400.]]
 
 
-Constants
----------
+.. rubric:: Constants
 
 ============== ==============
 Layer id       Layer name
@@ -63,8 +59,6 @@ LLOWERCRUST    lower crust
 LBELOWCRUST    below crust
 ============== ==============
 
-Contents
---------
 '''
 
 import os

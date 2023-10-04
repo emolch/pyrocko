@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Double-couple random source generator.
+'''
+
 import numpy as num
 
 from pyrocko import util

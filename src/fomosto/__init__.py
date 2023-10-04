@@ -3,6 +3,13 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Green's function store builders interfacing with the external modelling codes.
+
+This subpackage contains the GF builders which are used by :py:app:`fomosto` to
+interface with the various supported numerical forward modelling tools
+(:doc:`/apps/fomosto/backends`). '''
+
 import os
 import re
 

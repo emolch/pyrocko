@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Access to SEED volumes by interfacing `rdseed
+<https://ds.iris.edu/ds/nodes/dmc/software/downloads/rdseed/>`_ (*deprecated*).
+'''
+
 import os
 import sys
 import subprocess
@@ -288,7 +293,7 @@ class SeedVolumeAccess(eventdata.EventDataAccess):
                 respfile = pjoin(self.tempdir, 'RESP.%s.%s.%s.%s' % nslc)
                 respfiles.append(respfile)
 
-        from pyrocko.fdsn import resp
+        from pyrocko.client.fdsn import resp
         sxml = resp.make_stationxml(stations, resp.iload(respfiles))
         return sxml
 

@@ -1,3 +1,14 @@
+# http://pyrocko.org - GPLv3
+#
+# The Pyrocko Developers, 21st Century
+# ---|P------/S----------~Lg----------
+
+'''
+Reader for `Silixia iDAS
+<https://silixa.com/technology/idas-intelligent-distributed-acoustic-sensor/>`_
+TDMS files.
+'''
+
 import logging
 import os.path as op
 import struct

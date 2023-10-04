@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel IO adaptor to :py:mod:`pyrocko.io.stationxml`.
+'''
+
 import logging
 import time
 import copy

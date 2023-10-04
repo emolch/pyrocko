@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+IO library for simple binary files.
+'''
+
 # The container format:
 # * A file consists of records.
 # * A record consists of a record header a record payload, and possibly

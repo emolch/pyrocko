@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Live stream reader for a few USB/serial digitizers.
+'''
+
 import time
 import logging
 import math

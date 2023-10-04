@@ -433,7 +433,7 @@ static int orthodrome_ext_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "orthodrome_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.orthodrome`.",
         sizeof(struct module_state),
         orthodrome_ext_methods,
         NULL,

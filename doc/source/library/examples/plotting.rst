@@ -178,13 +178,13 @@ This example shows how to add station symbols at the positions where P wave
 rays pierce the focal sphere.
 
 The function to plot focal spheres
-(:func:`pyrocko.plot.beachball.plot_beachball_mpl`) uses the function
-:func:`pyrocko.plot.beachball.project` in the final projection from 3D to 2D
+(:py:func:`pyrocko.plot.beachball.plot_beachball_mpl`) uses the function
+:py:func:`pyrocko.plot.beachball.project` in the final projection from 3D to 2D
 coordinates. Here we use this function to place additional symbols on the plot.
 The take-off angles needed can be computed with some help of the
 :mod:`pyrocko.cake` module. Azimuth and distance computations are done with
 functions from :mod:`pyrocko.orthodrome`. Polarities are obtained with
-:func:`pyrocko.plot.beachball.amplitudes`.
+:py:func:`pyrocko.plot.beachball.amplitudes`.
 
 Download :download:`beachball_example04.py </../../examples/beachball_example04.py>`
 
@@ -291,7 +291,7 @@ Pseudo dynamic rupture - slip map, slip movie, source plots
 -----------------------------------------------------------
 
 The different attributes, rupture dislocations and their evolution over time
-of the :py:class:`~pyrocko.gf.seismoszier.PseudoDynamicRupture` can be
+of the :py:class:`~pyrocko.gf.seismosizer.PseudoDynamicRupture` can be
 inspected and illustrated in different ways from map view to small gifs. The
 illustration of patch wise attributes is also possible with the built-in
 module :py:mod:`~pyrocko.plot.dynamic_rupture`.

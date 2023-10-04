@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Data structures representing the receivers for seismogram synthesis.
+'''
+
 import numpy as num
 import math
 
@@ -33,8 +37,8 @@ def component_orientation(source, target, component):
     '''
     Get component and azimuth for standard components R, T, Z, N, and E.
 
-    :param source: :py:class:`pyrocko.gf.Location` object
-    :param target: :py:class:`pyrocko.gf.Location` object
+    :param source: :py:class:`pyrocko.model.location.Location` object
+    :param target: :py:class:`pyrocko.model.location.Location` object
     :param component: string ``'R'``, ``'T'``, ``'Z'``, ``'N'`` or ``'E'``
     '''
 
@@ -246,10 +250,12 @@ class StaticTarget(meta.MultiLocation):
     def get_targets(self):
         '''
         Discretizes the multilocation target into a list of
-        :class:`Target:`
+        :py:class:`Target` objects.
 
-        :returns: :class:`Target`
-        :rtype: list
+        :returns:
+            Individual point locations.
+        :rtype:
+            :py:class:`list` of :py:class:`Target`
         '''
         targets = []
         for i in range(self.ntargets):

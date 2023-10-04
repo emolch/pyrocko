@@ -1,3 +1,13 @@
+# http://pyrocko.org - GPLv3
+#
+# The Pyrocko Developers, 21st Century
+# ---|P------/S----------~Lg----------
+
+'''
+Traction field parameterizations used by :doc:`PDR source
+</topics/pseudo-dynamic-rupture>`.
+'''
+
 import logging
 import numpy as num
 from pyrocko.guts import Object, Float, List, StringChoice, Int
@@ -348,24 +358,24 @@ def plot_tractions(tractions, nx=15, ny=12, depth=10*km, component='strike'):
     :param nx:
         Number of patches along strike.
     :type nx:
-        optional, int
+        int
 
     :param ny:
         Number of patches down dip.
     :type ny:
-        optional, int
+        int
 
     :param depth:
         Depth of the rupture plane center in [m].
     :type depth:
-        optional, float
+        float
 
     :param component:
         Choice of traction component to be shown. Available: ``'tx'`` (along
         strike), ``'ty'`` (up dip), ``'tz'`` (normal), ``'absolute'`` (vector
         length).
     :type component:
-        optional, str
+        str
     '''
     import matplotlib.pyplot as plt
     from pyrocko.modelling.okada import OkadaSource

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+NASA Shuttle Radar Topography Mission Global 30 arc second (`SRTMGL3 <https://lpdaac.usgs.gov/dataset_discovery/measures/measures_products_table/srtmgl3_v003>`_) topography data.
+'''  # noqa
+
 import zipfile
 import os.path as op
 import os
@@ -29,12 +33,20 @@ Rosen, P. A. et al., 2000, Synthetic aperture radar interferometry, Proc. IEEE,
 88:333-382.
 '''
 
+__doc__ += '''
+.. rubric:: Citation
+
+''' + citation
+
 
 class AuthenticationRequired(Exception):
     pass
 
 
 class SRTMGL3(dataset.TiledGlobalDataset):
+    '''
+
+    '''
 
     def __init__(
             self,

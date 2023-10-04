@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for RESP files.
+'''
+
 import time
 import re
 import logging
@@ -534,10 +538,15 @@ def make_stationxml(pyrocko_stations, channel_responses):
     '''
     Create stationxml from pyrocko station list and RESP information.
 
-    :param pyrocko_stations: list of :py:class:`pyrocko.model.Station` objects
-    :param channel_responses: iterable yielding :py:class:`ChannelResponse`
-        objects
-    :returns: :py:class:`pyrocko.fdsn.station.FDSNStationXML` object with
+    :param pyrocko_stations:
+        Station information.
+    :type pyrocko_stations:
+        :py:class:`list` of :py:class:`pyrocko.model.station.Station`
+
+    :param channel_responses:
+        iterable yielding :py:class:`ChannelResponse` objects
+
+    :returns: :py:class:`pyrocko.io.stationxml.FDSNStationXML` object with
         merged information
 
     If no station information is available for any response information, it
@@ -606,7 +615,7 @@ if __name__ == '__main__':
     util.setup_logging(__name__)
 
     if len(sys.argv) < 2:
-        sys.exit('usage: python -m pyrocko.fdsn.resp <stations> <resp> ...')
+        sys.exit('usage: python -m pyrocko.io.resp <stations> <resp> ...')
 
     stations = load_stations(sys.argv[1])
 

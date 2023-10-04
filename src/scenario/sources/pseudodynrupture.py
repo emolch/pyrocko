@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Pseudo dynamic rupture random source generator.
+'''
+
 import numpy as num
 
 from pyrocko.guts import Float, Int

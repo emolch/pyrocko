@@ -7,7 +7,7 @@ from pyrocko.dataset import topo
 class TopoTestCase(unittest.TestCase):
 
     def test_srtm(self):
-        srtm = topo.srtmgl3
+        srtm = topo._srtmgl3
         tiles = list(srtm.available_tilenames())
 
         tilenum = num.random.randint(0, len(tiles)-1)

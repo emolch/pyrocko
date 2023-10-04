@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Functionality to handle tiled global topography datasets.
+'''
+
 import math
 import logging
 import os.path as op
@@ -22,6 +26,9 @@ logger = logging.getLogger('pyrocko.dataset.topo.dataset')
 
 
 class TiledGlobalDataset(object):
+    '''
+    Tiled global dataset.
+    '''
 
     def __init__(self, name, nx, ny, ntx, nty, dtype, data_dir=None,
                  citation=None, region=None):
@@ -154,6 +161,9 @@ class TiledGlobalDataset(object):
 
 
 class DecimatedTiledGlobalDataset(TiledGlobalDataset):
+    '''
+    Decimated variant of a tiled global dataset.
+    '''
 
     def __init__(self, name, base, ndeci, data_dir=None, ntx=None, nty=None):
 

@@ -2,6 +2,11 @@
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
+
+'''
+Cake - travel-times and ray paths for 1D layered media.
+'''
+
 import sys
 import re
 import numpy as num
@@ -640,6 +645,9 @@ def plot_end(save, fig, show=True):
 
 
 def main(args=None):
+    '''
+    CLI entry point for Pyrocko's ``cake`` app.
+    '''
 
     if args is None:
         args = sys.argv[1:]

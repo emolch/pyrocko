@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Support for relative paths in :py:mod:`~pyrocko.guts`-based configuration
+files.
+'''
+
 from .guts import Object, String
 import os.path as op
 

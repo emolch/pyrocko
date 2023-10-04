@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Live stream reader for Earth Data EDL data loggers.
+'''
+
 import struct
 import collections
 import time
@@ -145,12 +149,19 @@ block_def['DAT\0'] = '''
 '''.split()
 
 
-Blocks = {}
-for k in block_def.keys():
-    fmt = '<'+''.join(block_def[k][1::2])
-    fmt_len = struct.calcsize(fmt)
-    Block = collections.namedtuple('Block'+k[:3], block_def[k][::2])
-    Blocks[k] = (fmt, fmt_len, Block)
+def make_block_classes():
+
+    Blocks = {}
+    for k in block_def.keys():
+        fmt = '<'+''.join(block_def[k][1::2])
+        fmt_len = struct.calcsize(fmt)
+        Block = collections.namedtuple('Block'+k[:3], block_def[k][::2])
+        Blocks[k] = (fmt, fmt_len, Block)
+
+    return Blocks
+
+
+Blocks = make_block_classes()
 
 
 gps_fmt = {}

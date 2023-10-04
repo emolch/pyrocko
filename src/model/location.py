@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Representation of a geographical location, base class for stations, events,
+etc.
+'''
+
 import numpy as num
 import math
 
@@ -36,31 +41,31 @@ class Location(Object):
     lat = Float.T(
         default=0.0,
         optional=True,
-        help='latitude of reference point [deg]')
+        help='Latitude of reference point [deg].')
 
     lon = Float.T(
         default=0.0,
         optional=True,
-        help='longitude of reference point [deg]')
+        help='Longitude of reference point [deg].')
 
     north_shift = Float.T(
         default=0.,
         optional=True,
-        help='northward cartesian offset from reference point [m]')
+        help='Northward cartesian offset from reference point [m].')
 
     east_shift = Float.T(
         default=0.,
         optional=True,
-        help='eastward cartesian offset from reference point [m]')
+        help='Eastward cartesian offset from reference point [m].')
 
     elevation = Float.T(
         default=0.0,
         optional=True,
-        help='surface elevation, above sea level [m]')
+        help='Surface elevation, above sea level [m].')
 
     depth = Float.T(
         default=0.0,
-        help='depth, below surface [m]')
+        help='Depth, below surface [m].')
 
     def __init__(self, **kwargs):
         Object.__init__(self, **kwargs)

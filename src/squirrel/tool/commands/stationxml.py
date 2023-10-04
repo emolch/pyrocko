@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel stationxml`.
+'''
+
 from pyrocko.squirrel.tool.common import ldq, dq
 
 headline = 'Export station metadata as StationXML.'

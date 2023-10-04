@@ -657,7 +657,7 @@ def mpl_papersize(paper, orientation='landscape'):
     Get paper size in inch from string.
 
     Returns argument suitable to be passed to the ``figsize`` argument of
-    :py:func:`pyplot.figure`.
+    :py:func:`matplotlib.pyplot.figure`.
 
     :param paper: string selecting paper size. Choices: %s
     :param orientation: ``'landscape'``, or ``'portrait'``
@@ -672,6 +672,9 @@ mpl_papersize.__doc__ %= _doc_papersizes
 
 
 class InvalidColorDef(ValueError):
+    '''
+    Raised for invalid color definitions.
+    '''
     pass
 
 

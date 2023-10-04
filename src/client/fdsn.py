@@ -375,32 +375,32 @@ def station(
     :param site:
         :ref:`Registered site name <registered-site-names>` or full base URL of
         the service (e.g. ``'https://geofon.gfz-potsdam.de'``).
-    :type site: str, optional
+    :type site: str
     :param url:
         URL template (default should work in 99% of cases).
-    :type url: str, optional
+    :type url: str
     :param majorversion:
         Major version of the service to query (always ``1`` at the time of
         writing).
-    :type majorversion: int, optional
+    :type majorversion: int
     :param timeout:
         Network timeout in [s]. Global default timeout can be configured in
         Pyrocko's configuration file under ``fdsn_timeout``.
-    :type timeout: float, optional
+    :type timeout: float
     :param check:
         If ``True`` arguments are checked against self-description (WADL) of
         the queried web service if available or FDSN specification.
-    :type check: bool, optional
+    :type check: bool
     :param selection:
         If given, selection to be queried as a list of tuples
         ``(network, station, location, channel, tmin, tmax)``. Useful for
         detailed queries.
-    :type selection: list of tuples, optional
+    :type selection: :py:class:`list` of :py:class:`tuple`
     :param parsed:
         If ``True`` parse received content into
         :py:class:`~pyrocko.io.stationxml.FDSNStationXML`
         object, otherwise return open file handle to raw data stream.
-    :type parsed: bool, optional
+    :type parsed: bool
     :param \\*\\*kwargs:
         Parameters passed to the server (see `FDSN web services specification
         <https://www.fdsn.org/webservices>`_).
@@ -489,33 +489,33 @@ def dataselect(
     :param site:
         :ref:`Registered site name <registered-site-names>` or full base URL of
         the service (e.g. ``'https://geofon.gfz-potsdam.de'``).
-    :type site: str, optional
+    :type site: str
     :param url:
         URL template (default should work in 99% of cases).
-    :type url: str, optional
+    :type url: str
     :param majorversion:
         Major version of the service to query (always ``1`` at the time of
         writing).
-    :type majorversion: int, optional
+    :type majorversion: int
     :param timeout:
         Network timeout in [s]. Global default timeout can be configured in
         Pyrocko's configuration file under ``fdsn_timeout``.
-    :type timeout: float, optional
+    :type timeout: float
     :param check:
         If ``True`` arguments are checked against self-description (WADL) of
         the queried web service if available or FDSN specification.
-    :type check: bool, optional
+    :type check: bool
     :param user: User name for user/password authentication.
-    :type user: str, optional
+    :type user: str
     :param passwd: Password for user/password authentication.
-    :type passwd: str, optional
+    :type passwd: str
     :param token: Token for `token authentication
         <https://geofon.gfz-potsdam.de/waveform/archive/auth/auth-overview.php>`_.
-    :type token: str, optional
+    :type token: str
     :param selection:
         If given, selection to be queried as a list of tuples
         ``(network, station, location, channel, tmin, tmax)``.
-    :type selection: list of tuples, optional
+    :type selection: :py:class:`list` of :py:class:`tuple`
     :param \\*\\*kwargs:
         Parameters passed to the server (see `FDSN web services specification
         <https://www.fdsn.org/webservices>`_).
@@ -580,36 +580,36 @@ def event(
     :param site:
         :ref:`Registered site name <registered-site-names>` or full base URL of
         the service (e.g. ``'https://geofon.gfz-potsdam.de'``).
-    :type site: str, optional
+    :type site: str
     :param url:
         URL template (default should work in 99% of cases).
-    :type url: str, optional
+    :type url: str
     :param majorversion:
         Major version of the service to query (always ``1`` at the time of
         writing).
-    :type majorversion: int, optional
+    :type majorversion: int
     :param timeout:
         Network timeout in [s]. Global default timeout can be configured in
         Pyrocko's configuration file under ``fdsn_timeout``.
-    :type timeout: float, optional
+    :type timeout: float
     :param check:
         If ``True`` arguments are checked against self-description (WADL) of
         the queried web service if available or FDSN specification.
-    :type check: bool, optional
+    :type check: bool
     :param user: User name for user/password authentication.
-    :type user: str, optional
+    :type user: str
     :param passwd: Password for user/password authentication.
-    :type passwd: str, optional
+    :type passwd: str
     :param token: Token for `token authentication
         <https://geofon.gfz-potsdam.de/waveform/archive/auth/auth-overview.php>`_.
-    :type token: str, optional
+    :type token: str
     :param parsed:
         If ``True`` parse received content into
         :py:class:`~pyrocko.io.quakeml.QuakeML`
         object, otherwise return open file handle to raw data stream. Note:
         by default unparsed data is retrieved, differently from the default
         behaviour of :py:func:`station` (for backward compatibility).
-    :type parsed: bool, optional
+    :type parsed: bool
     :param \\*\\*kwargs:
         Parameters passed to the server (see `FDSN web services specification
         <https://www.fdsn.org/webservices>`_).
@@ -670,33 +670,33 @@ def availability(
     :param site:
         :ref:`Registered site name <registered-site-names>` or full base URL of
         the service (e.g. ``'https://geofon.gfz-potsdam.de'``).
-    :type site: str, optional
+    :type site: str
     :param url:
         URL template (default should work in 99% of cases).
-    :type url: str, optional
+    :type url: str
     :param majorversion:
         Major version of the service to query (always ``1`` at the time of
         writing).
-    :type majorversion: int, optional
+    :type majorversion: int
     :param timeout:
         Network timeout in [s]. Global default timeout can be configured in
         Pyrocko's configuration file under ``fdsn_timeout``.
-    :type timeout: float, optional
+    :type timeout: float
     :param check:
         If ``True`` arguments are checked against self-description (WADL) of
         the queried web service if available or FDSN specification.
-    :type check: bool, optional
+    :type check: bool
     :param user: User name for user/password authentication.
-    :type user: str, optional
+    :type user: str
     :param passwd: Password for user/password authentication.
-    :type passwd: str, optional
+    :type passwd: str
     :param token: Token for `token authentication
         <https://geofon.gfz-potsdam.de/waveform/archive/auth/auth-overview.php>`_.
-    :type token: str, optional
+    :type token: str
     :param selection:
         If given, selection to be queried as a list of tuples
         ``(network, station, location, channel, tmin, tmax)``.
-    :type selection: list of tuples, optional
+    :type selection: :py:class:`list` of :py:class:`tuple`
     :param \\*\\*kwargs:
         Parameters passed to the server (see `FDSN web services specification
         <https://www.fdsn.org/webservices>`_).
@@ -763,18 +763,18 @@ def check_params(
     :param site:
         :ref:`Registered site name <registered-site-names>` or full base URL of
         the service (e.g. ``'https://geofon.gfz-potsdam.de'``).
-    :type site: str, optional
+    :type site: str
     :param url:
         URL template (default should work in 99% of cases).
-    :type url: str, optional
+    :type url: str
     :param majorversion:
         Major version of the service to query (always ``1`` at the time of
         writing).
-    :type majorversion: int, optional
+    :type majorversion: int
     :param timeout:
         Network timeout in [s]. Global default timeout can be configured in
         Pyrocko's configuration file under ``fdsn_timeout``.
-    :type timeout: float, optional
+    :type timeout: float
     :param \\*\\*kwargs:
         Parameters that would be passed to the server (see `FDSN web services
         specification <https://www.fdsn.org/webservices>`_).
@@ -815,21 +815,21 @@ def supported_params_wadl(
     :param site:
         :ref:`Registered site name <registered-site-names>` or full base URL of
         the service (e.g. ``'https://geofon.gfz-potsdam.de'``).
-    :type site: str, optional
+    :type site: str
     :param url:
         URL template (default should work in 99% of cases).
-    :type url: str, optional
+    :type url: str
     :param majorversion:
         Major version of the service to query (always ``1`` at the time of
         writing).
-    :type majorversion: int, optional
+    :type majorversion: int
     :param timeout:
         Network timeout in [s]. Global default timeout can be configured in
         Pyrocko's configuration file under ``fdsn_timeout``.
-    :type timeout: float, optional
+    :type timeout: float
 
     :returns: Supported parameter names.
-    :rtype: set of str
+    :rtype: :py:class:`set` of :py:class:`str`
     '''
 
     wadl = cached_wadl(service, site, url, majorversion, timeout)
@@ -863,18 +863,18 @@ def wadl(
     :param site:
         :ref:`Registered site name <registered-site-names>` or full base URL of
         the service (e.g. ``'https://geofon.gfz-potsdam.de'``).
-    :type site: str, optional
+    :type site: str
     :param url:
         URL template (default should work in 99% of cases).
-    :type url: str, optional
+    :type url: str
     :param majorversion:
         Major version of the service to query (always ``1`` at the time of
         writing).
-    :type majorversion: int, optional
+    :type majorversion: int
     :param timeout:
         Network timeout in [s]. Global default timeout can be configured in
         Pyrocko's configuration file under ``fdsn_timeout``.
-    :type timeout: float, optional
+    :type timeout: float
     '''
 
     from pyrocko.client.wadl import load_xml

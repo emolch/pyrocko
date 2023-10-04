@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Matplotlib plotting with some fancy extras.
+'''
+
 from collections import defaultdict
 import math
 import logging
@@ -263,6 +267,9 @@ class NotEnoughSpace(PlotError):
 
 
 class PlotConfig(Object):
+    '''
+    Configuration for :py:class:`Plot`.
+    '''
 
     font_size = Float.T(default=9.0)
 
@@ -288,6 +295,17 @@ class PlotConfig(Object):
 
 
 class Plot(object):
+    '''
+    Matplotlib plotting with some fancy extras.
+
+    - Absolute sized figure margins, also for interactive plots.
+    - Improved label placement for grids of axes.
+    - Improved shared axis'es across multiple axes, e.g. for cross section
+      plots.
+    - Fixed aspect plotting across multiple axis'es on separate axes.
+    - Automatic subplot sizing based on aspect and data limit constraints.
+    - Serializable plot configuration.
+    '''
 
     def __init__(
             self, x_dims=['x'], y_dims=['y'], z_dims=[], config=None,

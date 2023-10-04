@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Observational target generators.
+'''
+
 from .base import *  # noqa
 from .waveform import *  # noqa
 from .insar import *  # noqa

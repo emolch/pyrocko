@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Meta-data caching for flexible file selections.
+'''
+
 import os
 import re
 import threading
@@ -47,18 +51,18 @@ doc_snippets = dict(
         :param tmin:
             Start time of query interval.
         :type tmin:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param tmax:
             End time of query interval.
         :type tmax:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param time:
             Time instant to query. Equivalent to setting ``tmin`` and ``tmax``
             to the same value.
         :type time:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param codes:
             Pattern of content codes to query.

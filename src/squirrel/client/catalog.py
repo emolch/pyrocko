@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel online earthquake catalog client.
+'''
+
 import os.path as op
 import logging
 import time

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Automap - create simple maps with GMT.
+'''
+
 import sys
 import logging
 import numpy as num
@@ -31,6 +35,9 @@ def latlon_arrays(locs):
 
 
 def main(args=None):
+    '''
+    CLI entry point for Pyrocko's ``automap`` app.
+    '''
     if args is None:
         args = sys.argv[1:]
 

@@ -556,7 +556,7 @@ static int mseed_ext_clear(PyObject *m)
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
     "mseed_ext",
-    NULL,
+    "C-extension supporting :py:mod:`pyrocko.io.mseed`.",
     sizeof(struct module_state),
     mseed_ext_methods,
     NULL,

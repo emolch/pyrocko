@@ -11,11 +11,12 @@ High precision time handling mode
 .................................
 
 Pyrocko can treat timestamps either as standard double precision (64 bit)
-floating point values, or as high precision float (:py:class:`numpy.float128`
-or :py:class:`numpy.float96`, whichever is available), aliased here as
-:py:class:`pyrocko.util.hpfloat`. High precision time stamps are required when
-handling data with sub-millisecond precision, i.e. kHz/MHz data streams and
-event catalogs derived from such data.
+floating point values, or as high precision floats (``numpy.float128`` or
+``numpy.float96``, whichever is available, `see NumPy Scalars
+<https://numpy.org/doc/stable/reference/arrays.scalars.html>`_), aliased here
+as :py:class:`~pyrocko.util.hpfloat`. High precision time stamps are required
+when handling data with sub-millisecond precision, i.e. kHz/MHz data streams
+and event catalogs derived from such data.
 
 Not all functions in Pyrocko and in programs depending on Pyrocko may work
 correctly with high precision times. Therefore, Pyrocko's high precision time
@@ -23,15 +24,15 @@ handling mode has to be actively activated by user config, command line option
 or enforced within a certain script/program.
 
 The default high precision time handling mode can be configured globally with
-the user config variable
-:py:gattr:`~pyrocko.config.Config.use_high_precision_time`. Calling the
+the user configuration variable
+:py:gattr:`~pyrocko.config.PyrockoConfig.use_high_precision_time`. Calling the
 function :py:func:`use_high_precision_time` overrides the default from the
 config file. This function may be called at startup of a program/script
 requiring a specific time handling mode.
 
 To create a valid time stamp for use in Pyrocko (e.g. in
-:py:class:`~pyrocko.model.Event` or :py:class:`~pyrocko.trace.Trace` objects),
-use:
+:py:class:`~pyrocko.model.event.Event` or
+:py:class:`~pyrocko.trace.Trace` objects), use:
 
 .. code-block :: python
 
@@ -58,6 +59,15 @@ use:
 
 Module content
 ..............
+
+.. py:class:: hpfloat
+
+    Alias for NumPy's high precision float data type ``float128`` or
+    ``float96``, if available.
+
+    On platforms lacking support for high precision floats, an attempt to
+    create a ``hpfloat`` instance, raises :py:exc:`HPFloatUnavailable`.
+
 '''
 
 import time
@@ -210,10 +220,16 @@ def data_file(fn):
 
 
 class DownloadError(Exception):
+    '''
+    Raised when a download failed.
+    '''
     pass
 
 
 class PathExists(DownloadError):
+    '''
+    Raised when the download target file already exists.
+    '''
     pass
 
 
@@ -405,6 +421,10 @@ def download_dir(
 
 
 class HPFloatUnavailable(Exception):
+    '''
+    Raised when a high precision float type would be required but is not
+    available.
+    '''
     pass
 
 
@@ -774,7 +794,10 @@ def progress_end(label=''):
     sys.stderr.flush()
 
 
-class ArangeError(Exception):
+class ArangeError(ValueError):
+    '''
+    Raised by :py:func:`arange2` for inconsistent range specifications.
+    '''
     pass
 
 
@@ -1163,8 +1186,8 @@ def mk_decitab(nmax=100):
     Make table with decimation sequences.
 
     Decimation from one sampling rate to a lower one is achieved by a
-    successive application of :py:func:`decimation` with small integer
-    downsampling factors (because using large downampling factors can make the
+    successive application of :py:func:`decimate` with small integer
+    downsampling factors (because using large downsampling factors can make the
     decimation unstable or slow). This function sets up a table with downsample
     sequences for factors up to ``nmax``.
     '''
@@ -1434,7 +1457,7 @@ def ctimegm(s, format='%Y-%m-%d %H:%M:%S'):
     Convert string representing UTC time to system time.
 
     :param s: string to be interpreted
-    :param format: format string passed to :py:func:`strptime`
+    :param format: format string passed to :py:func:`time.strptime`
 
     :returns: system time stamp
 
@@ -1485,6 +1508,9 @@ def gmctime_fn(t, format='%Y-%m-%d_%H-%M-%S'):
 
 
 class TimeStrError(Exception):
+    '''
+    Raised for invalid time strings.
+    '''
     pass
 
 

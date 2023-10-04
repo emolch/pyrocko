@@ -524,7 +524,7 @@ static int eikonal_ext_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "eikonal_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.modelling.eikonal`.",
         sizeof(struct module_state),
         eikonal_ext_methods,
         NULL,

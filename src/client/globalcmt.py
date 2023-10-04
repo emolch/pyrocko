@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Client to get earthquake catalog information from
+`GlobalCMT <http://www.globalcmt.org/>`_.
+'''
+
 import time
 import calendar
 import re
@@ -27,6 +32,10 @@ class Anon(object):
 
 
 class GlobalCMT(EarthquakeCatalog):
+    '''
+    Client to get earthquake catalog information from
+    `GlobalCMT <http://www.globalcmt.org/>`_.
+    '''
 
     def __init__(self):
         self.events = {}

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Synthetic InSAR data generator.
+'''
+
 import numpy as num
 import logging
 from os import path as op
@@ -170,7 +174,7 @@ class ScenePatch(Object):
         Return relative positions of scatterer.
 
         :param track: Acquisition track, from `'asc'` or `'dsc'`.
-        :type track: string
+        :type track: str
         '''
         easts = num.linspace(0, self.width,
                              self.resolution[0])

@@ -11,35 +11,37 @@ import numpy as num
 
 
 class CakePhase(Snuffling):
-    '''
-    <html>
-    <head>
-    <style type="text/css">
-        body { margin-left:10px };
-    </style>
-    </head>
-    <body>
-    <h1 align="center">Theoretical Phase Arrivals</h1>
-    <p>
-    This snuffling uses pyrocko's
-    <a href="http://emolch.github.io/pyrocko/v0.3/cake_doc.html">Cake</a>
-    module to calculate seismic rays for layered earth models. </p>
-    <p>
-    <b>Parameters:</b><br />
-        <b>&middot; Global shift</b>  -  Add time onset to phases. <br />
-        <b>&middot; Add Model</b>  -  Add a model to drop down menu. <br />
-        <b>&middot; Add Phase</b>  -  Add a phase definition.
-            (GUI reset required)<br />
-    </p>
-    <p>
-    Instructions and information on Cake's syntax of seismic rays can be
-    found in the
-    <a href="http://emolch.github.io/pyrocko/
-    v0.3/cake_doc.html#cmdoption-cake--phase">Cake documentation</a>.
-    </p>
-    </body>
-    </html>
-    '''
+
+    def help(self):
+        return '''
+<html>
+<head>
+<style type="text/css">
+    body { margin-left:10px };
+</style>
+</head>
+<body>
+<h1 align="center">Theoretical Phase Arrivals</h1>
+<p>
+This snuffling uses pyrocko's
+<a href="http://emolch.github.io/pyrocko/v0.3/cake_doc.html">Cake</a>
+module to calculate seismic rays for layered earth models. </p>
+<p>
+<b>Parameters:</b><br />
+    <b>&middot; Global shift</b>  -  Add time onset to phases. <br />
+    <b>&middot; Add Model</b>  -  Add a model to drop down menu. <br />
+    <b>&middot; Add Phase</b>  -  Add a phase definition.
+        (GUI reset required)<br />
+</p>
+<p>
+Instructions and information on Cake's syntax of seismic rays can be
+found in the
+<a href="http://emolch.github.io/pyrocko/
+v0.3/cake_doc.html#cmdoption-cake--phase">Cake documentation</a>.
+</p>
+</body>
+</html>
+        '''
 
     def setup(self):
         self.set_name('Cake Phase')

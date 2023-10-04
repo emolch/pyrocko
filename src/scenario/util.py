@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Utility functions for the scenario generator.
+'''
+
 from pyrocko import gf
 from .error import CannotCreatePath
 

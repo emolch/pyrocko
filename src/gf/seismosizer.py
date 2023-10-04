@@ -4,8 +4,7 @@
 # ---|P------/S----------~Lg----------
 
 '''
-
-
+High level synthetic seismogram synthesis.
 
 .. _coordinate-system-names:
 
@@ -109,6 +108,9 @@ class DuplicateStoreId(Exception):
 
 
 class NoDefaultStoreSet(Exception):
+    '''
+    Raised, when a default store would be used but none is set.
+    '''
     pass
 
 
@@ -689,6 +691,9 @@ class GridDef(Object):
 
 
 class Cloneable(object):
+    '''
+    Mix-in class for Guts objects, providing dict-like access and cloning.
+    '''
 
     def __iter__(self):
         return iter(self.T.propnames)
@@ -1031,8 +1036,7 @@ class HalfSinusoidSTF(STF):
 class SmoothRampSTF(STF):
     '''
     Smooth-ramp type source time function for near-field displacement.
-    Based on moment function of double-couple point source proposed by Bruestle
-    and Mueller (PEPI, 1983).
+    Based on moment function of double-couple point source proposed by [1]_.
 
     .. [1] W. Bruestle, G. Mueller (1983), Moment and duration of shallow
         earthquakes from Love-wave modelling for regional distances, PEPI 32,
@@ -1440,6 +1444,10 @@ class SourceWithMagnitude(Source):
 
 
 class DerivedMagnitudeError(ValidationError):
+    '''
+    Raised when conversion between magnitude, moment, volume change or
+    displacement failed.
+    '''
     pass
 
 
@@ -2833,6 +2841,25 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             self.rake = 0.
 
     def get_magnitude(self, store=None, target=None):
+        '''
+        Get total seismic moment magnitude Mw.
+
+        :param store:
+            GF store to guide the discretization and providing the earthmodel
+            which is needed to calculate moment from slip.
+        :type store:
+            :py:class:`~pyrocko.gf.store.Store`
+
+        :param target:
+            Target, used to get GF interpolation settings.
+        :type target:
+            :py:class:`pyrocko.gf.targets.Target`
+
+        :returns:
+            Moment magnitude
+        :rtype:
+            float
+        '''
         self.check_conflicts()
         if self.slip is not None or self.tractions is not None:
             if store is None:
@@ -2864,7 +2891,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :param cs:
             :ref:`Output coordinate system <coordinate-system-names>`.
         :type cs:
-            optional, str
+            str
 
         :returns:
             Corner points in desired coordinate system.
@@ -2907,7 +2934,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :param cs:
             :ref:`Output coordinate system <coordinate-system-names>`.
         :type cs:
-            optional, str
+            str
 
         :returns:
             Point coordinates in desired coordinate system.
@@ -2940,6 +2967,25 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
                     axis=1)
 
     def pyrocko_moment_tensor(self, store=None, target=None):
+        '''
+        Get overall moment tensor of the rupture.
+
+        :param store:
+            GF store to guide the discretization and providing the earthmodel
+            which is needed to calculate moment from slip.
+        :type store:
+            :py:class:`~pyrocko.gf.store.Store`
+
+        :param target:
+            Target, used to get GF interpolation settings.
+        :type target:
+            :py:class:`pyrocko.gf.targets.Target`
+
+        :returns:
+            Moment tensor.
+        :rtype:
+            :py:class:`~pyrocko.moment_tensor.MomentTensor`
+        '''
         if store is not None:
             if not self.patches:
                 self.discretize_patches(store)
@@ -3055,18 +3101,18 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             Green's function database (needs to cover the whole region of the
             source)
         :type store:
-            optional, :py:class:`~pyrocko.gf.store.Store`
+            :py:class:`~pyrocko.gf.store.Store`
 
         :param interpolation:
             Interpolation method to use (choose between ``'nearest_neighbor'``
             and ``'multilinear'``).
         :type interpolation:
-            optional, str
+            str
 
         :param points:
             Coordinates on fault (-1.:1.) of discrete points.
         :type points:
-            optional, :py:class:`~numpy.ndarray`: ``(n_points, 2)``
+            :py:class:`~numpy.ndarray`: ``(n_points, 2)``
 
         :returns:
             Rupture velocity assumed as :math:`v_s * \\gamma` for discrete
@@ -3099,12 +3145,12 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             Interpolation method to use (choose between ``'nearest_neighbor'``
             and ``'multilinear'``).
         :type interpolation:
-            optional, str
+            str
 
         :param vr:
             Array, containing rupture user defined rupture velocity values.
         :type vr:
-            optional, :py:class:`~numpy.ndarray`
+            :py:class:`~numpy.ndarray`
 
         :param times:
             Array, containing zeros, where rupture is starting, real positive
@@ -3113,7 +3159,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             nucleation_y. Times are given for discrete points with equal
             horizontal and vertical spacing.
         :type times:
-            optional, :py:class:`~numpy.ndarray`
+            :py:class:`~numpy.ndarray`
 
         :returns:
             Coordinates (latlondepth), coordinates (xy), rupture velocity,
@@ -3197,13 +3243,13 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             Interpolation method to use (choose between ``'nearest_neighbor'``
             and ``'multilinear'``).
         :type interpolation:
-            optional, str
+            str
 
         :param force:
             Force recalculation of the interpolators (e.g. after change of
             nucleation point locations/times). Default is ``False``.
         :type force:
-            optional, bool
+            bool
         '''
         interp_map = {'multilinear': 'linear', 'nearest_neighbor': 'nearest'}
         if interpolation not in interp_map:
@@ -3265,19 +3311,19 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             Interpolation method to use (choose between ``'nearest_neighbor'``
             and ``'multilinear'``).
         :type interpolation:
-            optional, str
+            str
 
         :param force:
             Force recalculation of the vr and time interpolators ( e.g. after
             change of nucleation point locations/times). Default is ``False``.
         :type force:
-            optional, bool
+            bool
 
         :param grid_shape:
             Desired sub fault patch grid size (nlength, nwidth). Either factor
             or grid_shape should be set.
         :type grid_shape:
-            optional, tuple of int
+            :py:class:`tuple` of :py:class:`int`
         '''
         nx, ny, times, vr, time_interpolator, vr_interpolator = \
             self.get_vr_time_interpolators(
@@ -3357,7 +3403,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :param target:
             Target information.
         :type target:
-            optional, :py:class:`~pyrocko.gf.targets.Target`
+            :py:class:`~pyrocko.gf.targets.Target`
 
         :returns:
             Source discretized by a set of moment tensors and times.
@@ -3598,19 +3644,19 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             Time after origin [s], for which slip is computed. If not
             given, final static slip is returned.
         :type time:
-            optional, float > 0.
+            float
 
         :param scale_slip:
             If ``True`` and :py:attr:`slip` given, all slip values are scaled
             to fit the given maximum slip.
         :type scale_slip:
-            optional, bool
+            bool
 
         :param interpolation:
             Interpolation method to use (choose between ``'nearest_neighbor'``
             and ``'multilinear'``).
         :type interpolation:
-            optional, str
+            str
 
         :returns:
             Inverted dislocations (:math:`u_{strike}, u_{dip}, u_{tensile}`)
@@ -3747,25 +3793,25 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             difference calculation. Either ``deltat`` or ``store`` should be
             given.
         :type store:
-            optional, :py:class:`~pyrocko.gf.store.Store`
+            :py:class:`~pyrocko.gf.store.Store`
 
         :param deltat:
             Time interval for slip difference calculation [s]. Either
             ``deltat`` or ``store`` should be given.
         :type deltat:
-            optional, float
+            float
 
         :param delta:
             If ``True``, slip differences between two time steps are given. If
             ``False``, cumulative slip for all time steps.
         :type delta:
-            optional, bool
+            bool
 
         :param interpolation:
             Interpolation method to use (choose between ``'nearest_neighbor'``
             and ``'multilinear'``).
         :type interpolation:
-            optional, str
+            str
 
         :returns:
             Displacement changes(:math:`\\Delta u_{strike},
@@ -3931,13 +3977,13 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :param target:
             Target information, needed for interpolation method.
         :type target:
-            optional, :py:class:`~pyrocko.gf.targets.Target`
+            :py:class:`~pyrocko.gf.targets.Target`
 
         :param deltat:
             Time increment for slip difference calculation [s]. If not given
             ``store.deltat`` is used.
         :type deltat:
-            optional, float
+            float
 
         :return:
             Seismic moment rate [Nm/s] for each time; corner times, for which
@@ -3961,7 +4007,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
 
     def get_moment(self, *args, **kwargs):
         '''
-        Get seismic cumulative moment.
+        Get cumulative seismic moment.
 
         Additional ``*args`` and ``**kwargs`` are passed to
         :py:meth:`get_magnitude`.
@@ -3987,12 +4033,12 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             Target moment magnitude :math:`M_\\mathrm{w}` as in
             [Hanks and Kanamori, 1979]
         :type magnitude:
-            optional, float
+            float
 
         :param moment:
             Target seismic moment :math:`M_0` [Nm].
         :type moment:
-            optional, float
+            float
         '''
         if self.slip is None:
             self.slip = 1.
@@ -4029,7 +4075,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
         :returns:
             The centroid location and associated moment tensor.
         :rtype:
-            :py:class:`pyrocko.model.Event`
+            :py:class:`pyrocko.model.event.Event`
         '''
         _, _, _, _, time, _ = self.get_vr_time_interpolators(store)
         t_max = time.values.max()
@@ -4136,7 +4182,7 @@ class PseudoDynamicRupture(SourceWithDerivedMagnitude):
             \\Sigma_c` is computed. If not given, :math:`\\Delta \\Sigma_c` is
             derived based on the final static slip.
         :type time:
-            optional, float > 0.
+            float
 
         :returns:
             The Coulomb failure stress change :math:`\\Delta \\Sigma_c` at each
@@ -4837,7 +4883,7 @@ class Response(Object):
     def kite_scenes(self):
         '''
         Return a list of requested
-        :class:`~kite.scenes` instances.
+        :class:`kite.Scene` instances.
         '''
         kite_scenes = []
         for results in self.results_list:
@@ -5891,6 +5937,8 @@ stf_classes = [
 ]
 
 __all__ = '''
+Cloneable
+NoDefaultStoreSet
 SeismosizerError
 BadRequest
 NoSuchStore

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel IO adaptor to read YAML files.
+'''
+
 import logging
 
 from pyrocko.io.io_common import get_stats, touch  # noqa

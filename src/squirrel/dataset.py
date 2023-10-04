@@ -3,6 +3,17 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Portable dataset description.
+
+The :py:class:`Dataset` class defines sets of local and remote data-sources to
+be used in combination in Squirrel-based programs. By convention,
+Squirrel-based programs accept the ``--dataset`` option to read such dataset
+descriptions from file. To add a dataset programmatically, to a
+:py:class:`~pyrocko.squirrel.base.Squirrel` instance, use
+:py:meth:`~pyrocko.squirrel.base.Squirrel.add_dataset`.
+'''
+
 import os.path as op
 import logging
 

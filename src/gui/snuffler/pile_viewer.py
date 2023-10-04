@@ -1908,7 +1908,9 @@ def MakePileViewerMainClass(base):
             '''
             Remove a ``marker`` from the :py:class:`PileViewer`.
 
-            :param marker: :py:class:`Marker` (or subclass) instance
+            :param marker:
+                :py:class:`~pyrocko.gui.snuffler.marker.Marker` (or subclass)
+                instance
             '''
 
             if marker is self.active_event_marker:
@@ -1926,8 +1928,9 @@ def MakePileViewerMainClass(base):
             '''
             Remove a list of ``markers`` from the :py:class:`PileViewer`.
 
-            :param markers: list of :py:class:`Marker` (or subclass)
-                            instances
+            :param markers:
+                list of :py:class:`~pyrocko.gui.snuffler.marker.Marker` (or
+                subclass) instances
             '''
 
             if markers is self.markers:
@@ -1984,6 +1987,7 @@ def MakePileViewerMainClass(base):
             return self.markers
 
         def mousePressEvent(self, mouse_ev):
+            ''
             self.show_all = False
             point = self.mapFromGlobal(mouse_ev.globalPos())
 
@@ -2011,6 +2015,7 @@ def MakePileViewerMainClass(base):
             self.update_status()
 
         def mouseReleaseEvent(self, mouse_ev):
+            ''
             if self.ignore_releases:
                 self.ignore_releases -= 1
                 return
@@ -2027,11 +2032,13 @@ def MakePileViewerMainClass(base):
             self.update_status()
 
         def mouseDoubleClickEvent(self, mouse_ev):
+            ''
             self.show_all = False
             self.start_picking(None)
             self.ignore_releases = 1
 
         def mouseMoveEvent(self, mouse_ev):
+            ''
             point = self.mapFromGlobal(mouse_ev.globalPos())
 
             if self.picking:
@@ -2131,6 +2138,7 @@ def MakePileViewerMainClass(base):
                 self.update()
 
         def event(self, event):
+            ''
             if event.type() == qc.QEvent.KeyPress:
                 self.keyPressEvent(event)
                 return True
@@ -2138,6 +2146,7 @@ def MakePileViewerMainClass(base):
                 return base.event(self, event)
 
         def keyPressEvent(self, key_event):
+            ''
             self.show_all = False
             dt = self.tmax - self.tmin
             tmid = (self.tmin + self.tmax) / 2.
@@ -2527,6 +2536,7 @@ def MakePileViewerMainClass(base):
             qg.QDesktopServices.openUrl(qc.QUrl(link))
 
         def wheelEvent(self, wheel_event):
+            ''
             self.wheel_pos += wheel_event.angleDelta().y()
 
             n = self.wheel_pos // 120
@@ -2549,12 +2559,14 @@ def MakePileViewerMainClass(base):
                 self.scroll_tracks(-wdelta)
 
         def dragEnterEvent(self, event):
+            ''
             if event.mimeData().hasUrls():
                 if any(url.toLocalFile() for url in event.mimeData().urls()):
                     event.setDropAction(qc.Qt.LinkAction)
                     event.accept()
 
         def dropEvent(self, event):
+            ''
             if event.mimeData().hasUrls():
                 paths = list(
                     str(url.toLocalFile()) for url in event.mimeData().urls())

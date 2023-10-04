@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+NOAA `ETOPO1 <https://www.ngdc.noaa.gov/mgg/global/>`_ Global Relief Map.
+'''
+
 import zipfile
 import os.path as op
 
@@ -19,11 +23,18 @@ citation = '''
 Amante, C. and B.W. Eakins, 2009. ETOPO1 1 Arc-Minute Global Relief Model:
 Procedures, Data Sources and Analysis. NOAA Technical Memorandum NESDIS
 NGDC-24. National Geophysical Data Center, NOAA. doi:10.7289/V5C8276M
-[access date].
 '''
+
+__doc__ += '''
+
+.. rubric:: Citation
+''' + citation
 
 
 class ETOPO1(dataset.TiledGlobalDataset):
+    '''
+    ETOPO1 as a tiled global dataset.
+    '''
 
     def __init__(
             self,

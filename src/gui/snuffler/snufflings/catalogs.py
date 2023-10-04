@@ -11,43 +11,45 @@ from pyrocko.io import quakeml
 
 
 class CatalogSearch(Snuffling):
-    '''
-    <html>
-    <head>
-    <style type="text/css">
-    body { margin-left:10px };
-    </style>
-    </head>
-    <body>
-        <h1 align="center">Catalog Search</h1>
-    <p>
-        Retrieve event data from online catalogs.
-    </p>
-        <b>Parameters:</b><br />
-        <b>&middot; Catalog</b>  -  Online database to search for events.<br />
-        <b>&middot; Min Magnitude</b>  -
-        Only consider events with magnitude greater than chosen..<br />
-    </p>
-    <p>
-        Data from the folowing catalogs can be retrieved:<br />
-        &middot;
-        <a href="http://geofon.gfz-potsdam.de/eqinfo/list.php">GEOFON</a><br />
-        &middot;
-        <a href="http://www.globalcmt.org/">Global CMT</a><br />
-        &middot;
-        <a href="http://earthquake.usgs.gov/regional/neic/">USGS</a><br />
-    </p>
-    <p>
-        The USGS catalog allows to destinguish between 'Preliminary
-        Determination of Epicenters' (PDE) and 'Quick Epicenters Determination'
-        (PDE-Q). Latter one includes events of approximately the last six
-        weeks. For detailed information about both catalog versions have a look
-        at <a href="http://earthquake.usgs.gov/research/data/pde.php">'The
-        Preliminary Determination of Epicenters (PDE) Bulletin'</a>.
-    </p>
-    </body>
-    </html>
-    '''
+
+    def help(self):
+        return '''
+<html>
+<head>
+<style type="text/css">
+body { margin-left:10px };
+</style>
+</head>
+<body>
+    <h1 align="center">Catalog Search</h1>
+<p>
+    Retrieve event data from online catalogs.
+</p>
+    <b>Parameters:</b><br />
+    <b>&middot; Catalog</b>  -  Online database to search for events.<br />
+    <b>&middot; Min Magnitude</b>  -
+    Only consider events with magnitude greater than chosen..<br />
+</p>
+<p>
+    Data from the folowing catalogs can be retrieved:<br />
+    &middot;
+    <a href="http://geofon.gfz-potsdam.de/eqinfo/list.php">GEOFON</a><br />
+    &middot;
+    <a href="http://www.globalcmt.org/">Global CMT</a><br />
+    &middot;
+    <a href="http://earthquake.usgs.gov/regional/neic/">USGS</a><br />
+</p>
+<p>
+    The USGS catalog allows to destinguish between 'Preliminary
+    Determination of Epicenters' (PDE) and 'Quick Epicenters Determination'
+    (PDE-Q). Latter one includes events of approximately the last six
+    weeks. For detailed information about both catalog versions have a look
+    at <a href="http://earthquake.usgs.gov/research/data/pde.php">'The
+    Preliminary Determination of Epicenters (PDE) Bulletin'</a>.
+</p>
+</body>
+</html>
+        '''
 
     def setup(self):
 

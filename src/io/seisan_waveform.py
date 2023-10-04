@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Read seismic waveforms from `SEISAN <http://seisan.info/>`_ files.
+'''
+
 import sys
 import calendar
 import numpy as num

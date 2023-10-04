@@ -54,8 +54,8 @@ Example:
 * moment tensor entries must be given in [Nm], in north-east-down coordinate
   system
 
-Use the library functions :py:func:`pyrocko.model.load_events` and
-:py:func:`pyrocko.model.dump_events` to read and write basic event files.
+Use the library functions :py:func:`~pyrocko.model.event.load_events` and
+:py:func:`~pyrocko.model.event.dump_events` to read and write basic event files.
 
 .. note::
 

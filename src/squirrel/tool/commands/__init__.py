@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementations of the various Squirrel tool subcommands.
+'''
+
 import pkgutil
 
 command_modules = []

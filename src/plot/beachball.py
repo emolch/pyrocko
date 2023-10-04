@@ -372,6 +372,15 @@ def draw_eigenvectors_mpl(eig, axes):
 
 
 def project(points, projection='lambert'):
+    '''
+    Project 3D points to 2D.
+
+    :param projection:
+        Projection to use. Choices: ``'lambert'``, ``'stereographic'``,
+        ``'orthographic'``.
+    :type projection:
+        str
+    '''
     points_out = points[:, :2].copy()
     if projection == 'lambert':
         factor = 1.0 / num.sqrt(1.0 + points[:, 2])

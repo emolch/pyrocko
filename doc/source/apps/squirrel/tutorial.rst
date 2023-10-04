@@ -578,12 +578,12 @@ Persistent selections trade flexibility against program startup time.
 Summary
 .......
 
-The :doc:`Squirrel framework </library/reference/squirrel/index>` provides a
-unified interface to query and access seismic waveforms, station meta-data and
-event information from local file collections and remote data sources. For
-prompt responses, a database setup is used under the hood. To speed up
-assemblage of ad-hoc data selections, files are indexed on first use and the
-extracted meta-data is remembered for subsequent accesses.
+The :py:mod:`Squirrel framework <pyrocko.squirrel>` provides a unified
+interface to query and access seismic waveforms, station meta-data and event
+information from local file collections and remote data sources. For prompt
+responses, a database setup is used under the hood. To speed up assemblage of
+ad-hoc data selections, files are indexed on first use and the extracted
+meta-data is remembered for subsequent accesses.
 
 The :app:`squirrel` tool provides some of the features of the Squirrel
 framework on the command line. In this tutorial, we have seen how we can use it

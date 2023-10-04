@@ -3,6 +3,15 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Waveform archive lookup, data loading and caching infrastructure.
+
+.. note::
+
+    This module has been superseded by :py:mod:`~pyrocko.squirrel` but will
+    remain available for backwards compatibility.
+'''
+
 import os
 import logging
 import time
@@ -1505,9 +1514,9 @@ class Pile(TracesGroup):
         '''
         Visualize it.
 
-        :param stations: list of :py:class:`pyrocko.model.Station` objects or
-            ``None``
-        :param events: list of :py:class:`pyrocko.model.Event` objects or
+        :param stations: list of :py:class:`pyrocko.model.station.Station`
+            objects or ``None``
+        :param events: list of :py:class:`pyrocko.model.event.Event` objects or
             ``None``
         :param markers: list of :py:class:`pyrocko.gui.snuffler.marker.Marker`
             objects or ``None``

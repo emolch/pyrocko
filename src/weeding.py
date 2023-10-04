@@ -2,6 +2,12 @@
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
+
+'''
+An algorithm to select station subsets with good coverage in azimuth and
+distance.
+'''
+
 import numpy as num
 
 

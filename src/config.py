@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+User configuration file handling.
+'''
+
 import os
 import os.path as op
 from copy import deepcopy
@@ -45,7 +49,7 @@ class VisibleLengthSetting(Object):
     class __T(TBase):
         def regularize_extra(self, val):
             if isinstance(val, list):
-                return self.cls(key=val[0], value=val[1])
+                return self._cls(key=val[0], value=val[1])
 
             return val
 

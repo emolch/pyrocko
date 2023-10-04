@@ -1,3 +1,12 @@
+# http://pyrocko.org - GPLv3
+#
+# The Pyrocko Developers, 21st Century
+# ---|P------/S----------~Lg----------
+
+'''
+A slim table-like data structure for when pandas are too fat.
+'''
+
 import math
 import numpy as num
 from pyrocko.guts import Object, String, Unicode, List, Int, SObject, Any
@@ -27,7 +36,11 @@ def resize_shape(shape, n):
 
 
 class DType(SObject):
+    '''
+    Guts placeholder for :py:class:`numpy.dtype`.
+    '''
     dummy_for = num.dtype
+    dummy_for_description = 'numpy.dtype'
 
 
 class SubHeader(Object):

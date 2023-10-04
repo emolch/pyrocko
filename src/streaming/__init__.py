@@ -3,6 +3,9 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
-from pyrocko.util import parse_md
+'''
+Access to real-time data streams.
 
-__doc__ = parse_md(__file__)
+See also :doc:`Snuffler </apps/snuffler/manual>` live stream viewing
+capabilities as well as the Pyrocko ``hamster`` app.
+'''

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+N-dimensional space partitioning multi-linear interpolator.
+'''
+
 import struct
 import logging
 import numpy as num
@@ -219,19 +223,18 @@ def bread(f, fmt):
 
 
 class SPTree(object):
+    '''
+    N-dimensional space partitioning interpolator.
+
+    :param f: callable function ``f(x)`` where ``x`` is a vector of size ``n``
+    :param ftol: target accuracy ``|f_interp(x) - f(x)| <= ftol``
+    :param xbounds: bounds of ``x``, shape ``(n, 2)``
+    :param xtols: target coarsenesses in ``x``, vector of size ``n``
+    :param addargs: additional arguments to pass to ``f``
+    '''
 
     def __init__(self, f=None, ftol=None, xbounds=None, xtols=None,
                  filename=None, addargs=()):
-
-        '''
-        Create n-dimensional space partitioning interpolator.
-
-        :param f: callable function f(x) where x is a vector of size n
-        :param ftol: target accuracy |f_interp(x) - f(x)| <= ftol
-        :param xbounds: bounds of x, shape (n, 2)
-        :param xtols: target coarsenesses in x, vector of size n
-        :param addargs: additional arguments to pass to f
-        '''
 
         if filename is None:
             assert all(v is not None for v in (f, ftol, xbounds, xtols))

@@ -73,6 +73,9 @@ def make_info_module(packname, version):
     combi += '-%s' % datestr
 
     s = '''# This module is automatically created from setup.py
+"""
+Version information (generated from setup.py).
+"""
 git_sha1 = %s
 local_modifications = %s
 version = %s
@@ -170,19 +173,26 @@ class CustomBuildPyCommand(build_py):
             ('pyrocko.gui', 'marker', ['pyrocko.gui.snuffler.marker']),
         ]
 
+        old_names = []
         for (package, compat_module, import_modules) in mapping:
+            old_name = '%s.%s' % (package, compat_module)
+            old_names.append(old_name)
+
             module_code = '''
+"""
+This module has been moved to :py:mod:`%s`.
+"""
 import sys
 import pyrocko
 if pyrocko.grumpy == 1:
-    sys.stderr.write('using renamed pyrocko module: %s.%s\\n')
+    sys.stderr.write('using renamed pyrocko module: %s\\n')
     sys.stderr.write('           -> should now use: %s\\n\\n')
 elif pyrocko.grumpy == 2:
-    sys.stderr.write('pyrocko module has been renamed: %s.%s\\n')
+    sys.stderr.write('pyrocko module has been renamed: %s\\n')
     sys.stderr.write('              -> should now use: %s\\n\\n')
-    raise ImportError('Pyrocko module "%s.%s" has been renamed to "%s".')
+    raise ImportError('Pyrocko module "%s" has been renamed to "%s".')
 
-''' % ((package, compat_module, ', '.join(import_modules))*3) + ''.join(
+''' % ((', '.join(import_modules),) + (old_name, ', '.join(import_modules))*3) + ''.join(  # noqa
                 ['from %s import *\n' % module for module in import_modules])
 
             outfile = self.get_module_outfile(
@@ -192,6 +202,12 @@ elif pyrocko.grumpy == 2:
             self.mkpath(dir)
             with open(outfile, 'w') as f:
                 f.write(module_code)
+
+            outfile = self.get_module_outfile(
+                self.build_lib, ['pyrocko'], '_compatibility_modules')
+
+            with open(outfile, 'w') as f:
+                f.write('compatibility_modules = %s' % repr(old_names))
 
     def run(self):
         import numpy

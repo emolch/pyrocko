@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Storage, retrieval and summation of Green's functions.
+'''
+
 import errno
 import time
 import os
@@ -303,6 +307,11 @@ def get_extra_path(store_dir, key):
 
 
 class BaseStore(object):
+    '''
+    Low-level part of Green's function store implementation.
+
+    See :py:class:`Store`.
+    '''
 
     @staticmethod
     def lock_fn_(store_dir):
@@ -1721,8 +1730,8 @@ class Store(BaseStore):
             ``(source, receiver)`` and the appropriate GF index is computed
             internally.
         :type \\*args: (:py:class:`tuple`,) or
-            (:py:class:`~pyrocko.model.Location`,
-            :py:class:`~pyrocko.model.Location`)
+            (:py:class:`~pyrocko.model.location.Location`,
+            :py:class:`~pyrocko.model.location.Location`)
 
         :param attributes: additional attributes to return along with the time.
             Requires the attribute to be either stored or it must be supported
@@ -1773,10 +1782,10 @@ class Store(BaseStore):
 
         :param attribute: takeoff_angle / incidence_angle [deg]
         :type attribute: str
-        :param \\coords: :py:class:`num.array.Array`, with columns being
+        :param \\coords: :py:class:`numpy.ndarray`, with columns being
             ``(source_depth, distance, component)`` as in
             :py:class:`~pyrocko.gf.meta.ConfigTypeA`.
-        :type \\coords: :py:class:`num.array.Array`
+        :type \\coords: :py:class:`numpy.ndarray`
         '''
         try:
             return self.get_stored_phase(

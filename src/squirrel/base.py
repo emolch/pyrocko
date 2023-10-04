@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel main classes.
+'''
+
 import sys
 import os
 import time
@@ -918,12 +922,12 @@ class Squirrel(Selection):
         :param tmin:
             Start time of query interval.
         :type tmin:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param tmax:
             End time of query interval.
         :type tmax:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param codes:
             List of code patterns to query.
@@ -1873,10 +1877,11 @@ class Squirrel(Selection):
 
         :returns:
             List of :py:class:`~pyrocko.squirrel.model.Response` if ``model ==
-            'squirrel'`` or list of :py:class:`~pyrocko.io.fdsn.FDSNStationXML`
+            'squirrel'`` or list of
+            :py:class:`~pyrocko.io.stationxml.FDSNStationXML`
             if ``model == 'stationxml'`` or list of
             (:py:class:`~pyrocko.squirrel.model.Response`,
-            :py:class:`~pyrocko.io.fdsn.FDSNStationXML`) if ``model ==
+            :py:class:`~pyrocko.io.stationxml.FDSNStationXML`) if ``model ==
             'stationxml+'``.
 
         See :py:meth:`iter_nuts` for details on time span matching.
@@ -1918,10 +1923,10 @@ class Squirrel(Selection):
         :returns:
             :py:class:`~pyrocko.squirrel.model.Response` if
             ``model == 'squirrel'`` or
-            :py:class:`~pyrocko.io.fdsn.FDSNStationXML` if ``model ==
+            :py:class:`~pyrocko.io.stationxml.FDSNStationXML` if ``model ==
             'stationxml'`` or
             (:py:class:`~pyrocko.squirrel.model.Response`,
-            :py:class:`~pyrocko.io.fdsn.FDSNStationXML`) if ``model ==
+            :py:class:`~pyrocko.io.stationxml.FDSNStationXML`) if ``model ==
             'stationxml+'``.
 
         Same as :py:meth:`get_responses` but returning exactly one response.
@@ -2311,7 +2316,7 @@ class Squirrel(Selection):
             instance, for trace start and trace end, respectively. By default,
             ``(round, round)`` is used.
         :type snap:
-             tuple of 2 callables
+             :py:class:`tuple` of 2 callables
 
         :param include_last:
             If ``True``, add one more sample to the returned traces (the sample
@@ -2344,7 +2349,7 @@ class Squirrel(Selection):
             ``sample_rate_min`` and ``sample_rate_max`` to constrain the sample
             rate.
         :type channel_priorities:
-            list of str
+            :py:class:`list` of :py:class:`str`
 
         See :py:meth:`iter_nuts` for details on time span matching.
 
@@ -2490,13 +2495,13 @@ class Squirrel(Selection):
         :param tinc:
             Time increment (window shift time) (default uses ``tmax-tmin``).
         :type tinc:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param tpad:
             Padding time appended on either side of the data window (window
             overlap is ``2*tpad``).
         :type tpad:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param want_incomplete:
             If ``True``, gappy/incomplete traces are included in the result.
@@ -2531,7 +2536,7 @@ class Squirrel(Selection):
             instance, for trace start and trace end, respectively. By default,
             ``(round, round)`` is used.
         :type snap:
-             tuple of 2 callables
+             :py:class:`tuple` of 2 callables
 
         :param include_last:
             If ``True``, add one more sample to the returned traces (the sample
@@ -2570,7 +2575,7 @@ class Squirrel(Selection):
             network) and second by time. This can reduce the number of traces
             in each batch and thus reduce the memory footprint of the process.
         :type grouping:
-            :py:class:`~pyrocko.squirrel.operator.Grouping`
+            :py:class:`~pyrocko.squirrel.operators.base.Grouping`
 
         :yields:
             A list of :py:class:`~pyrocko.trace.Trace` objects for every
@@ -2803,12 +2808,12 @@ class Squirrel(Selection):
         :param tmin:
             Start time of query interval.
         :type tmin:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param tmax:
             End time of query interval.
         :type tmax:
-            timestamp
+            :py:func:`~pyrocko.util.get_time_float`
 
         :param codes:
             If given, restrict query to given content codes patterns.
@@ -2828,7 +2833,7 @@ class Squirrel(Selection):
             Information about time spans covered by the requested time series
             data.
         :rtype:
-            :py:class:`list` of :py:class:`Coverage` objects
+            :py:class:`list` of :py:class:`~pyrocko.squirrel.model.Coverage`
         '''
 
         tmin_seconds, tmin_offset = model.tsplit(tmin)

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Data-source definition providing access local data.
+'''
+
 import logging
 
 from pyrocko.guts import List, StringChoice, String

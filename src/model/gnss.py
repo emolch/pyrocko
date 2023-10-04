@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+GNSS station and campaign data model.
+'''
+
 import logging
 import math
 import numpy as num

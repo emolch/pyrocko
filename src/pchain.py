@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Helper classes to implement simple processing pipelines with cacheing.
+'''
+
 
 class Stage(object):
     def __init__(self, f):

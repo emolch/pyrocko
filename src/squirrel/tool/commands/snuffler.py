@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel snuffler`.
+'''
+
 
 headline = 'Experimental Squirrel-powered Snuffler.'
 

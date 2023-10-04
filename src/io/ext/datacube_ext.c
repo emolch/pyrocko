@@ -1268,7 +1268,7 @@ static int datacube_ext_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "datacube_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.io.datacube`.",
         sizeof(struct module_state),
         datacube_ext_methods,
         NULL,

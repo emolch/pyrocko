@@ -4,7 +4,8 @@
 # ---|P------/S----------~Lg----------
 
 '''
-Interface to the GSHHG (coastlines, rivers and borders) database.
+Interface to the `GSHHG <https://www.soest.hawaii.edu/pwessel/gshhg/>`_
+(coastlines, rivers and borders) database.
 
 The Global Self-consistent Hierarchical High-resolution Geography Database
 (GSHHG) is a collection of polygons representing land, lakes, rivers and
@@ -16,13 +17,14 @@ automatically on first use.
 For more information about GSHHG, see
 http://www.soest.hawaii.edu/pwessel/gshhg/.
 
-.. note::
+.. rubric:: Citation
 
-    **If you use this dataset, please cite:**
+If you use this dataset, please cite
 
-    Wessel, P., and W. H. F.
-    Smith, A Global Self-consistent, Hierarchical, High-resolution
-    Shoreline Database, J. Geophys. Res., 101, #B4, pp. 8741-8743, 1996.
+Wessel, P., and W. H. F. Smith, A Global Self-consistent, Hierarchical,
+High-resolution Shoreline Database, J. Geophys. Res., 101, #B4, pp. 8741-8743,
+1996.
+
 '''
 
 import logging
@@ -151,7 +153,15 @@ def bounding_boxes_overlap(wesn1, wesn2):
     '''
     Check whether two bounding boxes intersect.
 
-    :param wesn1, wesn2: Region tuples (west, east, south, north) [deg]
+    :param wesn1:
+        Region tuple ``(west, east, south, north)`` [deg]
+    :type wesn1:
+        :py:class:`tuple` of 4 :py:class:`float`
+
+    :param wesn2:
+        Region tuple ``(west, east, south, north)`` [deg]
+    :type wesn2:
+        :py:class:`tuple` of 4 :py:class:`float`
 
     :rtype: bool
     '''

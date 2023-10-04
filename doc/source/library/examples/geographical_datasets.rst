@@ -54,7 +54,7 @@ Download :download:`gshhg_example.py </../../examples/gshhg_example.py>`
 Tectonic plates and boundaries (PB2003)
 ---------------------------------------
 
-*An updated digital model of plate boundaries* [#f2]_ offers a global set of present plate boundaries on the Earth. This database used in :mod:`pyrocko.automap`.
+*An updated digital model of plate boundaries* [#f2]_ offers a global set of present plate boundaries on the Earth. This database used in :mod:`pyrocko.plot.automap`.
 
 Classes covered in this example:
  * :py:class:`pyrocko.dataset.tectonics.PeterBird2003`

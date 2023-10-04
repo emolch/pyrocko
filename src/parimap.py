@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Parallel :py:func:`map` implementation based on :py:mod:`multiprocessing`.
+'''
+
 try:
     import queue
 except ImportError:

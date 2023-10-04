@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+FMM solver for the  eikonal equation in 2D and 3D.
+'''
+
 from .. import eikonal_ext
 
 

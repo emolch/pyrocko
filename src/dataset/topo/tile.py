@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Topography tile data model.
+'''
+
 import math
 import numpy as num
 import scipy.signal
@@ -17,6 +21,9 @@ class OutOfBounds(Exception):
 
 
 class Tile(object):
+    '''
+    2D array of data values which are regularly gridded in lon/lat.
+    '''
 
     def __init__(self, xmin, ymin, dx, dy, data):
         self.xmin = float(xmin)

@@ -14,18 +14,20 @@ km = 1000.
 
 
 class Seismosizer(Snuffling):
-    '''
-    Generate synthetic traces on the fly
-    ====================================
 
-    Activate an event (press `e`) to generate synthetic waveforms for it.
-    If no stations have been loaded pripor to execution, two stations will be
-    generated at lat/lon = (5., 0) and (-5., 0.).
+    def help(self):
+        return '''
+Generate synthetic traces on the fly
+====================================
 
-    All geometrical units are kilometers (if not stated otherwise).
-    `GF Stores` will be loaded on start from `gf_store_superdirs` defined
-    in your pyrocko config file located at `$HOME/.pyrocko/config.pf`.
-    '''
+Activate an event (press `e`) to generate synthetic waveforms for it.
+If no stations have been loaded pripor to execution, two stations will be
+generated at lat/lon = (5., 0) and (-5., 0.).
+
+All geometrical units are kilometers (if not stated otherwise).
+`GF Stores` will be loaded on start from `gf_store_superdirs` defined
+in your pyrocko config file located at `$HOME/.pyrocko/config.pf`.
+'''
 
     def __init__(self):
         Snuffling.__init__(self)

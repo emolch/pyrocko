@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel check`.
+'''
+
 import sys
 
 from pyrocko.squirrel.check import do_check, SquirrelCheckProblemType

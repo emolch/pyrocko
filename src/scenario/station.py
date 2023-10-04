@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of the station generators.
+'''
+
 import numpy as num
 from pyrocko import model
 from pyrocko.guts import Int, String, List, Float, Bool

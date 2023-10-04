@@ -2,6 +2,12 @@
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
+
+'''
+Wrapper for the `evalresp
+<https://ds.iris.edu/ds/nodes/dmc/software/downloads/evalresp/>`_ C library.
+'''
+
 import time
 
 

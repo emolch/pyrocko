@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Inform users about the progress and success/fail state of long-running tasks.
+'''
+
 import sys
 import time
 import logging

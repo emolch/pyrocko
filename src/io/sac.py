@@ -3,7 +3,9 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 '''
-SAC IO library for Python
+`SAC
+<http://ds.iris.edu/ds/nodes/dmc/software/downloads/sac/>`_ waveform file
+input, output and data model.
 '''
 
 import struct

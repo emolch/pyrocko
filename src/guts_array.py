@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+NumPy support for :py:mod:`pyrocko.guts`.
+'''
+
 import numpy as num
 from io import BytesIO
 from base64 import b64decode, b64encode
@@ -36,8 +40,15 @@ def array_equal(a, b):
 
 
 class Array(Object):
+    '''
+    Placeholder for :py:class:`numpy.ndarray`
+
+    Normally, no objects of this class should be instatiated. It is needed
+    by Guts' type system.
+    '''
 
     dummy_for = num.ndarray
+    dummy_for_description = 'numpy.ndarray'
 
     class __T(TBase):
         def __init__(

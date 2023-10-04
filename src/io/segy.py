@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for SEGY files.
+'''
+
 import numpy as num
 import struct
 import calendar

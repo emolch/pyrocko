@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Base class for source generators.
+'''
+
 import os.path as op
 
 from pyrocko import moment_tensor
@@ -16,6 +20,12 @@ guts_prefix = 'pf.scenario'
 
 
 class SourceGenerator(LocationGenerator):
+    '''
+    Base class for source generators.
+
+    Provides the functionality to read sources from a file. Base class for
+    generators producing random sources.
+    '''
 
     nevents = Int.T(default=2)
     avoid_water = Bool.T(

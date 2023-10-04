@@ -602,7 +602,7 @@ static int parstack_ext_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "parstack_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.parstack`.",
         sizeof(struct module_state),
         ParstackMethods,
         NULL,

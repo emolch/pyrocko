@@ -2,6 +2,7 @@
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
+
 '''
 Lightweight declarative YAML and XML data binding for Python.
 '''
@@ -57,7 +58,7 @@ guts_types = [
     'Object', 'SObject', 'String', 'Unicode', 'Int', 'Float',
     'Complex', 'Bool', 'Timestamp', 'DateTimestamp', 'StringPattern',
     'UnicodePattern', 'StringChoice', 'IntChoice', 'List', 'Dict', 'Tuple',
-    'Union', 'Choice', 'Any']
+    'StringUnion', 'Choice', 'Any']
 
 us_to_cc_regex = re.compile(r'([a-z])_([a-z])')
 
@@ -282,6 +283,7 @@ def expand_stream_args(mode):
                 f(stream=sout, *args, **kwargs)
                 return sout.getvalue().decode('utf-8')
 
+        g.__doc__ = f.__doc__
         return g
 
     return wrap
@@ -301,11 +303,56 @@ class Defer(object):
 
 
 class TBase(object):
+    '''
+    Base class for Guts type definitions.
+
+    :param default:
+        Default value or :py:class:`DefaultMaker` object (see
+        :py:meth:`Object.D`) to be used to generate a default.
+
+    :param optional:
+        If ``True``, the attribute is optional and may be set to ``None``.
+    :type optional:
+        bool
+
+    :param xmlstyle:
+        Controls how the attribute is serialized in XML. :Choices:
+        ``'element'``, ``'attribute'``, ``'content'``. Only scalar and
+        :py:class:`SObject` values may be serialized as ``'attribute'``. Only
+        one attribute in a class may be serialized as ``'content'``.
+    :type xmlstyle:
+        str
+
+    :param xmltagname:
+        XML tag name to be used. By default, the attribute name converted to
+        camel-case is used.
+    :type xmltagname:
+         str
+
+    :param xmlns:
+        XML namespace to be used for this attribute.
+    :type xmlns:
+        str
+
+    :param help:
+        Description of the attribute used in documentation and online help.
+    :type help:
+        rst formatted :py:class:`str`
+
+    :param position:
+        Position index to be used when the attribute should be output in
+        non-default order.
+    :type position:
+        int
+    '''
 
     strict = False
     multivalued = None
     force_regularize = False
     propnames = []
+    _dummy_cls = None
+    _cls = None
+    _sphinx_doc_skip = False
 
     @classmethod
     def init_propertystuff(cls):
@@ -341,6 +388,7 @@ class TBase(object):
         self.parent = None
         self.xmlstyle = xmlstyle
         self.help = help
+        self._sphinx_doc_skip = True
 
     def default(self):
         return make_default(self._default)
@@ -422,18 +470,18 @@ class TBase(object):
         if isinstance(prop, Choice.T):
             for tc in prop.choices:
                 tc.effective_xmltagname = tc.get_xmltagname()
-                cls.xmltagname_to_class[tc.effective_xmltagname] = tc.cls
+                cls.xmltagname_to_class[tc.effective_xmltagname] = tc._cls
                 cls.xmltagname_to_name[tc.effective_xmltagname] = prop.name
         elif not prop.multivalued:
             prop.effective_xmltagname = prop.get_xmltagname()
-            cls.xmltagname_to_class[prop.effective_xmltagname] = prop.cls
+            cls.xmltagname_to_class[prop.effective_xmltagname] = prop._cls
             cls.xmltagname_to_name[prop.effective_xmltagname] = prop.name
         else:
             prop.content_t.name = make_content_name(prop.name)
             prop.content_t.effective_xmltagname = \
                 prop.content_t.get_xmltagname()
             cls.xmltagname_to_class[
-                prop.content_t.effective_xmltagname] = prop.content_t.cls
+                prop.content_t.effective_xmltagname] = prop.content_t._cls
             cls.xmltagname_to_name_multivalued[
                 prop.content_t.effective_xmltagname] = prop.name
 
@@ -513,8 +561,8 @@ class TBase(object):
         if self.optional and val is None:
             return val
 
-        is_derived = isinstance(val, self.cls)
-        is_exact = type(val) == self.cls
+        is_derived = isinstance(val, self._cls)
+        is_exact = type(val) == self._cls
 
         not_ok = not self.strict and not is_derived or \
             self.strict and not is_exact
@@ -526,17 +574,17 @@ class TBase(object):
                 except ValueError:
                     raise ValidationError(
                         '%s: could not convert "%s" to type %s' % (
-                            self.xname(), val, classnames(self.cls)))
+                            self.xname(), val, classnames(self._cls)))
             else:
                 raise ValidationError(
                     '%s: "%s" (type: %s) is not of type %s' % (
-                        self.xname(), val, type(val), classnames(self.cls)))
+                        self.xname(), val, type(val), classnames(self._cls)))
 
         validator = self
-        if isinstance(self.cls, tuple):
-            clss = self.cls
+        if isinstance(self._cls, tuple):
+            clss = self._cls
         else:
-            clss = (self.cls,)
+            clss = (self._cls,)
 
         for cls in clss:
             try:
@@ -554,7 +602,7 @@ class TBase(object):
         return val
 
     def regularize_extra(self, val):
-        return self.cls(val)
+        return self._cls(val)
 
     def validate_extra(self, val):
         pass
@@ -585,21 +633,21 @@ class TBase(object):
 
     def classname_for_help(self, strip_module=''):
 
-        if self.dummy_cls is not self.cls:
-            if self.dummy_cls.__module__ == strip_module:
+        if self._dummy_cls is not self._cls:
+            if self._dummy_cls.__module__ == strip_module:
                 sadd = ' (:py:class:`%s`)' % (
-                    self.dummy_cls.__name__)
+                    self._dummy_cls.__name__)
             else:
                 sadd = ' (:py:class:`%s.%s`)' % (
-                    self.dummy_cls.__module__, self.dummy_cls.__name__)
+                    self._dummy_cls.__module__, self._dummy_cls.__name__)
         else:
             sadd = ''
 
-        if self.dummy_cls in guts_plain_dummy_types:
-            return '``%s``' % self.cls.__name__
+        if self._dummy_cls in guts_plain_dummy_types:
+            return '``%s``' % self._cls.__name__
 
-        elif self.dummy_cls.dummy_for_description:
-            return '%s%s' % (self.dummy_cls.dummy_for_description, sadd)
+        elif self._dummy_cls.dummy_for_description:
+            return '%s%s' % (self._dummy_cls.dummy_for_description, sadd)
 
         else:
             def sclass(cls):
@@ -614,16 +662,16 @@ class TBase(object):
                 else:
                     return ':py:class:`%s.%s`' % (mod, clsn)
 
-            if isinstance(self.cls, tuple):
+            if isinstance(self._cls, tuple):
                 return '(%s)%s' % (
-                    ' | '.join(sclass(cls) for cls in self.cls), sadd)
+                    ' | '.join(sclass(cls) for cls in self._cls), sadd)
             else:
-                return '%s%s' % (sclass(self.cls), sadd)
+                return '%s%s' % (sclass(self._cls), sadd)
 
     @classmethod
     def props_help_string(cls):
         baseprops = []
-        for base in cls.dummy_cls.__bases__:
+        for base in cls._dummy_cls.__bases__:
             if hasattr(base, 'T'):
                 baseprops.extend(base.T.properties)
 
@@ -634,7 +682,8 @@ class TBase(object):
                 continue
 
             descr = [
-                prop.classname_for_help(strip_module=cls.dummy_cls.__module__)]
+                prop.classname_for_help(
+                    strip_module=cls._dummy_cls.__module__)]
 
             if prop.optional:
                 descr.append('*optional*')
@@ -658,7 +707,7 @@ class TBase(object):
 
     @classmethod
     def class_help_string(cls):
-        return cls.dummy_cls.__doc_template__
+        return cls._dummy_cls.__doc_template__
 
     @classmethod
     def class_signature(cls):
@@ -692,21 +741,27 @@ class ObjectMetaClass(type):
             if not hasattr(cls, t_class_attr_name):
                 if hasattr(cls, 'T'):
                     class T(cls.T):
-                        pass
+                        _sphinx_doc_skip = True
+
+                    T.__doc__ = cls.T.__doc__
                 else:
                     class T(TBase):
-                        pass
+                        _sphinx_doc_skip = True
+
+                    T.__doc__ = TBase.__doc__
 
                 setattr(cls, t_class_attr_name, T)
 
             T = getattr(cls, t_class_attr_name)
+            T.__name__ = 'T'
+            T.__qualname__ = T.__qualname__.replace('__T', 'T')
 
             if cls.dummy_for is not None:
-                T.cls = cls.dummy_for
+                T._cls = cls.dummy_for
             else:
-                T.cls = cls
+                T._cls = cls
 
-            T.dummy_cls = cls
+            T._dummy_cls = cls
 
             if hasattr(cls, 'xmltagname'):
                 T.xmltagname = cls.xmltagname
@@ -796,11 +851,17 @@ class ObjectMetaClass(type):
         return cls
 
 
-class ValidationError(Exception):
+class ValidationError(ValueError):
+    '''
+    Raised when an object is invalid according to its definition.
+    '''
     pass
 
 
-class ArgumentError(Exception):
+class ArgumentError(ValueError):
+    '''
+    Raised when invalid arguments would be used in an object's initialization.
+    '''
     pass
 
 
@@ -814,20 +875,29 @@ def make_default(x):
 
 
 class DefaultMaker(object):
+    '''
+    Base class for default value factories.
+    '''
     def make(self):
-        raise NotImplementedError('Schould be implemented in subclass.')
+        '''
+        Create a new object.
+        '''
+        raise NotImplementedError
 
 
 class ObjectDefaultMaker(DefaultMaker):
+    '''
+    Default value factory for :py:class:`Object` derived classes.
+    '''
     def __init__(self, cls, args, kwargs):
         DefaultMaker.__init__(self)
-        self.cls = cls
+        self._cls = cls
         self.args = args
         self.kwargs = kwargs
         self.instance = None
 
     def make(self):
-        return self.cls(
+        return self._cls(
             *[make_default(x) for x in self.args],
             **dict((k, make_default(v)) for (k, v) in self.kwargs.items()))
 
@@ -843,9 +913,12 @@ class ObjectDefaultMaker(DefaultMaker):
             sargs.append(repr(arg))
 
         for k, v in self.kwargs.items():
-            sargs.append('%s=%s' % (k, repr(v)))
+            sargs.append(
+                '%s=%s' % (
+                    k,
+                    ' '.join(line.strip() for line in repr(v).splitlines())))
 
-        return '%s(%s)' % (self.cls.__name__, ', '.join(sargs))
+        return '%s(%s)' % (self._cls.__name__, ', '.join(sargs))
 
 
 class TimestampDefaultMaker(DefaultMaker):
@@ -876,6 +949,18 @@ def with_metaclass(meta, *bases):
 
 
 class Object(with_metaclass(ObjectMetaClass, object)):
+    '''
+    Base class for Guts objects.
+
+    :cvar dummy_for:
+        (class variable) If set, this indicates that the containing class is a
+        dummy for another type. This can be used to hold native Python objects
+        and non-Guts based objects as children of a Guts object.
+    :cvar dummy_for_description:
+        (class variable) Overrides the name shown in the "dummy for ..."
+        documentation strings.
+    '''
+
     dummy_for = None
     dummy_for_description = None
 
@@ -900,30 +985,138 @@ class Object(with_metaclass(ObjectMetaClass, object)):
 
     @classmethod
     def D(cls, *args, **kwargs):
+        '''
+        Get a default value factory for this class, configured with
+        specified arguments.
+
+        :returns:
+            Factory for default values.
+        :rtype:
+            :py:class:`ObjectDefaultMaker` object
+        '''
         return ObjectDefaultMaker(cls, args, kwargs)
 
     def validate(self, regularize=False, depth=-1):
+        '''
+        Validate this object.
+
+        Raises :py:class:`ValidationError` when the object is invalid.
+
+        :param depth:
+            Maximum depth to descend into child objects.
+        :type depth:
+            int
+        '''
         self.T.instance.validate(self, regularize, depth)
 
     def regularize(self, depth=-1):
+        '''
+        Regularize this object.
+
+        Regularization tries to convert child objects of invalid types to the
+        expected types.
+
+        Raises :py:class:`ValidationError` when the object is invalid and
+        cannot be regularized.
+
+        :param depth:
+            Maximum depth to descend into child objects.
+        :type depth:
+            int
+        '''
         self.validate(regularize=True, depth=depth)
 
     def dump(self, stream=None, filename=None, header=False):
+        '''
+        Serialize to YAML.
+
+        If neither ``stream`` nor ``filename`` is set, a string containing the
+        serialized data is returned.
+
+        :param stream:
+            Output to stream.
+
+        :param filename:
+            Output to file of given name.
+        :type filename:
+            str
+
+        :param header:
+            File header to prepend to the output.
+        :type header:
+            str
+        '''
         return dump(self, stream=stream, filename=filename, header=header)
 
     def dump_xml(
             self, stream=None, filename=None, header=False, ns_ignore=False):
+        '''
+        Serialize to XML.
+
+        If neither ``stream`` nor ``filename`` is set, a string containing the
+        serialized data is returned.
+
+        :param stream:
+            Output to stream.
+
+        :param filename:
+            Output to file of given name.
+        :type filename:
+            str
+
+        :param header:
+            File header to prepend to the output.
+        :type header:
+            str
+
+        :param ns_ignore:
+            Whether to ignore the XML namespace.
+        :type ns_ignore:
+            bool
+        '''
         return dump_xml(
             self, stream=stream, filename=filename, header=header,
             ns_ignore=ns_ignore)
 
     @classmethod
     def load(cls, stream=None, filename=None, string=None):
+        '''
+        Deserialize from YAML.
+
+        :param stream:
+            Read input from stream.
+
+        :param filename:
+            Read input from file of given name.
+        :type filename:
+            str
+
+        :param string:
+            Read input from string.
+        :type string:
+            str
+        '''
         return load(stream=stream, filename=filename, string=string)
 
     @classmethod
     def load_xml(cls, stream=None, filename=None, string=None, ns_hints=None,
                  ns_ignore=False):
+        '''
+        Deserialize from XML.
+
+        :param stream:
+            Read input from stream.
+
+        :param filename:
+            Read input from file of given name.
+        :type filename:
+            str
+
+        :param string:
+            Read input from string.
+        :type string:
+            str
+        '''
 
         if ns_hints is None:
             ns_hints = [cls.T.instance.get_xmlns()]
@@ -950,11 +1143,16 @@ def to_dict(obj):
 
 
 class SObject(Object):
+    '''
+    Base class for simple str-serializable Guts objects.
+
+    Derived classes must support (de)serialization as in ``X(str(x))``.
+    '''
 
     class __T(TBase):
         def regularize_extra(self, val):
             if isinstance(val, str):
-                return self.cls(val)
+                return self._cls(val)
 
             return val
 
@@ -966,6 +1164,9 @@ class SObject(Object):
 
 
 class Any(Object):
+    '''
+    Placeholder for any object.
+    '''
 
     class __T(TBase):
         def validate(self, val, regularize=False, depth=-1):
@@ -976,6 +1177,9 @@ class Any(Object):
 
 
 class Int(Object):
+    '''
+    Placeholder for :py:class:`int`.
+    '''
     dummy_for = int
 
     class __T(TBase):
@@ -986,6 +1190,9 @@ class Int(Object):
 
 
 class Float(Object):
+    '''
+    Placeholder for :py:class:`float`.
+    '''
     dummy_for = float
 
     class __T(TBase):
@@ -996,6 +1203,9 @@ class Float(Object):
 
 
 class Complex(Object):
+    '''
+    Placeholder for :py:class:`complex`.
+    '''
     dummy_for = complex
 
     class __T(TBase):
@@ -1020,6 +1230,9 @@ class Complex(Object):
 
 
 class Bool(Object):
+    '''
+    Placeholder for :py:class:`bool`.
+    '''
     dummy_for = bool
 
     class __T(TBase):
@@ -1037,11 +1250,13 @@ class Bool(Object):
 
 
 class String(Object):
+    '''
+    Placeholder for :py:class:`str`.
+    '''
     dummy_for = str
 
     class __T(TBase):
-        def __init__(self, *args, **kwargs):
-            yamlstyle = kwargs.pop('yamlstyle', None)
+        def __init__(self, *args, yamlstyle=None, **kwargs):
             TBase.__init__(self, *args, **kwargs)
             self.style_cls = str_style_map[yamlstyle]
 
@@ -1050,6 +1265,9 @@ class String(Object):
 
 
 class Bytes(Object):
+    '''
+    Placeholder for :py:class:`bytes`.
+    '''
     dummy_for = bytes
 
     class __T(TBase):
@@ -1065,11 +1283,13 @@ class Bytes(Object):
 
 
 class Unicode(Object):
+    '''
+    Placeholder for :py:class:`str`.
+    '''
     dummy_for = str
 
     class __T(TBase):
-        def __init__(self, *args, **kwargs):
-            yamlstyle = kwargs.pop('yamlstyle', None)
+        def __init__(self, *args, yamlstyle=None, **kwargs):
             TBase.__init__(self, *args, **kwargs)
             self.style_cls = unicode_style_map[yamlstyle]
 
@@ -1081,6 +1301,9 @@ guts_plain_dummy_types = (String, Unicode, Int, Float, Complex, Bool)
 
 
 class Dict(Object):
+    '''
+    Placeholder for :py:class:`dict`.
+    '''
     dummy_for = dict
 
     class __T(TBase):
@@ -1127,7 +1350,7 @@ class Dict(Object):
                         for (k, v) in val.items())
 
         def to_save_xml(self, val):
-            raise NotImplementedError()
+            raise NotImplementedError
 
         def classname_for_help(self, strip_module=''):
             return '``dict`` of %s objects' % \
@@ -1135,13 +1358,15 @@ class Dict(Object):
 
 
 class List(Object):
+    '''
+    Placeholder for :py:class:`list`.
+    '''
     dummy_for = list
 
     class __T(TBase):
         multivalued = list
 
-        def __init__(self, content_t=Any.T(), *args, **kwargs):
-            yamlstyle = kwargs.pop('yamlstyle', None)
+        def __init__(self, content_t=Any.T(), *args, yamlstyle=None, **kwargs):
             TBase.__init__(self, *args, **kwargs)
             assert isinstance(content_t, TBase) or isinstance(content_t, Defer)
             self.content_t = content_t
@@ -1201,6 +1426,9 @@ def make_typed_list_class(t):
 
 
 class Tuple(Object):
+    '''
+    Placeholder for :py:class:`tuple`.
+    '''
     dummy_for = tuple
 
     class __T(TBase):
@@ -1300,6 +1528,18 @@ def str_duration(d):
 
 
 class Duration(Object):
+    '''
+    Placeholder for :py:class:`float` time duration [s] with human-readable
+    (de)serialization.
+
+    Examples:
+
+    - ``'1s'`` -> 1 second
+    - ``'1m'`` -> 1 minute
+    - ``'1h'`` -> 1 hour
+    - ``'1d'`` -> 1 day
+    - ``'1y'`` -> about 1 year = 365*24*3600 seconds
+    '''
     dummy_for = float
 
     class __T(TBase):
@@ -1320,8 +1560,11 @@ re_tz = re.compile(r'(Z|([+-][0-2][0-9])(:?([0-5][0-9]))?)$')
 
 
 class Timestamp(Object):
+    '''
+    Placeholder for a UTC timestamp.
+    '''
     dummy_for = (hpfloat, float)
-    dummy_for_description = 'time_float'
+    dummy_for_description = 'pyrocko.util.get_time_float'
 
     class __T(TBase):
 
@@ -1383,8 +1626,11 @@ class Timestamp(Object):
 
 
 class DateTimestamp(Object):
+    '''
+    Placeholder for a UTC timestamp which (de)serializes as a date string.
+    '''
     dummy_for = (hpfloat, float)
-    dummy_for_description = 'time_float'
+    dummy_for_description = 'pyrocko.util.get_time_float'
 
     class __T(TBase):
 
@@ -1422,7 +1668,7 @@ class DateTimestamp(Object):
 class StringPattern(String):
 
     '''
-    Any ``str`` matching pattern ``%(pattern)s``.
+    Any :py:class:`str` matching pattern ``%(pattern)s``.
     '''
 
     dummy_for = str
@@ -1435,7 +1681,7 @@ class StringPattern(String):
             if pattern is not None:
                 self.pattern = pattern
             else:
-                self.pattern = self.dummy_cls.pattern
+                self.pattern = self._dummy_cls.pattern
 
         def validate_extra(self, val):
             pat = self.pattern
@@ -1445,7 +1691,7 @@ class StringPattern(String):
 
         @classmethod
         def class_help_string(cls):
-            dcls = cls.dummy_cls
+            dcls = cls._dummy_cls
             doc = dcls.__doc_template__ or StringPattern.__doc_template__
             return doc % {'pattern': repr(dcls.pattern)}
 
@@ -1453,7 +1699,7 @@ class StringPattern(String):
 class UnicodePattern(Unicode):
 
     '''
-    Any ``str`` matching pattern ``%(pattern)s``.
+    Any :py:class:`str` matching pattern ``%(pattern)s``.
     '''
 
     dummy_for = str
@@ -1466,7 +1712,7 @@ class UnicodePattern(Unicode):
             if pattern is not None:
                 self.pattern = pattern
             else:
-                self.pattern = self.dummy_cls.pattern
+                self.pattern = self._dummy_cls.pattern
 
         def validate_extra(self, val):
             pat = self.pattern
@@ -1476,7 +1722,7 @@ class UnicodePattern(Unicode):
 
         @classmethod
         def class_help_string(cls):
-            dcls = cls.dummy_cls
+            dcls = cls._dummy_cls
             doc = dcls.__doc_template__ or UnicodePattern.__doc_template__
             return doc % {'pattern': repr(dcls.pattern)}
 
@@ -1484,7 +1730,13 @@ class UnicodePattern(Unicode):
 class StringChoice(String):
 
     '''
-    Any ``str`` out of ``%(choices)s``.
+    Any :py:class:`str` out of ``%(choices)s``.
+
+    :cvar choices:
+        Allowed choices (:py:class:`list` of :py:class:`str`).
+    :cvar ignore_case:
+        Whether to behave case-insensitive (:py:class:`bool`, default:
+        ``False``).
     '''
 
     dummy_for = str
@@ -1498,12 +1750,12 @@ class StringChoice(String):
             if choices is not None:
                 self.choices = choices
             else:
-                self.choices = self.dummy_cls.choices
+                self.choices = self._dummy_cls.choices
 
             if ignore_case is not None:
                 self.ignore_case = ignore_case
             else:
-                self.ignore_case = self.dummy_cls.ignore_case
+                self.ignore_case = self._dummy_cls.ignore_case
 
             if self.ignore_case:
                 self.choices = [x.upper() for x in self.choices]
@@ -1519,7 +1771,7 @@ class StringChoice(String):
 
         @classmethod
         def class_help_string(cls):
-            dcls = cls.dummy_cls
+            dcls = cls._dummy_cls
             doc = dcls.__doc_template__ or StringChoice.__doc_template__
             return doc % {'choices': repr(dcls.choices)}
 
@@ -1527,7 +1779,7 @@ class StringChoice(String):
 class IntChoice(Int):
 
     '''
-    Any ``int`` out of ``%(choices)s``.
+    Any :py:class:`int` out of ``%(choices)s``.
     '''
 
     dummy_for = int
@@ -1540,7 +1792,7 @@ class IntChoice(Int):
             if choices is not None:
                 self.choices = choices
             else:
-                self.choices = self.dummy_cls.choices
+                self.choices = self._dummy_cls.choices
 
         def validate_extra(self, val):
             if val not in self.choices:
@@ -1550,14 +1802,25 @@ class IntChoice(Int):
 
         @classmethod
         def class_help_string(cls):
-            dcls = cls.dummy_cls
+            dcls = cls._dummy_cls
             doc = dcls.__doc_template__ or IntChoice.__doc_template__
             return doc % {'choices': repr(dcls.choices)}
 
 
 # this will not always work...
-class Union(Object):
+class StringUnion(Object):
+    '''
+    Any :py:class:`str` matching any of a set of constraints.
+
+    :cvar members:
+        List of constraints, e.g. :py:class:`StringChoice`,
+        :py:class:`StringPattern`, ... (:py:class:`list` of :py:class:`TBase`
+        derived objects).
+
+    '''
+
     members = []
+
     dummy_for = str
 
     class __T(TBase):
@@ -1566,7 +1829,7 @@ class Union(Object):
             if members is not None:
                 self.members = members
             else:
-                self.members = self.dummy_cls.members
+                self.members = self._dummy_cls.members
 
         def validate(self, val, regularize=False, depth=-1):
             assert self.members
@@ -1581,6 +1844,13 @@ class Union(Object):
 
 
 class Choice(Object):
+    '''
+    Any out of a set of different types.
+
+    :cvar choices:
+        Allowed types (:py:class:`list` of :py:class:`TBase` derived objects).
+
+    '''
     choices = []
 
     class __T(TBase):
@@ -1589,10 +1859,10 @@ class Choice(Object):
             if choices is not None:
                 self.choices = choices
             else:
-                self.choices = self.dummy_cls.choices
+                self.choices = self._dummy_cls.choices
 
             self.cls_to_xmltagname = dict(
-                (t.cls, t.get_xmltagname()) for t in self.choices)
+                (t._cls, t.get_xmltagname()) for t in self.choices)
 
         def validate(self, val, regularize=False, depth=-1):
             if self.optional and val is None:
@@ -1600,8 +1870,8 @@ class Choice(Object):
 
             t = None
             for tc in self.choices:
-                is_derived = isinstance(val, tc.cls)
-                is_exact = type(val) == tc.cls
+                is_derived = isinstance(val, tc._cls)
+                is_exact = type(val) == tc._cls
                 if not (not tc.strict and not is_derived or
                         tc.strict and not is_exact):
 
@@ -1624,19 +1894,19 @@ class Choice(Object):
                         raise ValidationError(
                             '%s: could not convert "%s" to any type out of '
                             '(%s)' % (self.xname(), val, ','.join(
-                                classnames(x.cls) for x in self.choices)))
+                                classnames(x._cls) for x in self.choices)))
                 else:
                     raise ValidationError(
                         '%s: "%s" (type: %s) is not of any type out of '
                         '(%s)' % (self.xname(), val, type(val), ','.join(
-                            classnames(x.cls) for x in self.choices)))
+                            classnames(x._cls) for x in self.choices)))
 
             validator = t
 
-            if isinstance(t.cls, tuple):
-                clss = t.cls
+            if isinstance(t._cls, tuple):
+                clss = t._cls
             else:
-                clss = (t.cls,)
+                clss = (t._cls,)
 
             for cls in clss:
                 try:
@@ -2307,69 +2577,124 @@ def path_to_str(path):
 
 
 @expand_stream_args('w')
-def dump(*args, **kwargs):
-    return _dump(*args, **kwargs)
+def dump(obj, stream, **kwargs):
+    '''
+    Serialize to YAML.
+
+    If neither ``stream`` nor ``filename`` is set, a string containing the
+    serialized data is returned.
+
+    :param obj:
+        Object to be serialized.
+    :type obj:
+        :py:class:`Object`
+
+    :param stream:
+        Output to stream.
+
+    :param filename:
+        Output to file of given name.
+    :type filename:
+        str
+
+    :param header:
+        File header to prepend to the output.
+    :type header:
+        str
+    '''
+    return _dump(obj, stream, **kwargs)
 
 
 @expand_stream_args('r')
-def load(*args, **kwargs):
-    return _load(*args, **kwargs)
+def load(stream, **kwargs):
+    return _load(stream, **kwargs)
 
 
-def load_string(s, *args, **kwargs):
-    return load(string=s, *args, **kwargs)
+def load_string(s, **kwargs):
+    return load(string=s, **kwargs)
 
 
 @expand_stream_args('w')
-def dump_all(*args, **kwargs):
-    return _dump_all(*args, **kwargs)
+def dump_all(obj, stream, **kwargs):
+    return _dump_all(obj, stream, **kwargs)
 
 
 @expand_stream_args('r')
-def load_all(*args, **kwargs):
-    return _load_all(*args, **kwargs)
+def load_all(stream, **kwargs):
+    return _load_all(stream, **kwargs)
 
 
 @expand_stream_args('r')
-def iload_all(*args, **kwargs):
-    return _iload_all(*args, **kwargs)
+def iload_all(stream, **kwargs):
+    return _iload_all(stream, **kwargs)
 
 
 @expand_stream_args('w')
-def dump_xml(*args, **kwargs):
-    return _dump_xml(*args, **kwargs)
+def dump_xml(obj, stream, **kwargs):
+    '''
+    Serialize to XML.
+
+    If neither ``stream`` nor ``filename`` is set, a string containing the
+    serialized data is returned.
+
+    :param obj:
+        Object to be serialized.
+    :type obj:
+        :py:class:`Object`
+
+    :param stream:
+        Output to stream.
+
+    :param filename:
+        Output to file of given name.
+    :type filename:
+        str
+
+    :param header:
+        File header to prepend to the output.
+    :type header:
+        str
+
+    :param ns_ignore:
+        Whether to ignore the XML namespace.
+    :type ns_ignore:
+        bool
+    '''
+    return _dump_xml(obj, stream, **kwargs)
 
 
 @expand_stream_args('r')
-def load_xml(*args, **kwargs):
+def load_xml(stream, **kwargs):
     kwargs.pop('filename', None)
-    return _load_xml(*args, **kwargs)
+    return _load_xml(stream, **kwargs)
 
 
-def load_xml_string(s, *args, **kwargs):
-    return load_xml(string=s, *args, **kwargs)
+def load_xml_string(s, **kwargs):
+    return load_xml(string=s, **kwargs)
 
 
 @expand_stream_args('w')
-def dump_all_xml(*args, **kwargs):
-    return _dump_all_xml(*args, **kwargs)
+def dump_all_xml(obj, stream, **kwargs):
+    return _dump_all_xml(obj, stream, **kwargs)
 
 
 @expand_stream_args('r')
-def load_all_xml(*args, **kwargs):
+def load_all_xml(stream, **kwargs):
     kwargs.pop('filename', None)
-    return _load_all_xml(*args, **kwargs)
+    return _load_all_xml(stream, **kwargs)
 
 
 @expand_stream_args('r')
-def iload_all_xml(*args, **kwargs):
+def iload_all_xml(stream, **kwargs):
     kwargs.pop('filename', None)
-    return _iload_all_xml(*args, **kwargs)
+    return _iload_all_xml(stream, **kwargs)
 
 
 __all__ = guts_types + [
     'guts_types', 'TBase', 'ValidationError',
     'ArgumentError', 'Defer',
+    'DefaultMaker', 'ObjectDefaultMaker',
+    'clone',
     'dump', 'load',
     'dump_all', 'load_all', 'iload_all',
     'dump_xml', 'load_xml',

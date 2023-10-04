@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for `SUDS <https://seiscode.iris.washington.edu/projects/suds>`_
+waveforms and station information.
+'''
+
 import sys
 import struct
 import logging

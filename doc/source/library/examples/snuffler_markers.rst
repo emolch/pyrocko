@@ -5,13 +5,15 @@ Snuffler's markers are a simple way to transfer interactive selections and
 picks to a user script or, vice versa, to visualize processing results from a
 user script in the interactive waveform browser.
 
-Markers are handled in Pyrocko through the :py:mod:`pyrocko.marker` module.
-They are represented by the :py:class:`pyrocko.marker.Marker` class and the
-:py:class:`pyrocko.marker.EventMarker` and
-:py:class:`pyrocko.marker.PhaseMarker` subclasses. The functions
-:py:func:`pyrocko.marker.load_markers` and
-:py:func:`pyrocko.marker.save_markers` can be used to read and write markers in
-the file format used by Snuffler.
+Markers are handled in Pyrocko through the
+:py:mod:`pyrocko.gui.snuffler.marker` module.
+They are represented by the :py:class:`~pyrocko.gui.snuffler.marker.Marker`
+class and the
+:py:class:`~pyrocko.gui.snuffler.marker.EventMarker` and
+:py:class:`~pyrocko.gui.snuffler.marker.PhaseMarker` subclasses. The functions
+:py:func:`~pyrocko.gui.snuffler.marker.load_markers` and
+:py:func:`~pyrocko.gui.snuffler.marker.save_markers` can be used to read and
+write markers in the file format used by Snuffler.
 
 Read markers from file exported by Snuffler
 -------------------------------------------

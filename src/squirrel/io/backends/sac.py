@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel IO adaptor to :py:mod:`pyrocko.io.sac`.
+'''
+
 from pyrocko.io.io_common import get_stats, touch  # noqa
 from pyrocko import trace
 from ... import model

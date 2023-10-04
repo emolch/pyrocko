@@ -66,10 +66,26 @@ from . import util, config
 logger = logging.getLogger('cake')
 
 ZEPS = 0.01
+
 P = 1
+'''
+Constant indicating P wave propagation.
+'''
+
 S = 2
+'''
+Constant indicating S wave propagation
+'''
+
 DOWN = 4
+'''
+Constant indicating downward direction.
+'''
+
 UP = -4
+'''
+Constant indicating upward direction.
+'''
 
 DEFAULT_BURGERS = (0., 0., 1.)
 
@@ -87,10 +103,16 @@ spkm2sprad = 1.0/sprad2spkm
 
 
 class CakeError(Exception):
+    '''
+    Base class for exceptions raised in :py:mod:`pyrocko.cake`.
+    '''
     pass
 
 
 class InvalidArguments(CakeError):
+    '''
+    Invalid arguments.
+    '''
     pass
 
 
@@ -465,6 +487,9 @@ class Leg(object):
 
 
 class InvalidKneeDef(CakeError):
+    '''
+    Invalid definition of a cake :py:class:`Knee`.
+    '''
     pass
 
 
@@ -668,6 +693,9 @@ class Head(Knee):
 
 
 class UnknownClassicPhase(CakeError):
+    '''
+    Raised when an invalid classic phase name has been specified.'
+    '''
     def __init__(self, phasename):
         self.phasename = phasename
 
@@ -1295,6 +1323,9 @@ def psv_solid(material1, material2, p, energy=False):
 
 
 class BadPotIntCoefs(CakeError):
+    '''
+    Raised when the potential interpolation for gradient layers has failed.
+    '''
     pass
 
 
@@ -1326,34 +1357,61 @@ def smode(i):
 
 
 class PathFailed(CakeError):
+    '''
+    Raised when the ray path computation failed.
+    '''
     pass
 
 
 class SurfaceReached(PathFailed):
+    '''
+    Raised when the ray hits the surface before completing the phase
+    requirements.
+    '''
     pass
 
 
 class BottomReached(PathFailed):
+    '''
+    Raised when the ray exits the bottom of the model before completing the
+    phase requirements.
+    '''
     pass
 
 
 class MaxDepthReached(PathFailed):
+    '''
+    Raised when the phase's maximum depth has been exceeded.
+    '''
     pass
 
 
 class MinDepthReached(PathFailed):
+    '''
+    Raised when the phase's minimum depth has been underrun.
+    '''
     pass
 
 
 class Trapped(PathFailed):
+    '''
+    Raised when the ray has been trapped and therefore cannot satisfy the phase
+    requirements.
+    '''
     pass
 
 
 class NotPhaseConform(PathFailed):
+    '''
+    Raised when the phase requirements cannot be met.
+    '''
     pass
 
 
 class CannotPropagate(PathFailed):
+    '''
+    Raised when the phase requirements cannot be met.
+    '''
     def __init__(self, direction, ilayer):
         PathFailed.__init__(self)
         self._direction = direction
@@ -3622,7 +3680,7 @@ class LayeredModel(object):
 
         :param get: property to be queried (
             ``'vp'``, ``'vs'``, ``'rho'``, ``'qp'``, or ``'qs'``, or ``'z'``)
-        :type get: string
+        :type get: str
         '''
 
         return num.array(list(self.iter_material_parameter(get)))
@@ -3876,9 +3934,9 @@ class LayeredModel(object):
             ``ph, pvp, pvs, prho, pqs, pqp``.
         :type kwargs: dict
         :param rstate: Random state to draw from, defaults to ``None``
-        :type rstate: :class:`numpy.random.RandomState`, optional
+        :type rstate: :class:`numpy.random.RandomState`
         :param keep_vp_vs: Keep the Vp/Vs ratio, defaults to False
-        :type keep_vp_vs: bool, optional
+        :type keep_vp_vs: bool
 
         :returns: A new, perturbed earth model
         :rtype: :class:`~pyrocko.cake.LayeredModel`
@@ -4151,9 +4209,9 @@ def load_model(fn='ak135-f-continental.m', format='nd', crust2_profile=None):
     :param fn: filename
     :param format: format
     :param crust2_profile: ``(lat, lon)`` or
-        :py:class:`pyrocko.crust2x2.Crust2Profile` object, merge model with
-        crustal profile. If ``fn`` is forced to be ``None`` only the converted
-        CRUST2.0 profile is returned.
+        :py:class:`pyrocko.dataset.crust2x2.Crust2Profile` object, merge model
+        with crustal profile. If ``fn`` is forced to be ``None`` only the
+        converted CRUST2.0 profile is returned.
     :returns: object of type :py:class:`LayeredModel`
 
     The following formats are currently supported:

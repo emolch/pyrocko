@@ -146,55 +146,57 @@ class SignalProxy(qc.QObject):
 
 
 class MapMaker(Snuffling):
-    '''
-    <html>
-    <body>
-    <h1>Map event and stations with OpenStreetMap or Google Maps</h1>
-    <p>
-    Invokes the standard browser if "Open in external browser" is selected.
-    Some browsers do not allow javascript to open and read the xml-file
-    containing the necessary information due to the "Same-Origin-Policy".
-    In that case you need to reset your standard browser. I.e.: Firefox on
-    Linux do: <tt>xdg-settings set default-web-browser firefox.desktop</tt>
-    </p>
-    <p>
-    Clicking one of the plate boundary lines shows a reference regarding that
-    plate boundary.
-    </p>
-    <p>
-    The plate boundary database is based on the work done by Peter Bird, who
-    kindly permitted usage. <br>
-    <p>
-    This snuffling can also be called from the command line, if it is stored in
-    the default pyrocko location under $HOME/.snufflings<br>
-    e.g.:
-    <p>
-    <code>
+
+    def help(self):
+        return '''
+<html>
+<body>
+<h1>Map event and stations with OpenStreetMap or Google Maps</h1>
+<p>
+Invokes the standard browser if "Open in external browser" is selected.
+Some browsers do not allow javascript to open and read the xml-file
+containing the necessary information due to the "Same-Origin-Policy".
+In that case you need to reset your standard browser. I.e.: Firefox on
+Linux do: <tt>xdg-settings set default-web-browser firefox.desktop</tt>
+</p>
+<p>
+Clicking one of the plate boundary lines shows a reference regarding that
+plate boundary.
+</p>
+<p>
+The plate boundary database is based on the work done by Peter Bird, who
+kindly permitted usage. <br>
+<p>
+This snuffling can also be called from the command line, if it is stored in
+the default pyrocko location under $HOME/.snufflings<br>
+e.g.:
+<p>
+<code>
 python $HOME/.snufflings/map/snuffling.py --stations=stations.pf
 --events=events_test.pf
 </code>
-    <h2>References</h2>
-    <i>50. Bird, P. (2003) An updated digital model of plate
-    boundaries, Geochemistry Geophysics Geosystems, 4(3), 1027,
-    doi:10.1029/2001GC000252.
-    </i>
-    </p>
-    <br>
-    Also available at
-    <a href="http://peterbird.name/publications/2003_PB2002/2003_PB2002.htm">
-        http://www.peterbird.name</a>
-    <p>
-    Please note, that in the current implementation the orogens (cross-hatched
-    areas in
-    <a href="http://peterbird.name/publications/2003_PB2002/Figure_01.gif">
-    figure 1</a>)
-    are not distinguished from plate boundaries.  The orogens are meant to
-    mark areas where the plate model is known to be incomplete
-    (and/or inapplicable).<br>
-    This matter will be pointed out in future releases of this snuffling.
-    </body>
-    </html>
-    '''
+<h2>References</h2>
+<i>50. Bird, P. (2003) An updated digital model of plate
+boundaries, Geochemistry Geophysics Geosystems, 4(3), 1027,
+doi:10.1029/2001GC000252.
+</i>
+</p>
+<br>
+Also available at
+<a href="http://peterbird.name/publications/2003_PB2002/2003_PB2002.htm">
+    http://www.peterbird.name</a>
+<p>
+Please note, that in the current implementation the orogens (cross-hatched
+areas in
+<a href="http://peterbird.name/publications/2003_PB2002/Figure_01.gif">
+figure 1</a>)
+are not distinguished from plate boundaries.  The orogens are meant to
+mark areas where the plate model is known to be incomplete
+(and/or inapplicable).<br>
+This matter will be pointed out in future releases of this snuffling.
+</body>
+</html>
+'''
 
     def setup(self):
         self.set_name('Map')

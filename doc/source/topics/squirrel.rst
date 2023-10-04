@@ -42,7 +42,7 @@ The Squirrel framework consists of a library (subpackage
 :app:`squirrel`). For each of these, documentation and a tutorial is provided:
 
 - **Library** :mod:`pyrocko.squirrel`
-    - :doc:`Reference </library/reference/squirrel/index>`
+    - :doc:`Reference </library/reference/pyrocko.squirrel>`
     - :doc:`Tutorial</library/examples/squirrel/cli_tool>`
 
 - **Command** :app:`squirrel`
@@ -70,8 +70,8 @@ Import the framework and create a Squirrel instance:
 
 On the very first instantiation of a
 :py:class:`~pyrocko.squirrel.base.Squirrel` object, a new and initially empty
-:doc:`Squirrel environment </library/reference/squirrel/environment>` is
-created on disk (Fig. 1).
+:doc:`Squirrel environment </library/reference/pyrocko.squirrel.environment>`
+is created on disk (Fig. 1).
 
 .. figure :: /static/squirrel/squirrel-intro-1.png
     :align: center
@@ -185,7 +185,7 @@ Or to get the appropriate instrument response for a given waveform:
 
 The getters share a consistent interface where possible. Details are given in
 the documentation of the :py:class:`~pyrocko.squirrel.base.Squirrel` class in
-the :doc:`reference manual </library/reference/squirrel/index>`.
+the :doc:`reference manual </library/reference/pyrocko.squirrel>`.
 
 Content indexing details
 ........................

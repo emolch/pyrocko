@@ -496,6 +496,10 @@ def mk_sc_classes():
             AutoLocator.__init__(self)
             self._factor = factor
 
+        def _raw_ticks(self, vmin, vmax):
+            return [x/self._factor for x in AutoLocator._raw_ticks(
+                self, vmin*self._factor, vmax*self._factor)]
+
         def bin_boundaries(self, vmin, vmax):
             return [x/self._factor for x in AutoLocator.bin_boundaries(
                 self, vmin*self._factor, vmax*self._factor)]

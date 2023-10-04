@@ -3,6 +3,16 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for enhanced `SAC
+<http://ds.iris.edu/ds/nodes/dmc/software/downloads/sac/>`_ pole-zero files.
+
+Enhanced SAC pole-zero files are SAC pole-zero files with additional channel
+attributes in the file header comments as they are output e.g. by `rdseed
+<https://ds.iris.edu/ds/nodes/dmc/software/downloads/rdseed/>`_.
+'''
+
+
 import time
 from collections import defaultdict
 
@@ -114,7 +124,7 @@ def make_stationxml(responses, inconsistencies='warn'):
 
     :param responses: iterable yielding
         :py:class:`EnhancedSacPzResponse` objects
-    :returns: :py:class:`pyrocko.fdsn.station.FDSNStationXML` object
+    :returns: :py:class:`pyrocko.io.stationxml.FDSNStationXML` object
     '''
 
     networks = {}

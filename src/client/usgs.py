@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Client to get earthquake catalog information from
+`USGS <https://earthquake.usgs.gov/>`_.
+'''
+
 import time
 import logging
 
@@ -16,6 +21,10 @@ km = 1000.
 
 
 class USGS(EarthquakeCatalog):
+    '''
+    Client to get earthquake catalog information from
+    `USGS <https://earthquake.usgs.gov/>`_.
+    '''
 
     def __init__(self, catalog=None):
         self.catalog = catalog

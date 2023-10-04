@@ -40,12 +40,21 @@ class LayoutError(Exception):
 
 class Polarization(Snuffling):
 
-    u'''
-Polarization
-============
+    def help(self):
+        return '''
+<html>
+<head>
+<style type="text/css">
+    body { margin-left:10px };
+</style>
+</head>
+<body>
 
+<h1>
 Investigate patterns of ground motion during the passage of seismic waves.
+</h1>
 
+<p>
 This Snuffling can be used to analyze and visualize the polarization of seismic
 waves from 3-component seismic recordings or to check component orientations of
 a seismic sensors when used on signals with known directional properties. The
@@ -53,38 +62,54 @@ spatial pattern of ground motion is shown in horizontal and vertical
 projections. Principal component analysis and rotation to radial/transverse
 components are available as tools. Time window and filter settings can be
 adjusted interactively.
+</p>
 
+<h2>
 Usage
------
+</h2>
 
+<p>
 Select one or more normal/phase markers as anchor points for the extraction and
-press *Run*. Multiple stations can be selected for direct comparison. Channels
-matching the pattern-triplet given in the *Channels* setting are selected for
-extraction of a time window around the anchor point. It is assumed that these
-three channels correspond to sensor components in the order east, north,
-vertical (upward), even if they are named differently.
+press <strong>Run</strong>. Multiple stations can be selected for direct
+comparison. Channels matching the pattern-triplet given in the
+<strong>Channels</strong> setting are selected for extraction of a time window
+around the anchor point. It is assumed that these three channels correspond to
+sensor components in the order east, north, vertical (upward), even if they are
+named differently.
+</p>
 
-The time window can be adjusted with the *Length* and *Offset* parameters.
-Extracted waveforms are filtered according the *Highpass* and *Lowpass*
-parameters (Butterworth 4th order) and demeaned.
+<p>
+The time window can be adjusted with the <strong>Length</strong> and
+<strong>Offset</strong> parameters. Extracted waveforms are filtered according
+the <strong>Highpass</strong> and <strong>Lowpass</strong> parameters
+(Butterworth 4th order) and demeaned.
+</p>
 
-To rotate the horizontal components around a vertical axis, use the *\u0394
-Azimuth* setting. When station coordinates and an "active" event are available,
-the horizontal components can be rotated to radial (away from event) and
-transverse (leftwards) orientations using the computed event back-azimuth
-(dashed gray line).
+<p>
+To rotate the horizontal components around a vertical axis, use the
+<strong>\u0394 Azimuth</strong> setting. When station coordinates and an
+"active" event are available, the horizontal components can be rotated to
+radial (away from event) and transverse (leftwards) orientations using the
+computed event back-azimuth (dashed gray line).
+</p>
 
-If *Show 2D Eigensystems* is selected, a principal component analysis is
-performed in each of the shown projects. Red lines are shown to depict the
-eigenvectors and the eigenvalues are visualized using ellipse symbols. If *Show
-3D Eigensystems* is selected, a principal component analysis is performed using
-all three (non-rotated) components and the resulting eigenvectors are depicted
-with purple lines.
+<p>
+If <strong>Show 2D Eigensystems</strong> is selected, a principal component
+analysis is performed in each of the shown projects. Red lines are shown to
+depict the eigenvectors and the eigenvalues are visualized using ellipse
+symbols. If <strong>Show 3D Eigensystems</strong> is selected, a principal
+component analysis is performed using all three (non-rotated) components and
+the resulting eigenvectors are depicted with purple lines.
+</p>
 
+<p>
 By default the scaling is automatically adjusted to the maximum value (the
 maximum vector length of the three-component signal within the selected time
-window). The currently used scaling factor can be frozen by checking *Fix
-Scale*.
+window). The currently used scaling factor can be frozen by checking
+<strong>Fix Scale</strong>.
+</p>
+</body>
+</html>
 '''
 
     def setup(self):

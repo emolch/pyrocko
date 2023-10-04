@@ -74,7 +74,6 @@ The rupture plane can be exposed to different stress/traction field models which
 
 A :class:`~pyrocko.gf.tractions.TractionField` defines the absolute stress release on the fault plane:
 
-    * :class:`~pyrocko.gf.tractions.UniformTractions`
     * :class:`~pyrocko.gf.tractions.HomogeneousTractions`
     * :class:`~pyrocko.gf.tractions.DirectedTractions`
     * :class:`~pyrocko.gf.tractions.FractalTractions`

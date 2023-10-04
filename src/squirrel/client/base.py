@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Base class for Squirrel remote data clients.
+'''
+
 from pyrocko.guts import Object, Timestamp, List
 
 from ..model import CodesNSLCE
@@ -99,7 +103,8 @@ class Source(Object):
     Data-sources can be attached to a Squirrel instance to allow transparent
     access to remote (or otherwise generated) resources, e.g. through FDSN web
     services (:py:class:`~pyrocko.squirrel.client.fdsn.FDSNSource`) or online
-    event catalogs (:py:class:`~pyrocko.client.catalog.CatalogSource`).
+    event catalogs
+    (:py:class:`~pyrocko.squirrel.client.catalog.CatalogSource`).
 
     Derived classes implement the details of querying, caching, updating and
     bookkeeping of the accessed data.

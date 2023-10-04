@@ -6,7 +6,7 @@
 A Python interface to GMT.
 '''
 
-# This file is part of GmtPy (http://emolch.github.io/gmtpy/)
+# This file has been part of GmtPy (http://emolch.github.io/gmtpy/)
 # See there for copying and licensing information.
 
 import subprocess
@@ -229,7 +229,15 @@ _units = {
     'p': 1.}
 
 inch = _units['i']
+'''
+Unit cm in points.
+'''
+
+
 cm = _units['c']
+'''
+Unit inch in points.
+'''
 
 # some awsome colors
 tango_colors = {
@@ -1693,6 +1701,12 @@ class Guru(object):
     def __init__(self):
         self.templates = {}
 
+    def get_params(self, ax_projection=False):
+        '''
+        To be implemented in subclasses.
+        '''
+        raise NotImplementedError
+
     def fill(self, templates, **kwargs):
         params = self.get_params(**kwargs)
         strings = [t % params for t in templates]
@@ -1735,7 +1749,7 @@ class Ax(AutoScaler):
     '''
     Ax description with autoscaling capabilities.
 
-    The ax is described by the :py:class:`pyrocko.plot.AutoScaler`
+    The ax is described by the :py:class:`~pyrocko.plot.AutoScaler`
     public attributes, plus the following additional attributes
     (with default values given in paranthesis):
 
@@ -1859,8 +1873,9 @@ class ScaleGuru(Guru):
     arguments, which are required for most GMT commands.
 
     It extends the functionality of the :py:class:`Ax` and
-    :py:class:`AutoScaler` classes at the level, where it can not be handled
-    anymore by looking at a single dimension of the dataset's data, e.g.:
+    :py:class:`~pyrocko.plot.AutoScaler` classes at the level, where it can not
+    be handled anymore by looking at a single dimension of the dataset's data,
+    e.g.:
 
     * The ability to impose a fixed aspect ratio between two axes.
 
@@ -2102,7 +2117,7 @@ class Widget(Guru):
     template, or by manual construction of the -J option, e.g. by utilizing the
     :py:meth:`width` and :py:meth:`height` methods. The :py:meth:`bbox` method
     can be used to create a PostScript bounding box from the widgets border,
-    e.g. for use in the :py:meth:`save` method of :py:class:`GMT` instances.
+    e.g. for use in :py:meth:`GMT.save`.
 
     The convention is, that all sizes are given in PostScript points.
     Conversion factors are provided as constants :py:const:`inch` and
@@ -2135,6 +2150,12 @@ class Widget(Guru):
         self.aspect = None
         self.parent = parent
         self.dirty = True
+
+    def set_widget(self):
+        '''
+        To be implemented in subclasses.
+        '''
+        raise NotImplementedError
 
     def set_parent(self, parent):
 

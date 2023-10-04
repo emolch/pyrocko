@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Icosphere geometries - polyhedra approximating a sphere.
+'''
+
 import math
 import numpy as num
 from .geometry import arr_vertices, arr_faces, normalize, refine_triangles, \

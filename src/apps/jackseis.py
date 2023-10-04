@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Jackseis - manipulate seismic waveform archives.
+'''
+
 import sys
 import re
 import os
@@ -360,6 +364,9 @@ def process(get_pile, options):
 
 
 def main(args=None):
+    '''
+    CLI entry point for Pyrocko's ``jackseis`` app.
+    '''
     if args is None:
         args = sys.argv[1:]
 

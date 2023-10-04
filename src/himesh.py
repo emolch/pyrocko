@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Hierarchical mesh with points-to-faces support, based on
+:py:mod:`pyrocko.icosphere`.
+'''
+
 import numpy as num
 
 from pyrocko.guts import Object, Int

@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Volcanoes of the World dataset from the Smithsonian Institution (`VOTW
+<https://volcano.si.edu/gvp_votw.cfm>`_).
+'''
+
 import csv
 import logging
 import numpy as num
@@ -18,6 +23,12 @@ citation = '''
 Global Volcanism Program, 2013. Volcanoes of the World,
 v. 4.8.5. Venzke, E (ed.). Smithsonian Institution. Downloaded 29 Jan 2020.
 https://doi.org/10.5479/si.GVP.VOTW4-2013 '''
+
+
+__doc__ += '''
+
+.. rubric:: Citation
+''' + citation
 
 
 class Volcano(object):
@@ -90,6 +101,9 @@ class VolcanoPleistocene(Volcano):
 
 
 class Volcanoes(object):
+    '''
+    Volcanoes of the World.
+    '''
     URL_HOLOCENE = 'https://mirror.pyrocko.org/smithsonian/smithsonian-holocene.csv'  # noqa
     URL_PLEISTOCENE = 'https://mirror.pyrocko.org/smithsonian/smithsonian-pleistocene.csv'  # noqa
 

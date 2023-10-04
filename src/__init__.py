@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+A toolbox and library for seismology.
+'''
+
 try:
     from .info import *  # noqa
     __version__ = version  # noqa
@@ -30,7 +34,7 @@ def snuffle(*args, **kwargs):
     '''
     Start Snuffler.
 
-    Calls :py:func:`pyrocko.gui.snuffler.snuffle`
+    Calls :py:func:`pyrocko.gui.snuffler.snuffler.snuffle`
     '''
 
     from pyrocko import deps

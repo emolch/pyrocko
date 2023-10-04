@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Geometry helper functions for coordinate transforms and mesh manipulations.
+'''
+
 import numpy as num
 
 from pyrocko import orthodrome as od

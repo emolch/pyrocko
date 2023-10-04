@@ -1,7 +1,7 @@
 Special Topics
 ==============
 
-Here we explain the use of the pyrocko software toolbox for particular problems.  
+Conceptual overviews on certain ingredients of Pyrocko.
 
 .. toctree::
    :maxdepth: 2

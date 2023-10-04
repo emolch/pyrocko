@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for GSE1 files.
+'''
+
 import sys
 import numpy as num
 

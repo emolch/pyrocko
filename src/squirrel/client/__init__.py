@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel remote data access.
+'''
+
 from . import base, local, fdsn, catalog
 
 from .base import *  # noqa

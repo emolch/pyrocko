@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Lazy block-wise processing based on :py:mod:`pyrocko.pile` (*deprecated*).
+'''
+
 import math
 import logging
 

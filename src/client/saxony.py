@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Access to `regional earthquake catalog of Saxony, Germany from the University
+of Leipzig <http://home.uni-leipzig.de/collm/auswertung_temp.html>`_.
+'''
+
 from pyrocko import util, model
 from .base_catalog import EarthquakeCatalog
 from pyrocko.util import urlopen
@@ -15,6 +20,11 @@ km = 1000.
 
 
 class Saxony(EarthquakeCatalog):
+    '''
+    Access to `regional earthquake catalog of Saxony, Germany from the
+    University of Leipzig
+    <http://home.uni-leipzig.de/collm/auswertung_temp.html>`_.
+    '''
 
     def __init__(self):
         self._events = None

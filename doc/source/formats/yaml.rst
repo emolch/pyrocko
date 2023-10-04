@@ -9,7 +9,7 @@ support. These can nest or extend Pyrocko's predefined types. The functionality
 for this is provided via the :py:mod:`pyrocko.guts` module, usage examples can
 be found in section :doc:`/library/examples/guts`.
 
-For example, here is how a :py:class:`pyrocko.model.Station` object is
+For example, here is how a :py:class:`~pyrocko.model.station.Station` object is
 represented in YAML format:
 
 .. code-block:: yaml

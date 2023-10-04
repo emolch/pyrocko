@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel memory cacheing.
+'''
+
 import logging
 
 from pyrocko.guts import Object, Int

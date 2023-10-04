@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Glue code to use :py:mod:`pyrocko.model` objects in :py:mod:`pyrocko.squirrel`.
+'''
+
 import math
 import re
 

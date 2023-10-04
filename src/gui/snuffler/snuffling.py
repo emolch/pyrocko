@@ -38,9 +38,11 @@ class MyFrame(qw.QFrame):
     widgetVisibilityChanged = qc.pyqtSignal(bool)
 
     def showEvent(self, ev):
+        ''
         self.widgetVisibilityChanged.emit(True)
 
     def hideEvent(self, ev):
+        ''
         self.widgetVisibilityChanged.emit(False)
 
 
@@ -129,7 +131,7 @@ class Snuffling(object):
     Base class for user snufflings.
 
     Snufflings are plugins for snuffler (and other applications using the
-    :py:class:`pyrocko.pile_viewer.PileOverview` class defined in
+    :py:class:`~pyrocko.gui.snuffler.pile_viewer.PileViewer` class defined in
     ``pile_viewer.py``). They can be added, removed and reloaded at runtime and
     should provide a simple way of extending the functionality of snuffler.
 
@@ -202,7 +204,7 @@ class Snuffling(object):
         Set parent viewer and hooks to add panel and menu entry.
 
         This method is called from the
-        :py:class:`pyrocko.pile_viewer.PileOverview` object. Calls
+        :py:class:`~pyrocko.gui.snuffler.pile_viewer.PileViewer` object. Calls
         :py:meth:`setup_gui`.
         '''
 
@@ -454,8 +456,8 @@ class Snuffling(object):
 
     def pylab(self, name=None, get='axes', figure_cls=None):
         '''
-        Create a :py:class:`FigureFrame` and return either the frame,
-        a :py:class:`matplotlib.figure.Figure` instance or a
+        Create a :py:class:`pyrocko.gui.util.FigureFrame` and return either the
+        frame, a :py:class:`matplotlib.figure.Figure` instance or a
         :py:class:`matplotlib.axes.Axes` instance.
 
         :param name: labels the figure frame's tab
@@ -477,9 +479,10 @@ class Snuffling(object):
 
     def figure(self, name=None):
         '''
-        Returns a :py:class:`matplotlib.figure.Figure` instance
-        which can be displayed within snuffler by calling
-        :py:meth:`canvas.draw`.
+        Returns a :py:class:`matplotlib.figure.Figure` instance.
+
+        Force drawing of the figure by calling `fig.canvas.draw()` on the
+        returned object ``fig``.
 
         :param name: labels the tab of the figure
         '''
@@ -509,7 +512,9 @@ class Snuffling(object):
         Create a :py:class:`pyrocko.gui.util.SmartplotFrame`.
 
         :param name: labels the tab
-        :param *args, **kwargs:
+        :param \\*args:
+            passed to :py:class:`pyrocko.plot.smartplot.Plot`
+        :param \\*kwargs:
             passed to :py:class:`pyrocko.plot.smartplot.Plot`
         :param plot_cls:
             if given, subclass to be used instead of
@@ -542,8 +547,8 @@ class Snuffling(object):
 
     def web_frame(self, url=None, name=None):
         '''
-        Creates a :py:class:`WebKitFrame` which can be used as a browser
-        within snuffler.
+        Creates a :py:class:`~pyrocko.gui.util.WebKitFrame` which can be
+        used as a browser within Snuffler.
 
         :param url: url to open
         :param name: labels the tab
@@ -753,8 +758,9 @@ class Snuffling(object):
         '''
         Get the parent viewer.
 
-        Returns a reference to an object of type :py:class:`PileOverview`,
-        which is the main viewer widget.
+        Returns a reference to an object of type
+        :py:class:`~pyrocko.gui.snuffler.pile_viewer.PileViewer`, which is the
+        main viewer widget.
 
         If no gui has been initialized for the snuffling, a
         :py:exc:`NoViewerSet` exception is raised.
@@ -1390,8 +1396,8 @@ class Snuffling(object):
         '''
         Query user for an output filename.
 
-        This is currently a wrapper to :py:func:`QFileDialog.getSaveFileName`.
-        A :py:exc:`UserCancelled` exception is raised if the user cancels the
+        This is currently a wrapper to ``QFileDialog.getSaveFileName``.
+        :py:exc:`UserCancelled` exception is raised if the user cancels the
         dialog.
         '''
 
@@ -1410,8 +1416,8 @@ class Snuffling(object):
         '''
         Query user for an input directory.
 
-        This is a wrapper to :py:func:`QFileDialog.getExistingDirectory`.
-        A :py:exc:`UserCancelled` exception is raised if the user cancels the
+        This is a wrapper to ``QFileDialog.getExistingDirectory``. A
+        :py:exc:`UserCancelled` exception is raised if the user cancels the
         dialog.
         '''
 
@@ -1432,8 +1438,8 @@ class Snuffling(object):
         '''
         Query user for an input filename.
 
-        This is currently a wrapper to :py:func:`QFileDialog.getOpenFileName`.
-        A :py:exc:`UserCancelled` exception is raised if the user cancels the
+        This is currently a wrapper to ``QFileDialog.getOpenFileName``. A
+        :py:exc:`UserCancelled` exception is raised if the user cancels the
         dialog.
         '''
 
@@ -1456,7 +1462,7 @@ class Snuffling(object):
         '''
         Query user for a text input.
 
-        This is currently a wrapper to :py:func:`QInputDialog.getText`.
+        This is currently a wrapper to ``QInputDialog.getText``.
         A :py:exc:`UserCancelled` exception is raised if the user cancels the
         dialog.
         '''
@@ -1546,26 +1552,37 @@ class Snuffling(object):
         self.cleanup()
         self.get_viewer().update()
 
+    def help(self):
+        '''
+        Get help text in html/markdown.
+        '''
+
+        # Older snuffling used to provide this through __doc__, newer code
+        # should overload .help()
+        return self.__doc__ or ''
+
     def help_button_triggered(self):
         '''
         Creates a :py:class:`QLabel` which contains the documentation as
-        given in the snufflings' __doc__ string.
+        given in the snufflings :py:meth:`help`.
         '''
 
-        if self.__doc__:
-            if self.__doc__.strip().startswith('<html>'):
-                doc = qw.QLabel(self.__doc__)
+        s = self.help().strip()
+
+        if s:
+            if s.startswith('<html>'):
+                doc = qw.QLabel(s)
             else:
                 try:
                     import markdown
-                    doc = qw.QLabel(markdown.markdown(self.__doc__))
+                    doc = qw.QLabel(markdown.markdown(s))
 
                 except ImportError:
                     logger.error(
                         'Install Python module "markdown" for pretty help '
                         'formatting.')
 
-                    doc = qw.QLabel(self.__doc__)
+                    doc = qw.QLabel(s)
         else:
             doc = qw.QLabel('This snuffling does not provide any online help.')
 
@@ -1742,6 +1759,9 @@ class Snuffling(object):
 
 
 class SnufflingError(Exception):
+    '''
+    Base exception for Snuffling errors.
+    '''
     pass
 
 
@@ -1796,10 +1816,11 @@ class SnufflingModule(object):
     Utility class to load/reload snufflings from a file.
 
     The snufflings are created by user modules which have the special function
-    :py:func:`__snufflings__` which return the snuffling instances to be
+    ``__snufflings__`` which return the snuffling instances to be
     exported. The snuffling module is attached to a handler class, which makes
-    use of the snufflings (e.g. :py:class:`pyrocko.pile_viewer.PileOverwiew`
-    from ``pile_viewer.py``). The handler class must implement the methods
+    use of the snufflings (e.g.
+    :py:class:`~pyrocko.gui.snuffler.pile_viewer.PileViewer` from
+    ``pile_viewer.py``). The handler class must implement the methods
     ``add_snuffling()`` and ``remove_snuffling()`` which are used as callbacks.
     The callbacks are utilized from the methods :py:meth:`load_if_needed` and
     :py:meth:`remove_snufflings` which may be called from the handler class,
@@ -1817,6 +1838,9 @@ class SnufflingModule(object):
         self._handler = handler
 
     def load_if_needed(self):
+        '''
+        Called by Snuffler to check whether it has to reload the module.
+        '''
         filename = os.path.join(self._path, self._name+'.py')
 
         try:
@@ -1876,12 +1900,18 @@ class SnufflingModule(object):
         self._mtime = mtime
 
     def add_snuffling(self, snuffling, reloaded=False):
+        '''
+        Called by :py:meth:`load_if_needed` to add a snuffling.
+        '''
         snuffling._path = self._path
         snuffling.setup()
         self._snufflings.append(snuffling)
         self._handler.add_snuffling(snuffling, reloaded=reloaded)
 
     def remove_snufflings(self):
+        '''
+        Called by :py:meth:`load_if_needed` to remove all snufflings.
+        '''
         settings = []
         for snuffling in self._snufflings:
             settings.append(snuffling.get_settings())
@@ -1898,6 +1928,9 @@ class BrokenSnufflingModule(Exception):
 class MyScrollArea(qw.QScrollArea):
 
     def sizeHint(self):
+        '''
+        '''
+
         s = qc.QSize()
         s.setWidth(self.widget().sizeHint().width())
         s.setHeight(self.widget().sizeHint().height())

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel IO adaptor to :py:mod:`pyrocko.io.mseed`.
+'''
+
 from pyrocko.io.io_common import get_stats, touch  # noqa
 from ... import model
 

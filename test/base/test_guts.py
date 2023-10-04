@@ -14,7 +14,7 @@ import numpy as num
 
 from pyrocko.guts import StringPattern, Object, Bool, Int, Float, String, \
     SObject, Unicode, Complex, Timestamp, DateTimestamp, StringChoice, Defer, \
-    ArgumentError, ValidationError, Any, List, Tuple, Union, Choice, Dict, \
+    ArgumentError, ValidationError, Any, List, Tuple, Choice, Dict, \
     load, load_string, load_xml_string, load_xml, load_all, iload_all, \
     load_all_xml, iload_all_xml, dump, dump_xml, dump_all, dump_all_xml, \
     make_typed_list_class, walk, zip_walk, path_to_str, clone, set_elements, \
@@ -314,44 +314,6 @@ class GutsTestCase(unittest.TestCase):
 
         ca_err.regularize()
         assert ca_err.c.y == 1
-
-    def testUnion(self):
-
-        class X1(Object):
-            xmltagname = 'root'
-            m = Union.T(members=[Int.T(), StringChoice.T(['small', 'large'])])
-
-        class U(Union):
-            members = [Int.T(), StringChoice.T(['small', 'large'])]
-
-        class X2(Object):
-            xmltagname = 'root'
-            m = U.T()
-
-        for X in [X1, X2]:
-            X = X1
-            x1 = X(m='1')
-            with self.assertRaises(ValidationError):
-                x1.validate()
-
-            x1.validate(regularize=True)
-            self.assertEqual(x1.m, 1)
-
-            x2 = X(m='small')
-            x2.validate()
-            x3 = X(m='fail!')
-            with self.assertRaises(ValidationError):
-                x3.validate()
-            with self.assertRaises(ValidationError):
-                x3.validate(regularize=True)
-
-            for x in [x1, x2]:
-                y = load_string(x.dump())
-                self.assertEqual(x.m, y.m)
-
-            for x in [x1, x2]:
-                y = load_xml_string(x.dump_xml())
-                self.assertEqual(x.m, y.m)
 
     def testChoice(self):
         class A(Object):

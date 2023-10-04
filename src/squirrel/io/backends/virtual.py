@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel IO adaptor for virtual files.
+'''
+
 import time
 from collections import defaultdict
 from pyrocko.io.io_common import FileLoadError

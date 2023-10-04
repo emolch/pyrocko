@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Simple representation of a seismic event.
+'''
+
 import re
 import logging
 import numpy as num
@@ -72,34 +76,50 @@ def opportunistic_cast(v):
 class Event(Location):
     '''
     Representation of a seismic event.
-
-    :param lat: latitude of hypocenter (default 0.0)
-    :param lon: longitude of hypocenter (default 0.0)
-    :param time: origin time system timestamp
-    :param name: event identifier as string (optional)
-    :param depth: source depth (optional)
-    :param magnitude: magnitude of event (optional)
-    :param region: source region (optional)
-    :param catalog: name of catalog that lists this event (optional)
-    :param moment_tensor: moment tensor as
-        :py:class:`moment_tensor.MomentTensor` instance (optional)
-    :param duration: source duration as float (optional)
-    :param tags: list of tags describing event (optional)
-    :param extras: dictionary for user defined event attributes (optional).
-        Keys must be strings, values must be YAML serializable.
     '''
 
-    time = Timestamp.T(default=Timestamp.D('1970-01-01 00:00:00'))
-    depth = Float.T(optional=True)
-    name = String.T(default='', optional=True, yamlstyle="'")
-    magnitude = Float.T(optional=True)
-    magnitude_type = String.T(optional=True, yamlstyle="'")
-    region = Unicode.T(optional=True, yamlstyle="'")
-    catalog = String.T(optional=True, yamlstyle="'")
-    moment_tensor = moment_tensor.MomentTensor.T(optional=True)
-    duration = Float.T(optional=True)
-    tags = List.T(Tag.T(), default=[])
-    extras = Dict.T(String.T(), Any.T(), default={})
+    time = Timestamp.T(
+        default=Timestamp.D('1970-01-01 00:00:00'),
+        help='Origin time (UTC system timestamp) [s].')
+    depth = Float.T(
+        optional=True,
+        help='Depth below surface [m].')
+    name = String.T(
+        default='',
+        optional=True,
+        yamlstyle="'",
+        help='Event identifier.')
+    magnitude = Float.T(
+        optional=True,
+        help='Magnitude of the event.')
+    magnitude_type = String.T(
+        optional=True,
+        yamlstyle="'",
+        help='Magnitude type :py:gattr:`magnitude` is given in.')
+    region = Unicode.T(
+        optional=True,
+        yamlstyle="'",
+        help='Source region.')
+    catalog = String.T(
+        optional=True,
+        yamlstyle="'",
+        help='Name of catalog that lists this event.')
+    moment_tensor = moment_tensor.MomentTensor.T(
+        optional=True,
+        help='Moment tensor of the event.')
+    duration = Float.T(
+        optional=True,
+        help='Source duration [s].')
+    tags = List.T(
+        Tag.T(),
+        default=[],
+        help='Auxiliary tags.')
+    extras = Dict.T(
+        String.T(),
+        Any.T(),
+        default={},
+        help='Additional user defined event attributes. The given values must '
+             'be YAML-serializable.')
 
     def __init__(
             self, lat=0., lon=0., north_shift=0., east_shift=0., time=0.,
@@ -348,6 +368,18 @@ class Event(Location):
                 pass
 
     def get_hash(self):
+        '''
+        Get a pseudo-unique hash over the main attributes of the event.
+
+        The following attributes are hashed: :py:gattr:`time`,
+        :py:gattr:`~pyrocko.model.location.Location.lat`,
+        :py:gattr:`~pyrocko.model.location.Location.lon`, :py:gattr:`depth`,
+        :py:gattr:`magnitude`, :py:gattr:`catalog`, :py:gattr:`name`,
+        :py:gattr:`region`.
+
+        :returns:
+            URL-safe base64 encoded SHA1 hash.
+        '''
         e = self
         if isinstance(e.time, float):
             stime = util.time_to_str(e.time, format='%Y-%m-%d %H:%M:%S.3FRAC')

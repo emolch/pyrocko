@@ -2,12 +2,11 @@
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
+
 '''
-
-
 Analytical crack solutions for surface displacements and fault dislocations.
-
 '''
+
 import numpy as num
 import logging
 

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Synthetic GNSS data generator.
+'''
+
 import logging
 import os.path as op
 import numpy as num

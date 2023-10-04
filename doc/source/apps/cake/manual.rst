@@ -261,7 +261,7 @@ Ten receiver distances ranging from 100 km to 1000 km and a source depth of 10km
 .. figure:: /static/cake_plot_example.png
     :scale: 80%
 
-The option ``--crust2loc`` refers to the :py:mod:`pyrocko.crust2x2` module and expects latitude and longitude of the source location.
+The option ``--crust2loc`` refers to the :py:mod:`pyrocko.dataset.crust2x2` module and expects latitude and longitude of the source location.
 
 
 Some water multiples

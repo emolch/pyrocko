@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Functionality to check for common data/metadata problems.
+'''
+
 from pyrocko.guts import StringChoice, Object, String, List
 from pyrocko import util
 
@@ -202,23 +206,23 @@ def do_check(squirrel, codes=None, tmin=None, tmax=None, time=None, ignore=[]):
     :param squirrel:
         The Squirrel instance to be checked.
     :type squirrel:
-        :py:class:`~pyrocko.squirrel.Squirrel`
+        :py:class:`~pyrocko.squirrel.base.Squirrel`
 
     :param tmin:
         Start time of query interval.
     :type tmin:
-        timestamp
+        :py:func:`pyrocko.util.get_time_float`
 
     :param tmax:
         End time of query interval.
     :type tmax:
-        timestamp
+        :py:func:`pyrocko.util.get_time_float`
 
     :param time:
         Time instant to query. Equivalent to setting ``tmin`` and ``tmax``
         to the same value.
     :type time:
-        timestamp
+        :py:func:`pyrocko.util.get_time_float`
 
     :param codes:
         Pattern of channel codes to query.

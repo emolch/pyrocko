@@ -1,3 +1,14 @@
+# http://pyrocko.org - GPLv3
+#
+# The Pyrocko Developers, 21st Century
+# ---|P------/S----------~Lg----------
+
+'''
+Reader for `Silixia iDAS
+<https://silixa.com/technology/idas-intelligent-distributed-acoustic-sensor/>`_
+HDF5 files.
+'''
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -36,15 +47,19 @@ META_KEYS = {
 
 
 def get_meta(h5file) -> dict[str, Any]:
-    '''Get metadata from HDF5 file using the same fields as for the TDMS files.
+    '''
+    Get metadata from HDF5 file using the same fields as for the TDMS files.
 
-    Parameters
-    ----------
-    h5file : HDF5 file object
-        The file to extract metadata from
-    Returns
-    -------
-        Dictionary containing the metadata
+    :param h5file:
+         The file to extract metadata from.
+    :type h5file:
+        `HDF5 file object <https://docs.h5py.org/en/stable/high/file.html>`_
+
+    :returns:
+        Dictionary containing the metadata.
+    :rtype:
+        dict
+
     '''
 
     key_list = list(META_KEYS.keys())

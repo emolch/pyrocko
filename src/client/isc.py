@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Client to get earthquake catalog information from
+`ISC <http://www.isc.ac.uk/>`_.
+'''
+
 import logging
 
 from pyrocko import util

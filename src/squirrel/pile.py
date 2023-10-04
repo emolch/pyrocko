@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Emulation of the older :py:mod:`pyrocko.pile` interface.
+'''
+
 import logging
 from pyrocko import squirrel as psq, trace, util
 from pyrocko import pile as classic_pile

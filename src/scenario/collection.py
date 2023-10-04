@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Handle collections of scenarios.
+'''
+
+
 import os
 import tarfile
 import errno

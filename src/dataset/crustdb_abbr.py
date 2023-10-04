@@ -3,7 +3,12 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
-# File holds the abbreviations for age, region and helper function
+'''
+Auxiliary data for :py:mod:`~pyrocko.dataset.crustdb`.
+
+This file contains the abbreviations for age and region, and helper functions.
+'''
+
 
 EONS = {
     'MCz': 'Mesozoic to Cenozoic',

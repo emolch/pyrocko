@@ -49,7 +49,7 @@ def get_kwargs(cls):
     sig = inspect.signature(cls.__init__)
     kwargs = {}
 
-    if cls.T.cls == RuptureMap:
+    if issubclass(cls.T._cls, RuptureMap):
         for p in Map.T.properties:
             kwargs[p.name] = p._default
 
@@ -135,19 +135,19 @@ def make_colormap(
     :param C:
         Comma seperated R/G/B values for cmap definition.
     :type C:
-        optional, str
+        str
 
     :param cmap:
         Name of the colormap. Colormap is stored as "my_<cmap>.cpt".
         If name is equivalent to a matplotlib colormap, R/G/B strings are
         extracted from this colormap.
     :type cmap:
-        optional, str
+        str
 
     :param space:
         If ``True``, the range of the colormap is broadened below vmin
         and above vmax.
-    :type space: optional, bool
+    :type space: bool
     '''
 
     scaler = AutoScaler(mode='min-max')
@@ -196,12 +196,12 @@ def clear_temp(gridfiles=[], cpts=[]):
     :param gridfiles:
         List of all "...grd" files, which shall be deleted.
     :type gridfiles:
-        optional, list
+        list
 
     :param cpts:
         Cmaps, whose corresponding "my_<cmap>.cpt" file shall be deleted.
     :type cpts:
-        optional, list
+        list
     '''
 
     for fil in gridfiles:
@@ -229,17 +229,17 @@ def xy_to_latlon(source, x, y):
     :param x:
         Relative point coordinate along strike (range: -1:1).
     :type x:
-        float or :py:class:`~numpy.ndarray`
+        :py:class:`float` or :py:class:`~numpy.ndarray`
 
     :param y:
         Relative downdip point coordinate (range: -1:1).
     :type y:
-        float or :py:class:`~numpy.ndarray`
+        :py:class:`float` or :py:class:`~numpy.ndarray`
 
     :returns:
         Latitude and Longitude of the given point in [deg].
     :rtype:
-        tuple of float
+        :py:class:`tuple` of :py:class:`float`
     '''
 
     s = source
@@ -280,7 +280,7 @@ def xy_to_lw(source, x, y):
     :returns:
         Length and downdip width of the given points from the anchor in [m].
     :rtype:
-        tuple of float
+        :py:class:`tuple` of :py:class:`float`
     '''
 
     length, width = source.length, source.width
@@ -356,7 +356,7 @@ def _make_gmt_conf(fontcolor, size):
     :param size:
         Tuple of the figure size (width, height) in [cm].
     :type size:
-        tuple of float
+        :py:class:`tuple` of :py:class:`float`
 
     :returns:
         Best fitting fontsize, GMT configuration parameter
@@ -588,17 +588,17 @@ class RuptureMap(Map):
         :param north_shift:
             North shift of the reference point in [m].
         :type north_shift:
-            optional, float
+            float
 
         :param east_shift:
             East shift of the reference point [m].
         :type east_shift:
-            optional, float
+            float
 
         :param strike:
             striking of the length axis compared to the North axis in [deg].
         :type strike:
-            optional, float
+            float
 
         :returns:
             Topotile grid nodes as array of length-width coordinates.
@@ -775,7 +775,7 @@ class RuptureMap(Map):
             If ``True``, a colorbar corresponding to the grid data is
             added. Keyword arguments are parsed to it.
         :type cbar:
-            optional, bool
+            bool
         '''
 
         self.gmt.grdimage(
@@ -822,24 +822,24 @@ class RuptureMap(Map):
         :param angle:
             Rotation angle of the labels in [deg].
         :type angle:
-            optional, float
+            float
 
         :param unit:
             Name of the unit in the grid file. It will be displayed behind the
             label on labelled contour lines.
         :type unit:
-            optional, str
+            str
 
         :param color:
             GMT readable color code or string of the contour lines.
         :type color:
-            optional, str
+            str
 
         :param style:
             Line style of the contour lines. If not given, solid lines are
             plotted.
         :type style:
-            optional, str
+            str
         '''
 
         pen_size = self._fontsize / 40.
@@ -883,13 +883,13 @@ class RuptureMap(Map):
         :param label:
             Title of the colorbar.
         :type label:
-            optional, str
+            str
 
         :param anchor:
             Placement of the colorbar. Combine 'top', 'center' and 'bottom'
             with 'left', None for middle and 'right'.
         :type anchor:
-            optional, str
+            str
         '''
 
         if not kwargs:
@@ -1029,7 +1029,7 @@ class RuptureMap(Map):
         :param clevel:
             List of times, for which contour lines are drawn.
         :type clevel:
-            optional, list of float
+            :py:class:`list` of :py:class:`float`
         '''
 
         _, _, _, _, points_xy = self.source._discretize_points(store, cs='xyz')
@@ -1067,23 +1067,23 @@ class RuptureMap(Map):
         :param lats:
             Point latitude coordinates in [deg].
         :type lats:
-            iterable
+            iterable of :py:class:`float`
 
         :param lons:
             Point longitude coordinates in [deg].
         :type lons:
-            iterable
+            iterable of :py:class:`float`
 
         :param symbol:
             Define symbol of the points (``'star', 'circle', 'point',
             'triangle'``) - default is ``point``.
         :type symbol:
-            optional, str
+            str
 
         :param size:
             Size of the points in [points].
         :type size:
-            optional, float
+            float
         '''
 
         sym_to_gmt = dict(
@@ -1131,13 +1131,13 @@ class RuptureMap(Map):
             Time after origin, for which dislocation is computed. If ``None``,
             ``tmax`` is taken.
         :type time:
-            optional, float
+            float
 
         :param component:
             Dislocation component, which shall be plotted: ``x`` along strike,
             ``y`` along updip, ``z`` normal. If ``None``, the
             length of the dislocation vector is plotted.
-        :type component: optional, str
+        :type component: str
         '''
 
         disl = self.source.get_slip(time=time)
@@ -1164,18 +1164,18 @@ class RuptureMap(Map):
             Time after origin, for which dislocation is computed. If ``None``,
             ``tmax`` is taken.
         :type time:
-            optional, float
+            float
 
         :param component:
             Dislocation component, which shall be plotted: ``x`` along strike,
             ``y`` along updip, ``z`` normal``. If ``None``, the length of the
             dislocation vector is plotted.
-        :type component: optional, str
+        :type component: str
 
         :param clevel:
             Times, for which contour lines are drawn.
         :type clevel:
-            optional, list of float
+            :py:class:`list` of :py:class:`float`
         '''
 
         disl = self.source.get_slip(time=time)
@@ -1224,7 +1224,7 @@ class RuptureMap(Map):
             Time after origin [s], for which dislocation is computed. If
             ``None``, ``tmax`` is used.
         :type time:
-            optional, float
+            float
         '''
 
         disl = self.source.get_slip(time=time)
@@ -1526,7 +1526,7 @@ class RuptureView(Object):
             Levels of the contour lines. If no levels are given, they are
             automatically computed based on ``tmin`` and ``tmax``.
         :type clevel:
-            optional, list
+            list
         '''
 
         source = self.source
@@ -1573,13 +1573,13 @@ class RuptureView(Object):
             Time after origin [s], for which dislocation is computed.
             If ``None``, ``tmax`` is taken.
         :type time:
-            optional, float
+            float
 
         :param component:
             Dislocation component, which shall be plotted: ``x``
             along strike, ``y`` along updip, ``z`` normal. If ``None``, the
             length of the dislocation vector is plotted
-        :type component: optional, str
+        :type component: str
         '''
 
         disl = self.source.get_slip(time=time)
@@ -1606,14 +1606,14 @@ class RuptureView(Object):
             Time after origin, for which dislocation is computed. If
             ``None``, ``tmax`` is taken.
         :type time:
-            optional, float
+            float
 
         :param component:
             Dislocation component, which shall be plotted. ``x``
             along strike, ``y`` along updip, ``z`` - normal. If ``None``
             is given, the length of the dislocation vector is plotted.
         :type component:
-            optional, str
+            str
         '''
 
         disl = self.source.get_slip(time=time)
@@ -1670,7 +1670,7 @@ class RuptureView(Object):
             Time increment between two parameter snapshots. If not
             given, store.config.deltat is used to define ``deltat``.
         :type deltat:
-            optional, float
+            float
         '''
 
         v = variable
@@ -1723,13 +1723,13 @@ class RuptureView(Object):
             the time increment between two parameter snapshots. If ``store`` is
             not given, the time increment is defined is taken from ``deltat``.
         :type store:
-            optional, :py:class:`~pyrocko.gf.store.Store`
+            :py:class:`~pyrocko.gf.store.Store`
 
         :param deltat:
             Time increment between two parameter snapshots. If not given,
             store.config.deltat is used to define ``deltat``.
         :type deltat:
-            optional, float
+            float
         '''
 
         v = variable
@@ -1845,7 +1845,7 @@ def render_movie(fn_path, output_path, framerate=20):
     :param deltat:
         Time between individual frames (``1 / framerate``) in [s].
     :type deltat:
-        optional, float
+        float
     '''
 
     try:
@@ -1897,7 +1897,7 @@ def render_gif(fn, output_path, loops=-1):
         Number of gif repeats (loops). ``-1`` is not repetition, ``0``
         infinite.
     :type loops:
-        optional, integer
+        int
     '''
 
     try:
@@ -1964,22 +1964,22 @@ def rupture_movie(
         (along updip), ``dislocation_z`` (normal), ``slip_rate`` and
         ``moment_rate``, default ``dislocation``.
     :type variable:
-        optional, str
+        str
 
     :param draw_time_contours:
         If ``True``, corresponding isochrones are drawn on the each plots.
     :type draw_time_contours:
-        optional, bool
+        bool
 
     :param fn_path:
         Absolut or relative path, where movie (and optional images) are stored.
     :type fn_path:
-        optional, str
+        str
 
     :param prefix:
         File prefix used for the movie (and optional image) files.
     :type prefix:
-        optional, str
+        str
 
     :param plot_type:
         Choice of plot type: ``map``, ``view`` (map plot using
@@ -1987,32 +1987,32 @@ def rupture_movie(
         or plane view using
         :py:class:`~pyrocko.plot.dynamic_rupture.RuptureView`).
     :type plot_type:
-        optional, str
+        str
 
     :param deltat:
         Time between parameter snapshots. If not given, store.config.deltat is
         used to define ``deltat``.
     :type deltat:
-        optional, float
+        float
 
     :param store_images:
         Choice to store the single .png parameter snapshots in ``fn_path`` or
         not.
     :type store_images:
-        optional, bool
+        bool
 
     :param render_as_gif:
         If ``True``, the movie is converted into a gif. If ``False``, the movie
         is returned as mp4.
     :type render_as_gif:
-        optional, bool
+        bool
 
     :param gif_loops:
         If ``render_as_gif`` is ``True``, a gif with ``gif_loops`` number of
         loops (repetitions) is returned. ``-1`` is no repetition, ``0``
         infinite.
     :type gif_loops:
-        optional, integer
+        int
     '''
 
     v = variable

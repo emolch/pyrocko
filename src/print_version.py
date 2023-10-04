@@ -3,6 +3,48 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Installation troubleshooting support module.
+
+.. note::
+
+    This module has been superseded by the :app:`pyrocko` command line tool.
+
+
+    .. code-block::
+        :caption: Get the installed version of Pyrocko
+
+        pyrocko version
+
+        # or when using a specific interpreter:
+        python -m pyrocko.apps.pyrocko version
+
+    .. code-block::
+        :caption: Get the install versions of Pyrocko's prerequisites
+
+        pyrocko dependencies
+
+        # or when using a specific interpreter:
+        python -m pyrocko.apps.pyrocko dependencies
+
+
+Running this module from the command line will print the version of the
+installed Pyrocko package or of its prerequisites.
+
+
+.. code-block::
+    :caption: Print the installed version of Pyrocko
+
+    python -m pyrocko.print_version
+
+.. code-block::
+    :caption: Print the installed versions of Pyrocko's prerequisites
+
+    python -m pyrocko.print_version deps
+
+'''
+
+
 import sys
 
 

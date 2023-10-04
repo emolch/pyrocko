@@ -3,13 +3,20 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Pyrocko - package introspection.
+'''
+
 import sys
 import logging
 
 logger = logging.getLogger('main')
 
 
-def main():
+def main(args=None):
+    '''
+    CLI entry point for Pyrocko's ``pyrocko`` app.
+    '''
     logging.basicConfig(
         level=logging.INFO,
         format='pyrocko:%(name)-25s - %(levelname)-8s - %(message)s')
@@ -20,7 +27,9 @@ def main():
         class PrintVersion(squirrel.SquirrelCommand):
             def make_subparser(self, subparsers):
                 return subparsers.add_parser(
-                    'version', help='Print version.')
+                    'version',
+                    help='Print version.',
+                    description='Print version.')
 
             def setup(self, parser):
                 parser.add_argument(
@@ -40,7 +49,8 @@ def main():
             def make_subparser(self, subparsers):
                 return subparsers.add_parser(
                     'dependencies',
-                    help='Print versions of available dependencies.')
+                    help='Print versions of available dependencies.',
+                    description='Print versions of available dependencies.')
 
             def setup(self, parser):
                 pass
@@ -53,7 +63,9 @@ def main():
             def make_subparser(self, subparsers):
                 return subparsers.add_parser(
                     'info',
-                    help='Print information about Pyrocko installation(s).')
+                    help='Print information about Pyrocko installation(s).',
+                    description='Print information about Pyrocko '
+                                'installation(s).')
 
             def setup(self, parser):
                 pass
@@ -66,6 +78,8 @@ def main():
                 deps.print_installations()
 
         squirrel.run(
+            args=args,
+            prog='pyrocko',
             subcommands=[
                 PrintVersion(),
                 PrintDependencies(),

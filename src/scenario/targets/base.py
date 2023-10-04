@@ -3,12 +3,19 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Base class for target generators.
+'''
+
 import numpy as num
 from pyrocko import util
-from ..base import Generator
+from pyrocko.scenario.base import Generator
 
 
 class TargetGenerator(Generator):
+    '''
+    Base class for observational target generators.
+    '''
 
     def get_time_range(self, sources):
         '''
@@ -51,4 +58,7 @@ class TargetGenerator(Generator):
 
 
 class NoiseGenerator(Generator):
+    '''
+    Base class for random noise generators.
+    '''
     pass

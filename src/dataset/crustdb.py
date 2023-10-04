@@ -3,9 +3,17 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 '''
-Access to the USGS Global Crustal Database.
+Access to the `USGS Global Crustal Database
+<https://earthquake.usgs.gov/data/crust>`_.
 
-Simple queries and statistical analysis
+The USGS Global Crustal Database provides empirical velocity measurements of
+the earth for statistical analysis.
+
+.. rubric:: Citation
+
+Mooney, W. D., Laske, G., & Masters, T. G. (1998). CRUST 5.1: A global crustal
+model at 5x5. Journal of Geophysical Research: Solid Earth, 103(B1), 727-747.
+
 '''
 
 import numpy as num
@@ -145,7 +153,7 @@ class VelocityProfile(Object):
         :param depth: Depths to interpolate
         :type depth: :class:`numpy.ndarray`
         :param phase: P or S wave velocity, **p** or **s**
-        :type phase: str, optional
+        :type phase: str
         :param stepped: Use a stepped velocity function or gradient
         :type stepped: bool
         :returns: velocities at requested depths
@@ -177,7 +185,7 @@ class VelocityProfile(Object):
         Plot the velocity profile, see :class:`pyrocko.cake`.
 
         :param axes: Axes to plot into.
-        :type axes: :class:`matplotlib.Axes`
+        :type axes: :class:`matplotlib.axes.Axes`
         '''
 
         import matplotlib.pyplot as plt
@@ -223,16 +231,6 @@ class VelocityProfile(Object):
     @property
     def has_p(self):
         return num.any(self.vs)
-
-    def get_weeded(self):
-        '''
-        Get weeded representation of layers used in the profile.
-        See :func:`pyrocko.cake.get_weeded` for details.
-        '''
-        weeded = num.zeros((self.nlayers, 4))
-        weeded[:, 0] = self.d
-        weeded[:, 1] = self.vp
-        weeded[:, 2] = self.vs
 
     def _csv(self):
         output = ''
@@ -357,7 +355,7 @@ class CrustDB(object):
         :type ref_profile: :class:`VelocityProfile`
         :param depth_range: Depth range in [m], ``(dmin, dmax)``,
             defaults to ``(0, 35000.)``
-        :type depth_range: tuple, optional
+        :type depth_range: tuple
         :param ddepth: Stepping in [m], defaults to ``100.``
         :type ddepth: float
         :param phase: Phase to calculate ``p`` or ``s``, defaults to ``p``
@@ -430,7 +428,7 @@ class CrustDB(object):
         :param phase: Phase to calculate ``p`` or ``s``, defaults to ``p``
         :type phase: str
         :returns: depth vector, mean velocities, standard deviations
-        :rtype: tuple of :class:`numpy.ndarray`
+        :rtype: :py:class:`tuple` of :class:`numpy.ndarray`
         '''
         sdepth, v_mat = self.velocityMatrix(depth_range, ddepth, phase=phase)
         v_mean = num.ma.mean(v_mat, axis=0)
@@ -450,7 +448,7 @@ class CrustDB(object):
         :param phase: Phase to calculate ``p`` or ``s``, defaults to ``p``
         :type phase: str
         :returns: depth vector, mode velocity, number of counts at each depth
-        :rtype: tuple of :class:`numpy.ndarray`
+        :rtype: :py:class:`tuple` of :class:`numpy.ndarray`
         '''
         import scipy.stats
 
@@ -470,7 +468,7 @@ class CrustDB(object):
         :param phase: Phase to calculate ``p`` or ``s``, defaults to ``p``
         :type phase: str
         :returns: depth vector, median velocities, standard deviations
-        :rtype: tuple of :class:`numpy.ndarray`
+        :rtype: :py:class:`tuple` of :class:`numpy.ndarray`
         '''
         sdepth, v_mat = self.velocityMatrix(depth_range, ddepth, phase=phase)
         v_mean = num.ma.median(v_mat, axis=0)
@@ -484,14 +482,14 @@ class CrustDB(object):
         Plot 1D histogram of seismic velocities in the container.
 
         :param vel_range: Velocity range, defaults to (5.5, 8.5)
-        :type vel_range: tuple, optional
+        :type vel_range: tuple
         :param bins: bins, defaults to 30 (see :func:`numpy.histogram`)
-        :type bins: int, optional
+        :type bins: int
         :param phase: Property to plot out of ``['vp', 'vs']``,
             defaults to 'vp'
-        :type phase: str, optional
+        :type phase: str
         :param figure: Figure to plot in, defaults to None
-        :type figure: :class:`matplotlib.Figure`, optional
+        :type figure: :class:`matplotlib.figure.Figure`
         '''
 
         import matplotlib.pyplot as plt
@@ -553,7 +551,7 @@ class CrustDB(object):
         :param plot_median: Plot the Median
         :type plot_median: bool
         :param axes: Axes to plot into, defaults to None
-        :type axes: :class:`matplotlib.Axes`
+        :type axes: :class:`matplotlib.axes.Axes`
         '''
 
         import matplotlib.pyplot as plt
@@ -687,7 +685,7 @@ class CrustDB(object):
         :param d_min: minimum depth
         :type d_min: int
         :returns: Lat, Lon, Depth and uid where ``v_max`` is exceeded
-        :rtype: list(num.array)
+        :rtype: :py:class:`list` of :py:class:`numpy.ndarray`
         '''
         self.profile_exceed_velocity = num.empty(len(self.profiles))
         self.profile_exceed_velocity[:] = num.nan

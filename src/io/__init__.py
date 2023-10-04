@@ -3,6 +3,57 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Low-level input and output of seismic waveforms, metadata and earthquake
+catalogs.
+
+Input and output (IO) for various different file formats is implemented in the
+submodules of :py:mod:`pyrocko.io`. :py:mod:`pyrocko.io` itself provides a
+simple unified interface to load and save seismic waveforms to a few different
+file formats. For a higher-level approach to accessing seismic data see
+:doc:`/topics/squirrel`.
+
+.. rubric:: Seismic waveform IO
+
+The data model used for the :py:class:`~pyrocko.trace.Trace` objects in Pyrocko
+is most closely matched by the Mini-SEED file format. However, a difference is,
+that Mini-SEED limits the length of the network, station, location, and channel
+codes to 2, 5, 2, and 3 characters, respectively.
+
+============ =========================== ========= ======== ======
+format       format identifier           load      save     note
+============ =========================== ========= ======== ======
+Mini-SEED    mseed                       yes       yes
+SAC          sac                         yes       yes      [#f1]_
+SEG Y rev1   segy                        some
+SEISAN       seisan, seisan.l, seisan.b  yes                [#f2]_
+KAN          kan                         yes                [#f3]_
+YAFF         yaff                        yes       yes      [#f4]_
+ASCII Table  text                                  yes      [#f5]_
+GSE1         gse1                        some
+GSE2         gse2                        some
+DATACUBE     datacube                    yes
+SUDS         suds                        some
+CSS          css                         yes
+TDMS iDAS    tdms_idas                   yes
+HDF5 iDAS    hdf5_idas                   yes
+============ =========================== ========= ======== ======
+
+.. rubric:: Notes
+
+.. [#f1] For SAC files, the endianness is guessed. Additional header
+    information is stored in the `Trace`'s ``meta`` attribute.
+.. [#f2] Seisan waveform files can be in little (``seisan.l``) or big endian
+    (``seisan.b``) format. ``seisan`` currently is an alias for ``seisan.l``.
+.. [#f3] The KAN file format has only been seen once by the author, and support
+    for it may be removed again.
+.. [#f4] YAFF is an in-house, experimental file format, which should not be
+    released into the wild.
+.. [#f5] ASCII tables with two columns (time and amplitude) are output - meta
+    information will be lost.
+
+'''
+
 import os
 import logging
 from pyrocko import util, trace
@@ -13,8 +64,6 @@ from .io_common import FileLoadError, FileSaveError
 
 import numpy as num
 
-
-__doc__ = util.parse_md(__file__)
 
 logger = logging.getLogger('pyrocko.io')
 

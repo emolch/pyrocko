@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Fomosto - Green's function database management.
+'''
+
 import sys
 import re
 import os.path as op
@@ -1320,6 +1324,9 @@ def command_report(args):
 
 
 def main(args=None):
+    '''
+    CLI entry point for Pyrocko's ``fomosto`` app.
+    '''
     if args is None:
         args = sys.argv[1:]
 

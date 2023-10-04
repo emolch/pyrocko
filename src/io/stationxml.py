@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+`FDSN StationXML <https://www.fdsn.org/xml/station/>`_ input, output and data
+model.
+'''
+
 import sys
 import time
 import logging
@@ -313,7 +318,7 @@ class DummyAwareOptionalTimestamp(Object):
     this type.
     '''
     dummy_for = (hpfloat, float)
-    dummy_for_description = 'time_float'
+    dummy_for_description = 'pyrocko.util.get_time_float'
 
     class __T(TBase):
 
@@ -447,7 +452,7 @@ class CfTransferFunction(StringChoice):
                         '%s: cannot convert to string %s' % (self.xname,
                                                              repr(val)))
 
-                val = self.dummy_cls.replacements.get(val, val)
+                val = self._dummy_cls.replacements.get(val, val)
 
             self.validate_extra(val)
             return val

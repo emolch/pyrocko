@@ -3,6 +3,17 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Earthquake catalog data access.
+
+Namespace module including the
+:py:class:`~pyrocko.client.globalcmt.GlobalCMT`,
+:py:class:`~pyrocko.client.geofon.Geofon`,
+:py:class:`~pyrocko.client.usgs.USGS`,
+:py:class:`~pyrocko.client.saxony.Saxony` and
+:py:class:`~pyrocko.client.isc.ISC` classes.
+'''
+
 from .base_catalog import NotFound  # noqa
 from .globalcmt import GlobalCMT  # noqa
 from .geofon import Geofon  # noqa

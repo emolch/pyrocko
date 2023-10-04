@@ -3,6 +3,13 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for `SAC
+<http://ds.iris.edu/ds/nodes/dmc/software/downloads/sac/>`_ pole-zero files.
+
+See also :py:mod:`~pyrocko.io.enhanced_sacpz`.
+'''
+
 import math
 import numpy as num
 try:
@@ -21,7 +28,7 @@ class SacPoleZeroError(Exception):
 
 def read_sac_zpk(filename=None, file=None, string=None, get_comments=False):
     '''
-    Read SAC Pole-Zero file.
+    Read SAC pole-zero file.
 
     :returns: ``(zeros, poles, constant)`` or
         ``(zeros, poles, constant, comments)`` if ``get_comments`` is True.

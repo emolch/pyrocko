@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Real-time data acquisition and processing helpers for :py:mod:`pyrocko.pile`.
+'''
+
 import os
 import logging
 

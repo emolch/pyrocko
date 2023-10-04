@@ -8,7 +8,7 @@ Pyrocko provides access to some online earthquake catalogs via the
 QuakeML import
 --------------
 
-This example shows how to read `QuakeML <https://quake.ethz.ch/quakeml/docs/REC?action=AttachFile&do=get&target=QuakeML-BED-20130214b.pdf>` event catalogs using :func:`~pyrocko.model.quakeml.QuakeML_load_xml()`.
+This example shows how to read `QuakeML <https://quake.ethz.ch/quakeml/docs/REC?action=AttachFile&do=get&target=QuakeML-BED-20130214b.pdf>` event catalogs using :func:`~pyrocko.io.quakeml.QuakeML.load_xml`.
 The function :meth:`~pyrocko.io.quakeml.QuakeML.get_pyrocko_events()` is used to obtain events in pyrocko format.
 If a moment tensor is provided as [``Mrr, Mtt, Mpp, Mrt, Mrp, Mtp``], this is converted to [``mnn, mee, mdd, mne, mnd, med``]. The strike, dip and rake values appearing in the pyrocko event are calculated from the moment tensor.
 
@@ -73,7 +73,7 @@ Search for an event in GEOFON catalog
 --------------------------------------------------
 
 Search for an event name only in the `GEOFON <http://geofon.gfz-potsdam.de>`_
-catalog [#f2]_ using :meth:`~pyrocko.client.catalog.Geofon`, with a given magnitude
+catalog [#f2]_ using :meth:`~pyrocko.client.geofon.Geofon`, with a given magnitude
 range and timeframe.
 
 .. literalinclude :: /../../examples/catalog_search_geofon.py

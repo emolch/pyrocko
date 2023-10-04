@@ -3,6 +3,17 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Simple representation of a seismic station (Pyrocko classic).
+
+.. note::
+
+    An improved data model for seismic stations is available in
+    :py:mod:`pyrocko.squirrel.model`. This module will stay available for
+    backward compatibility. Conversion from Squirrel-based to Pyrocko
+    classic can be achieved with
+    :py:meth:`pyrocko.squirrel.model.Station.get_pyrocko_station`. '''
+
 import math
 import copy
 import logging

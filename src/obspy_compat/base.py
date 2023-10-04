@@ -11,8 +11,8 @@ basic objects in Pyrocko and ObsPy. It also provides shortcuts to quickly look
 at ObsPy waveforms with the Pyrocko's :doc:`Snuffler </apps/snuffler/index>`
 application (:py:func:`snuffle`, :py:func:`fiddle`).
 
-With :func:`pyrocko.obspy_compat.plant` several new methods are attached to
-Pyrocko and ObsPy classes.
+With :func:`~pyrocko.obspy_compat.base.plant` several new methods are attached
+to Pyrocko and ObsPy classes.
 
 **Example, visualize ObsPy stream object with Snuffler:**
 
@@ -80,8 +80,8 @@ def to_pyrocko_events(catalog):
     :param catalog:
         :py:class:`obspy.Catalog <obspy.core.event.Catalog>` object
     :returns:
-        list of :py:class:`pyrocko.model.Event` objects or ``None`` if catalog
-        is ``None``
+        list of :py:class:`pyrocko.model.event.Event` objects or ``None`` if
+        catalog is ``None``
     '''
 
     obspy_catalog = catalog
@@ -114,8 +114,8 @@ def to_pyrocko_stations(inventory):
         :py:class:`obspy.Inventory <obspy.core.inventory.inventory.Inventory>`
         object
     :returns:
-        list of :py:class:`pyrocko.model.Station` objects or ``None`` if
-        inventory is ``None``
+        list of :py:class:`pyrocko.model.station.Station` objects or ``None``
+        if inventory is ``None``
     '''
 
     obspy_inventory = inventory
@@ -337,25 +337,25 @@ def plant():
 
     Methods added to ObsPy classes are:
 
-    +--------------------------------------+---------------------------------+
-    | class                                | methods                         |
-    +======================================+=================================+
-    | :py:class:`obspy.Trace`              | :py:func:`to_pyrocko_trace`     |
-    |                                      +---------------------------------+
-    |                                      | :py:func:`snuffle`              |
-    |                                      +---------------------------------+
-    |                                      | :py:func:`fiddle`               |
-    +--------------------------------------+---------------------------------+
-    | :py:class:`obspy.Stream`             | :py:func:`to_pyrocko_traces`    |
-    |                                      +---------------------------------+
-    |                                      | :py:func:`snuffle`              |
-    |                                      +---------------------------------+
-    |                                      | :py:func:`fiddle`               |
-    +--------------------------------------+---------------------------------+
-    | :py:class:`obspy.Catalog`            | :py:func:`to_pyrocko_events`    |
-    +--------------------------------------+---------------------------------+
-    | :py:class:`obspy.Inventory`          | :py:func:`to_pyrocko_stations`  |
-    +--------------------------------------+---------------------------------+
+    +------------------------------------------------------+---------------------------------+
+    | class                                                | methods                         |
+    +======================================================+=================================+
+    | :py:class:`obspy.core.trace.Trace`                   | :py:func:`to_pyrocko_trace`     |
+    |                                                      +---------------------------------+
+    |                                                      | :py:func:`snuffle`              |
+    |                                                      +---------------------------------+
+    |                                                      | :py:func:`fiddle`               |
+    +------------------------------------------------------+---------------------------------+
+    | :py:class:`obspy.core.stream.Stream`                 | :py:func:`to_pyrocko_traces`    |
+    |                                                      +---------------------------------+
+    |                                                      | :py:func:`snuffle`              |
+    |                                                      +---------------------------------+
+    |                                                      | :py:func:`fiddle`               |
+    +------------------------------------------------------+---------------------------------+
+    | :py:class:`obspy.core.event.Catalog`                 | :py:func:`to_pyrocko_events`    |
+    +------------------------------------------------------+---------------------------------+
+    | :py:class:`obspy.core.inventory.inventory.Inventory` | :py:func:`to_pyrocko_stations`  |
+    +------------------------------------------------------+---------------------------------+
 
     Methods added to Pyrocko classes are:
 
@@ -366,7 +366,7 @@ def plant():
     +--------------------------------------+---------------------------------+
     | :py:class:`pyrocko.pile.Pile`        | :py:func:`to_obspy_stream`      |
     +--------------------------------------+---------------------------------+
-    '''
+    '''  # noqa
 
     import obspy
     obspy.Trace.to_pyrocko_trace = to_pyrocko_trace

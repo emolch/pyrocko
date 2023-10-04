@@ -58,12 +58,18 @@ def _cglob_translate(creg):
 
 
 class Filtering(Object):
+    '''
+    Base class for :py:class:`pyrocko.squirrel.model.Nut` filters.
+    '''
 
     def filter(self, it):
         return list(it)
 
 
 class RegexFiltering(Object):
+    '''
+    Filter by regex.
+    '''
     pattern = String.T(default=r'(.*)')
 
     def __init__(self, **kwargs):
@@ -76,6 +82,9 @@ class RegexFiltering(Object):
 
 
 class CodesPatternFiltering(Object):
+    '''
+    Filter by codes pattern.
+    '''
     codes = List.T(CodesNSLCE.T(), optional=True)
 
     def filter(self, it):
@@ -88,12 +97,18 @@ class CodesPatternFiltering(Object):
 
 
 class Grouping(Object):
+    '''
+    Base class for :py:class:`pyrocko.squirrel.model.Nut` grouping mechanisms.
+    '''
 
     def key(self, codes):
         return codes
 
 
 class RegexGrouping(Grouping):
+    '''
+    Group by regex pattern.
+    '''
     pattern = String.T(default=r'(.*)')
 
     def __init__(self, **kwargs):
@@ -147,12 +162,18 @@ class SensorGrouping(RegexGrouping):
 
 
 class Translation(Object):
+    '''
+    Base class for :py:class:`pyrocko.squirrel.model.Nut` translators.
+    '''
 
     def translate(self, codes):
         return codes
 
 
 class AddSuffixTranslation(Translation):
+    '''
+    Add a suffix to :py:attr:`~pyrocko.squirrel.model.CodesNSLCEBase.extra`.
+    '''
     suffix = String.T(default='')
 
     def translate(self, codes):
@@ -160,6 +181,10 @@ class AddSuffixTranslation(Translation):
 
 
 class RegexTranslation(AddSuffixTranslation):
+    '''
+    Translate :py:class:`pyrocko.squirrel.model.Codes` using a regular
+    expression.
+    '''
     pattern = String.T(default=r'(.*)')
     replacement = String.T(default=r'\1')
 
@@ -173,6 +198,10 @@ class RegexTranslation(AddSuffixTranslation):
 
 
 class ReplaceComponentTranslation(RegexTranslation):
+    '''
+    Translate :py:class:`pyrocko.squirrel.model.Codes` by replacing a
+    component.
+    '''
     pattern = String.T(default=_cglob_translate('(*.*.*.*)?(.*)'))
     replacement = String.T(default=r'\1{component}\2')
 

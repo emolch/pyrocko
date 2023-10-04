@@ -1,3 +1,13 @@
+# http://pyrocko.org - GPLv3
+#
+# The Pyrocko Developers, 21st Century
+# ---|P------/S----------~Lg----------
+
+'''
+Live stream reader for `DiGOS DATA-CUBE³
+<https://digos.eu/the-seismic-data-recorder/>`_ digitizers
+'''
+
 import time
 import logging
 import numpy as num

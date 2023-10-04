@@ -79,7 +79,8 @@ The `Global Crustal Database <https://earthquake.usgs.gov/data/crust/>`_ [#2]_ g
     :alt: pyrocko.crustdb.CrustDB.plot
 
 
-Other selection methods are :func:`~pyrocko.crustdb.CrustDB.selectPolygon` and
-:func:`~pyrocko.crustdb.CrustDB.selectRegion`.
+Other selection methods are
+:func:`~pyrocko.dataset.crustdb.CrustDB.selectPolygon` and
+:func:`~pyrocko.dataset.crustdb.CrustDB.selectRegion`.
 
-See :doc:`/library/reference/dataset` for more information on the API.
+See :doc:`/library/reference/pyrocko.dataset` for more information on the API.

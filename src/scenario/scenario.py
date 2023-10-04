@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of the scenario generator's main class.
+'''
+
 import logging
 import sys
 import os
@@ -187,9 +191,9 @@ class ScenarioGenerator(LocationGenerator):
         :param path: Output directory
         :type path: str
         :param tmin: Start of time interval to generate
-        :type tmin: timestamp, optional
+        :type tmin: :py:func:`~pyrocko.util.get_time_float`
         :param tmax: End of time interval to generate
-        :type tmax: timestamp, optional
+        :type tmax: :py:func:`~pyrocko.util.get_time_float`
 
         This method only generates the files which are relevant for the
         given time interval, and which have not yet been generated. It is safe
@@ -384,22 +388,22 @@ class ScenarioGenerator(LocationGenerator):
         :param path: Path to create the scenerio in
         :type path: str
         :param center_lat: Center latitude [deg]
-        :type center_lat: float, optional
+        :type center_lat: float
         :param center_lon: Center longitude [deg]
-        :type center_lon: float, optional
+        :type center_lon: float
         :param radius: Scenario's radius in [m]
-        :type radius: float, optional
+        :type radius: float
         :param targets: Targets to throw into scenario,
             defaults to AVAILABLE_TARGETS
-        :type targets: list of :class:`pyrocko.scenario.TargetGenerator`
-            objects, optional
+        :type targets: list of
+            :class:`pyrocko.scenario.targets.base.TargetGenerator` objects
         :param force: If set to ``True``, overwrite directory
         :type force: bool
         :param stationxml: path to a StationXML to be used by the
-            :class:`pyrocko.scenario.targets.WaveformGenerator`.
+            :class:`pyrocko.scenario.targets.waveform.WaveformGenerator`.
         :type stationxml: str
         :returns: Scenario
-        :rtype: :class:`pyrocko.scenario.ScenarioGenerator`
+        :rtype: :class:`pyrocko.scenario.scenario.ScenarioGenerator`
         '''
         import os.path as op
 

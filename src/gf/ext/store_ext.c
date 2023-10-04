@@ -3206,7 +3206,7 @@ static int store_ext_clear(PyObject *m) {
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "store_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.gf`.",
         sizeof(struct module_state),
         store_ext_methods,
         NULL,

@@ -3,6 +3,12 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for `DiGOS DATA-CUBE³ <https://digos.eu/the-seismic-data-recorder/>`_
+raw data.
+'''
+
+
 import os
 import math
 import logging

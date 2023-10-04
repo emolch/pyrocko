@@ -301,9 +301,11 @@ def get_err_palette():
 class QSliderNoWheel(qw.QSlider):
 
     def wheelEvent(self, ev):
+        ''
         ev.ignore()
 
     def keyPressEvent(self, ev):
+        ''
         ev.ignore()
 
 
@@ -851,6 +853,7 @@ class ColorbarSlider(qw.QWidget):
         self.clip_changed.emit(self.clip_min, self.clip_max)
 
     def mousePressEvent(self, event):
+        ''
         act_rect = self._get_active_rect()
         if event.buttons() != qc.Qt.MouseButton.LeftButton:
             self._component_grabbed = None
@@ -869,13 +872,16 @@ class ColorbarSlider(qw.QWidget):
             self.setCursor(qg.QCursor())
 
     def mouseReleaseEvent(self, event):
+        ''
         self._component_grabbed = None
         self.repaint()
 
     def mouseDoubleClickEvent(self, event):
+        ''
         self.set_clip(0., 1.)
 
     def wheelEvent(self, event):
+        ''
         event.accept()
         if not self._sym_locked:
             return
@@ -888,6 +894,7 @@ class ColorbarSlider(qw.QWidget):
         self.set_clip(clip_min_new, clip_max_new)
 
     def mouseMoveEvent(self, event):
+        ''
         act_rect = self._get_active_rect()
 
         if not self._component_grabbed:
@@ -920,14 +927,17 @@ class ColorbarSlider(qw.QWidget):
         self._old_pos = event.pos()
 
     def enterEvent(self, e):
+        ''
         self._mouse_inside = True
         self.repaint()
 
     def leaveEvent(self, e):
+        ''
         self._mouse_inside = False
         self.repaint()
 
     def paintEvent(self, e):
+        ''
         p = qg.QPainter(self)
         self._set_window(p.window())
 
@@ -1094,6 +1104,9 @@ def beautify_axes(axes):
 
 
 class FigureFrame(qw.QFrame):
+    '''
+    A widget to present a :py:mod:`matplotlib` figure.
+    '''
 
     def __init__(self, parent=None, figure_cls=None):
         qw.QFrame.__init__(self, parent)
@@ -1216,6 +1229,10 @@ class FigureFrame(qw.QFrame):
 
 
 class SmartplotFrame(FigureFrame):
+    '''
+    A widget to present a :py:mod:`pyrocko.plot.smartplot` figure.
+    '''
+
     def __init__(
             self, parent=None, plot_args=[], plot_kwargs={}, plot_cls=None):
 
@@ -1237,6 +1254,9 @@ class SmartplotFrame(FigureFrame):
 
 
 class WebKitFrame(qw.QFrame):
+    '''
+    A widget to present a html page using WebKit.
+    '''
 
     def __init__(self, url=None, parent=None):
         try:
@@ -1255,6 +1275,9 @@ class WebKitFrame(qw.QFrame):
 
 
 class VTKFrame(qw.QFrame):
+    '''
+    A widget to present a VTK visualization.
+    '''
 
     def __init__(self, actors=None, parent=None):
         import vtk
@@ -1287,6 +1310,9 @@ class VTKFrame(qw.QFrame):
 
 
 class PixmapFrame(qw.QLabel):
+    '''
+    A widget to preset a pixmap image.
+    '''
 
     def __init__(self, filename=None, parent=None):
 
@@ -1470,6 +1496,7 @@ class RangeEdit(qw.QFrame):
         self._data_name = name
 
     def sizeHint(self):
+        ''
         return self._size_hint
 
     def get_data_range(self):
@@ -1695,13 +1722,14 @@ class RangeEdit(qw.QFrame):
         self.set_range(*self.get_data_range())
 
     def paintEvent(self, paint_ev):
+        ''
         painter = qg.QPainter(self)
         painter.setRenderHint(qg.QPainter.Antialiasing)
         self.drawit(painter)
         qw.QFrame.paintEvent(self, paint_ev)
 
     def mousePressEvent(self, mouse_ev):
-
+        ''
         if mouse_ev.button() == qc.Qt.LeftButton:
             self.rangeEditPressed.emit()
 
@@ -1734,17 +1762,20 @@ class RangeEdit(qw.QFrame):
         self.update()
 
     def enterEvent(self, ev):
+        ''
         self._tcursor = None  # is set later by mouseMoveEvent
         self._hover_point = None
         self.tcursorChanged.emit()
 
     def leaveEvent(self, ev):
+        ''
         self._tcursor = None
         self._hover_point = None
         self.tcursorChanged.emit()
         self.update()
 
     def mouseReleaseEvent(self, mouse_ev):
+        ''
         if self._track_start:
             self.rangeEditReleased.emit()
             self.update()
@@ -1765,6 +1796,7 @@ class RangeEdit(qw.QFrame):
                     / (self.tmax - self.tmin))
 
     def mouseDoubleClickEvent(self, mouse_ev):
+        ''
         if mouse_ev.button() == qc.Qt.LeftButton:
             lower_rect = self.lower_rect()
             if lower_rect.contains(mouse_ev.pos()) \
@@ -1782,6 +1814,7 @@ class RangeEdit(qw.QFrame):
                 self.set_focus(None, 0.0)
 
     def mouseMoveEvent(self, mouse_ev):
+        ''
         point = self.mapFromGlobal(mouse_ev.globalPos())
         self._hover_point = point
 

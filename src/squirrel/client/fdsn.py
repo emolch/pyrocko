@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel client to access FDSN web services for seismic waveforms and metadata.
+'''
+
 import time
 import os
 import copy
@@ -237,9 +241,10 @@ class FDSNSource(Source, has_paths.HasPaths):
     '''
     Squirrel data-source to transparently get data from FDSN web services.
 
-    Attaching an :py:class:`FDSNSource` object to a :py:class:`Squirrel` allows
-    the latter to download station and waveform data from an FDSN web service
-    should the data not already happen to be available locally.
+    Attaching an :py:class:`FDSNSource` object to a
+    :py:class:`~pyrocko.squirrel.base.Squirrel` allows the latter to download
+    station and waveform data from an FDSN web service should the data not
+    already happen to be available locally.
     '''
 
     site = String.T(

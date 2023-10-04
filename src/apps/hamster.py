@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Hamster - a simple seismic datalogger.
+'''
+
 import os
 import sys
 import signal
@@ -18,6 +22,9 @@ logger = logging.getLogger('pyrocko.apps.hamster')
 
 
 def main(args=None):
+    '''
+    CLI entry point for Pyrocko's ``hamster`` app.
+    '''
     if args is None:
         args = sys.argv[1:]
 

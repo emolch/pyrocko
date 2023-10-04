@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Some basic geodetic functions.
+'''
+
 import math
 import numpy as num
 
@@ -961,11 +965,11 @@ def positive_region(region):
     Normalize parameterization of a rectangular geographical region.
 
     :param region: ``(west, east, south, north)`` in [deg].
-    :type region: tuple of float
+    :type region: :py:class:`tuple` of :py:class:`float`
 
     :returns: ``(west, east, south, north)``, where ``west <= east`` and
         where ``west`` and ``east`` are in the range ``[-180., 180.+360.]``.
-    :rtype: tuple of float
+    :rtype: :py:class:`tuple` of :py:class:`float`
     '''
     west, east, south, north = [float(x) for x in region]
 
@@ -991,7 +995,7 @@ def points_in_region(p, region):
     :param p: ``(lat, lon)`` pairs in [deg].
     :type p: :py:class:`numpy.ndarray` ``(N, 2)``
     :param region: ``(west, east, south, north)`` region boundaries in [deg].
-    :type region: tuple of float
+    :type region: :py:class:`tuple` of :py:class:`float`
 
     :returns: Mask, returning ``True`` for each point within the region.
     :rtype: :py:class:`numpy.ndarray` of bool, shape ``(N)``
@@ -1010,9 +1014,9 @@ def point_in_region(p, region):
     Check if a point is contained in a rectangular geographical region.
 
     :param p: ``(lat, lon)`` in [deg].
-    :type p: tuple of float
+    :type p: :py:class:`tuple` of :py:class:`float`
     :param region: ``(west, east, south, north)`` region boundaries in [deg].
-    :type region: tuple of float
+    :type region: :py:class:`tuple` of :py:class:`float`
 
     :returns: ``True``, if point is in region, else ``False``.
     :rtype: bool
@@ -1148,13 +1152,17 @@ def ecef_to_geodetic(X, Y, Z):
     Convert Earth-Centered, Earth-Fixed (ECEF) Cartesian coordinates to
     geodetic coordinates (Ferrari's solution).
 
-    :param X, Y, Z: Cartesian coordinates in ECEF system in [m].
-    :type X, Y, Z: float
+    :param X: ECEF X coordinate [m].
+    :type X: float
+    :param Y: ECEF Y coordinate [m].
+    :type Y: float
+    :param Z: ECEF Z coordinate [m].
+    :type Z: float
 
     :return: Geodetic coordinates (lat, lon, alt). Latitude and longitude are
         in [deg] and altitude is in [m]
         (positive for points outside the geoid).
-    :rtype: tuple, float
+    :rtype: :py:class:`tuple` of :py:class:`float`
 
     .. seealso ::
         https://en.wikipedia.org/wiki/Geographic_coordinate_conversion
@@ -1388,7 +1396,7 @@ def contains_point(polygon, point):
     :type polygon: :py:class:`numpy.ndarray` of shape ``(N, 2)``, second index
         0=lat, 1=lon
     :param point: Coordinates ``(lat, lon)`` of point to test [deg].
-    :type point: tuple of float
+    :type point: :py:class:`tuple` of :py:class:`float`
 
     :returns: ``True``, if point is located within polygon, else ``False``.
     :rtype: bool

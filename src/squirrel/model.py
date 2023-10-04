@@ -624,6 +624,14 @@ class Station(Location):
         return (self.tmin, self.tmax)
 
     def get_pyrocko_station(self):
+        '''
+        Get station as a classic Pyrocko station object.
+
+        :returns:
+            Converted station object.
+        :rtype:
+            :py:class:`pyrocko.model.station.Station`
+        '''
         from pyrocko import model
         return model.Station(*self._get_pyrocko_station_args())
 
@@ -1163,7 +1171,7 @@ class WaveformPromise(Object):
     :py:meth:`~pyrocko.squirrel.base.Squirrel.update_waveform_promises`.
     Waveform promises are inserted and indexed in the database similar to
     normal waveforms. When processing a waveform query, e.g. from
-    :py:meth:`~pyrocko.squirrel.base.Squirrel.get_waveform`, and no local
+    :py:meth:`~pyrocko.squirrel.base.Squirrel.get_waveforms`, and no local
     waveform is available for the queried time span, a matching promise can be
     resolved, i.e. an attempt is made to download the waveform from the remote
     site. The promise is removed after the download attempt (except when a

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Synthetic seismic waveform generator.
+'''
+
 import hashlib
 import math
 import logging

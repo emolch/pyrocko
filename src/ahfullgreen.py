@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Analytical solutions for elastic wave propagation in a homogeneous full-space.
+'''
+
 import math
 import logging
 import numpy as num

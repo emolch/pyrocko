@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Squirrel command line tool infrastructure and argument parsing.
+'''
+
 import os
 import sys
 import re
@@ -87,20 +91,26 @@ def formatter_with_width(n):
 
 
 class PyrockoArgumentParser(argparse.ArgumentParser):
+    '''
+    Tweaks and extends the standard argument parser to simplify the generation
+    of the online docs.
 
-    # We want to convert the --help outputs to rst for the html docs. Problem
-    # is that argparse's HelpFormatters to date have no public interface which
-    # we could use to achieve this. The solution here is a bit clunky but works
-    # ok for Squirrel. We allow markup like ``code`` which is kept when
-    # producing rst (by parsing the final --help output) but stripped out when
-    # doing normal --help. This leads to a problem with the internal wrapping
-    # of argparse does this before the stripping. To solve, we render with
-    # argparse to a very wide width and do the wrapping in postprocessing.
-    # ``code`` is replaced with just code in normal output. ```code``` is
-    # replaced with 'code' in normal output and with ``code`` rst output. rst
-    # output is selected with environment variable PYROCKO_RST_HELP=1.
-    # The script maintenance/argparse_help_to_rst.py extracts the rst help
-    # and generates the rst files for the docs.
+    We want to convert the ``--help`` outputs to ``rst`` for the html docs.
+    Problem is that argparse's ``HelpFormatter`` to date have no public
+    interface which we could use to achieve this. The solution here is a bit
+    clunky but works ok for our purposes. We allow markup like
+    :literal:`\\`\\`code\\`\\`` which is kept when producing ``rst`` (by
+    parsing the final ``--help`` output) but stripped out when doing normal
+    ``--help``. This leads to a problem with the internal output wrapping of
+    argparse which it does before the stripping. To solve, we render with
+    argparse to a very wide width and do the wrapping in post-processing.
+    :literal:`\\`\\`code\\`\\`` is replaced with just ``code`` in normal
+    output. :literal:`\\`\\`\\`code\\`\\`\\`` is replaced with ``'code'`` in
+    normal output and with :literal:`\\`\\`code\\`\\`` in ``rst`` output.
+    ``rst`` output is selected with environment variable
+    ``PYROCKO_RST_HELP=1``. The script ``maintenance/argparse_help_to_rst.py``
+    extracts the ``rst`` help and generates the ``rst`` files for the docs.
+    '''
 
     def __init__(
             self, prog=None, usage=None, description=None, epilog=None,
@@ -165,13 +175,13 @@ class SquirrelArgumentParser(PyrockoArgumentParser):
     :param command:
         Implementation of the command.
     :type command:
-        :py:class:`SquirrelCommand` (or module providing the same interface).
+        :py:class:`SquirrelCommand` or module providing the same interface
 
     :param subcommands:
         Implementations of subcommands.
     :type subcommands:
-        :py:class:`list` of :py:class:`SquirrelCommand` (or modules providing
-        the same interface).
+        :py:class:`list` of :py:class:`SquirrelCommand` or modules providing
+        the same interface
 
     :param \\*args:
         Handed through to base class's init.
@@ -256,7 +266,7 @@ class SquirrelArgumentParser(PyrockoArgumentParser):
             Parsed arguments obtained from :py:meth:`parse_args`.
 
         :returns:
-            ``True`` if dispatching was successful, ``False`` othewise.
+            ``True`` if dispatching was successful, ``False`` otherwise.
 
         If an exception of type
         :py:exc:`~pyrocko.squirrel.error.SquirrelError` or
@@ -314,7 +324,7 @@ class SquirrelArgumentParser(PyrockoArgumentParser):
 
         Once finished with parsing, the query arguments are available as
         ``args.squirrel_query`` on the arguments returned from
-        :py:meth:`prase_args`.
+        :py:meth:`parse_args`.
 
         :param without:
             Suppress adding given options.
@@ -637,7 +647,7 @@ class SquirrelCommand(object):
         '''
         Raises :py:exc:`~pyrocko.squirrel.error.ToolError`.
 
-        :py:func:`~pyrocko.squirrel.tool.from_command` catches
+        :py:meth:`SquirrelArgumentParser.run` catches
         :py:exc:`~pyrocko.squirrel.error.ToolError`, logs the error message and
         terminates with an error exit state.
         '''
@@ -648,7 +658,7 @@ class SquirrelCommand(object):
         To be implemented in subcommand. Create subcommand parser.
 
         Must return a newly created parser obtained with
-        :py:meth:`add_parser`, e.g.::
+        ``subparsers.add_parser(...)``, e.g.::
 
             def make_subparser(self, subparsers):
                 return subparsers.add_parser(
@@ -715,6 +725,7 @@ class SquirrelCommand(object):
 
 
 __all__ = [
+    'PyrockoArgumentParser',
     'SquirrelArgumentParser',
     'SquirrelCommand',
     'add_squirrel_selection_arguments',

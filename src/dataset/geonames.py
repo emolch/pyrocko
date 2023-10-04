@@ -3,6 +3,17 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Access to the cities and population data of
+`GeoNames <https://www.geonames.org/>`_.
+
+The GeoNames geographical database covers all countries and contains over
+eleven million placenames.
+
+This module provides quick access to a subset of GeoNames containing the cities
+with a population size exceeding 1000.
+'''
+
 import logging
 import os
 from collections import namedtuple
@@ -162,6 +173,21 @@ def get_cities_region(region=None, minpop=0):
 
 
 def get_cities_by_name(name):
+    '''
+    Lookup city by name.
+
+    The comparison is done case-insensitive.
+
+    :param name:
+        Name of the city to look for.
+    :type name:
+        str
+
+    :returns:
+        Zero or more matching city entries.
+    :rtype:
+        :py:class:`list` of :py:class:`GeoName2`
+    '''
     cities = get_cities_region()
     candidates = []
     for c in cities:
@@ -172,6 +198,34 @@ def get_cities_by_name(name):
 
 
 def get_cities(lat, lon, radius, minpop=0):
+    '''
+    Get cities in a given circular area.
+
+    :param lat:
+        Latitude [deg].
+    :type lat:
+        float
+
+    :param lon:
+        Longitude [deg].
+    :type lon:
+        float
+
+    :param radius:
+        Search radius [m].
+    :type radius:
+        float
+
+    :param minpop:
+        Skip entries with population lower than this.
+    :type minpop:
+        int
+
+    :returns:
+        Matching city entries.
+    :rtype:
+        :py:class:`list` of :py:class:`GeoName2`
+    '''
     region = od.radius_to_region(lat, lon, radius)
     cities = get_cities_region(region, minpop=minpop)
 

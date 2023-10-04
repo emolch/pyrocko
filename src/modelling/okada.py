@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Elastostatic solutions and boundary element modelling for rectangular
+dislocation sources.
+'''
+
 import numpy as num
 import logging
 
@@ -381,17 +386,17 @@ def make_okada_coefficient_matrix(
     :param pure_shear:
         If ``True``, only shear forces are taken into account.
     :type pure_shear:
-        optional, bool
+        bool
 
     :param rotate_sdn:
         If ``True``, rotate to strike, dip, normal.
     :type rotate_sdn:
-        optional, bool
+        bool
 
     :param nthreads:
         Number of threads.
     :type nthreads:
-        optional, int
+        int
 
     :return:
         Coefficient matrix for all source combinations.
@@ -624,20 +629,20 @@ def invert_fault_dislocations_bem(
         Coefficient matrix connecting source patch dislocations and the stress
         field.
     :type coef_mat:
-        optional, :py:class:`~numpy.ndarray`:
+        :py:class:`~numpy.ndarray`:
         ``(len(source_list) * 3, len(source_list) * 3)``
 
     :param source_list:
         Source patches to be used for BEM.
     :type source_list:
-        optional, list of
+        list of
         :py:class:`~pyrocko.modelling.okada.OkadaSource`
 
     :param epsilon:
         If given, values in ``coef_mat`` smaller than ``epsilon`` are set to
         zero.
     :type epsilon:
-        optional, float
+        float
 
     :param nthreads:
         Number of threads allowed.

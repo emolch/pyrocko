@@ -14,8 +14,8 @@
 
 from datetime import datetime as dt
 from pyrocko import version as pyrocko_version
+from pyrocko._compatibility_modules import compatibility_modules
 import sphinx_sleekcat_theme
-
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -35,16 +35,26 @@ extensions = [
   'sphinx.ext.viewcode',
   'sphinx.ext.intersphinx',
   'sphinx.ext.autosummary',
+  'sphinx_qt_documentation',
 ]
 
+qt_documentation = 'PyQt5'
 
-intersphinx_mapping = {'numpy': ('https://docs.scipy.org/doc/numpy/',
-                                 None),
-                       'scipy': ('https://docs.scipy.org/doc/scipy/reference/',
-                                 None),
-                       'matplotlib': ('https://matplotlib.org/', None),
-                       'python': ('https://docs.python.org/3.8', None),
-                       'obspy': ('https://docs.obspy.org/', None)}
+autosummary_generate = True
+autosummary_ignore_module_all = True
+autosummary_imported_members = False
+autosummary_mock_imports = compatibility_modules + [
+    'pyrocko.fdsn']
+
+intersphinx_mapping = {
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
+    'matplotlib': ('https://matplotlib.org/stable/', None),
+    'PyQt5': ('https://www.riverbankcomputing.com/static/Docs/PyQt5/', None),
+    'python': ('https://docs.python.org/3.8', None),
+    'kite': ('https://pyrocko.org/kite/docs/current', None),
+    'obspy': ('https://docs.obspy.org/', None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -78,19 +88,20 @@ language = 'en'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
-#today = ''
+# today = ''
 # Else, today_fmt is used as the format for a strftime call.
-#today_fmt = '%B %d, %Y'
+# today_fmt = '%B %d, %Y'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = ['_build']
 
-# The reST default role (used for this markup: `text`) to use for all documents.
-#default_role = None
+# The reST default role (used for this markup: `text`) to use for all
+# documents.
+# default_role = None
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
-#add_function_parentheses = True
+# add_function_parentheses = True
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
@@ -98,7 +109,7 @@ add_module_names = False
 
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
-#show_authors = False
+# show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -107,7 +118,7 @@ pygments_style = 'sphinx'
 modindex_common_prefix = ['pyrocko.']
 
 
-# -- Options for HTML output ---------------------------------------------------
+# -- Options for HTML output --------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
@@ -124,7 +135,7 @@ html_theme_options = {
     'visitedlinkcolor': '#204a87',
     'nosidebar': True,
     # 'appendcss': open('style.css').read(),
-    # 'googlewebfonturl': 'https://fonts.googleapis.com/css?family=Roboto+Slab',
+    # 'googlewebfonturl':'https://fonts.googleapis.com/css?family=Roboto+Slab',
     # 'bodyfont': '"Roboto Slab",Arial,sans-serif',
 }
 pygments_style = 'friendly'
@@ -137,7 +148,7 @@ html_theme_path = [sphinx_sleekcat_theme.get_html_theme_path()]
 html_title = u"%s v%s Manual" % (project, release)
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-#html_short_title = u"%s Manual" % project
+# html_short_title = u"%s Manual" % project
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -146,7 +157,7 @@ html_logo = None
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large
-#html_favicon = None
+# html_favicon = None
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -155,36 +166,36 @@ html_static_path = ['static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
-#html_last_updated_fmt = '%b %d, %Y'
+# html_last_updated_fmt = '%b %d, %Y'
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
-#html_use_smartypants = True
+# html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-#html_sidebars = {}
+# html_sidebars = {}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
-#html_additional_pages = {}
+# html_additional_pages = {}
 
 # If false, no module index is generated.
-#html_domain_indices = True
+# html_domain_indices = True
 
 # If false, no index is generated.
-#html_use_index = True
+# html_use_index = True
 
 # If true, the index is split into individual pages for each letter.
-#html_split_index = False
+# html_split_index = False
 
 # If true, links to the reST sources are added to the pages.
-#html_show_sourcelink = True
+# html_show_sourcelink = True
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 html_show_sphinx = False
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
-#html_show_copyright = True
+# html_show_copyright = True
 
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
@@ -192,18 +203,18 @@ html_show_sphinx = False
 html_use_opensearch = 'https://pyrocko.org/pyrocko/'
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
-#html_file_suffix = None
+# html_file_suffix = None
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'Pyrockodoc'
 
 
-# -- Options for LaTeX output --------------------------------------------------
+# -- Options for LaTeX output -------------------------------------------------
 
 latex_engine = 'xelatex'
 
 # The paper size ('letter' or 'a4').
-#latex_paper_size = 'a4'
+# latex_paper_size = 'a4'
 latex_elements = {
     'papersize': 'a4paper',
     'preamble': '''
@@ -214,10 +225,11 @@ latex_elements = {
 }
 
 # The font size ('10pt', '11pt' or '12pt').
-#latex_font_size = '10pt'
+# latex_font_size = '10pt'
 
 # Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title, author, documentclass [howto/manual]).
+# (source start file, target name, title, author, documentclass
+# [howto/manual]).
 latex_documents = [
   ('index', 'pyrocko.tex', 'Pyrocko Documentation',
    'The Pyrocko Developers', 'manual'),
@@ -251,7 +263,7 @@ latex_documents = [
 
 autodoc_member_order = 'bysource'
 
-# -- Options for manual page output --------------------------------------------
+# -- Options for manual page output -------------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
@@ -268,25 +280,37 @@ def process_signature(app, what, name, obj, options, signature,
 
     if what == 'class' and issubclass(obj, guts.Object):
         if obj.dummy_for is not None:
-            cls_name = obj.T.classname
+            # cls_name = obj.T.classname
             descr = guts.classnames(obj.dummy_for)
             if hasattr(obj, 'dummy_for_description'):
                 descr = (
                     obj.dummy_for_description
                     if obj.dummy_for_description is not None
                     else descr)
-            return ('(...)', 'dummy for %s' % (descr))
+            return ('(...)', '%s' % (descr))
 
     return
 
 
 def skip_member(app, what, name, obj, skip, options):
-    from pyrocko import guts
+    # from pyrocko import guts
+
+    if obj.__doc__ and obj.__doc__.strip().startswith('This module is now at'):
+        return True
+
+    if not obj.__doc__:
+        return True
+
+    if name == '__T':
+        return True
 
     if what == 'class' and name == 'dummy_for':
         return True
-    if what == 'class' and name == 'T':
-        return True
+
+    return getattr(obj, '_sphinx_doc_skip', None)
+
+    # if what == 'class' and name == 'T':
+    #     return True
 
 
 def setup(app):

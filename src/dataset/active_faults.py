@@ -3,6 +3,22 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+GEM Global Active Faults Database
+(`GEM GAF-DB <https://github.com/GEMScienceTools/gem-global-active-faults>`_).
+
+If the database is not already available, it will be downloaded
+automatically on first use.
+
+.. note::
+
+    If you use this dataset, please cite:
+
+    Styron, Richard, and Marco Pagani. “The GEM Global Active Faults Database.”
+    Earthquake Spectra, vol. 36, no. 1_suppl, Oct. 2020, pp. 160–180,
+    doi:10.1177/8755293020944182.
+'''
+
 import re
 import logging
 import numpy as num
@@ -24,8 +40,21 @@ def parse_3tup(s):
 logger = logging.getLogger('ActiveFaults')
 
 
-class Fault(object):
-    __fields__ = OrderedDict()
+class ActiveFault(object):
+    '''
+    Representation of a single active fault.
+    '''
+    __fields__ = OrderedDict([
+
+        ('lat', list),
+        ('lon', list),
+        ('average_dip', float),
+        ('average_rake', float),
+        ('lower_seis_depth', float),
+        ('upper_seis_depth', float),
+        ('slip_type', str),
+    ])
+
     __slots__ = list(__fields__.keys())
 
     def get_property(self, fault_obj, attr):
@@ -82,20 +111,16 @@ class Fault(object):
         return '\n'.join(['%s: %s' % (attr, val) for attr, val in d.items()])
 
 
-class ActiveFault(Fault):
-    __fields__ = OrderedDict([
-
-        ('lat', list),
-        ('lon', list),
-        ('average_dip', float),
-        ('average_rake', float),
-        ('lower_seis_depth', float),
-        ('upper_seis_depth', float),
-        ('slip_type', str),
-    ])
-
-
 class ActiveFaults(object):
+    '''
+    GEM Global Active Faults Database (`GEM GAF-DB
+    <https://github.com/GEMScienceTools/gem-global-active-faults>`_).
+
+    :ivar active_faults:
+        Fault parameters.
+    :vartype active_faults:
+        :py:class:`list` of :py:class:`ActiveFault`
+    '''
     URL_GEM_ACTIVE_FAULTS = 'https://raw.githubusercontent.com/cossatot/gem-global-active-faults/master/geojson/gem_active_faults.geojson'  # noqa
 
     def __init__(self):
@@ -106,14 +131,14 @@ class ActiveFaults(object):
             self.download()
 
         self.active_faults = []
-        self._load_faults(self.fname_active_faults, ActiveFault)
+        self._load_faults(self.fname_active_faults)
 
-    def _load_faults(self, fname, cls):
+    def _load_faults(self, fname):
         with open(fname, 'r') as f:
             gj = json.load(f)
             faults = gj['features']
             for f in faults:
-                fault = cls(f)
+                fault = ActiveFault(f)
                 self.active_faults.append(fault)
         logger.debug('loaded %d fault', self.nactive_faults)
 

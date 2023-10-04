@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Base classes for the scenario generators.
+'''
+
 import math
 import hashlib
 import logging
@@ -77,6 +81,9 @@ def random_uniform(rstate, xmin, xmax, xdefault):
 
 
 class Generator(Object):
+    '''
+    Base class for random object generators in :py:mod:`pyrocko.scenario`.
+    '''
     seed = Int.T(
         optional=True,
         help='Random seed for a reproducible scenario.')
@@ -150,6 +157,9 @@ class Generator(Object):
 
 
 class LocationGenerator(Generator):
+    '''
+    Base class for generators providing random locations.
+    '''
 
     avoid_water = Bool.T(
         default=True,

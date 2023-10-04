@@ -427,7 +427,7 @@ def load_response_information(
                 (tts(resp.start_date), tts(resp.end_date), units)))
 
     elif format == 'stationxml':
-        from pyrocko.fdsn import station as fs
+        from pyrocko.io import stationxml as fs
 
         sx = fs.load_xml(filename=filename)
         for network in sx.network_list:

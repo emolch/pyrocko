@@ -141,14 +141,15 @@ Instead of hard-coding the data sources in the script, we could set them with
 command line arguments. The :py:mod:`pyrocko.squirrel.tool` module offers
 functionality to set up a program so that it accepts the same options and
 arguments like for example ``squirrel scan``. Here's the complete program after
-changing it to use :py:class:`~pyrocko.squirrel.tool.SquirrelArgumentParser`:
+changing it to use
+:py:class:`~pyrocko.squirrel.tool.common.SquirrelArgumentParser`:
 
 .. literalinclude :: /../../examples/squirrel_rms2.py
     :caption: :download:`squirrel_rms2.py </../../examples/squirrel_rms2.py>` - Notable differences to :ref:`Variant 1 <squirrel_quick_and_dirty>` highlighted.
     :language: python
     :emphasize-lines: 17-27
 
-:py:class:`~pyrocko.squirrel.tool.SquirrelArgumentParser` inherits from
+:py:class:`~pyrocko.squirrel.tool.common.SquirrelArgumentParser` inherits from
 :py:class:`argparse.ArgumentParser` from the Python Standard Library but has a
 few extra features useful when working with squirrels.
 
@@ -268,9 +269,10 @@ Variant 3: structured CLI app
 In this next iteration of our example RMS app, we will:
 
 - Improve the program structure by the use of
-  :py:class:`~pyrocko.squirrel.tool.SquirrelCommand` and :py:func:`squirrel.run
-  <pyrocko.squirrel.tool.run>`. This will also enable catching certain
-  exceptions and reporting failure conditions in a consistent way.
+  :py:class:`~pyrocko.squirrel.tool.common.SquirrelCommand` and
+  :py:func:`squirrel.run <pyrocko.squirrel.tool.cli.run>`. This will also
+  enable catching certain exceptions and reporting failure conditions in a
+  consistent way.
 - Add options to select the channels and time spans to be processed
   (``--codes``, ``--tmin``, ``--tmax``)
 - Add options to select the frequency range (``--fmin``, ``--fmax``).
@@ -280,19 +282,21 @@ In this next iteration of our example RMS app, we will:
   exercise for the reader.
 
 For each subcommand we want to support, we will create a subclass of
-:py:class:`~pyrocko.squirrel.tool.SquirrelCommand` and overload the methods
-:py:meth:`~pyrocko.squirrel.tool.SquirrelCommand.make_subparser`,
-:py:meth:`~pyrocko.squirrel.tool.SquirrelCommand.setup`, and
-:py:meth:`~pyrocko.squirrel.tool.SquirrelCommand.run`.  The name and
+:py:class:`~pyrocko.squirrel.tool.common.SquirrelCommand` and overload the
+methods
+:py:meth:`~pyrocko.squirrel.tool.common.SquirrelCommand.make_subparser`,
+:py:meth:`~pyrocko.squirrel.tool.common.SquirrelCommand.setup`, and
+:py:meth:`~pyrocko.squirrel.tool.common.SquirrelCommand.run`.  The name and
 description of the subcommand is configured in
-:py:meth:`~pyrocko.squirrel.tool.SquirrelCommand.make_subparser`. In
-:py:meth:`~pyrocko.squirrel.tool.SquirrelCommand.setup`, we can configure the
-parser and add custom arguments.
-:py:meth:`~pyrocko.squirrel.tool.SquirrelCommand.run` will be called after
-command line arguments have been processed. Finally, we put everything together
-with a single call to :py:func:`squirrel.run <pyrocko.squirrel.tool.run>`. This
-will process arguments and dispatch to the appropriate subcommand's ``run()``
-or print a help message if no subcommand is selected.
+:py:meth:`~pyrocko.squirrel.tool.common.SquirrelCommand.make_subparser`. In
+:py:meth:`~pyrocko.squirrel.tool.common.SquirrelCommand.setup`, we can
+configure the parser and add custom arguments.
+:py:meth:`~pyrocko.squirrel.tool.common.SquirrelCommand.run` will be called
+after command line arguments have been processed. Finally, we put everything
+together with a single call to :py:func:`squirrel.run
+<pyrocko.squirrel.tool.cli.run>`. This will process arguments and dispatch
+to the appropriate subcommand's ``run()`` or print a help message if no
+subcommand is selected.
 
 Here's the final implementation of the RMS tool:
 
@@ -304,8 +308,8 @@ Here's the final implementation of the RMS tool:
 
     If we do not need multiple subcommands, we can still use the same structure
     of our program. We can pass a single
-    :py:class:`~pyrocko.squirrel.tool.SquirrelCommand` to the ``command``
-    argument of :py:func:`squirrel.run <pyrocko.squirrel.tool.run>`::
+    :py:class:`~pyrocko.squirrel.tool.common.SquirrelCommand` to the ``command``
+    argument of :py:func:`squirrel.run <pyrocko.squirrel.tool.cli.run>`::
 
         squirrel.run(
             command=PlotRMSTool(),

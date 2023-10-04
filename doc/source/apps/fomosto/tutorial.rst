@@ -39,6 +39,10 @@ Invocation and online help
 Fomosto is a command line program. A brief help overview is shown, when it is
 started without any arguments.
 
+.. application:: fomosto
+
+.. application:: fomosto server
+
 .. highlight:: console
 
 ::

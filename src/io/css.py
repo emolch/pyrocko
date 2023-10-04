@@ -3,6 +3,13 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader of CSS wfdisc waveform data.
+
+See http://nappe.wustl.edu/antelope/css-formats/wfdisc.htm for file format
+reference.
+'''
+
 import os
 import numpy as num
 import logging
@@ -11,11 +18,6 @@ from pyrocko import trace, util
 
 logger = logging.getLogger('pyrocko.io.css')
 
-
-'''
-See http://nappe.wustl.edu/antelope/css-formats/wfdisc.htm for file format
-reference.
-'''
 
 storage_types = {
         's4': ('>%ii'),

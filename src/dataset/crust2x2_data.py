@@ -3,21 +3,9 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 '''
+Auxiliary data for :py:mod:`~pyrocko.dataset.crust2x2`.
+
 Compressed datafiles for the CRUST2.0 model by Laske, Masters and Reif.
-
-Reference
----------
-
-Please refer to the REM web site if you use this model:
-
-    http://igppweb.ucsd.edu/~gabi/rem.html
-
-or
-
-Bassin, C., Laske, G. and Masters, G., The Current Limits of Resolution for
-Surface Wave Tomography in North America, EOS Trans AGU, 81, F897, 2000. A
-description of CRUST 5.1 can be found in: Mooney, Laske and Masters, Crust 5.1:
-a global crustal model at 5x5 degrees, JGR, 103, 727-747, 1998.
 '''
 
 import bz2

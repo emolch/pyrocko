@@ -3,12 +3,15 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+WADL data model.
+'''
 
 import re
 
 from pyrocko import guts
 from pyrocko.guts import make_typed_list_class, String, StringChoice, List, \
-    Int, Object, Union, Bool, Defer
+    Int, Object, StringUnion, Bool, Defer
 
 from pyrocko.io.io_common import FileLoadError
 
@@ -59,7 +62,7 @@ class Doc(Object):
     title = String.T(optional=True, xmlstyle='attribute')
 
 
-class Method2(Union):
+class Method2(StringUnion):
     members = [HTTPMethods, String]
 
 

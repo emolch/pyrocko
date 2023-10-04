@@ -3,6 +3,12 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Strain rate (`GSRM1 <https://gsrm.unavco.org/>`_) and plate boundaries
+(`PeterBird2003
+<http://peterbird.name/publications/2003_PB2002/2003_PB2002.htm>`_).
+'''
+
 import os.path as op
 import math
 from collections import defaultdict
@@ -86,7 +92,10 @@ class Boundary(Object):
         return results
 
 
-class Dataset(object):
+class TectonicsDataset(object):
+    '''
+    Base class for datasets in :py:mod:`pyrocko.dataset.tectonics`.
+    '''
 
     def __init__(self, name, data_dir, citation):
         self.name = name
@@ -104,18 +113,20 @@ class Dataset(object):
             url, fpath, username, password, status_callback=status_callback)
 
 
-class PlatesDataset(Dataset):
-    pass
+class PlatesDataset(TectonicsDataset):
+    '''
+    Base class for datasets describing plate boundaries.
+    '''
 
 
 class PeterBird2003(PlatesDataset):
     '''
     An updated digital model of plate boundaries.
     '''
-    __citation = '''
-    Bird, Peter. "An updated digital model of plate boundaries." Geochemistry,
-    Geophysics, Geosystems 4.3 (2003).
-    '''
+
+    __citation = \
+        'Bird, Peter. "An updated digital model of plate boundaries." ' \
+        'Geochemistry, Geophysics, Geosystems 4.3 (2003).'
 
     def __init__(
             self,
@@ -254,18 +265,22 @@ class PeterBird2003(PlatesDataset):
         return plates
 
 
-class StrainRateDataset(Dataset):
-    pass
+class StrainRateDataset(TectonicsDataset):
+    '''
+    Base class for strain rate datasets.
+    '''
 
 
 class GSRM1(StrainRateDataset):
     '''
     Global Strain Rate Map. An integrated global model of present-day
-    plate motions and plate boundary deformation'''
-    __citation = '''Kreemer, C., W.E. Holt, and A.J. Haines, "An integrated
-    global model of present-day plate motions and plate boundary deformation",
-    Geophys. J. Int., 154, 8-34, 2003.
+    plate motions and plate boundary deformation.
     '''
+
+    __citation = \
+        'Kreemer, C., W.E. Holt, and A.J. Haines, "An integrated global ' \
+        'model of present-day plate motions and plate boundary ' \
+        'deformation", Geophys. J. Int., 154, 8-34, 2003.'
 
     def __init__(
             self,
@@ -347,6 +362,11 @@ class GSRM1(StrainRateDataset):
 
         lons, lats, veast, vnorth, veast_err, vnorth_err, corr = arr.T
         return lats, lons, vnorth, veast, vnorth_err, veast_err, corr
+
+
+for cls in PeterBird2003, GSRM1:
+    cls.__doc__ += '\n\n    .. note::\n        Please cite: %s\n' \
+        % getattr(cls, '_%s__citation' % cls.__name__)
 
 
 __all__ = '''

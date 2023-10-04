@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel update`.
+'''
+
 import logging
 
 # from pyrocko.squirrel.error import SquirrelError

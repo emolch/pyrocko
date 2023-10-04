@@ -6,7 +6,7 @@ Squirrel-powered data access
 ----------------------------
 
 Code examples on how to use the :doc:`Squirrel framework
-</library/reference/squirrel/index>` for seismological data handling.
+</library/reference/pyrocko.squirrel>` for seismological data handling.
 
 .. raw:: html
 

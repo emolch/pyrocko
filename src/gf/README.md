@@ -8,6 +8,6 @@ The `pyrocko.gf` subpackage splits functionality into several submodules:
 * The `pyrocko.gf.builder` module defines a common base for Green's function store builders.
 * The `pyrocko.gf.seismosizer` module provides high level synthetic seismogram synthesis.
 
-All classes defined in the `pyrocko.gf.*` submodules are imported into the
+All classes defined in the `pyrocko.gf` submodules are imported into the
 `pyrocko.gf` namespace, so user scripts may simply use ``from pyrocko
 import gf`` or ``from pyrocko.gf import *`` for convenience.

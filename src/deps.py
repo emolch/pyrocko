@@ -3,6 +3,9 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Library dependency checkup utilities.
+'''
 
 import sys
 import os.path as op

@@ -2,6 +2,11 @@
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
+
+'''
+Progressbar replacement class which just outputs progress to log.
+'''
+
 import time
 import logging
 

@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel codes`.
+'''
+
+
 from pyrocko.squirrel.model import to_kind
 
 

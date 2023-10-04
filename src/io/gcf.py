@@ -3,6 +3,12 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Reader for the `Güralp GCF
+<https://www.guralp.com/customer-support/common-questions/other-data-formats/data-formats/gcf>`_
+format.
+'''
+
 import sys
 import struct
 import re

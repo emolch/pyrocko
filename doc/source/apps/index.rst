@@ -2,8 +2,7 @@
 Applications
 ============
 
-Pyrocko contains a few standalone applications for everyday seismological
-practice.
+Applications for everyday seismological practice.
 
 .. toctree::
    :maxdepth: 1
@@ -15,3 +14,4 @@ practice.
    colosseo/index
    squirrel/index
    sparrow/index
+   pyrocko/index

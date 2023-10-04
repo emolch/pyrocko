@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Read instrument responses from `SEISAN <http://seisan.info/>`_ files.
+'''
+
 import calendar
 import logging
 import numpy as num

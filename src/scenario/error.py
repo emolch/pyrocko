@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Exceptions definitions.
+'''
+
+
 class ScenarioError(Exception):
     pass
 

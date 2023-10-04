@@ -3,6 +3,19 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Multiresolution topography and bathymetry datasets.
+
+This module provides access to gridded topography data from the following
+sources:
+
+* NOAA `ETOPO1 <https://www.ngdc.noaa.gov/mgg/global/>`_ Global Relief Map.
+* NASA Shuttle Radar Topography Mission Global 30 arc second (`SRTMGL3
+  <https://lpdaac.usgs.gov/dataset_discovery/measures/measures_products_table/srtmgl3_v003>`_)
+  topography data.
+
+'''
+
 import math
 import os.path as op
 
@@ -11,8 +24,6 @@ from .srtmgl3 import SRTMGL3, AuthenticationRequired  # noqa
 from .etopo1 import ETOPO1
 from . import dataset, tile
 from pyrocko.plot.cpt import get_cpt_path as cpt  # noqa
-
-__doc__ = util.parse_md(__file__)
 
 positive_region = tile.positive_region
 
@@ -25,74 +36,74 @@ m2d = 1./d2m
 
 topo_data_dir = config.config().topo_dir
 
-srtmgl3 = SRTMGL3(
+_srtmgl3 = SRTMGL3(
     name='SRTMGL3',
     data_dir=op.join(topo_data_dir, 'SRTMGL3'))
 
-srtmgl3_d2 = dataset.DecimatedTiledGlobalDataset(
+_srtmgl3_d2 = dataset.DecimatedTiledGlobalDataset(
     name='SRTMGL3_D2',
-    base=srtmgl3,
+    base=_srtmgl3,
     ndeci=2,
     data_dir=op.join(topo_data_dir, 'SRTMGL3_D2'))
 
-srtmgl3_d4 = dataset.DecimatedTiledGlobalDataset(
+_srtmgl3_d4 = dataset.DecimatedTiledGlobalDataset(
     name='SRTMGL3_D4',
-    base=srtmgl3_d2,
+    base=_srtmgl3_d2,
     ndeci=2,
     data_dir=op.join(topo_data_dir, 'SRTMGL3_D4'))
 
-srtmgl3_d8 = dataset.DecimatedTiledGlobalDataset(
+_srtmgl3_d8 = dataset.DecimatedTiledGlobalDataset(
     name='SRTMGL3_D8',
-    base=srtmgl3_d4,
+    base=_srtmgl3_d4,
     ndeci=2,
     ntx=1001,
     nty=1001,
     data_dir=op.join(topo_data_dir, 'SRTMGL3_D8'))
 
-etopo1 = ETOPO1(
+_etopo1 = ETOPO1(
     name='ETOPO1',
     data_dir=op.join(topo_data_dir, 'ETOPO1'))
 
-etopo1_d2 = dataset.DecimatedTiledGlobalDataset(
+_etopo1_d2 = dataset.DecimatedTiledGlobalDataset(
     name='ETOPO1_D2',
-    base=etopo1,
+    base=_etopo1,
     ndeci=2,
     data_dir=op.join(topo_data_dir, 'ETOPO1_D2'))
 
-etopo1_d4 = dataset.DecimatedTiledGlobalDataset(
+_etopo1_d4 = dataset.DecimatedTiledGlobalDataset(
     name='ETOPO1_D4',
-    base=etopo1_d2,
+    base=_etopo1_d2,
     ndeci=2,
     data_dir=op.join(topo_data_dir, 'ETOPO1_D4'))
 
-etopo1_d8 = dataset.DecimatedTiledGlobalDataset(
+_etopo1_d8 = dataset.DecimatedTiledGlobalDataset(
     name='ETOPO1_D8',
-    base=etopo1_d4,
+    base=_etopo1_d4,
     ndeci=2,
     data_dir=op.join(topo_data_dir, 'ETOPO1_D8'))
 
-srtmgl3_all = [
-    srtmgl3,
-    srtmgl3_d2,
-    srtmgl3_d4,
-    srtmgl3_d8]
+_srtmgl3_all = [
+    _srtmgl3,
+    _srtmgl3_d2,
+    _srtmgl3_d4,
+    _srtmgl3_d8]
 
-etopo1_all = [
-    etopo1,
-    etopo1_d2,
-    etopo1_d4,
-    etopo1_d8]
+_etopo1_all = [
+    _etopo1,
+    _etopo1_d2,
+    _etopo1_d4,
+    _etopo1_d8]
 
-dems = srtmgl3_all + etopo1_all
+_dems = _srtmgl3_all + _etopo1_all
 
 
 def make_all_missing_decimated():
-    for dem in dems:
+    for dem in _dems:
         if isinstance(dem, dataset.DecimatedTiledGlobalDataset):
             dem.make_all_missing()
 
 
-def comparison(region, dems=dems):
+def comparison(region, dems=_dems):
     import matplotlib.pyplot as plt
 
     west, east, south, north = tile.positive_region(region)
@@ -116,11 +127,11 @@ class UnknownDEM(Exception):
 
 
 def dem_names():
-    return [dem.name for dem in dems]
+    return [dem.name for dem in _dems]
 
 
 def dem(dem_name):
-    for dem in dems:
+    for dem in _dems:
         if dem.name == dem_name:
             return dem
 
@@ -152,12 +163,12 @@ def select_dem_names(kind, dmin, dmax, region, mode='highest'):
 
     ok = []
     if kind == 'land':
-        for dem in srtmgl3_all[::step]:
+        for dem in _srtmgl3_all[::step]:
             if dem.is_suitable(region, dmin, dmax):
                 ok.append(dem.name)
                 break
 
-    for dem in etopo1_all[::step]:
+    for dem in _etopo1_all[::step]:
         if dem.is_suitable(region, dmin, dmax):
             ok.append(dem.name)
             break
@@ -166,6 +177,6 @@ def select_dem_names(kind, dmin, dmax, region, mode='highest'):
 
 
 if __name__ == '__main__':
-    # comparison((-180., 180., -90, 90), dems=[etopo1_d8])
+    # comparison((-180., 180., -90, 90), dems=[_etopo1_d8])
     util.setup_logging('topo', 'info')
-    comparison((30, 31, 30, 31), dems=[srtmgl3, srtmgl3_d2])
+    comparison((30, 31, 30, 31), dems=[_srtmgl3, _srtmgl3_d2])

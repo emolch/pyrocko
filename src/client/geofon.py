@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Client to get earthquake catalog information from
+`GEOFON <http://geofon.gfz-potsdam.de/>`_.
+'''
+
 import time
 import re
 import logging

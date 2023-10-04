@@ -1273,16 +1273,19 @@ statichere PyTypeObject avl_tree_Type = {
 /* --------------------------------------------------------------------- */
 
 PyDoc_STRVAR(avl_new__doc__,
-			 "Factory usage:\n"
+			 "Factory usage::\n"
+             "\n"
 			 "    t = avl.new(arg, compare=None, unique=0)\n"
+             "\n"
 			 "* With no argument, returns a new and empty tree;\n"
 			 "* Given a list, it will return a new tree containing the elements of the list,\n"
-			 "and will sort the list as a side-effect\n"
-			 "-- optional arguments:\n"
-			 "   'compare' (callable or None): Python key-comparison function, or None by\n"
-			 "              default\n"
-			 "   'unique' (boolean): 1 to ignore duplicates, 0 by default;\n"
-			 "* Given a tree, it will return a copy of the original tree (ignoring any other\nargument)");
+			 "  and will sort the list as a side-effect\n"
+			 "* Given a tree, it will return a copy of the original tree (ignoring any other argument)\n"
+			 "\n"
+			 ":param compare: Python key-comparison function\n"
+             ":type compare: callable or ``None``\n"
+			 ":param unique: ignore duplicates\n"
+			 ":type unique: bool\n");
 
 typedef enum { ARG_DEFAULT = 0, ARG_AVLTREE, ARG_LIST } arg_kind_t;
 
@@ -1533,9 +1536,7 @@ static PyMethodDef avl_methods[] = {
 };
 
 PyDoc_STRVAR(avl_module_doc,
-			 "Implements a dual-personality object "
-			 "(that can act like a sequence and an ordered container) "
-			 "with AVL trees");
+     "Efficient ordered sequence container based on AVL trees.");
 
 
 /*

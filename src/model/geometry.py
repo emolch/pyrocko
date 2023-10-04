@@ -3,6 +3,11 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Representation of geometrical objects built from vertices, faces, outlines,
+etc.
+'''
+
 import numpy as num
 
 from pyrocko.guts import Object, List

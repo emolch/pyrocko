@@ -6,8 +6,8 @@ of waveforms, seismic events, and station metadata. To translate between the
 different representations, several converter functions are available in the
 compatibility module :py:mod:`pyrocko.obspy_compat`. For further convenience,
 it can add these converters as Python methods to the respective waveform,
-event, and station objects (:py:func:`pyrocko.obspy_compat.plant`, see for list
-of installed methods).
+event, and station objects (:py:func:`pyrocko.obspy_compat.base.plant`, see for
+list of installed methods).
 
 .. code-block:: python
 

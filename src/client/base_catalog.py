@@ -3,14 +3,21 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Base class for earthquake catalog clients.
+'''
+
 
 class EarthquakeCatalog(object):
+    '''
+    Base class for Pyrocko's earthquake catalog clients.
+    '''
 
     def get_event(self, name):
-        raise Exception('This method should be implemented in derived class.')
+        raise NotImplementedError
 
     def iter_event_names(self, time_range, **kwargs):
-        raise Exception('This method should be implemented in derived class.')
+        raise NotImplementedError
 
     def get_event_names(self, time_range, **kwargs):
         return list(self.iter_event_names(time_range, **kwargs))

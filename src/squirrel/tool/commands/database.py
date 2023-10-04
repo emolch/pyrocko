@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Implementation of :app:`squirrel database`.
+'''
+
 import logging
 
 from pyrocko import squirrel as sq

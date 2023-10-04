@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Web service to distribute precomputed GFs (:app:`fomosto server`).
+'''
+
 import time
 import requests
 

@@ -24,7 +24,7 @@ QuakeML Manual for details.
 
 import logging
 from pyrocko.guts import StringPattern, StringChoice, String, Float, Int,\
-    Timestamp, Object, List, Union, Bool, Unicode
+    Timestamp, Object, List, StringUnion, Bool, Unicode
 from pyrocko.model import event
 from pyrocko.gui.snuffler import marker
 from pyrocko import moment_tensor
@@ -517,7 +517,7 @@ class OriginUncertainty(Object):
     confidence_level = Float.T(optional=True)
 
 
-class ResourceReferenceOptional(Union):
+class ResourceReferenceOptional(StringUnion):
     members = [ResourceReference.T(), WhitespaceOrEmptyStringType.T()]
 
 
@@ -1092,7 +1092,8 @@ class QuakeML(Object):
         Get pick information in Pyrocko's basic marker format.
 
         :rtype:
-            List of :py:class:`pyrocko.gui.marker.PhaseMarker` objects.
+            List of :py:class:`pyrocko.gui.snuffler.marker.PhaseMarker`
+            objects.
         '''
         markers = []
         for e in self.event_parameters.event_list:
@@ -1108,17 +1109,17 @@ class QuakeML(Object):
         :param stream:
             Stream open for reading in binary mode.
         :type stream:
-            file-like object, optional
+            *file-like object*
 
         :param filename:
             Path to file to be opened for reading.
         :type filename:
-            str, optional
+            str
 
         :param string:
             String with QuakeML data to be deserialized.
         :type string:
-            str, optional
+            str
 
         The arguments ``stream``, ``filename``, and ``string`` are mutually
         exclusive.

@@ -3,7 +3,10 @@
 #
 # Code is considered public domain, based on
 # https://gist.github.com/jtriley/1108174
-#
+
+'''
+Cross platform get terminal size utilities.
+'''
 
 import os
 import struct

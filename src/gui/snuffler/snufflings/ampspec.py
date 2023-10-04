@@ -22,25 +22,29 @@ def window(freqs, fc, b):
 
 
 class AmpSpec(Snuffling):
-    '''
-    <html>
-    <head>
-    <style type="text/css">
-        body { margin-left:10px };
-    </style>
-    <body>
-    <h1 align='center'>Plot Amplitude Spectrum</h1>
-    <p>
-    When smoothing is activated, a smoothing algorithm is applied as proposed
-    by Konno and Ohmachi, (1998). </p>
-    <p style='font-family:courier'>
-        Konno, K. and Omachi, T. (1998). Ground-motion characteristics
-        estimated from spectral ratio between horizontal and vertical
-        components of microtremor, Bull. Seism. Soc. Am., 88, 228-241
-    </p>
-    </body>
-    </html>
-    '''
+
+    def help(self):
+        return '''
+<html>
+<head>
+<style type="text/css">
+    body { margin-left:10px };
+</style>
+<body>
+<h1 align="center">Plot Amplitude Spectrum</h1>
+<p>
+When smoothing is activated, a smoothing algorithm is applied as
+proposed
+by Konno and Ohmachi, (1998). </p>
+<p style='font-family:courier'>
+    Konno, K. and Omachi, T. (1998). Ground-motion characteristics
+    estimated from spectral ratio between horizontal and vertical
+    components of microtremor, Bull. Seism. Soc. Am., 88, 228-241
+</p>
+</body>
+</html>
+        '''
+
     def setup(self):
         '''Customization of the snuffling.'''
 

@@ -409,11 +409,10 @@ static int ahfullgreen_ext_clear(PyObject *m) {
     return 0;
 }
 
-
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
         "ahfullgreen_ext",
-        NULL,
+        "C-extension supporting :py:mod:`pyrocko.ahfullgreen`.",
         sizeof(struct module_state),
         ahfullgreen_ext_methods,
         NULL,

@@ -3,6 +3,10 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+'''
+Data model for Green's function store meta-data.
+'''
+
 import math
 import re
 import fnmatch
@@ -259,6 +263,7 @@ class ComponentScheme(StringChoice):
 
 class Earthmodel1D(Object):
     dummy_for = cake.LayeredModel
+    dummy_for_description = 'pyrocko.cake.LayeredModel'
 
     class __T(TBase):
         def regularize_extra(self, val):
@@ -668,6 +673,9 @@ class OutOfBounds(Exception):
 
 
 class MultiLocation(Object):
+    '''
+    Unstructured grid of point coordinates.
+    '''
 
     lats = Array.T(
         optional=True, shape=(None,), dtype=float,
@@ -767,10 +775,16 @@ def g(x, d):
 
 
 class UnavailableScheme(Exception):
+    '''
+    Raised when it is not possible to use the requested component scheme.
+    '''
     pass
 
 
 class InvalidNComponents(Exception):
+    '''
+    Raised when ``ncomponents`` is incompatible with ``component_scheme``.
+    '''
     pass
 
 
@@ -789,12 +803,12 @@ class DiscretizedSource(Object):
     are implemented in the base class. How Green's function components have to
     be weighted and sumed is defined in the derived classes.
 
-    Like in the :py:class:`Location` class, the positions of the point sources
-    contained in the discretized source are defined by a common reference point
-    (:py:attr:`lat`, :py:attr:`lon`) and cartesian offsets to this
-    (:py:attr:`north_shifts`, :py:attr:`east_shifts`, :py:attr:`depths`).
-    Alternatively latitude and longitude of each contained point source can be
-    specified directly (:py:attr:`lats`, :py:attr:`lons`).
+    Like in the :py:class:`pyrocko.model.location.Location` class, the
+    positions of the point sources contained in the discretized source are
+    defined by a common reference point (:py:attr:`lat`, :py:attr:`lon`) and
+    cartesian offsets to this (:py:attr:`north_shifts`, :py:attr:`east_shifts`,
+    :py:attr:`depths`). Alternatively latitude and longitude of each contained
+    point source can be specified directly (:py:attr:`lats`, :py:attr:`lons`).
     '''
 
     times = Array.T(shape=(None,), dtype=float)

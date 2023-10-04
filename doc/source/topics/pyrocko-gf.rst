@@ -431,8 +431,8 @@ The :class:`~pyrocko.gf.targets.SatelliteTarget` defines the locations of displa
        theta=theta,
        store_id='ak135_static')
 
-The :class:`~pyrocko.gf.GNSSCampaignTarget` defines station locations and the
-three components: east, north and up.
+The :class:`~pyrocko.gf.targets.GNSSCampaignTarget` defines station locations
+and the three components: east, north and up.
 
 Forward modelling with Pyrocko-GF
 =================================

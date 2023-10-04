@@ -132,7 +132,7 @@ class Talkie(Object):
                     if not equal(s_val, o_val):
                         yield 'set', path + (s_prop.name,), clone(o_val)
             else:
-                if issubclass(s_prop.content_t.cls, Talkie):
+                if issubclass(s_prop.content_t._cls, Talkie):
                     sm = difflib.SequenceMatcher(
                         None,
                         type_eq_proxy_seq(s_val),
@@ -196,7 +196,7 @@ class Talkie(Object):
                     if not equal(s_val, o_val):
                         setattr(self, s_prop.name, clone(o_val))
             else:
-                if issubclass(s_prop.content_t.cls, Talkie):
+                if issubclass(s_prop.content_t._cls, Talkie):
                     sm = difflib.SequenceMatcher(
                         None,
                         type_eq_proxy_seq(s_val),
