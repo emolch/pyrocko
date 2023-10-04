@@ -2510,6 +2510,11 @@ def read_leap_seconds2():
         logger.info(
             'Leap seconds default URL is now: %s\nUsing new default.' % url)
 
+    if url == 'https://www.ietf.org/timezones/data/leap-seconds.list':
+        url = 'https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list'
+        logger.info(
+            'Leap seconds default URL is now: %s\nUsing new default.' % url)
+
     for i in range(3):
         try:
             return parse_leap_seconds_list(fn)

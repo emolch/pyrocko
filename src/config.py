@@ -116,7 +116,7 @@ class PyrockoConfig(ConfigBase):
     leapseconds_path = PathWithPlaceholders.T(
         default=os.path.join(pyrocko_dir_tmpl, 'leap-seconds.list'))
     leapseconds_url = String.T(
-        default='https://www.ietf.org/timezones/data/leap-seconds.list')
+        default='https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list')
     earthdata_credentials = Tuple.T(
         2, String.T(),
         optional=True)
