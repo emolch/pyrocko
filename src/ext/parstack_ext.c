@@ -167,7 +167,7 @@ int parstackf(
                     #pragma omp simd
                 #endif
                 for (i=(size_t)i32max(0, imin - istart); i<(size_t)i32max(0, i32min(nsamp - istart + imin, lengths[iarray])); i++) {
-                    result[ishift*nsamp + istart-imin+i] += arrays[iarray][i] * weight;
+                    result[ishift*nsamp + istart-imin+i] = result[ishift*nsamp + istart-imin+i] + arrays[iarray][i] * weight;
                 }
             }
         }
@@ -196,7 +196,7 @@ int parstackf(
                     #pragma omp simd
                 #endif
                 for (i=(size_t)i32max(0, imin - istart); i<(size_t)i32max(0, i32min(nsamp - istart + imin, lengths[iarray])); i++) {
-                    temp[istart-imin+i] += arrays[iarray][i] * weight;
+                    temp[istart-imin+i] = temp[istart-imin+i] + arrays[iarray][i] * weight;
                 }
             }
             m = 0.;
@@ -268,7 +268,7 @@ int parstack(
                     #pragma omp simd
                 #endif
                 for (i=(size_t)i32max(0, imin - istart); i<(size_t)i32max(0, i32min(nsamp - istart + imin, lengths[iarray])); i++) {
-                    result[ishift*nsamp + istart-imin+i] += arrays[iarray][i] * weight;
+                    result[ishift*nsamp + istart-imin+i] = result[ishift*nsamp + istart-imin+i] + arrays[iarray][i] * weight;
                 }
             }
         }
@@ -297,7 +297,7 @@ int parstack(
                     #pragma omp simd
                 #endif
                 for (i=(size_t)i32max(0, imin - istart); i<(size_t)i32max(0, i32min(nsamp - istart + imin, lengths[iarray])); i++) {
-                    temp[istart-imin+i] += arrays[iarray][i] * weight;
+                    temp[istart-imin+i] = temp[istart-imin+i] + arrays[iarray][i] * weight;
                 }
             }
             m = 0.;
