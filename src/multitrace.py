@@ -17,7 +17,7 @@ from scipy import signal
 
 from . import trace, util
 from .trace import Trace, AboveNyquist, _get_cached_filter_coeffs
-from .guts import Object, Float, Timestamp, List
+from .guts import Object, Float, Timestamp, List, Int
 from .guts_array import Array
 from .squirrel import \
     CodesNSLCE, SensorGrouping
@@ -52,10 +52,19 @@ class MultiTrace(Object):
     codes = List.T(
         CodesNSLCE.T(),
         help='List of codes identifying the components.')
+    nsamples = Int.T(
+        help='Number of samples.')
     data = Array.T(
+        optional=True,
         shape=(None, None),
         help='Array containing the data samples indexed as '
              '``(icomponent, isample)``.')
+    spectrum = Array.T(
+        optional=True,
+        shape=(None, None),
+        dtype=complex,
+        help='Array containing the spectral coefficients indexed as '
+             '``(icomponent, ifrequency)``.')
     tmin = Timestamp.T(
         default=Timestamp.D('1970-01-01 00:00:00'),
         help='Start time.')
@@ -68,6 +77,7 @@ class MultiTrace(Object):
             traces=None,
             assemble='concatenate',
             data=None,
+            nsamples=None,
             codes=None,
             tmin=None,
             deltat=None):
@@ -88,7 +98,14 @@ class MultiTrace(Object):
                     tmin = traces[0].tmin
                     deltat = traces[0].deltat
 
-        self.ntraces, self.nsamples = data.shape
+        if nsamples is not None and data is not None \
+                and data.shape[1] != nsamples:
+
+            raise ValueError(
+                'MultiTrace construction: mismatch between expected number of '
+                'samples and number of samples in data array.')
+
+        self.ntraces, nsamples = data.shape
 
         if codes is None:
             codes = [CodesNSLCE()] * self.ntraces
@@ -104,7 +121,13 @@ class MultiTrace(Object):
         if tmin is None:
             tmin = self.T.tmin.default()
 
-        Object.__init__(self, codes=codes, data=data, tmin=tmin, deltat=deltat)
+        Object.__init__(
+            self,
+            codes=codes,
+            data=data,
+            tmin=tmin,
+            nsamples=nsamples,
+            deltat=deltat)
 
     @property
     def summary_codes(self):
@@ -452,28 +475,39 @@ class MultiTrace(Object):
 
     def smooth(self, t, window=num.hanning):
         n = (int(num.round(t / self.deltat)) // 2) * 2 + 1
-        taper = num.hanning(n)
+        taper = window(n)
 
-        def multiply_taper(df, ntrans, spec):
+        def multiply_taper(frequency_delta, ntrans, spectrum):
             taper_pad = num.zeros(ntrans)
             taper_pad[:n//2+1] = taper[n//2:]
             taper_pad[-n//2+1:] = taper[:n//2]
             taper_fd = num.fft.rfft(taper_pad)
-            spec *= taper_fd[num.newaxis, :]
-            return spec
+            spectrum *= taper_fd[num.newaxis, :]
+            return spectrum
 
         self.apply_via_fft(
             multiply_taper,
             ntrans_min=n)
 
     def apply_via_fft(self, f, ntrans_min=0):
+        frequency_delta, ntrans, spectrum = self.get_spectrum(ntrans_min)
+        spectrum = f(frequency_delta, ntrans, spectrum)
+        data_new = num.fft.irfft(spectrum)[:, :self.nsamples]
+        self.set_data(data_new)
+
+    def get_spectrum(self, ntrans_min=0):
         ntrans = trace.nextpow2(max(ntrans_min, self.nsamples))
         data = ma.filled(self.data.astype(num.float64), 0.0)
-        spec = num.fft.rfft(data, ntrans)
-        df = 1.0 / (self.deltat * ntrans)
-        spec = f(df, ntrans, spec)
-        data2 = num.fft.irfft(spec)[:, :self.nsamples]
-        self.set_data(data2)
+        spectrum = num.fft.rfft(data, ntrans)
+        frequency_delta = 1.0 / (self.deltat * ntrans)
+        return frequency_delta, ntrans, spectrum
+
+    def get_cross_spectrum(self, ntrans_min=0):
+        frequency_delta, ntrans, spectrum = self.get_spectrum(ntrans_min)
+        return (
+            frequency_delta,
+            ntrans,
+            num.einsum('ik,jk->ijk', spectrum, num.conj(spectrum)))
 
     def get_codes_grouped(self, grouping):
         groups = defaultdict(list)

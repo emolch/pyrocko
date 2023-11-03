@@ -1,6 +1,6 @@
 import logging
 
-from pyrocko.util import glob_filter
+from pyrocko.util import glob_filter, GlobFilterNoMatch
 from pyrocko import squirrel
 from ..common import SquirrelCommand
 
@@ -25,9 +25,13 @@ def add_argument_dataset_names(parser, nargs):
 
 def get_matching_builtin_datasets(name_patterns):
     datasets = squirrel.dataset.get_builtin_datasets()
-    return [
-        (name, datasets[name])
-        for name in sorted(glob_filter(name_patterns, datasets.keys()))]
+    try:
+        return [
+            (name, datasets[name])
+            for name in sorted(glob_filter(
+                name_patterns, datasets.keys(), raise_if_nomatch=True))]
+    except GlobFilterNoMatch as e:
+        raise squirrel.ToolError(str(e)) from None
 
 
 class List(SquirrelCommand):
