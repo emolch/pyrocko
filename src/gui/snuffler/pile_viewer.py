@@ -249,6 +249,25 @@ box_styles_coverage['waveform_promise'] = [
             *(pyrocko.plot.tango_colors['skyblue2'] + (50,)))),
     )]
 
+box_styles_coverage['channel'] = [
+    ObjectStyle(
+        qg.QPen(
+            qg.QColor(*pyrocko.plot.tango_colors['orange3']),
+            1, qc.Qt.DashLine),
+        qg.QBrush(qg.QColor(
+            *(pyrocko.plot.tango_colors['orange1'] + (50,)))),
+    ),
+    ObjectStyle(
+        qg.QPen(qg.QColor(*pyrocko.plot.tango_colors['orange3'])),
+        qg.QBrush(qg.QColor(
+            *(pyrocko.plot.tango_colors['orange1'] + (50,)))),
+    ),
+    ObjectStyle(
+        qg.QPen(qg.QColor(*pyrocko.plot.tango_colors['chocolate3'])),
+        qg.QBrush(qg.QColor(
+            *(pyrocko.plot.tango_colors['chocolate2'] + (50,)))),
+    )]
+
 sday = 60*60*24.       # \
 smonth = 60*60*24*30.  # | only used as approx. intervals...
 syear = 60*60*24*365.  # /

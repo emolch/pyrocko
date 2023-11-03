@@ -68,8 +68,8 @@ def set_default_viewer(viewer):
     Set default viewer for progress indicators.
 
     :param viewer:
-        Name of viewer, choices: ``'terminal'``, ``'log'``, ``'off'``, default:
-        ``'terminal'``.
+        Name of viewer, choices: ``'terminal'``, ``'gui'``, ``'log'``,
+        ``'off'``, default: ``'terminal'``.
     :type viewer:
         str
     '''
@@ -92,12 +92,12 @@ class StatusViewer(object):
         return self
 
     def __exit__(self, *_):
-        self.cleanup()
+        self._cleanup()
 
         if self._parent:
             self._parent._remove_viewer(self)
 
-    def cleanup(self):
+    def _cleanup(self):
         pass
 
     def update(self, force):
@@ -108,6 +108,9 @@ class StatusViewer(object):
         if self._last_update + self._interval < now or force:
             self._draw()
             self._last_update = now
+
+    def _idle(self):
+        pass
 
     def _draw(self):
         pass
@@ -138,7 +141,7 @@ class TerminalStatusViewer(StatusViewer):
         self._nlines_max = 0
         self._isatty = sys.stdout.isatty()
 
-    def cleanup(self):
+    def _cleanup(self):
         if self._state == 1:
             sx, sy = self._terminal_size
             self._reset()
@@ -214,6 +217,174 @@ class TerminalStatusViewer(StatusViewer):
         self._print(ansi_clear_right)
 
 
+def make_TaskView():
+    from pyrocko.gui.qt_compat import qw, qg
+
+    class TaskView(qw.QFrame):
+        def __init__(self, task):
+            qw.QFrame.__init__(self)
+            layout = qw.QGridLayout()
+            self._task = task
+            label = qw.QLabel(task._render('terminal'))
+            label.setFont(qg.QFont('monospace'))
+            layout.addWidget(label, 0, 0)
+            self._label = label
+            self.setLayout(layout)
+
+        def update_progress(self):
+            self._label.setText(self._task._render('terminal'))
+
+    return TaskView
+
+
+TaskView = None
+
+
+def get_TaskView():
+    global TaskView
+    if TaskView is None:
+        TaskView = make_TaskView()
+
+    return TaskView
+
+
+def make_GUIStatusViewer():
+    from pyrocko.gui.qt_compat import qc, qw
+    from pyrocko.gui import util as gui_util
+
+    class DontShrinkFrame(qw.QFrame):
+
+        def __init__(self):
+            qw.QFrame.__init__(self)
+            self._size = None
+
+        def sizeHint(self):
+            size = qw.QFrame.sizeHint(self)
+            if self._size is not None:
+                size = qc.QSize(
+                    size.width(),
+                    max(self._size.height(), size.height()))
+
+            self._size = size
+            return size
+
+    class GUIStatusViewer(StatusViewer):
+
+        def __init__(self, parent):
+            StatusViewer.__init__(self, parent)
+
+            frame = DontShrinkFrame()
+            frame.setWindowTitle('Progress')
+            layout_outer = qw.QVBoxLayout()
+            frame.setLayout(layout_outer)
+
+            dummy = qw.QFrame()
+            dummy.setSizePolicy(qw.QSizePolicy(
+                qw.QSizePolicy.Expanding,
+                qw.QSizePolicy.Expanding))
+            layout_outer.addWidget(dummy)
+
+            layout = qw.QVBoxLayout()
+
+            layout_outer.insertLayout(-1, layout)
+
+            layout.setDirection(qw.QBoxLayout.BottomToTop)
+
+            self._frame = frame
+            self._layout = layout
+            self._task_views = {}
+            self._timers = []
+            self._last_size = None
+
+        def _cleanup(self):
+            pass
+
+        def _draw(self):
+
+            if not threading.current_thread().name == 'MainThread':
+                return
+
+            tasks = self._parent._tasks
+            task_views = self._task_views
+
+            add = [
+                task_id for task_id in tasks if task_id not in task_views]
+
+            for task_id in add:
+                self._add_task_view(task_id)
+
+            remove = [
+                task_id for task_id in task_views if task_id not in tasks]
+
+            for task_id in remove:
+                self._remove_task_view(task_id)
+
+            if task_views and not self._frame.isVisible():
+                self._frame.show()
+
+            if not task_views and self._layout.count() == 0 \
+                    and self._frame.isVisible():
+                self._frame.hide()
+
+            for task_view in task_views.values():
+                task_view.update_progress()
+
+            app = gui_util.get_app()
+            app.processEvents()
+
+        def _add_task_view(self, task_id):
+            view = get_TaskView()(self._parent._tasks[task_id])
+            self._task_views[task_id] = view
+            self._layout.addWidget(view)
+
+        def _remove_task_view(self, task_id):
+            view = self._task_views.pop(task_id)
+
+            timer = qc.QTimer()
+            self._timers.append(timer)
+
+            def do_remove():
+                view.hide()
+                self._layout.removeWidget(view)
+                self._timers.remove(timer)
+
+            if False:
+                timer.setSingleShot(True)
+                timer.setInterval(500)
+                timer.timeout.connect(do_remove)
+                timer.start()
+            else:
+                do_remove()
+
+        def _idle(self):
+            self._draw()
+
+    return GUIStatusViewer
+
+
+GUIStatusViewer = None
+
+
+def get_GUIStatusViewer():
+    global GUIStatusViewer
+    if GUIStatusViewer is None:
+        GUIStatusViewer = make_GUIStatusViewer()
+
+    return GUIStatusViewer
+
+
+def get_gui_status_viewer(parent):
+    from pyrocko import gui_util
+    app = gui_util.get_app()
+    win = app.get_main_window()
+    if win and hasattr(win, 'get_status_viewer'):
+        viewer = win.get_status_viewer(parent)
+        if viewer:
+            return viewer
+
+    return get_GUIStatusViewer()(parent)
+
+
 class Task(object):
     def __init__(
             self, progress, id, name, n, state='working', logger=None,
@@ -236,6 +407,7 @@ class Task(object):
         self._tcreate = time.time()
         self._group = group
         self._lock = threading.RLock()
+        self._views = {}
         self.update(0)
 
     def __enter__(self):
@@ -451,10 +623,6 @@ class Progress(object):
         self._viewers.append(viewer)
         return viewer
 
-    def _remove_viewer(self, viewer):
-        self._update(True)
-        self._viewers.remove(viewer)
-
     def task(self, name, n=None, logger=None, group=None):
         with self._lock:
             self._current_id += 1
@@ -463,6 +631,14 @@ class Progress(object):
             self._tasks[task._id] = task
             self._update(True)
             return task
+
+    def idle(self):
+        for viewer in self._viewers:
+            viewer._idle()
+
+    def _remove_viewer(self, viewer):
+        self._update(True)
+        self._viewers.remove(viewer)
 
     def _task_end(self, task):
         with self._lock:
@@ -495,6 +671,7 @@ class Progress(object):
 
 g_viewer_classes = {
     'terminal': TerminalStatusViewer,
+    'gui': get_gui_status_viewer,
     'log': LogStatusViewer,
     'off': DummyStatusViewer}
 
@@ -502,3 +679,4 @@ g_progress = Progress()
 progress = g_progress  # compatibility
 view = g_progress.view
 task = g_progress.task
+idle = g_progress.idle

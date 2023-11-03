@@ -145,7 +145,15 @@ def counting_threads():
         thread.start()
 
     while threads:
-        threads.pop().join()
+        thread = threads.pop(0)
+        thread.join(0.05)
+        if thread.is_alive():
+            threads.append(thread)
+
+        # calling idle() only needed for threads with
+        # GUITerminalViewer which should only draw from
+        # MainThread.
+        progress.idle()
 
 
 main()
