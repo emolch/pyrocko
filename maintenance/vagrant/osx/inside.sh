@@ -59,6 +59,7 @@ conda install -y \
     pyqt \
     pyyaml \
     requests \
+    pyproj \
     jinja2 \
     pytest
 
