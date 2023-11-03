@@ -16,7 +16,7 @@ RUN apt-get install -y \
     python3-pyqt5 python3-pyqt5.qtopengl python3-pyqt5.qtsvg \
     python3-pyqt5.qtwebengine python3-pyqt5.qtwebkit \
     python3-jinja2 python3-pybtex \
-    python3-geojson python3-pyqtgraph \
+    python3-geojson python3-pyqtgraph python3-pyproj \
     gmt gmt-gshhg poppler-utils imagemagick \
     autoconf gfortran \
     && rm -f /usr/lib/python*/EXTERNALLY-MANAGED \
