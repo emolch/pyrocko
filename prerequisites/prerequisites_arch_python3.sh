@@ -6,4 +6,4 @@ sudo pacman -Syu --noconfirm --needed \
     python-pyqt5 python-pyqt5-webengine \
     python-cairo \
     python-requests python-yaml python-jinja \
-    python-pytest python-coverage
+    python-pytest python-coverage python-pyproj

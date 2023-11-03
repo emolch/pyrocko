@@ -45,6 +45,7 @@ dependencies = [
     "pyyaml",
     "matplotlib",
     "requests",
+    "pyproj",
 ]
 
 [project.optional-dependencies]

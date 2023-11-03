@@ -6,6 +6,7 @@ scipy>=1.0
 pyyaml
 matplotlib
 requests
+pyproj
 pytest
 jinja2
 pybtex

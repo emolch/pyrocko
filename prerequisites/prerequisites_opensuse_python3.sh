@@ -6,5 +6,5 @@ sudo zypper -n install make git gcc python3-devel python3-setuptools \
     python3-matplotlib-qt4 \
     python3-PyYAML python3-Jinja2 \
     python3-requests \
-    python3-pytest python3-coverage
+    python3-pytest python3-coverage python3-pyproj
 

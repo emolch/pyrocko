@@ -5,6 +5,7 @@ scipy>=1.0
 pyyaml
 matplotlib
 requests
+pyproj
 jinja2
 pyqt
 vtk
