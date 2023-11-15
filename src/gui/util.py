@@ -147,8 +147,11 @@ class PyrockoQApplication(qw.QApplication):
             except Exception:
                 return False
 
-        if confirm():
-            for win in self.get_main_windows():
+        windows = self.get_main_windows()
+        instant_close = all(win.instant_close for win in windows)
+
+        if instant_close or confirm():
+            for win in windows:
                 win.instant_close = True
 
             self.closeAllWindows()
