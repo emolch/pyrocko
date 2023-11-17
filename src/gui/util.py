@@ -1989,3 +1989,15 @@ class StatusMessages(qw.QLabel):
             message = ''
 
         self.setText(message)
+
+
+def errorize(widget):
+    widget.setStyleSheet('''
+        QLineEdit {
+            background: rgb(200, 150, 150);
+        }''')
+
+
+def de_errorize(widget):
+    if isinstance(widget, qw.QWidget):
+        widget.setStyleSheet('')

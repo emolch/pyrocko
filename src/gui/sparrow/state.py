@@ -14,7 +14,10 @@ from pyrocko.guts import StringChoice, Float, List, Bool, Timestamp, Tuple, \
 from pyrocko.color import Color, interpolate as interpolate_color
 
 from pyrocko.gui import talkie
-from pyrocko.gui import util as gui_util
+from ..state import state_bind, state_bind_slider, state_bind_slider_float, \
+    state_bind_spinbox, state_bind_combobox, state_bind_combobox_color, \
+    state_bind_checkbox, state_bind_lineedit  # noqa
+
 from . import common, light
 
 guts_prefix = 'sparrow'
@@ -130,150 +133,6 @@ class ViewerState(talkie.TalkieRoot):
         self.elements.sort(key=lambda el: el.element_id)
 
 
-def state_bind(
-        owner, state, paths, update_state,
-        widget, signals, update_widget, attribute=None):
-
-    def make_wrappers(widget):
-        def wrap_update_widget(*args):
-            if attribute:
-                update_widget(state, attribute, widget)
-            else:
-                update_widget(state, widget)
-            common.de_errorize(widget)
-
-        def wrap_update_state(*args):
-            try:
-                if attribute:
-                    update_state(widget, state, attribute)
-                else:
-                    update_state(widget, state)
-                common.de_errorize(widget)
-            except Exception as e:
-                logger.warn('Caught exception: %s' % e)
-                common.errorize(widget)
-
-        return wrap_update_widget, wrap_update_state
-
-    wrap_update_widget, wrap_update_state = make_wrappers(widget)
-
-    for sig in signals:
-        sig.connect(wrap_update_state)
-
-    for path in paths:
-        owner.talkie_connect(state, path, wrap_update_widget)
-
-    wrap_update_widget()
-
-
-def state_bind_slider(
-        owner, state, path, widget, factor=1.,
-        dtype=float,
-        min_is_none=False,
-        max_is_none=False):
-
-    viewer = common.get_viewer()
-    widget.sliderPressed.connect(viewer.disable_capture)
-    widget.sliderReleased.connect(viewer.enable_capture)
-
-    def make_funcs():
-        def update_state(widget, state):
-            val = widget.value()
-            if (min_is_none and val == widget.minimum()) \
-                    or (max_is_none and val == widget.maximum()):
-                state.set(path, None)
-            else:
-                viewer.status('%g' % (val * factor))
-                state.set(path, dtype(val * factor))
-
-        def update_widget(state, widget):
-            val = state.get(path)
-            widget.blockSignals(True)
-            if min_is_none and val is None:
-                widget.setValue(widget.minimum())
-            elif max_is_none and val is None:
-                widget.setValue(widget.maximum())
-            else:
-                widget.setValue(int(state.get(path) * 1. / factor))
-            widget.blockSignals(False)
-
-        return update_state, update_widget
-
-    update_state, update_widget = make_funcs()
-
-    state_bind(
-        owner, state, [path], update_state, widget, [widget.valueChanged],
-        update_widget)
-
-
-def state_bind_slider_float(
-        owner, state, path, widget,
-        min_is_none=False,
-        max_is_none=False):
-
-    assert isinstance(widget, gui_util.QSliderFloat)
-
-    viewer = common.get_viewer()
-    widget.sliderPressed.connect(viewer.disable_capture)
-    widget.sliderReleased.connect(viewer.enable_capture)
-
-    def make_funcs():
-        def update_state(widget, state):
-            val = widget.valueFloat()
-            if (min_is_none and val == widget.minimumFloat()) \
-                    or (max_is_none and val == widget.maximumFloat()):
-                state.set(path, None)
-            else:
-                viewer.status('%g' % (val))
-                state.set(path, val)
-
-        def update_widget(state, widget):
-            val = state.get(path)
-            widget.blockSignals(True)
-            if min_is_none and val is None:
-                widget.setValueFloat(widget.minimumFloat())
-            elif max_is_none and val is None:
-                widget.setValueFloat(widget.maximumFloat())
-            else:
-                widget.setValueFloat(state.get(path))
-            widget.blockSignals(False)
-
-        return update_state, update_widget
-
-    update_state, update_widget = make_funcs()
-
-    state_bind(
-        owner, state, [path], update_state, widget, [widget.valueChanged],
-        update_widget)
-
-
-def state_bind_spinbox(owner, state, path, widget, factor=1., dtype=float):
-    return state_bind_slider(owner, state, path, widget, factor, dtype)
-
-
-def state_bind_combobox(owner, state, path, widget):
-
-    def make_funcs():
-        def update_state(widget, state):
-            state.set(path, str(widget.currentText()))
-
-        def update_widget(state, widget):
-            widget.blockSignals(True)
-            val = state.get(path)
-            for i in range(widget.count()):
-                if str(widget.itemText(i)) == val:
-                    widget.setCurrentIndex(i)
-            widget.blockSignals(False)
-
-        return update_state, update_widget
-
-    update_state, update_widget = make_funcs()
-
-    state_bind(
-        owner, state, [path], update_state, widget, [widget.activated],
-        update_widget)
-
-
 def state_bind_combobox_background(owner, state, path, widget):
 
     def make_funcs():
@@ -306,73 +165,6 @@ def state_bind_combobox_background(owner, state, path, widget):
     state_bind(
         owner, state, [path], update_state, widget, [widget.activated],
         update_widget)
-
-
-def state_bind_combobox_color(owner, state, path, widget):
-
-    def make_funcs():
-        def update_state(widget, state):
-            value = str(widget.currentText())
-            state.set(path, Color(value))
-
-        def update_widget(state, widget):
-            widget.blockSignals(True)
-            val = str(state.get(path))
-            for i in range(widget.count()):
-                if str(widget.itemText(i)) == val:
-                    widget.setCurrentIndex(i)
-            widget.blockSignals(False)
-
-        return update_state, update_widget
-
-    update_state, update_widget = make_funcs()
-
-    state_bind(
-        owner, state, [path], update_state, widget, [widget.activated],
-        update_widget)
-
-
-def state_bind_checkbox(owner, state, path, widget):
-
-    def make_funcs():
-        def update_state(widget, state):
-            state.set(path, bool(widget.isChecked()))
-
-        def update_widget(state, widget):
-            widget.blockSignals(True)
-            widget.setChecked(state.get(path))
-            widget.blockSignals(False)
-
-        return update_state, update_widget
-
-    update_state, update_widget = make_funcs()
-
-    state_bind(
-        owner, state, [path], update_state, widget, [widget.toggled],
-        update_widget)
-
-
-def state_bind_lineedit(
-        owner, state, path, widget, from_string=str, to_string=str):
-
-    def make_funcs():
-
-        def update_state(widget, state):
-            state.set(path, from_string(widget.text()))
-
-        def update_widget(state, widget):
-            widget.blockSignals(True)
-            widget.setText(to_string(state.get(path)))
-            widget.blockSignals(False)
-
-        return update_state, update_widget
-
-    update_state, update_widget = make_funcs()
-
-    state_bind(
-        owner,
-        state, [path], update_state,
-        widget, [widget.editingFinished, widget.returnPressed], update_widget)
 
 
 def interpolateables(state_a, state_b):

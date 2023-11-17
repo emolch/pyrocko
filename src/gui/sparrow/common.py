@@ -13,7 +13,8 @@ from pyrocko import plot, util
 from pyrocko.plot import automap
 from pyrocko.geometry import d2r
 from pyrocko.gui.qt_compat import qg, qw, qc
-from pyrocko.gui.util import tmin_effective, tmax_effective, get_app  # noqa
+from pyrocko.gui.util import tmin_effective, tmax_effective, get_app, \
+    errorize, de_errorize  # noqa
 
 
 g_viewer = None
@@ -43,18 +44,6 @@ def get_err_palette():
 
 def get_palette():
     return qw.QApplication.palette()
-
-
-def errorize(widget):
-    widget.setStyleSheet('''
-        QLineEdit {
-            background: rgb(200, 150, 150);
-        }''')
-
-
-def de_errorize(widget):
-    if isinstance(widget, qw.QWidget):
-        widget.setStyleSheet('')
 
 
 def strings_to_combobox(list_of_str):

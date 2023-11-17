@@ -299,6 +299,9 @@ class SparrowViewer(qw.QMainWindow, TalkieConnectionOwner):
         qw.QMainWindow.__init__(self)
         TalkieConnectionOwner.__init__(self)
 
+        app = common.get_app()
+        app.set_main_window(self)
+
         self.instant_close = instant_close
 
         self.state = vstate.ViewerState()
