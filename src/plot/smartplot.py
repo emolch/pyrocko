@@ -489,8 +489,6 @@ class Plot(object):
                     '(%i, %i)' % (ix, iy))
                 self.set_lim(ydim, *sorted(acurrent[1]))
 
-        self.need_update_layout()
-
     def _update_geometry(self):
         w, h = self._fig.canvas.get_width_height()
         dp = self.get_device_pixel_ratio()
@@ -591,6 +589,7 @@ class Plot(object):
     def set_lim(self, dim, vmin, vmax):
         assert vmin <= vmax
         self._view_limits[self._dim_index(dim), :] = vmin, vmax
+        self.need_update_layout()
 
     def _get_mpl_view_limits(self):
         vl = []
@@ -811,8 +810,14 @@ class Plot(object):
                 s = self._labels.get(dim, dim)
                 axes.set_ylabel(s)
 
+            self._need_update_layout = False
+            self.update_layout_hook()
+
         finally:
             self._updating_layout = False
+
+    def update_layout_hook(self):
+        pass
 
     def set_label_coords(self, axes, which, point):
         axis = axes.get_xaxis() if which == 'x' else axes.get_yaxis()
