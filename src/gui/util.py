@@ -1192,12 +1192,17 @@ class FigureFrame(qw.QFrame):
 
         layout = qw.QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
         self.setLayout(layout)
+
+        canvas_frame = qw.QFrame()
+        canvas_frame_layout = qw.QHBoxLayout()
+        canvas_frame_layout.setContentsMargins(0, 0, 0, 0)
+        canvas_frame.setLayout(canvas_frame_layout)
+        canvas_frame.setFrameShape(qw.QFrame.StyledPanel)
+
         self.figure = figure_cls(dpi=dpi)
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setParent(self)
+        canvas_frame_layout.addWidget(self.canvas)
         self.canvas.setSizePolicy(
             qw.QSizePolicy(
                 qw.QSizePolicy.Expanding,
@@ -1208,7 +1213,7 @@ class FigureFrame(qw.QFrame):
         toolbar_frame_layout.setContentsMargins(0, 0, 0, 0)
         toolbar_frame.setLayout(toolbar_frame_layout)
         self.toolbar = NavigationToolbar(self.canvas, self)
-        layout.addWidget(self.canvas, 0, 0)
+        layout.addWidget(canvas_frame, 0, 0)
         toolbar_frame_layout.addWidget(self.toolbar)
         layout.addWidget(toolbar_frame, 1, 0)
         self.closed = False
