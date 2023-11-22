@@ -11,6 +11,7 @@ import logging
 import enum
 import calendar
 import signal
+import weakref
 
 from matplotlib.colors import Normalize
 
@@ -2001,3 +2002,31 @@ def errorize(widget):
 def de_errorize(widget):
     if isinstance(widget, qw.QWidget):
         widget.setStyleSheet('')
+
+
+_call_later_timers = {}
+
+
+def _remove_call_later(ref):
+    del _call_later_timers[ref]
+
+
+def call_later(method, delay=0):
+    ref = weakref.WeakMethod(method, _remove_call_later)
+    previous_timer = _call_later_timers.pop(ref, None)
+    if previous_timer is not None:
+        previous_timer.stop()
+
+    def call():
+        _remove_call_later(ref)
+        method = ref()
+        if method is not None:
+            method()
+
+    timer = qc.QTimer()
+    timer.setSingleShot(True)
+    timer.setInterval(delay)
+    timer.timeout.connect(call)
+    timer.start()
+
+    _call_later_timers[ref] = timer
