@@ -1167,6 +1167,7 @@ class TremorSTF(STF):
         amplitudes = num.zeros_like(times)
         amplitudes[mask] = num.cos(num.pi/self.duration*(times[mask] - tref)) \
             * num.sin(2.0 * num.pi * self.frequency * (times[mask] - tref))
+        amplitudes[mask] *= deltat
 
         return times, amplitudes
 
