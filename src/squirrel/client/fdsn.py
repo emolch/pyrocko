@@ -667,6 +667,12 @@ class FDSNSource(Source, has_paths.HasPaths):
 
         def wanted(nuts):
             for nut in nuts:
+                if nut.deltat is None:
+                    logger.warning(
+                        'Ignoring channel with unknown sampling rate: %s'
+                        % str(nut.codes))
+                    continue
+
                 for nut in sgaps(nut):
                     yield nut
 
