@@ -591,6 +591,14 @@ class Plot(object):
         self._view_limits[self._dim_index(dim), :] = vmin, vmax
         self.need_update_layout()
 
+    def set_x_invert(self,  ix, invert):
+        self._x_dims_invert[ix] = invert
+        self.need_update_layout()
+
+    def set_y_invert(self,  iy, invert):
+        self._y_dims_invert[iy] = invert
+        self.need_update_layout()
+
     def _get_mpl_view_limits(self):
         vl = []
         for row in self._axes:
