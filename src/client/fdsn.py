@@ -70,6 +70,7 @@ g_site_abbr = {
     'scedc': 'http://service.scedc.caltech.edu',
     'usgs': 'http://earthquake.usgs.gov',
     'usp': 'http://seisrequest.iag.usp.br',
+    'up': 'https://fdsn.geo.uni-potsdam.de',
 }
 
 g_default_site = 'geofon'
