@@ -164,6 +164,12 @@ class Location(Object):
 
             return math.sqrt((sx-rx)**2 + (sy-ry)**2 + (sz-rz)**2)
 
+    def ecef(self):
+        lat, lon = self.effective_latlon
+        return num.array(
+            latlondepth_to_cartesian(lat, lon, -self.elevation + self.depth),
+            dtype=float)
+
     def offset_to(self, other):
         if self.same_origin(other):
             other_north_shift, other_east_shift = get_offset(other)
