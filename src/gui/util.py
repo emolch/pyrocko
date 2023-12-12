@@ -2030,3 +2030,26 @@ def call_later(method, delay=0):
     timer.start()
 
     _call_later_timers[ref] = timer
+
+
+def time_or_none_to_str(t):
+    if t is None:
+        return ''
+    else:
+        return util.time_to_str(t)
+
+
+def time_to_lineedit(state, attribute, widget):
+    widget.setText(time_or_none_to_str(getattr(state, attribute)))
+
+
+def lineedit_to_time(widget, state, attribute):
+    s = str(widget.text())
+    if not s.strip():
+        setattr(state, attribute, None)
+    else:
+        try:
+            setattr(state, attribute, util.str_to_time_fillup(s))
+        except Exception:
+            raise ValueError(
+                'Use time format: YYYY-MM-DD HH:MM:SS.FFF')

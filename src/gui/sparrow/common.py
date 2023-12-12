@@ -9,12 +9,13 @@ import math
 import numpy as num
 from scipy.interpolate import interp1d
 
-from pyrocko import plot, util
+from pyrocko import plot
 from pyrocko.plot import automap
 from pyrocko.geometry import d2r
 from pyrocko.gui.qt_compat import qg, qw, qc
 from pyrocko.gui.util import tmin_effective, tmax_effective, get_app, \
-    errorize, de_errorize  # noqa
+    errorize, de_errorize, time_or_none_to_str, time_to_lineedit, \
+    lineedit_to_time  # noqa
 
 
 g_viewer = None
@@ -56,31 +57,6 @@ def strings_to_combobox(list_of_str):
 
 def string_choices_to_combobox(cls):
     return strings_to_combobox(cls.choices)
-
-
-def time_or_none_to_str(t):
-    if t is None:
-        return ''
-    else:
-        return util.time_to_str(t)
-
-
-def time_to_lineedit(state, attribute, widget):
-    widget.setText(time_or_none_to_str(getattr(state, attribute)))
-
-
-def lineedit_to_time(widget, state, attribute):
-    from pyrocko.util import str_to_time_fillup
-
-    s = str(widget.text())
-    if not s.strip():
-        setattr(state, attribute, None)
-    else:
-        try:
-            setattr(state, attribute, str_to_time_fillup(s))
-        except Exception:
-            raise ValueError(
-                'Use time format: YYYY-MM-DD HH:MM:SS.FFF')
 
 
 def cover_region(lat, lon, delta, step=None, avoid_poles=False):
