@@ -239,7 +239,7 @@ class GeonamesElement(Element):
             slider.setSizePolicy(
                 qw.QSizePolicy(
                     qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-            slider.setMinimum(0.1)
+            slider.setMinimum(0)
             slider.setMaximum(3000)
             layout.addWidget(slider, il, 2)
             state_bind_slider(
@@ -276,7 +276,7 @@ class GeonamesElement(Element):
             slider.setSizePolicy(
                 qw.QSizePolicy(
                     qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-            slider.setMinimum(0.1)
+            slider.setMinimum(0)
             slider.setMaximum(3000)
             layout.addWidget(slider, il, 2)
             state_bind_slider(
