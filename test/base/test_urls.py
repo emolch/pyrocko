@@ -39,7 +39,7 @@ class UrlsTestCase(unittest.TestCase):
                 except TypeError:
                     req = Request(url)
 
-                f = urlopen(req)
+                f = urlopen(req, timeout=10)
                 f.close()
             except Exception as e:
                 logger.warning('%s - %s referenced in pyrocko.%s' %
