@@ -480,6 +480,7 @@ steps:
   - New-Item -Path test\\data -ItemType SymbolicLink -Value C:\\vagrant\\test-data
   # ensure config is there to prevent race conditions in parallel test runs
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pyrocko.config
+  - echo "installation is done"
 
 - name: test-base
   commands:
