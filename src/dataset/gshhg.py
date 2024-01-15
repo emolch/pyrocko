@@ -195,6 +195,32 @@ def bounding_box_covering_points(points):
     return (-180., 180., lat_min, lat_max)
 
 
+LEVELS = {
+    'rivers': [
+        'DOUBLE_LINED_RIVERS',
+        'PERMANENT_MAJOR_RIVERS',
+        'ADDITIONAL_MAJOR_RIVERS',
+        'ADDITIONAL_RIVERS',
+        'MINOR_RIVERS',
+        'INTERMITTENT_RIVERS-MAJOR',
+        'INTERMITTENT_RIVERS-ADDITIONAL',
+        'INTERMITTENT_RIVERS-MINOR',
+        'MAJOR_CANALS',
+        'MINOR_CANALS',
+        'IRRIGATION_CANALS'],
+    'coastlines': [
+        'LAND',
+        'LAKE',
+        'ISLAND_IN_LAKE',
+        'POND_IN_ISLAND_IN_LAKE',
+        'ANTARCTIC_ICE_FRONT',
+        'ANTARCTIC_GROUNDING_LINE'],
+    'borders': [
+        'NATIONAL_BOUNDARIES',
+        'STATE_BOUNDARIES_WITHIN_THE_AMERICAS',
+        'MARINE_BOUNDARIES']}
+
+
 class Polygon(object):
     '''
     Representation of a GSHHG polygon.
@@ -202,25 +228,31 @@ class Polygon(object):
 
     RIVER_NOT_SET = 0
 
-    LEVELS = ['LAND', 'LAKE', 'ISLAND_IN_LAKE', 'POND_IN_ISLAND_IN_LAKE',
-              'ANTARCTIC_ICE_FRONT', 'ANTARCTIC_GROUNDING_LINE']
-
     SOURCE = ['CIA_WDBII', 'WVS', 'AC']
 
-    def __init__(self, gshhg_file, offset, *attr):
+    def __init__(self, data_type, gshhg_file, offset, *attr):
         '''
         Initialise a GSHHG polygon
 
-        :param gshhg_file: GSHHG binary file
-        :type gshhg_file: str
-        :param offset: This polygon's offset in binary file
-        :type offset: int
-        :param attr: Polygon attributes
+        :param gshhg_file:
+            GSHHG binary file
+        :type gshhg_file:
+            file handle
+
+        :param offset:
+            This polygon's offset in binary file
+        :type offset:
+            int
+
+        :param attr:
+            Polygon attributes
              ``(pid, npoints, _flag, west, east, south, north,
               area, area_full, container, ancestor)``.
               See :file:`gshhg.h` for details.
-        :type attr: tuple
+        :type attr:
+            tuple
         '''
+        self.data_type = data_type
         (self.pid, self.npoints, self._flag,
          self.west, self.east, self.south, self.north,
          self.area, self.area_full, self.container, self.ancestor) = attr
@@ -231,7 +263,13 @@ class Polygon(object):
         self.north *= micro_deg
 
         self.level_no = (self._flag & 255)
-        self.level = self.LEVELS[self.level_no - 1]
+        if self.data_type == 'rivers':
+            # there seems to be a bug in the current version of GSHHG
+            self.level_no = [
+                0, 1, 2, 3, 4, -1, 5, 6, 7, -1, 8, 9, -1, 10][self.level_no]
+        else:
+            self.level_no -= 1
+
         self.version = (self._flag >> 8) & 255
 
         cross = (self._flag >> 16) & 3
@@ -253,6 +291,10 @@ class Polygon(object):
         self._offset = offset
 
     @property
+    def level(self):
+        return LEVELS[self.data_type][self.level_no]
+
+    @property
     def points(self):
         '''
         Points of the polygon.
@@ -270,10 +312,11 @@ class Polygon(object):
                     .reshape(self.npoints, 2)
 
             self._points = num.fliplr(self._points)
-            if self.level_no in (2, 4):
+            if self.data_type == 'coastlines' and self.level_no in (1, 3):
                 self._points = self._points[::-1, :]
 
             self._points *= micro_deg
+
         return self._points
 
     @property
@@ -284,18 +327,13 @@ class Polygon(object):
     def lons(self):
         return self.points[:, 1]
 
-    def _is_level(self, level):
-        if self.level is self.LEVELS[level]:
-            return True
-        return False
-
     def is_land(self):
         '''
         Check if the polygon is land.
 
         :rtype: bool
         '''
-        return self._is_level(0)
+        return self.level_no == 0
 
     def is_lake(self):
         '''
@@ -303,7 +341,7 @@ class Polygon(object):
 
         :rtype: bool
         '''
-        return self._is_level(1)
+        return self.level_no == 1
 
     def is_island_in_lake(self):
         '''
@@ -311,7 +349,7 @@ class Polygon(object):
 
         :rtype: bool
         '''
-        return self._is_level(2)
+        return self.level_no == 2
 
     def is_pond_in_island_in_lake(self):
         '''
@@ -319,7 +357,7 @@ class Polygon(object):
 
         :rtype: bool
         '''
-        return self._is_level(3)
+        return self.level_no == 3
 
     def is_antarctic_icefront(self):
         '''
@@ -327,7 +365,7 @@ class Polygon(object):
 
         :rtype: bool
         '''
-        return self._is_level(4)
+        return self.level_no == 4
 
     def is_antarctic_grounding_line(self):
         '''
@@ -335,7 +373,7 @@ class Polygon(object):
 
         :rtype: bool
         '''
-        return self._is_level(5)
+        return self.level_no == 5
 
     def contains_point(self, point):
         '''
@@ -389,24 +427,6 @@ Dateline crossed:   {p.dateline_crossed}
         return rstr
 
 
-class RiverPolygon(Polygon):
-
-    LEVELS = [
-        'DOUBLE_LINED_RIVERS',
-        'PERMANENT_MAJOR_RIVERS',
-        'ADDITIONAL_MAJOR_RIVERS',
-        'ADDITIONAL_RIVERS',
-        'MINOR_RIVERS',
-        'INTERMITTENT_RIVERS-MAJOR',
-        'INTERMITTENT_RIVERS-ADDITIONAL',
-        'INTERMITTENT_RIVERS-MINOR',
-        'MAJOR_CANALS',
-        'MINOR_CANALS',
-        'IRRIGATION_CANALS',
-        'DOCS_MISS',
-        'DOCS_MISS', 'DOCS_MISS', 'DOCS_MISS', 'DOCS_MISS', 'DOCS_MISS']
-
-
 class GSHHGBase(object):
     '''
     GSHHG database access.
@@ -415,6 +435,8 @@ class GSHHGBase(object):
     for given locations or regions. It also provides robust high-level
     functions to test if the Earth is dry or wet at given coordinates.
     '''
+
+    data_type = None
 
     gshhg_url = 'https://mirror.pyrocko.org/www.soest.hawaii.edu/pwessel/gshhg/gshhg-bin-2.3.7.zip'  # noqa
     _header_struct = struct.Struct('>IIIiiiiIIii')
@@ -441,21 +463,33 @@ class GSHHGBase(object):
                 if not buf:
                     break
                 header = self._header_struct.unpack_from(buf)
-                dataset = path.basename(self._file).split("_")[1]
 
-                if dataset == 'rivers':
-                    LoadPolygon = RiverPolygon
-                else:
-                    LoadPolygon = Polygon
-
-                p = LoadPolygon(
+                p = Polygon(
+                    self.data_type,
                     self._file,
                     db.tell(),
                     *header)
+
                 self.polygons.append(p)
 
                 offset = 8 * header[1]
                 db.seek(offset, io.SEEK_CUR)
+
+    def load_all(self):
+        data = num.fromfile(self._file, dtype='>i4').astype(num.float32)
+        data *= micro_deg
+        i = 11
+        for polygon in self.polygons:
+            if self.data_type == 'coastlines' and polygon.level_no in (1, 3):
+                polygon._points = data[i+polygon.npoints*2-1:i-1:-1].reshape(
+                    (polygon.npoints, 2))
+            else:
+                polygon._points = num.fliplr(
+                    data[i:i+polygon.npoints*2].reshape((polygon.npoints, 2)))
+
+            i += polygon.npoints * 2 + 11
+
+        assert i - 11 == data.size
 
     @classmethod
     def _get_database(cls, filename):
@@ -524,6 +558,8 @@ class GSHHGBase(object):
 
 
 class Coastlines(GSHHGBase):
+
+    data_type = 'coastlines'
 
     def is_point_on_land(self, lat, lon):
         '''
@@ -618,11 +654,12 @@ class Coastlines(GSHHGBase):
         return cls(cls._get_database('gshhs_c.b'))
 
 
-class GSHHG(Coastlines):
-    pass
+GSHHG = Coastlines  # backwards compatibility
 
 
 class Borders(GSHHGBase):
+
+    data_type = 'borders'
 
     @classmethod
     def full(cls):
@@ -661,6 +698,8 @@ class Borders(GSHHGBase):
 
 
 class Rivers(GSHHGBase):
+
+    data_type = 'rivers'
 
     @classmethod
     def full(cls):

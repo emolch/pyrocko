@@ -22,7 +22,7 @@ class BordersState(GSHHGState):
 class BordersElement(GSHHGElement):
 
     def __init__(self):
-        GSHHGElement.__init__(self)
+        GSHHGElement.__init__(self, levels=(0,))
 
     def get_name(self):
         return 'Borders'

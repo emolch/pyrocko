@@ -47,18 +47,23 @@ class BBOtherSide(object):
 class GSHHGTest(unittest.TestCase):
     def setUp(self):
         self.gshhg = gshhg.GSHHG.intermediate()
+        self.gshhg_preloaded = gshhg.GSHHG.intermediate()
+        self.gshhg_preloaded.load_all()
 
     def test_polygon_loading_points(self):
-        for ipoly in range(10):
-            self.gshhg.polygons[ipoly].points
+        for ipoly in range(100):
+            assert num.all(
+                self.gshhg.polygons[ipoly].points
+                == self.gshhg_preloaded.polygons[ipoly].points)
 
-    def slow_bb_ranges(self):
+    def test_bb_ranges(self):
         for gs in [
                 gshhg.GSHHG.crude(),
                 gshhg.GSHHG.low(),
-                gshhg.GSHHG.intermediate(),
-                gshhg.GSHHG.high(),
-                gshhg.GSHHG.full()]:
+                gshhg.GSHHG.intermediate()]:
+            # gshhg.GSHHG.high(), gshhg.GSHHG.full()]:
+
+            gs.load_all()
 
             for ipoly, poly in enumerate(gs.polygons):
 
@@ -67,6 +72,18 @@ class GSHHGTest(unittest.TestCase):
 
                 assert gshhg.is_polygon_in_bounding_box(
                     poly.points, poly.get_bounding_box())
+
+    def test_levels(self):
+        for resolution in ['intermediate']:
+            for gs in [
+                    getattr(cls, resolution)() for cls in [
+                        gshhg.Coastlines, gshhg.Rivers, gshhg.Borders]]:
+
+                nlevels = len(gshhg.LEVELS[gs.data_type])
+                avail = set()
+                for poly in gs.polygons:
+                    avail.add(poly.level_no)
+                    assert 0 <= poly.level_no < nlevels
 
     def test_polygon_contains_point(self):
         poly = self.gshhg.polygons[-1]

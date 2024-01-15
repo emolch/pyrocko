@@ -40,7 +40,7 @@ class GSHHGResolutionChoice(StringChoice):
 
 
 class GSHHGPipe(object):
-    def __init__(self, dataset, resolution='low'):
+    def __init__(self, dataset, resolution='low', levels=None):
 
         self.mapper = vtk.vtkDataSetMapper()
         self.plane = vtk.vtkPlane()
@@ -53,7 +53,7 @@ class GSHHGPipe(object):
         self._opacity = 1.0
         self._line_width = 1.0
         self._color = Color('white')
-        self.set_resolution(dataset, resolution)
+        self.set_resolution(dataset, resolution, levels)
 
         actor = vtk.vtkActor()
         actor.SetMapper(self.mapper)
@@ -64,11 +64,12 @@ class GSHHGPipe(object):
         self.prop = prop
         self.actor = actor
 
-    def set_resolution(self, dataset, resolution):
+    def set_resolution(self, dataset, resolution, levels):
         assert resolution in GSHHGResolutionChoice.choices
         assert dataset in GSHHGDatasetChoice.choices
+        assert levels is None or isinstance(levels, tuple)
 
-        if resolution not in self._polyline_grid:
+        if (resolution, levels) not in self._polyline_grid:
             pb = common.get_viewer().progressbars
             if pb:
                 mess = 'Loading %s resolution %s' % (resolution, dataset)
@@ -77,6 +78,7 @@ class GSHHGPipe(object):
             dataset = gshhg_dataset_mapping[dataset]
 
             g = getattr(dataset, resolution)()
+            g.load_all()
 
             lines = []
             npoly = len(g.polygons)
@@ -85,15 +87,17 @@ class GSHHGPipe(object):
                     pb.set_status(
                         mess, float(ipoly) / npoly * 100., can_abort=False)
 
-                lines.append(poly.points)
+                if levels is None or poly.level_no in levels:
+                    lines.append(poly.points)
 
-            self._polyline_grid[resolution] = vtk_util.make_multi_polyline(
-                lines_latlon=lines, depth=-200.)
+            self._polyline_grid[resolution, levels] \
+                = vtk_util.make_multi_polyline(lines_latlon=lines, depth=-200.)
 
             if pb:
                 pb.set_status(mess, 100, can_abort=False)
 
-        vtk_util.vtk_set_input(self.mapper, self._polyline_grid[resolution])
+        vtk_util.vtk_set_input(
+            self.mapper, self._polyline_grid[resolution, levels])
 
     def set_opacity(self, opacity):
         opacity = float(opacity)
@@ -132,11 +136,12 @@ class GSHHGState(ElementState):
 
 class GSHHGElement(Element):
 
-    def __init__(self):
+    def __init__(self, levels=None):
         Element.__init__(self)
         self._parent = None
         self._controls = None
         self._lines = None
+        self._levels = levels
 
     def bind_state(self, state):
         Element.bind_state(self, state)
@@ -185,10 +190,13 @@ class GSHHGElement(Element):
         if state.visible:
             if not self._lines:
                 self._lines = GSHHGPipe(
-                    dataset=state.dataset, resolution=state.resolution)
+                    dataset=state.dataset,
+                    resolution=state.resolution,
+                    levels=self._levels)
 
             self._parent.add_actor(self._lines.actor)
-            self._lines.set_resolution(state.dataset, state.resolution)
+            self._lines.set_resolution(
+                state.dataset, state.resolution, self._levels)
             self._lines.set_opacity(state.opacity)
             self._lines.set_color(state.color)
             self._lines.set_line_width(state.line_width)
