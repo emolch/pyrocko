@@ -39,7 +39,8 @@ def fd_rot_surface_targets(delta, target):
 
 def fd_rot_surface_postprocess(delta, traces, rfmax=0.8):
 
-    fnyquist = 0.5 / traces[0].deltat
+    deltat = traces[0].deltat
+    fnyquist = 0.5 / deltat
     fmax = rfmax * fnyquist
     tpad = 2.0 / fmax
     tmin = min(tr.tmin for tr in traces)
@@ -57,7 +58,7 @@ def fd_rot_surface_postprocess(delta, traces, rfmax=0.8):
 
         tr_filt.set_location('filtered')
 
-    trace.snuffle(traces + traces_prepared)
+    # trace.snuffle(traces + traces_prepared)
 
     d = trace.get_traces_data_as_array(traces_prepared)
     d = d.reshape((3, 3, 3, d.shape[1]))
@@ -82,6 +83,7 @@ def fd_rot_surface_postprocess(delta, traces, rfmax=0.8):
             station=traces[0].station,
             location=traces[0].location,
             channel='ROT_%s' % comp,
+            deltat=deltat,
             tmin=tmin,
             ydata=data)
         # tr.differentiate(1)
