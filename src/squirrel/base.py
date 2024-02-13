@@ -141,6 +141,10 @@ class Batch(object):
 
         End of this time window.
 
+    .. py:attribute:: tpad
+
+        Padding time length.
+
     .. py:attribute:: i
 
         Index of this time window in sequence.
@@ -162,14 +166,45 @@ class Batch(object):
         Extracted waveforms for this time window.
     '''
 
-    def __init__(self, tmin, tmax, i, n, igroup, ngroups, traces):
+    def __init__(self, tmin, tmax, tpad, i, n, igroup, ngroups, traces):
         self.tmin = tmin
         self.tmax = tmax
+        self.tpad = tpad
         self.i = i
         self.n = n
         self.igroup = igroup
         self.ngroups = ngroups
         self.traces = traces
+
+    def as_multitrace(
+            self,
+            codes=None,
+            dtype=None,
+            deltat=None,
+            enforce_global_snap=True,
+            warn_snap=False):
+
+        from pyrocko import multitrace
+
+        traces = trace.make_traces_compatible(
+            self.traces,
+            dtype=dtype,
+            deltat=deltat,
+            enforce_global_snap=enforce_global_snap,
+            warn_snap=warn_snap)
+
+        if codes is not None:
+            d = dict((tr.codes, tr) for tr in traces)
+            traces = [d.get(_codes, None) for _codes in codes]
+
+        data, codes, tmin, deltat = trace.merge_traces_data_as_array(
+            traces, tmin=self.tmin-self.tpad, tmax=self.tmax+self.tpad)
+
+        return multitrace.MultiTrace(
+            data=data,
+            codes=codes,
+            tmin=tmin,
+            deltat=deltat)
 
 
 class Squirrel(Selection):
@@ -2727,6 +2762,7 @@ class Squirrel(Selection):
                     yield Batch(
                         tmin=wmin,
                         tmax=wmax,
+                        tpad=tpad,
                         i=iwin,
                         n=nwin,
                         igroup=igroup,
