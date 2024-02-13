@@ -174,6 +174,18 @@ class Batch(object):
         self.ngroups = ngroups
         self.traces = traces
 
+    def as_multitrace(self):
+        from pyrocko import multitrace
+
+        data, codes, tmin, deltat = trace.merge_traces_data_as_array(
+            self.traces, tmin=self.tmin, tmax=self.tmax)
+
+        return multitrace.MultiTrace(
+            data=data,
+            codes=codes,
+            tmin=tmin,
+            deltat=deltat)
+
 
 class Squirrel(Selection):
     '''
