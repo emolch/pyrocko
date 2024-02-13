@@ -141,6 +141,10 @@ class Batch(object):
 
         End of this time window.
 
+    .. py:attribute:: tpad
+
+        Padding time length.
+
     .. py:attribute:: i
 
         Index of this time window in sequence.
@@ -162,14 +166,60 @@ class Batch(object):
         Extracted waveforms for this time window.
     '''
 
-    def __init__(self, tmin, tmax, i, n, igroup, ngroups, traces):
+    def __init__(self, tmin, tmax, tpad, i, n, igroup, ngroups, traces):
         self.tmin = tmin
         self.tmax = tmax
+        self.tpad = tpad
         self.i = i
         self.n = n
         self.igroup = igroup
         self.ngroups = ngroups
         self.traces = traces
+
+    def __str__(self):
+        return 'Batch %i/%i, group %i/%i, %i traces, %s - %s' % (
+            self.i, self.n, self.igroup, self.ngroups, len(self.traces),
+            util.time_to_str(self.tmin),
+            util.time_to_str(self.tmax))
+
+    def as_carpet(
+            self,
+            codes=None,
+            component_codes=None,
+            dtype=None,
+            deltat=None,
+            enforce_global_snap=True,
+            warn_snap=False):
+
+        from pyrocko import multitrace
+
+        if codes is not None:
+            codes = model.CodesNSLCE(codes)
+
+        if component_codes is not None:
+            component_codes = codes_patterns_for_kind(
+                WAVEFORM, component_codes)
+
+        traces = trace.make_traces_compatible(
+            self.traces,
+            dtype=dtype,
+            deltat=deltat,
+            enforce_global_snap=enforce_global_snap,
+            warn_snap=warn_snap,
+            chop=False)
+
+        data, component_codes, tmin, deltat = trace.merge_traces_data_as_array(
+            traces,
+            tmin=self.tmin-self.tpad,
+            tmax=self.tmax+self.tpad,
+            codes=component_codes)
+
+        return multitrace.Carpet(
+            data=data,
+            codes=codes,
+            component_codes=component_codes,
+            tmin=tmin,
+            deltat=deltat)
 
 
 class Squirrel(Selection):
@@ -2711,6 +2761,7 @@ class Squirrel(Selection):
                     yield Batch(
                         tmin=wmin,
                         tmax=wmax,
+                        tpad=tpad,
                         i=iwin,
                         n=nwin,
                         igroup=igroup,
@@ -3303,6 +3354,7 @@ Sources:                       %s''' % (
 
 
 __all__ = [
+    'Batch',
     'Squirrel',
     'SquirrelStats',
 ]

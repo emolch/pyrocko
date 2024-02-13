@@ -2135,11 +2135,98 @@ def get_traces_data_as_array(traces):
     '''
 
     if not traces:
-        raise IncompatibleTraces('Need at least one trace.')
+        raise ValueError('Need at least one trace.')
 
     _ensure_compatible(traces)
 
     return num.vstack([tr.ydata for tr in traces])
+
+
+def _ensure_aligned(traces):
+    if not traces:
+        raise ValueError('No traces given.')
+
+    eps = 1e-3
+    deltats = sorted(set(tr.deltat for tr in traces))
+    if len(deltats) != 1:
+        raise UnalignedTraces(
+            'Differing sampling intervals: %s' % ', '.join(
+                str(deltat) for deltat in deltats))
+
+    dtypes = sorted(set(tr.ydata.dtype for tr in traces))
+    if len(dtypes) != 1:
+        raise UnalignedTraces(
+            'Differing data types: %s' % ', '.join(
+                str(dtype) for dtype in dtypes))
+
+    deltat = deltats[0]
+    tmins = num.array([tr.tmin for tr in traces])
+    toffsets = num.abs(num.round(tmins / deltat) * deltat - tmins)
+    is_aligned = toffsets < deltat * eps
+    if not all(is_aligned):
+        info = '\n  start times:\n' + '\n'.join(
+            '    %s: %s %g' % (tr.codes, util.time_to_str(tr.tmin), tr.deltat)
+            for tr in traces)
+
+        raise UnalignedTraces(
+            'Samples of some traces are not aligned: %s' % (
+                ', '.join(str(tr.codes) for tr in [
+                    traces[i] for i in num.where(
+                        num.logical_not(is_aligned))[0]])) + info)
+
+    return None
+
+
+def merge_traces_data_as_array(traces, tmin=None, tmax=None, codes=None):
+    from numpy.ma import masked_array
+    from pyrocko.squirrel.model import WAVEFORM, codes_patterns_for_kind
+
+    if codes is not None:
+        codes = codes_patterns_for_kind(WAVEFORM, codes)
+
+    if not traces:
+        raise ValueError('Need at least one trace.')
+
+    _ensure_aligned(traces)
+
+    if codes is None:
+        codes = sorted(set(tr.codes for tr in traces))
+    else:
+        _codes = set(codes)
+        assert len(_codes) == len(codes)
+        traces = [tr for tr in traces if tr.codes in _codes]
+        if not traces:
+            raise ValueError('Need at least one trace.')
+
+    codes_to_i = dict((codes, i) for (i, codes) in enumerate(codes))
+
+    if tmax is None:
+        tmax = max(tr.tmax + tr.deltat for tr in traces)
+
+    if tmin is None:
+        tmin = min(tr.tmin for tr in traces)
+
+    deltat = traces[0].deltat
+
+    nsamples = int(round((tmax - tmin) / deltat))
+
+    data = num.zeros(
+        (len(codes), nsamples),
+        dtype=traces[0].ydata.dtype)
+
+    mask = num.ones(data.shape, dtype=bool)
+    for tr in traces:
+        itmax = nsamples
+        itmin_tr = int(round((tr.tmin - tmin) / deltat))
+        itmax_tr = itmin_tr + tr.ydata.size
+        itmin_common = max(0, itmin_tr)
+        itmax_common = min(itmax, itmax_tr)
+        icodes = codes_to_i[tr.codes]
+        data[icodes, itmin_common:itmax_common] \
+            = tr.ydata[itmin_common-itmin_tr:itmax_common-itmin_tr]
+        mask[icodes, itmin_common:itmax_common] = False
+
+    return masked_array(data, mask=mask), codes, tmin, deltat
 
 
 def make_traces_compatible(
@@ -2147,7 +2234,8 @@ def make_traces_compatible(
         dtype=None,
         deltat=None,
         enforce_global_snap=True,
-        warn_snap=False):
+        warn_snap=False,
+        chop=True):
 
     '''
     Homogenize sampling rate, time span, sampling instants, and data type.
@@ -2216,6 +2304,9 @@ def make_traces_compatible(
             tr_copy.set_ydata(tr.ydata.astype(dtype))
             traces[itr] = tr_copy
 
+    if dtype is None:
+        dtype = dtypes[0]
+
     deltats = [tr.deltat for tr in traces]
     if not _all_same(deltats) or deltat is not None:
         if deltat is None:
@@ -2229,7 +2320,13 @@ def make_traces_compatible(
             if tr.deltat != deltat:
                 tr_copy = tr.copy()
                 tr_copy.downsample_to(deltat, snap=True, cut=True)
+                if tr_copy.ydata.dtype is not dtype:
+                    tr_copy.set_ydata(tr_copy.ydata.astype(dtype))
+
                 traces[itr] = tr_copy
+
+    if deltat is None:
+        deltat = deltats[0]
 
     tmins = num.array([tr.tmin for tr in traces])
     is_aligned = num.abs(num.round(tmins / deltat) * deltat - tmins) \
@@ -2256,6 +2353,9 @@ def make_traces_compatible(
                     tr_copy.shift(-tref)
 
                 tr_copy.snap(interpolate=True)
+                if tr_copy.ydata.dtype is not dtype:
+                    tr_copy.set_ydata(tr_copy.ydata.astype(dtype))
+
                 if tref != 0.0:
                     tr_copy.shift(tref)
 
@@ -2267,6 +2367,9 @@ def make_traces_compatible(
 
     tmin = num.max(tmins)
     tmax = num.min(tmaxs)
+
+    if not chop:
+        return traces
 
     if tmin > tmax:
         raise IncompatibleTraces('Traces do not overlap.')
@@ -2294,6 +2397,12 @@ def make_traces_compatible(
 
 
 class IncompatibleTraces(Exception):
+    '''
+    Raised when traces have incompatible sampling rate, time span or data type.
+    '''
+
+
+class UnalignedTraces(Exception):
     '''
     Raised when traces have incompatible sampling rate, time span or data type.
     '''
