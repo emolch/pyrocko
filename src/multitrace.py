@@ -8,6 +8,7 @@ Multi-component waveform data model.
 '''
 
 import logging
+from functools import partialmethod
 
 import numpy as num
 import numpy.ma as ma
@@ -35,7 +36,7 @@ class MultiTrace(Object):
     components and the second index over time. Metadata contains sampling rate,
     start-time and :py:class:`~pyrocko.squirrel.model.CodesNSLCE` identifiers
     for the contained traces.
-    
+
     The :py:gattr:`data` is held as a NumPy :py:class:`numpy.ma.MaskedArray`
     where missing or invalid data is masked.
 
@@ -106,11 +107,13 @@ class MultiTrace(Object):
     def summary_codes(self):
         if self.codes:
             if len(self.codes) == 1:
-                return str(self.codes)
+                return str(self.codes[0])
             elif len(self.codes) == 2:
                 return '%s, %s' % (self.codes[0], self.codes[-1])
             else:
                 return '%s, ..., %s' % (self.codes[0], self.codes[-1])
+        else:
+            return 'None'
 
     @property
     def summary_entries(self):
@@ -202,11 +205,12 @@ class MultiTrace(Object):
 
     def iter_valid_traces(self):
         if self.data.mask is ma.nomask:
-            return iter(self)
-
-        for irow, row in enumerate(ma.notmasked_contiguous(self.data, axis=1)):
-            for slice in row:
-                yield self.get_trace(irow, slice)
+            yield from self
+        else:
+            for irow, row in enumerate(
+                    ma.notmasked_contiguous(self.data, axis=1)):
+                for slice in row:
+                    yield self.get_trace(irow, slice)
 
     def get_traces(self):
         return list(self)
@@ -214,32 +218,47 @@ class MultiTrace(Object):
     def get_valid_traces(self):
         return list(self.iter_valid_traces())
 
-    def snuffle(self):
+    def snuffle(self, what='valid'):
         '''
         Show in Snuffler.
         '''
-        trace.snuffle(list(self))
 
-    def snuffle_valid(self):
-        trace.snuffle(self.get_valid_traces())
+        assert what in ('valid', 'raw')
+
+        if what == 'valid':
+            trace.snuffle(self.get_valid_traces())
+        else:
+            trace.snuffle(list(self))
 
     def bleed(self, t):
-        if self.data.mask is ma.nomask:
-            return
 
         nt = int(num.round(abs(t)/self.deltat))
+        if nt < 1:
+            return
+
+        if self.data.mask is ma.nomask:
+            self.data.mask = ma.make_mask_none(self.data.shape)
+
         for irow, row in enumerate(ma.notmasked_contiguous(self.data, axis=1)):
             for span in row:
                 self.data.mask[irow, span.start:span.start+nt] = True
                 self.data.mask[irow, max(0, span.stop-nt):span.stop] = True
 
+        self.data.mask[:, :nt] = True
+        self.data.mask[:, -nt:] = True
+
     def set_data(self, data):
+        if data is self.data:
+            return
+
         assert data.shape == self.data.shape
 
         if isinstance(data, ma.MaskedArray):
             self.data = data
         else:
-            self.data.data[...] = data
+            data = ma.MaskedArray(data)
+            data.mask = self.data.mask
+            self.data = data
 
     def apply(self, f):
         self.set_data(f(self.data))
@@ -446,19 +465,18 @@ class MultiTrace(Object):
 
     def apply_via_fft(self, f, ntrans_min=0):
         ntrans = trace.nextpow2(max(ntrans_min, self.nsamples))
-        data = self.data.data.astype(num.float64)
+        data = ma.filled(self.data.astype(num.float64), 0.0)
         spec = num.fft.rfft(data, ntrans)
         df = 1.0 / (self.deltat * ntrans)
         spec = f(df, ntrans, spec)
-        print(spec.shape)
-        data2 = num.fft.irfft(spec, self.nsamples)
-        print(data2.shape)
+        data2 = num.fft.irfft(spec)[:, :self.nsamples]
         self.set_data(data2)
 
     def get_energy(
             self,
             grouping=SensorGrouping(),
-            translation=ReplaceComponentTranslation()):
+            translation=ReplaceComponentTranslation(),
+            postprocessing=None):
 
         groups = {}
         for irow, codes in enumerate(self.codes):
@@ -469,20 +487,47 @@ class MultiTrace(Object):
             groups[k].append(irow)
 
         data = self.data.astype(num.float64)
-        data2 = data**2
+        data **= 2
         data3 = num.ma.empty((len(groups), self.nsamples))
         codes = []
         for irow_out, irows_in in enumerate(groups.values()):
-            data3[irow_out, :] = data2[irows_in, :].sum(axis=0)
+            data3[irow_out, :] = data[irows_in, :].sum(axis=0)
             codes.append(CodesNSLCE(
                 translation.translate(
                     self.codes[irows_in[0]]).safe_str.format(component='G')))
 
-        return MultiTrace(
+        energy = MultiTrace(
             data=data3,
             codes=codes,
             tmin=self.tmin,
             deltat=self.deltat)
+
+        if postprocessing is not None:
+            energy.apply(postprocessing)
+
+        return energy
+
+    get_rms = partialmethod(
+        get_energy,
+        postprocessing=lambda data: num.sqrt(data, out=data))
+
+    get_log_rms = partialmethod(
+        get_energy,
+        postprocessing=lambda data: num.multiply(
+            num.log(
+                signal.filtfilt([0.5, 0.5], [1], data),
+                out=data),
+            0.5,
+            out=data))
+
+    get_log10_rms = partialmethod(
+        get_energy,
+        postprocessing=lambda data: num.multiply(
+            num.log(
+                signal.filtfilt([0.5, 0.5], [1], data),
+                out=data),
+            0.5 / num.log(10.0),
+            out=data))
 
 
 def correlate(a, b, mode='valid', normalization=None, use_fft=False):
