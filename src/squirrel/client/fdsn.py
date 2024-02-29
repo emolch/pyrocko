@@ -360,6 +360,9 @@ class FDSNSource(Source, has_paths.HasPaths):
             s += 'post_codes:' + ','.join(
                 codes.safe_str for codes in self.codes)
 
+        if self.hotfix_module_path is not None:
+            s += 'hotfix:' + self.hotfix_module_path
+
         return ehash(s)
 
     def get_hash(self):
