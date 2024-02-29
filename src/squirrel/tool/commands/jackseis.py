@@ -17,7 +17,7 @@ import numpy as num
 from pyrocko import io, trace, util
 from pyrocko import progress
 from pyrocko.has_paths import Path, HasPaths
-from pyrocko.guts import Dict, String, Choice, Float, List, Timestamp, \
+from pyrocko.guts import Dict, String, Choice, Float, Bool, List, Timestamp, \
     StringChoice, IntChoice, Defer, load_all, clone
 from pyrocko.squirrel.dataset import Dataset
 from pyrocko.squirrel.client.local import LocalData
@@ -138,6 +138,8 @@ class Converter(HasPaths):
     fmin_cut = Float.T(optional=True)
     fmax_cut = Float.T(optional=True)
 
+    rotate_to_enz = Bool.T(default=False)
+
     out_path = Path.T(optional=True)
     out_sds_path = Path.T(optional=True)
     out_format = OutputFormatChoice.T(optional=True)
@@ -215,6 +217,17 @@ flanks and which is flat between ``FMIN`` and ``FMAX``. The flanks of the taper
 drop to zero at ``FMINCUT`` and ``FMAXCUT``. If ``CUTFACTOR`` is given,
 ``FMINCUT`` and ``FMAXCUT`` are set to ``FMIN/CUTFACTOR`` and
 ``FMAX*CUTFACTOR`` respectively. ``CUTFACTOR`` defaults to 2.
+'''.strip())
+
+        p.add_argument(
+            '--rotate-to-enz',
+            action='store_true',
+            dest='rotate_to_enz',
+            help='''
+Rotate waveforms to east-north-vertical (ENZ) coordinate system. The samples
+in the input data must be properly aligned and the channel orientations must
+by set in the station metadata (StationXML). Output channels are renamed with
+last letter replaced by ``E``, ``N``, and ``Z`` respectively.
 '''.strip())
 
         p.add_argument(
@@ -369,6 +382,7 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
         obj = cls(
             downsample=args.downsample,
             quantity=args.quantity,
+            rotate_to_enz=args.rotate_to_enz,
             out_format=args.out_format,
             out_path=args.out_path,
             tinc=args.tinc,
@@ -502,6 +516,7 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
             tinc = chain.get('tinc')
             codes = chain.get('codes')
             downsample = chain.get('downsample')
+            rotate_to_enz = chain.get('rotate_to_enz')
             out_path, is_sds = chain.fcall('get_effective_out_path') \
                 or (None, False)
 
@@ -625,6 +640,23 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
                             logger.warning(str(e))
 
                     traces = restituted_traces
+
+                if rotate_to_enz:
+                    sensors = sq.get_sensors(
+                        tmin=twmin,
+                        tmax=twmax,
+                        codes=list(set(tr.codes for tr in traces)))
+
+                    rotated_traces = []
+                    for sensor in sensors:
+                        sensor_traces = [
+                            tr for tr in traces
+                            if tr.codes.matches(sensor.codes)]
+
+                        rotated_traces.extend(
+                            sensor.project_to_enz(sensor_traces))
+
+                    traces = rotated_traces
 
                 for tr in traces:
                     self.do_rename(rename_rules, tr)
