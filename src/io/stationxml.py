@@ -98,7 +98,7 @@ def to_quantity(units, context, delivery):
                     ' (%s)' % units.description if units.description else '')),
             context))
 
-        return 'unsupported_quantity(%s)' % units
+        return 'unsupported_quantity(%s)' % name
 
 
 class StationXMLError(Exception):
