@@ -33,7 +33,7 @@ class Saxony(EarthquakeCatalog):
         url = 'http://home.uni-leipzig.de/collm/auswertung_temp.html'
 
         f = urlopen(url)
-        text = f.read()
+        text = f.read().decode('ascii')
         sec = 0
         events = {}
         for line in text.splitlines():
