@@ -8,10 +8,13 @@ Squirrel memory cacheing.
 '''
 
 import logging
+from threading import Lock
 
 from pyrocko.guts import Object, Int
 
 logger = logging.getLogger('psq.cache')
+
+CACHE_LOCK = Lock()
 
 
 class ContentCacheStats(Object):
@@ -78,14 +81,15 @@ class ContentCache(object):
         self._accessor_ticks = {}
 
     def _prune_outdated(self, path, segment, nut_mtime):
-        try:
-            cache_mtime = self._entries[path, segment][0]
-        except KeyError:
-            return
+        with CACHE_LOCK:
+            try:
+                cache_mtime = self._entries[path, segment][0]
+            except KeyError:
+                return
 
-        if cache_mtime != nut_mtime:
-            logger.debug('Forgetting (outdated): %s %s' % (path, segment))
-            del self._entries[path, segment]
+            if cache_mtime != nut_mtime:
+                logger.debug('Forgetting (outdated): %s %s' % (path, segment))
+                del self._entries[path, segment]
 
     def put(self, nut):
         '''
@@ -98,9 +102,9 @@ class ContentCache(object):
         '''
         path, segment, element, mtime = nut.key
         self._prune_outdated(path, segment, nut.file_mtime)
-
-        if (path, segment) not in self._entries:
-            self._entries[path, segment] = nut.file_mtime, {}, {}
+        with CACHE_LOCK:
+            if (path, segment) not in self._entries:
+                self._entries[path, segment] = nut.file_mtime, {}, {}
 
         self._entries[path, segment][1][element] = nut
 
@@ -125,8 +129,9 @@ class ContentCache(object):
         path, segment, element, mtime = nut.key
         entry = self._entries[path, segment]
 
-        if accessor not in self._accessor_ticks:
-            self._accessor_ticks[accessor] = 0
+        with CACHE_LOCK:
+            if accessor not in self._accessor_ticks:
+                self._accessor_ticks[accessor] = 0
 
         entry[2][accessor] = self._accessor_ticks[accessor]
         el = entry[1][element]
@@ -153,12 +158,13 @@ class ContentCache(object):
         '''
         path, segment, element, nut_mtime = nut.key
 
-        try:
-            entry = self._entries[path, segment]
-            cache_mtime = entry[0]
-            entry[1][element]
-        except KeyError:
-            return False
+        with CACHE_LOCK:
+            try:
+                entry = self._entries[path, segment]
+                cache_mtime = entry[0]
+                entry[1][element]
+            except KeyError:
+                return False
 
         return cache_mtime == nut_mtime
 
@@ -178,16 +184,17 @@ class ContentCache(object):
         ta = self._accessor_ticks[accessor]
 
         delete = []
-        for path_segment, entry in self._entries.items():
-            t = entry[2].get(accessor, ta)
-            if t < ta:
-                del entry[2][accessor]
-                if not entry[2]:
-                    delete.append(path_segment)
+        with CACHE_LOCK:
+            for path_segment, entry in self._entries.items():
+                t = entry[2].get(accessor, ta)
+                if t < ta:
+                    del entry[2][accessor]
+                    if not entry[2]:
+                        delete.append(path_segment)
 
-        for path_segment in delete:
-            logger.debug('Forgetting (advance): %s %s' % path_segment)
-            del self._entries[path_segment]
+            for path_segment in delete:
+                logger.debug('Forgetting (advance): %s %s' % path_segment)
+                del self._entries[path_segment]
 
         self._accessor_ticks[accessor] += 1
 
@@ -201,19 +208,20 @@ class ContentCache(object):
             str
         '''
         delete = []
-        for path_segment, entry in self._entries.items():
-            entry[2].pop(accessor, None)
-            if not entry[2]:
-                delete.append(path_segment)
+        with CACHE_LOCK:
+            for path_segment, entry in self._entries.items():
+                entry[2].pop(accessor, None)
+                if not entry[2]:
+                    delete.append(path_segment)
 
-        for path_segment in delete:
-            logger.debug('Forgetting (clear): %s %s' % path_segment)
-            del self._entries[path_segment]
+            for path_segment in delete:
+                logger.debug('Forgetting (clear): %s %s' % path_segment)
+                del self._entries[path_segment]
 
-        try:
-            del self._accessor_ticks[accessor]
-        except KeyError:
-            pass
+            try:
+                del self._accessor_ticks[accessor]
+            except KeyError:
+                pass
 
     def clear(self):
         '''
