@@ -8,13 +8,10 @@ Squirrel memory cacheing.
 '''
 
 import logging
-from threading import Lock
 
 from pyrocko.guts import Object, Int
 
 logger = logging.getLogger('psq.cache')
-
-ENTRIES_LOCK = Lock()
 
 
 class ContentCacheStats(Object):
@@ -81,15 +78,14 @@ class ContentCache(object):
         self._accessor_ticks = {}
 
     def _prune_outdated(self, path, segment, nut_mtime):
-        with ENTRIES_LOCK:
-            try:
-                cache_mtime = self._entries[path, segment][0]
-            except KeyError:
-                return
+        try:
+            cache_mtime = self._entries[path, segment][0]
+        except KeyError:
+            return
 
-            if cache_mtime != nut_mtime:
-                logger.debug('Forgetting (outdated): %s %s' % (path, segment))
-                del self._entries[path, segment]
+        if cache_mtime != nut_mtime:
+            logger.debug('Forgetting (outdated): %s %s' % (path, segment))
+            self._entries.pop([path, segment], None)
 
     def put(self, nut):
         '''
@@ -102,9 +98,8 @@ class ContentCache(object):
         '''
         path, segment, element, mtime = nut.key
         self._prune_outdated(path, segment, nut.file_mtime)
-        with ENTRIES_LOCK:
-            if (path, segment) not in self._entries:
-                self._entries[path, segment] = nut.file_mtime, {}, {}
+        if (path, segment) not in self._entries.copy():
+            self._entries[path, segment] = nut.file_mtime, {}, {}
 
         self._entries[path, segment][1][element] = nut
 
@@ -181,18 +176,13 @@ class ContentCache(object):
 
         ta = self._accessor_ticks[accessor]
 
-        delete = []
-        with ENTRIES_LOCK:
-            for path_segment, entry in self._entries.items():
-                t = entry[2].get(accessor, ta)
-                if t < ta:
-                    del entry[2][accessor]
-                    if not entry[2]:
-                        delete.append(path_segment)
-
-            for path_segment in delete:
-                logger.debug('Forgetting (advance): %s %s' % path_segment)
-                del self._entries[path_segment]
+        for path_segment, entry in self._entries.copy().items():
+            t = entry[2].get(accessor, ta)
+            if t < ta:
+                del entry[2][accessor]
+                if not entry[2]:
+                    logger.debug('Forgetting (clear): %s %s' % path_segment)
+                    self._entries.pop(path_segment, None)
 
         self._accessor_ticks[accessor] += 1
 
@@ -205,21 +195,16 @@ class ContentCache(object):
         :type accessor:
             str
         '''
-        delete = []
-        with ENTRIES_LOCK:
-            for path_segment, entry in self._entries.items():
-                entry[2].pop(accessor, None)
-                if not entry[2]:
-                    delete.append(path_segment)
-
-            for path_segment in delete:
+        for path_segment, entry in self._entries.copy().items():
+            entry[2].pop(accessor, None)
+            if not entry[2]:
                 logger.debug('Forgetting (clear): %s %s' % path_segment)
-                del self._entries[path_segment]
+                self._entries.pop(path_segment, None)
 
-            try:
-                del self._accessor_ticks[accessor]
-            except KeyError:
-                pass
+        try:
+            del self._accessor_ticks[accessor]
+        except KeyError:
+            pass
 
     def clear(self):
         '''
