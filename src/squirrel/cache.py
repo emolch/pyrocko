@@ -14,7 +14,7 @@ from pyrocko.guts import Object, Int
 
 logger = logging.getLogger('psq.cache')
 
-CACHE_LOCK = Lock()
+ENTRIES_LOCK = Lock()
 
 
 class ContentCacheStats(Object):
@@ -81,7 +81,7 @@ class ContentCache(object):
         self._accessor_ticks = {}
 
     def _prune_outdated(self, path, segment, nut_mtime):
-        with CACHE_LOCK:
+        with ENTRIES_LOCK:
             try:
                 cache_mtime = self._entries[path, segment][0]
             except KeyError:
@@ -102,7 +102,7 @@ class ContentCache(object):
         '''
         path, segment, element, mtime = nut.key
         self._prune_outdated(path, segment, nut.file_mtime)
-        with CACHE_LOCK:
+        with ENTRIES_LOCK:
             if (path, segment) not in self._entries:
                 self._entries[path, segment] = nut.file_mtime, {}, {}
 
@@ -129,9 +129,8 @@ class ContentCache(object):
         path, segment, element, mtime = nut.key
         entry = self._entries[path, segment]
 
-        with CACHE_LOCK:
-            if accessor not in self._accessor_ticks:
-                self._accessor_ticks[accessor] = 0
+        if accessor not in self._accessor_ticks:
+            self._accessor_ticks[accessor] = 0
 
         entry[2][accessor] = self._accessor_ticks[accessor]
         el = entry[1][element]
@@ -158,13 +157,12 @@ class ContentCache(object):
         '''
         path, segment, element, nut_mtime = nut.key
 
-        with CACHE_LOCK:
-            try:
-                entry = self._entries[path, segment]
-                cache_mtime = entry[0]
-                entry[1][element]
-            except KeyError:
-                return False
+        try:
+            entry = self._entries[path, segment]
+            cache_mtime = entry[0]
+            entry[1][element]
+        except KeyError:
+            return False
 
         return cache_mtime == nut_mtime
 
@@ -184,7 +182,7 @@ class ContentCache(object):
         ta = self._accessor_ticks[accessor]
 
         delete = []
-        with CACHE_LOCK:
+        with ENTRIES_LOCK:
             for path_segment, entry in self._entries.items():
                 t = entry[2].get(accessor, ta)
                 if t < ta:
@@ -208,7 +206,7 @@ class ContentCache(object):
             str
         '''
         delete = []
-        with CACHE_LOCK:
+        with ENTRIES_LOCK:
             for path_segment, entry in self._entries.items():
                 entry[2].pop(accessor, None)
                 if not entry[2]:
