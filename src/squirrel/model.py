@@ -363,15 +363,58 @@ class CodesX(CodesXBase, Codes):
 g_codes_patterns = {}
 
 
-def match_codes(pattern, codes):
-    spattern = pattern.safe_str
-    scodes = codes.safe_str
+def _is_exact(pat):
+    return not ('*' in pat or '?' in pat or ']' in pat or '[' in pat)
+
+
+def classify_patterns(patterns):
+    pats_exact = []
+    pats_nonexact = []
+    for pat in patterns:
+        spat = pat.safe_str
+        (pats_exact if _is_exact(spat) else pats_nonexact).append(spat)
+
+    return pats_exact, pats_nonexact
+
+
+def get_regex_pattern(spattern):
     if spattern not in g_codes_patterns:
         rpattern = re.compile(fnmatch.translate(spattern), re.I)
         g_codes_patterns[spattern] = rpattern
 
-    rpattern = g_codes_patterns[spattern]
+    return g_codes_patterns[spattern]
+
+
+def match_codes(pattern, codes):
+    spattern = pattern.safe_str
+    scodes = codes.safe_str
+    rpattern = get_regex_pattern(spattern)
     return bool(rpattern.match(scodes))
+
+
+class CodesMatcher:
+    def __init__(self, patterns):
+        self._pats_exact, self._pats_nonexact = classify_patterns(patterns)
+        self._pats_exact = set(self._pats_exact)
+        self._pats_nonexact = [
+            get_regex_pattern(spat) for spat in self._pats_nonexact]
+
+    def match(self, codes):
+        scodes = codes.safe_str
+        if scodes in self._pats_exact:
+            return True
+
+        return any(rpat.match(scodes) for rpat in self._pats_nonexact)
+
+
+def match_codes_any(patterns, codes):
+
+    pats_exact, pats_nonexact = classify_patterns(patterns)
+
+    if codes.safe_str in pats_exact:
+        return True
+
+    return any(match_codes(pattern, codes) for pattern in patterns)
 
 
 g_content_kinds = [
@@ -1771,6 +1814,14 @@ class Coverage(Object):
 
 
 __all__ = [
+    'UNDEFINED',
+    'WAVEFORM',
+    'STATION',
+    'CHANNEL',
+    'RESPONSE',
+    'EVENT',
+    'WAVEFORM_PROMISE',
+    'EMPTY',
     'to_codes',
     'to_codes_guess',
     'to_codes_simple',
@@ -1778,6 +1829,9 @@ __all__ = [
     'to_kinds',
     'to_kind_id',
     'to_kind_ids',
+    'match_codes',
+    'codes_patterns_for_kind',
+    'CodesMatcher',
     'CodesError',
     'Codes',
     'CodesNSLCE',

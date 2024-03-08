@@ -100,10 +100,6 @@ def order_key(order):
     return (order.codes, order.tmin, order.tmax)
 
 
-def _is_exact(pat):
-    return not ('*' in pat or '?' in pat or ']' in pat or '[' in pat)
-
-
 def prefix_tree(tups):
     if not tups:
         return []
@@ -882,11 +878,7 @@ class Squirrel(Selection):
         if pats is None:
             return
 
-        pats_exact = []
-        pats_nonexact = []
-        for pat in pats:
-            spat = pat.safe_str
-            (pats_exact if _is_exact(spat) else pats_nonexact).append(spat)
+        pats_exact, pats_nonexact = model.classify_patterns(pats)
 
         codes_cond = []
         if pats_exact:
