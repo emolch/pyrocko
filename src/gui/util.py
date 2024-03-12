@@ -3,24 +3,28 @@
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
-import sys
-import math
-import time
-import numpy as num
-import logging
-import enum
 import calendar
+import enum
+import logging
+import math
 import signal
+import sys
+import time
 
+import numpy as num
 from matplotlib.colors import Normalize
-
-from .qt_compat import qc, qg, qw
-
-from .snuffler.marker import Marker, PhaseMarker, EventMarker  # noqa
-from .snuffler.marker import MarkerParseError, MarkerOneNSLCRequired  # noqa
-from .snuffler.marker import load_markers, save_markers  # noqa
 from pyrocko import plot, util
 
+from .qt_compat import qc, qg, qw
+from .snuffler.marker import (  # noqa  # noqa  # noqa
+    EventMarker,
+    Marker,
+    MarkerOneNSLCRequired,
+    MarkerParseError,
+    PhaseMarker,
+    load_markers,
+    save_markers,
+)
 
 logger = logging.getLogger('pyrocko.gui.util')
 
@@ -48,8 +52,8 @@ class _GetchUnix:
 
     def __call__(self):
         import sys
-        import tty
         import termios
+        import tty
 
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
@@ -837,8 +841,8 @@ class ColorbarSlider(qw.QWidget):
             return
         rect = qc.QRect(self._window)
         width = rect.width()
-        rect.setLeft(width * self.clip_min)
-        rect.setRight(width * self.clip_max)
+        rect.setLeft(int(round(width * self.clip_min)))
+        rect.setRight(int(round(width * self.clip_max)))
         return rect
 
     def set_clip(self, clip_min, clip_max):
@@ -1181,11 +1185,12 @@ class FigureFrame(qw.QFrame):
             from matplotlib.figure import Figure
             figure_cls = Figure
 
-        from matplotlib.backends.backend_qt5agg import \
-            NavigationToolbar2QT as NavigationToolbar
-
-        from matplotlib.backends.backend_qt5agg \
-            import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt5agg import (
+            FigureCanvasQTAgg as FigureCanvas,
+        )
+        from matplotlib.backends.backend_qt5agg import (
+            NavigationToolbar2QT as NavigationToolbar,
+        )
 
         layout = qw.QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -1281,8 +1286,9 @@ class VTKFrame(qw.QFrame):
 
     def __init__(self, actors=None, parent=None):
         import vtk
-        from vtk.qt.QVTKRenderWindowInteractor import \
-            QVTKRenderWindowInteractor
+        from vtk.qt.QVTKRenderWindowInteractor import (
+            QVTKRenderWindowInteractor,
+        )
 
         qw.QFrame.__init__(self, parent)
         layout = qw.QGridLayout()

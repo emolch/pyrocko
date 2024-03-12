@@ -323,6 +323,7 @@ int argmax(double *arrayin, uint32_t *arrayout, size_t nx, size_t ny, int nparal
         #pragma omp for schedule(dynamic, 1) nowait
     #endif
     for (ix=0; ix<nx; ix+=NBLOCK){
+        #pragma omp simd
         for (ix_offset=0; ix_offset<smin(NBLOCK, nx-ix); ix_offset++) {
             imax[ix_offset] = 0;
             vmax[ix_offset] = DBL_MIN;
@@ -335,6 +336,7 @@ int argmax(double *arrayin, uint32_t *arrayout, size_t nx, size_t ny, int nparal
                 }
             }
         }
+        #pragma omp simd
         for (ix_offset=0; ix_offset<smin(NBLOCK, nx-ix); ix_offset++) {
             arrayout[ix+ix_offset] = (uint32_t)imax[ix_offset];
         }
