@@ -9,7 +9,7 @@ Squirrel memory cacheing.
 
 import logging
 
-from pyrocko.guts import Object, Int
+from pyrocko.guts import Int, Object
 
 logger = logging.getLogger('psq.cache')
 
@@ -179,7 +179,7 @@ class ContentCache(object):
         for path_segment, entry in self._entries.copy().items():
             t = entry[2].get(accessor, ta)
             if t < ta:
-                del entry[2][accessor]
+                entry[2].pop(accessor, None)
                 if not entry[2]:
                     logger.debug('Forgetting (clear): %s %s' % path_segment)
                     self._entries.pop(path_segment, None)
@@ -201,10 +201,7 @@ class ContentCache(object):
                 logger.debug('Forgetting (clear): %s %s' % path_segment)
                 self._entries.pop(path_segment, None)
 
-        try:
-            del self._accessor_ticks[accessor]
-        except KeyError:
-            pass
+        self._accessor_ticks.pop(accessor, None)
 
     def clear(self):
         '''
