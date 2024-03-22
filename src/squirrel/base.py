@@ -7,7 +7,6 @@
 Squirrel main classes.
 '''
 
-import contextvars
 import functools
 import sys
 import os
@@ -1726,11 +1725,10 @@ class Squirrel(Selection):
         segment) will also be loaded as a side effect. The loaded contents are
         cached in the Squirrel object.
         '''
+        loop = asyncio.get_running_loop()
         async def load_nut_threaded(nut):
-            loop = asyncio.get_running_loop()
-            ctx = contextvars.copy_context()
             func_call = functools.partial(
-                    ctx.run, self.get_content, nut, cache_id, accessor_id,
+                    self.get_content, nut, cache_id, accessor_id,
                     show_progress, model)
             return await loop.run_in_executor(get_loading_executor(),func_call)
 
@@ -2454,8 +2452,10 @@ class Squirrel(Selection):
             return []
 
         if load_data:
-            traces = [
-                self.get_content(nut, 'waveform', accessor_id) for nut in nuts]
+            traces = asyncio.run(
+                self.get_contents_async(
+                    nuts, 'waveform', accessor_id=accessor_id)
+                )
 
         else:
             traces = [
@@ -2645,7 +2645,8 @@ class Squirrel(Selection):
         if self.downloads_enabled:
             kinds.append('waveform_promise')
 
-        self_tmin, self_tmax = self.get_time_span(kinds)
+        self_tmin, self_tmax = await asyncio.to_thread(
+            self.get_time_span, kinds)
 
         if None in (self_tmin, self_tmax):
             logger.warning(
