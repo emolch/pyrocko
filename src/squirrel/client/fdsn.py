@@ -637,6 +637,9 @@ class FDSNSource(Source, has_paths.HasPaths):
                 subnut.tmin = tmin
                 subnut.tmax = tmax
 
+                if subnut.deltat is None:
+                    continue
+
                 # ignore 1-sample gaps produced by rounding errors
                 if subnut.tmax - subnut.tmin < 2*subnut.deltat:
                     continue
