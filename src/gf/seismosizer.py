@@ -4620,6 +4620,58 @@ class CombiSource(Source):
         return meta.DiscretizedMTSource.combine(dsources)
 
 
+class CombiSFSource(Source):
+    '''
+    Composite source model.
+    '''
+
+    discretized_source_class = meta.DiscretizedSFSource
+
+    subsources = List.T(Source.T())
+
+    def __init__(self, subsources=[], **kwargs):
+        if not subsources:
+            raise BadRequest(
+                'Need at least one sub-source to create a CombiSource object.')
+
+        lats = num.array(
+            [subsource.lat for subsource in subsources], dtype=float)
+        lons = num.array(
+            [subsource.lon for subsource in subsources], dtype=float)
+
+        lat, lon = lats[0], lons[0]
+        if not num.all(lats == lat) and num.all(lons == lon):
+            subsources = [s.clone() for s in subsources]
+            for subsource in subsources[1:]:
+                subsource.set_origin(lat, lon)
+
+        depth = float(num.mean([p.depth for p in subsources]))
+        time = float(num.mean([p.time for p in subsources]))
+        north_shift = float(num.mean([p.north_shift for p in subsources]))
+        east_shift = float(num.mean([p.east_shift for p in subsources]))
+        kwargs.update(
+            time=time,
+            lat=float(lat),
+            lon=float(lon),
+            north_shift=north_shift,
+            east_shift=east_shift,
+            depth=depth)
+
+        Source.__init__(self, subsources=subsources, **kwargs)
+
+    def get_factor(self):
+        return 1.0
+
+    def discretize_basesource(self, store, target=None):
+        dsources = []
+        for sf in self.subsources:
+            ds = sf.discretize_basesource(store, target)
+            ds.forces *= sf.get_factor()
+            dsources.append(ds)
+
+        return meta.DiscretizedSFSource.combine(dsources)
+
+
 class SFSource(Source):
     '''
     A single force point source.
@@ -5922,6 +5974,7 @@ source_classes = [
     DoubleDCSource,
     RingfaultSource,
     CombiSource,
+    CombiSFSource,
     SFSource,
     PorePressurePointSource,
     PorePressureLineSource,
