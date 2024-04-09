@@ -7,7 +7,6 @@
 Squirrel main classes.
 '''
 
-import functools
 import sys
 import os
 import time
@@ -43,7 +42,8 @@ guts_prefix = 'squirrel'
 
 def get_loading_executor(max_workers=8):
     global LOADING_EXECUTOR
-    if LOADING_EXECUTOR is None or LOADING_EXECUTOR._max_workers != max_workers:
+    if LOADING_EXECUTOR is None\
+            or LOADING_EXECUTOR._max_workers != max_workers:
         LOADING_EXECUTOR = ThreadPoolExecutor(max_workers=max_workers)
     return LOADING_EXECUTOR
 
@@ -1737,7 +1737,6 @@ class Squirrel(Selection):
 
         return list(nuts)
 
-
     def advance_accessor(self, accessor_id='default', cache_id=None):
         '''
         Notify memory caches about consumer moving to a new data batch.
@@ -2710,40 +2709,6 @@ class Squirrel(Selection):
             chopped, degap, maxgap, maxlap, want_incomplete, tmin, tmax)
 
         return processed
-
-    def _get_waveforms_prioritized(
-            self, tmin=None, tmax=None, codes=None, codes_exclude=None,
-            channel_priorities=None, **kwargs):
-
-        trs_all = []
-        codes_have = set()
-        for channel in channel_priorities:
-            assert len(channel) == 2
-            if codes is not None:
-                codes_now = [
-                    codes_.replace(channel=channel+'?') for codes_ in codes]
-            else:
-                codes_now = model.CodesNSLCE('*', '*', '*', channel+'?')
-
-            codes_exclude_now = list(set(
-                codes_.replace(channel=channel+codes_.channel[-1])
-                for codes_ in codes_have))
-
-            if codes_exclude:
-                codes_exclude_now.extend(codes_exclude)
-
-            trs = self.get_waveforms(
-                tmin=tmin,
-                tmax=tmax,
-                codes=codes_now,
-                codes_exclude=codes_exclude_now,
-                **kwargs)
-
-            codes_have.update(set(tr.codes for tr in trs))
-            trs_all.extend(trs)
-
-        return trs_all
-
 
     @filldocs
     def chopper_waveforms(
