@@ -41,10 +41,10 @@ LOADING_EXECUTOR = None
 guts_prefix = 'squirrel'
 
 
-def get_loading_executor():
+def get_loading_executor(max_workers=8):
     global LOADING_EXECUTOR
-    if LOADING_EXECUTOR is None:
-        LOADING_EXECUTOR = ThreadPoolExecutor(max_workers=8)
+    if LOADING_EXECUTOR is None or LOADING_EXECUTOR._max_workers != max_workers:
+        LOADING_EXECUTOR = ThreadPoolExecutor(max_workers=max_workers)
     return LOADING_EXECUTOR
 
 
@@ -220,6 +220,11 @@ class Squirrel(Selection):
     :type persistent:
         :py:class:`str`
 
+    :param n_threads:
+        Number of threads for parallel loading of data.
+    :type n_threads:
+        :py:class:`int`
+
     This is the central class of the Squirrel framework. It provides a unified
     interface to query and access seismic waveforms, station meta-data and
     event information from local file collections and remote data sources. For
@@ -295,7 +300,8 @@ class Squirrel(Selection):
     '''
 
     def __init__(
-            self, env=None, database=None, cache_path=None, persistent=None):
+            self, env=None, database=None, cache_path=None, persistent=None,
+            n_threads=8):
 
         if not isinstance(env, environment.Environment):
             env = environment.get_environment(env)
@@ -313,6 +319,7 @@ class Squirrel(Selection):
             self, database=database, persistent=persistent)
 
         self.get_database().set_basepath(os.path.dirname(env.get_basepath()))
+        self._n_threads = n_threads
 
         self._content_caches = {
             'waveform': cache.ContentCache(),
@@ -1709,13 +1716,13 @@ class Squirrel(Selection):
             raise error.NotAvailable(
                 'Unable to retrieve content: %s, %s, %s, %s' % nut.key)
 
-    async def get_contents_async(
+    def get_contents_threaded(
             self,
             nuts: list[model.Nut],
-            cache_id='default',
-            accessor_id='default',
-            show_progress=False,
-            model='squirrel'):
+            cache_id: str = 'default',
+            accessor_id: str = 'default',
+            show_progress: bool = False,
+            model: str = 'squirrel') -> list[model.Nut]:
 
         '''
         Get and possibly load full content for a given index entry from file.
@@ -1725,15 +1732,10 @@ class Squirrel(Selection):
         segment) will also be loaded as a side effect. The loaded contents are
         cached in the Squirrel object.
         '''
-        loop = asyncio.get_running_loop()
-        async def load_nut_threaded(nut):
-            func_call = functools.partial(
-                    self.get_content, nut, cache_id, accessor_id,
-                    show_progress, model)
-            return await loop.run_in_executor(get_loading_executor(),func_call)
+        executor = get_loading_executor(max_workers=self._n_threads)
+        nuts = executor.map(self.get_content, *nuts)
 
-        work = [load_nut_threaded(nut) for nut in nuts]
-        return await asyncio.gather(*work)
+        return list(nuts)
 
 
     def advance_accessor(self, accessor_id='default', cache_id=None):
@@ -2452,10 +2454,8 @@ class Squirrel(Selection):
             return []
 
         if load_data:
-            traces = asyncio.run(
-                self.get_contents_async(
+            traces = self.get_contents_threaded(
                     nuts, 'waveform', accessor_id=accessor_id)
-                )
 
         else:
             traces = [
@@ -2677,7 +2677,8 @@ class Squirrel(Selection):
             return []
 
         if load_data:
-            traces = await self.get_contents_async(nuts, 'waveform', accessor_id)
+            traces = await asyncio.to_thread(
+                self.get_contents_threaded, nuts, 'waveform', accessor_id)
 
         else:
             traces = [
