@@ -1809,7 +1809,7 @@ class Trace(Object):
         else:
             return m, n
 
-    def spectrum(self, pad_to_pow2=False, tfade=None):
+    def spectrum(self, pad_to_pow2=False, tfade=None, ntrans_min=None):
         '''
         Get FFT spectrum of trace.
 
@@ -1821,7 +1821,10 @@ class Trace(Object):
         :returns: a tuple with (frequencies, values)
         '''
 
-        ndata = self.ydata.size
+        if ntrans_min is None:
+            ndata = self.ydata.size
+        else:
+            ndata = ntrans_min
 
         if pad_to_pow2:
             ntrans = nextpow2(ndata)

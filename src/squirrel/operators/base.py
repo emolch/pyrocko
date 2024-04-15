@@ -6,7 +6,7 @@
 import logging
 import re
 
-from ..model import QuantityType, match_codes, CodesNSLCE
+from ..model import QuantityType, CodesNSLCE, CodesMatcher
 from .. import error
 
 from pyrocko.guts import Object, String, Duration, Float, clone, List
@@ -66,7 +66,7 @@ class Filtering(Object):
         return list(it)
 
 
-class RegexFiltering(Object):
+class RegexFiltering(Filtering):
     '''
     Filter by regex.
     '''
@@ -81,19 +81,25 @@ class RegexFiltering(Object):
             x for x in it if self._compiled_pattern.fullmatch(x)]
 
 
-class CodesPatternFiltering(Object):
+class CodesPatternFiltering(Filtering):
     '''
     Filter by codes pattern.
     '''
     codes = List.T(CodesNSLCE.T(), optional=True)
 
+    def __init__(self, **kwargs):
+        Filtering.__init__(self, **kwargs)
+        if self.codes is not None:
+            self._matcher = CodesMatcher(self.codes)
+        else:
+            self._matcher = None
+
     def filter(self, it):
-        if self.codes is None:
+        if self._matcher is None:
             return list(it)
         else:
             return [
-                x for x in it
-                if any(match_codes(sc, x) for sc in self.codes)]
+                x for x in it if self._matcher.match(x)]
 
 
 class Grouping(Object):
