@@ -7,20 +7,26 @@
 Database interface code.
 '''
 
-import sys
-import os
 import logging
-import sqlite3
+import os
 import re
+import sqlite3
+import sys
 import time
 
-from pyrocko.io.io_common import FileLoadError
 from pyrocko import util
-from pyrocko.guts import Object, Int, List, Dict, Tuple, String
+from pyrocko.guts import Dict, Int, List, Object, String, Tuple
+from pyrocko.io.io_common import FileLoadError
+
 from . import error, io
-from .model import Nut, to_kind_id, to_kind, to_codes_simple, \
-    codes_patterns_for_kind
 from .error import SquirrelError
+from .model import (
+    Nut,
+    codes_patterns_for_kind,
+    to_codes_simple,
+    to_kind,
+    to_kind_id,
+)
 
 logger = logging.getLogger('psq.database')
 
@@ -293,10 +299,10 @@ class Database(object):
         return s
 
     def optimize(self):
-        logger.info("Optimizing database")
+        logger.info('Optimizing database')
         with self.transaction('optimize') as cursor:
             cursor.execute('''PRAGMA optimize''')
-        logger.info("Database optimized")
+        logger.info('Database optimized')
 
     def _initialize_db(self):
         with self.transaction('initialize') as cursor:
@@ -308,7 +314,6 @@ class Database(object):
 
             cursor.execute(
                 '''PRAGMA cache_size = -10000''')
-
 
             if 2 == len(list(
                     cursor.execute(

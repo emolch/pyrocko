@@ -7,34 +7,44 @@
 Squirrel main classes.
 '''
 
-import sys
-import os
-import time
-import math
-import logging
-import threading
-import queue
 import asyncio
+import logging
+import math
+import os
+import queue
+import sys
+import threading
+import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
-from pyrocko.guts import Object, Int, List, Tuple, String, Timestamp, Dict
-from pyrocko import util, trace
-from pyrocko import progress
+from pyrocko import progress, trace, util
+from pyrocko.guts import Dict, Int, List, Object, String, Timestamp, Tuple
 from pyrocko.plot import nice_time_tick_inc_approx_secs
 
-from . import model, io, cache, dataset
-
-from .model import to_kind_id, WaveformOrder, to_kind, to_codes, \
-    STATION, CHANNEL, RESPONSE, EVENT, WAVEFORM, codes_patterns_list, \
-    codes_patterns_for_kind
-from .client import fdsn, catalog
-from .selection import Selection, filldocs
+from . import cache, client, dataset, environment, error, io, model
+from .client import catalog, fdsn
 from .database import abspath
-from .operators.base import Operator, CodesPatternFiltering
-from . import client, environment, error
+from .model import (
+    CHANNEL,
+    EVENT,
+    RESPONSE,
+    STATION,
+    WAVEFORM,
+    WaveformOrder,
+    codes_patterns_for_kind,
+    codes_patterns_list,
+    to_codes,
+    to_kind,
+    to_kind_id,
+)
+from .operators.base import CodesPatternFiltering, Operator
+from .selection import Selection, filldocs
 
 logger = logging.getLogger('psq.base')
+
+Nut = model.Nut
 
 LOADING_EXECUTOR = None
 guts_prefix = 'squirrel'
@@ -221,7 +231,8 @@ class Squirrel(Selection):
         :py:class:`str`
 
     :param n_threads:
-        Number of threads for parallel loading of data.
+        Number of threads for parallel loading of data. By default, 8 threads
+        are used.
     :type n_threads:
         :py:class:`int`
 
@@ -1718,11 +1729,11 @@ class Squirrel(Selection):
 
     def get_contents_threaded(
             self,
-            nuts: list[model.Nut],
+            nuts: list[Nut] | Nut,
             cache_id: str = 'default',
             accessor_id: str = 'default',
             show_progress: bool = False,
-            model: str = 'squirrel') -> list[model.Nut]:
+            model: str = 'squirrel') -> list[Nut]:
 
         '''
         Get and possibly load full content for a given index entry from file.
@@ -1733,9 +1744,12 @@ class Squirrel(Selection):
         cached in the Squirrel object.
         '''
         executor = get_loading_executor(max_workers=self._n_threads)
-        nuts = executor.map(self.get_content, *nuts)
-
-        return list(nuts)
+        nuts = [nuts] if isinstance(nuts, Nut) else nuts
+        get_content = partial(
+            self.get_content, cache_id=cache_id, accessor_id=accessor_id,
+            show_progress=show_progress, model=model)
+        loaded_nuts = executor.map(get_content, *nuts)
+        return list(loaded_nuts)
 
     def advance_accessor(self, accessor_id='default', cache_id=None):
         '''
@@ -2521,196 +2535,6 @@ class Squirrel(Selection):
         return trs_all
 
     @filldocs
-    async def get_waveforms_async(
-            self, obj=None, tmin=None, tmax=None, time=None, codes=None,
-            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
-            uncut=False, want_incomplete=True, degap=True,
-            maxgap=5, maxlap=None, snap=None, include_last=False,
-            load_data=True, accessor_id='default', operator_params=None,
-            order_only=False, channel_priorities=None):
-
-        '''
-        Get waveforms matching given constraints.
-
-        %(query_args)s
-
-        :param sample_rate_min:
-            Consider only waveforms with a sampling rate equal to or greater
-            than the given value [Hz].
-        :type sample_rate_min:
-            float
-
-        :param sample_rate_max:
-            Consider only waveforms with a sampling rate equal to or less than
-            the given value [Hz].
-        :type sample_rate_max:
-            float
-
-        :param uncut:
-            Set to ``True``, to disable cutting traces to [``tmin``, ``tmax``]
-            and to disable degapping/deoverlapping. Returns untouched traces as
-            they are read from file segment. File segments are always read in
-            their entirety.
-        :type uncut:
-            bool
-
-        :param want_incomplete:
-            If ``True``, gappy/incomplete traces are included in the result.
-        :type want_incomplete:
-            bool
-
-        :param degap:
-            If ``True``, connect traces and remove gaps and overlaps.
-        :type degap:
-            bool
-
-        :param maxgap:
-            Maximum gap size in samples which is filled with interpolated
-            samples when ``degap`` is ``True``.
-        :type maxgap:
-            int
-
-        :param maxlap:
-            Maximum overlap size in samples which is removed when ``degap`` is
-            ``True``.
-        :type maxlap:
-            int
-
-        :param snap:
-            Rounding functions used when computing sample index from time
-            instance, for trace start and trace end, respectively. By default,
-            ``(round, round)`` is used.
-        :type snap:
-             :py:class:`tuple` of 2 callables
-
-        :param include_last:
-            If ``True``, add one more sample to the returned traces (the sample
-            which would be the first sample of a query with ``tmin`` set to the
-            current value of ``tmax``).
-        :type include_last:
-            bool
-
-        :param load_data:
-            If ``True``, waveform data samples are read from files (or cache).
-            If ``False``, meta-information-only traces are returned (dummy
-            traces with no data samples).
-        :type load_data:
-            bool
-
-        :param accessor_id:
-            Name of consumer on who's behalf data is accessed. Used in cache
-            management (see :py:mod:`~pyrocko.squirrel.cache`). Used as a key
-            to distinguish different points of extraction for the decision of
-            when to release cached waveform data. Should be used when data is
-            alternately extracted from more than one region / selection.
-        :type accessor_id:
-            str
-
-        :param channel_priorities:
-            List of band/instrument code combinations to try. For example,
-            giving ``['HH', 'BH']`` would first try to get ``HH?`` channels and
-            then fallback to ``BH?`` if these are not available. The first
-            matching waveforms are returned. Use in combination with
-            ``sample_rate_min`` and ``sample_rate_max`` to constrain the sample
-            rate.
-        :type channel_priorities:
-            :py:class:`list` of :py:class:`str`
-
-        See :py:meth:`iter_nuts` for details on time span matching.
-
-        Loaded data is kept in memory (at least) until
-        :py:meth:`clear_accessor` has been called or
-        :py:meth:`advance_accessor` has been called two consecutive times
-        without data being accessed between the two calls (by this accessor).
-        Data may still be further kept in the memory cache if held alive by
-        consumers with a different ``accessor_id``.
-        '''
-
-        tmin, tmax, codes = self._get_selection_args(
-            WAVEFORM, obj, tmin, tmax, time, codes)
-
-        if channel_priorities is not None:
-            return self._get_waveforms_prioritized(
-                tmin=tmin, tmax=tmax, codes=codes, codes_exclude=codes_exclude,
-                sample_rate_min=sample_rate_min,
-                sample_rate_max=sample_rate_max,
-                uncut=uncut, want_incomplete=want_incomplete, degap=degap,
-                maxgap=maxgap, maxlap=maxlap, snap=snap,
-                include_last=include_last, load_data=load_data,
-                accessor_id=accessor_id, operator_params=operator_params,
-                order_only=order_only, channel_priorities=channel_priorities)
-
-        kinds = ['waveform']
-        if self.downloads_enabled:
-            kinds.append('waveform_promise')
-
-        self_tmin, self_tmax = await asyncio.to_thread(
-            self.get_time_span, kinds)
-
-        if None in (self_tmin, self_tmax):
-            logger.warning(
-                'No waveforms available.')
-            return []
-
-        tmin = tmin if tmin is not None else self_tmin
-        tmax = tmax if tmax is not None else self_tmax
-
-        if codes is not None and len(codes) == 1:
-            # TODO: fix for multiple / mixed codes
-            operator = self.get_operator(codes[0])
-            if operator is not None:
-                return operator.get_waveforms(
-                    self, codes[0],
-                    tmin=tmin, tmax=tmax,
-                    uncut=uncut, want_incomplete=want_incomplete, degap=degap,
-                    maxgap=maxgap, maxlap=maxlap, snap=snap,
-                    include_last=include_last, load_data=load_data,
-                    accessor_id=accessor_id, params=operator_params)
-
-        nuts = await asyncio.to_thread(
-            self.get_waveform_nuts,
-            obj, tmin, tmax, time, codes, codes_exclude, sample_rate_min,
-            sample_rate_max, order_only=order_only)
-
-        if order_only:
-            return []
-
-        if load_data:
-            traces = await asyncio.to_thread(
-                self.get_contents_threaded, nuts, 'waveform', accessor_id)
-
-        else:
-            traces = [
-                trace.Trace(**nut.trace_kwargs) for nut in nuts]
-
-        if uncut:
-            return traces
-
-        if snap is None:
-            snap = (round, round)
-
-        chopped = []
-        for tr in traces:
-            if not load_data and tr.ydata is not None:
-                tr = tr.copy(data=False)
-                tr.ydata = None
-
-            try:
-                chopped.append(tr.chop(
-                    tmin, tmax,
-                    inplace=False,
-                    snap=snap,
-                    include_last=include_last))
-
-            except trace.NoData:
-                pass
-
-        processed = self._process_chopped(
-            chopped, degap, maxgap, maxlap, want_incomplete, tmin, tmax)
-
-        return processed
-
-    @filldocs
     def chopper_waveforms(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
             codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
@@ -2912,7 +2736,6 @@ class Squirrel(Selection):
             if clear_accessor:
                 self.clear_accessor(accessor_id, 'waveform')
 
-    @filldocs
     async def chopper_waveforms_async(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
             codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
@@ -2923,196 +2746,15 @@ class Squirrel(Selection):
             accessor_id=None, clear_accessor=True, operator_params=None,
             grouping=None, channel_priorities=None):
 
-        '''
-        Iterate window-wise over waveform archive.
+        await asyncio.to_thread(
+            self.chopper_waveforms, obj, tmin, tmax, time, codes,
+            codes_exclude, sample_rate_min, sample_rate_max,
+            tinc, tpad, want_incomplete, snap_window,
+            degap, maxgap, maxlap, snap, include_last, load_data,
+            accessor_id, clear_accessor, operator_params, grouping,
+            channel_priorities)
 
-        %(query_args)s
-
-        :param tinc:
-            Time increment (window shift time) (default uses ``tmax-tmin``).
-        :type tinc:
-            :py:func:`~pyrocko.util.get_time_float`
-
-        :param tpad:
-            Padding time appended on either side of the data window (window
-            overlap is ``2*tpad``).
-        :type tpad:
-            :py:func:`~pyrocko.util.get_time_float`
-
-        :param want_incomplete:
-            If ``True``, gappy/incomplete traces are included in the result.
-        :type want_incomplete:
-            bool
-
-        :param snap_window:
-            If ``True``, start time windows at multiples of tinc with respect
-            to system time zero.
-        :type snap_window:
-            bool
-
-        :param degap:
-            If ``True``, connect traces and remove gaps and overlaps.
-        :type degap:
-            bool
-
-        :param maxgap:
-            Maximum gap size in samples which is filled with interpolated
-            samples when ``degap`` is ``True``.
-        :type maxgap:
-            int
-
-        :param maxlap:
-            Maximum overlap size in samples which is removed when ``degap`` is
-            ``True``.
-        :type maxlap:
-            int
-
-        :param snap:
-            Rounding functions used when computing sample index from time
-            instance, for trace start and trace end, respectively. By default,
-            ``(round, round)`` is used.
-        :type snap:
-             :py:class:`tuple` of 2 callables
-
-        :param include_last:
-            If ``True``, add one more sample to the returned traces (the sample
-            which would be the first sample of a query with ``tmin`` set to the
-            current value of ``tmax``).
-        :type include_last:
-            bool
-
-        :param load_data:
-            If ``True``, waveform data samples are read from files (or cache).
-            If ``False``, meta-information-only traces are returned (dummy
-            traces with no data samples).
-        :type load_data:
-            bool
-
-        :param accessor_id:
-            Name of consumer on who's behalf data is accessed. Used in cache
-            management (see :py:mod:`~pyrocko.squirrel.cache`). Used as a key
-            to distinguish different points of extraction for the decision of
-            when to release cached waveform data. Should be used when data is
-            alternately extracted from more than one region / selection.
-        :type accessor_id:
-            str
-
-        :param clear_accessor:
-            If ``True`` (default), :py:meth:`clear_accessor` is called when the
-            chopper finishes. Set to ``False`` to keep loaded waveforms in
-            memory when the generator returns.
-        :type clear_accessor:
-            bool
-
-        :param grouping:
-            By default, traversal over the data is over time and all matching
-            traces of a time window are yielded. Using this option, it is
-            possible to traverse the data first by group (e.g. station or
-            network) and second by time. This can reduce the number of traces
-            in each batch and thus reduce the memory footprint of the process.
-        :type grouping:
-            :py:class:`~pyrocko.squirrel.operators.base.Grouping`
-
-        :yields:
-            For each extracted time window or waveform group a
-            :py:class:`Batch` object is yielded.
-
-        See :py:meth:`iter_nuts` for details on time span matching.
-        '''
-
-        tmin, tmax, codes = self._get_selection_args(
-            WAVEFORM, obj, tmin, tmax, time, codes)
-
-        kinds = ['waveform']
-        if self.downloads_enabled:
-            kinds.append('waveform_promise')
-
-        self_tmin, self_tmax = self.get_time_span(kinds)
-
-        if None in (self_tmin, self_tmax):
-            logger.warning(
-                'Content has undefined time span. No waveforms and no '
-                'waveform promises?')
-            return
-
-        if snap_window and tinc is not None:
-            tmin = tmin if tmin is not None else self_tmin
-            tmax = tmax if tmax is not None else self_tmax
-            tmin = math.floor(tmin / tinc) * tinc
-            tmax = math.ceil(tmax / tinc) * tinc
-        else:
-            tmin = tmin if tmin is not None else self_tmin + tpad
-            tmax = tmax if tmax is not None else self_tmax - tpad
-
-        if tinc is None:
-            tinc = tmax - tmin
-            nwin = 1
-        elif tinc == 0.0:
-            nwin = 1
-        else:
-            eps = 1e-6
-            nwin = max(1, int((tmax - tmin) / tinc - eps) + 1)
-
-        try:
-            if accessor_id is None:
-                accessor_id = 'chopper%i' % self._n_choppers_active
-
-            self._n_choppers_active += 1
-
-            if grouping is None:
-                codes_list = [codes]
-            else:
-                operator = Operator(
-                    filtering=CodesPatternFiltering(codes=codes),
-                    grouping=grouping)
-
-                available = set(self.get_codes(kind='waveform'))
-                if self.downloads_enabled:
-                    available.update(self.get_codes(kind='waveform_promise'))
-                operator.update_mappings(sorted(available))
-
-                codes_list = [
-                    codes_patterns_list(scl)
-                    for scl in operator.iter_in_codes()]
-
-            ngroups = len(codes_list)
-            for igroup, scl in enumerate(codes_list):
-                for iwin in range(nwin):
-                    wmin, wmax = tmin+iwin*tinc, min(tmin+(iwin+1)*tinc, tmax)
-
-                    chopped = await self.get_waveforms_async(
-                        tmin=wmin-tpad,
-                        tmax=wmax+tpad,
-                        codes=scl,
-                        codes_exclude=codes_exclude,
-                        sample_rate_min=sample_rate_min,
-                        sample_rate_max=sample_rate_max,
-                        snap=snap,
-                        include_last=include_last,
-                        load_data=load_data,
-                        want_incomplete=want_incomplete,
-                        degap=degap,
-                        maxgap=maxgap,
-                        maxlap=maxlap,
-                        accessor_id=accessor_id,
-                        operator_params=operator_params,
-                        channel_priorities=channel_priorities)
-
-                    self.advance_accessor(accessor_id)
-
-                    yield Batch(
-                        tmin=wmin,
-                        tmax=wmax,
-                        i=iwin,
-                        n=nwin,
-                        igroup=igroup,
-                        ngroups=ngroups,
-                        traces=chopped)
-
-        finally:
-            self._n_choppers_active -= 1
-            if clear_accessor:
-                self.clear_accessor(accessor_id, 'waveform')
+    chopper_waveforms_async.__doc__ = chopper_waveforms.__doc__
 
     def _process_chopped(
             self, chopped, degap, maxgap, maxlap, want_incomplete, tmin, tmax):
