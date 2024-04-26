@@ -47,11 +47,12 @@ logger = logging.getLogger('psq.base')
 
 Nut = model.Nut
 
+NTHREADS_DEFAULT = 8
 LOADING_EXECUTOR = None
 guts_prefix = 'squirrel'
 
 
-def get_loading_executor(max_workers=8):
+def get_loading_executor(max_workers=NTHREADS_DEFAULT):
     global LOADING_EXECUTOR
     if LOADING_EXECUTOR is None\
             or LOADING_EXECUTOR._max_workers != max_workers:
@@ -313,7 +314,7 @@ class Squirrel(Selection):
 
     def __init__(
             self, env=None, database=None, cache_path=None, persistent=None,
-            n_threads=8):
+            n_threads=None):
 
         if not isinstance(env, environment.Environment):
             env = environment.get_environment(env)
@@ -331,7 +332,13 @@ class Squirrel(Selection):
             self, database=database, persistent=persistent)
 
         self.get_database().set_basepath(os.path.dirname(env.get_basepath()))
-        self._n_threads = n_threads
+
+        if n_threads is None:
+            self._n_threads = min(NTHREADS_DEFAULT, os.cpu_count() or 1)
+        elif n_threads == 0:
+            self._n_threads = os.cpu_count() or 1
+        else:
+            self._n_threads = n_threads
 
         self._content_caches = {
             'waveform': cache.ContentCache(),
@@ -1745,12 +1752,10 @@ class Squirrel(Selection):
         cached in the Squirrel object.
         '''
         executor = get_loading_executor(max_workers=self._n_threads)
-        nuts = [nuts] if isinstance(nuts, Nut) else nuts
         get_content = partial(
             self.get_content, cache_id=cache_id, accessor_id=accessor_id,
             show_progress=show_progress, model=model)
-        loaded_nuts = executor.map(get_content, *nuts)
-        return list(loaded_nuts)
+        return list(executor.map(get_content, nuts))
 
     def advance_accessor(self, accessor_id='default', cache_id=None):
         '''
