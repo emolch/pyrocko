@@ -6,6 +6,7 @@
 '''
 Squirrel main classes.
 '''
+from __future__ import annotations
 
 import asyncio
 import logging
