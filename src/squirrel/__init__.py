@@ -49,7 +49,7 @@ older waveform archive access module is implemented in
 
 
 from . import base, selection, database, model, io, client, tool, error, \
-    environment, dataset, operators, check, storage
+    environment, dataset, operators, check, storage, streaming
 
 from .base import *  # noqa
 from .selection import *  # noqa
@@ -64,8 +64,9 @@ from .dataset import *  # noqa
 from .operators import *  # noqa
 from .check import *  # noqa
 from .storage import *  # noqa
+from .streaming import *  # noqa
 
 __all__ = base.__all__ + selection.__all__ + database.__all__ \
     + model.__all__ + io.__all__ + client.__all__ + tool.__all__ \
     + error.__all__ + environment.__all__ + dataset.__all__ \
-    + operators.__all__ + check.__all__ + storage.__all__
+    + operators.__all__ + check.__all__ + storage.__all__ + streaming.__all__

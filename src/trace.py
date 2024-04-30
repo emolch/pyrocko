@@ -3776,7 +3776,7 @@ class States(object):
         self._states = {}
 
     def get(self, tr):
-        k = tr.nslc_id
+        k = tr.codes
         if k in self._states:
             tmin, deltat, dtype, value = self._states[k]
             if (near(tmin, tr.tmin, deltat/100.)
@@ -3787,15 +3787,35 @@ class States(object):
 
         return None
 
-    def set(self, tr, value):
-        k = tr.nslc_id
-        if k in self._states and self._states[k][-1] is not value:
+    def set(self, tr, value, prevent_free=False):
+        k = tr.codes
+        if not prevent_free and k in self._states \
+                and self._states[k][-1] is not value:
+
             self.free(self._states[k][-1])
 
-        self._states[k] = (tr.tmax+tr.deltat, tr.deltat, tr.ydata.dtype, value)
+        self._states[k] = (
+            tr.tmax+tr.deltat, tr.deltat, tr.ydata.dtype, value)
+
+    def clear(self, tr, prevent_free=False):
+        k = tr.codes
+        if not prevent_free and k in self._states:
+            self.free(self._states[k][-1])
+
+        del self._states[k]
+
+    def clear_all(self):
+        for k in self._states:
+            self.free(self._states[k][-1])
+
+        self._states = {}
 
     def free(self, value):
         pass
+
+    def get_times(self):
+        return dict(
+            (codes, v[0]) for (codes, v) in self._states.items())
 
 
 @coroutine
