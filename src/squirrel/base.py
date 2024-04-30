@@ -380,6 +380,9 @@ class Squirrel(Selection):
         with self.transaction('create tables') as cursor:
             self._create_tables_squirrel(cursor)
 
+        self._streams = []
+        self._injector = None
+
     def _create_tables_squirrel(self, cursor):
 
         cursor.execute(self._register_table(self._sql(
@@ -727,7 +730,7 @@ class Squirrel(Selection):
         paths = list(set(nut.file_path for nut in nuts))
         io.backends.virtual.add_nuts(nuts)
         self.add_virtual(nuts, paths)
-        self._volatile_paths.extend(paths)
+        self._volatile_paths.update(paths)
 
     def add_volatile_waveforms(self, traces):
         '''
@@ -762,6 +765,33 @@ class Squirrel(Selection):
 
         self.add_volatile(nuts)
         return path
+
+    def harvest_streams(self):
+        from .streaming import Injector
+        if self._injector is None:
+            self._injector = Injector(self)
+
+        for stream in self._streams:
+            traces = stream.poll()
+            for tr in traces:
+                self._injector.inject(tr)
+
+    def add_seedlink_stream(self, host, port=18000, codes=None):
+        from pyrocko.gui.snuffler.snuffler_app import SlinkAcquisition
+
+        codes_patterns_for_kind(CHANNEL, codes)
+
+        slink = SlinkAcquisition(
+            host=host, port=port)
+
+        for codes_ in codes:
+            slink.add_stream(*codes_.nslc)
+
+        self._streams.append(slink)
+        slink.start()
+
+    def get_injector(self):
+        return self._injector
 
     def _load(self, check):
         for _ in io.iload(
@@ -3333,6 +3363,12 @@ class Squirrel(Selection):
         for table_name in table_names:
             self._database.print_table(
                 m[table_name] % self._names, stream=stream)
+
+    def _cleanup(self):
+        for stream in self._streams:
+            stream.stop()
+
+        Selection._cleanup(self)
 
 
 class SquirrelStats(Object):

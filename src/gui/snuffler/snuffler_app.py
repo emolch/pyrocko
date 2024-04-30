@@ -75,6 +75,10 @@ class AcquisitionThread(qc.QThread):
                 if not self._sun_is_shining:
                     break
 
+            except Exception:
+                self.acquisition_stop()
+                raise
+
     def stop(self):
         self._sun_is_shining = False
 

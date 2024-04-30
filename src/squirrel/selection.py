@@ -155,7 +155,7 @@ class Selection(object):
         self._conn = self._database.get_connection()
         self._sources = []
         self._is_new = True
-        self._volatile_paths = []
+        self._volatile_paths = set()
 
         with self.transaction('init selection') as cursor:
 
@@ -456,6 +456,10 @@ class Selection(object):
                          FROM files
                          WHERE files.path == ?)
                 '''), ((normpath(path),) for path in paths))
+
+        for path in paths:
+            if path in self._volatile_paths:
+                self._volatile_paths.remove(path)
 
     def iter_paths(self, raw=False):
         '''
