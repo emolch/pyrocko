@@ -8,6 +8,7 @@ Live stream reader for SeedLink streams (via `slinktool
 <https://www.seiscomp.de/doc/apps/slinktool.html>`_).
 '''
 
+import atexit
 import subprocess
 import time
 import os
@@ -36,6 +37,7 @@ class SlowSlink(object):
         self.port = port
         self.running = False
         self.stream_selectors = []
+        self._auto_stop = None
 
     def query_streams(self):
         cmd = ['slinktool',  '-Q', self.host+':'+str(self.port)]
@@ -87,7 +89,10 @@ class SlowSlink(object):
         except OSError as e:
             raise SlowSlinkError('Could not start "slinktool": %s' % str(e))
 
-        logger.debug('Started.')
+        self._auto_stop = self.acquisition_stop
+        atexit.register(self._auto_stop)
+
+        logger.debug('Slinktool started.')
 
     def acquisition_stop(self):
         self.acquisition_request_stop()
@@ -97,6 +102,8 @@ class SlowSlink(object):
             return
 
         self.running = False  # intentionally before the kill
+
+        atexit.unregister(self._auto_stop)
 
         os.kill(self.slink.pid, signal.SIGTERM)
         logger.debug('Waiting for slinktool to terminate...')

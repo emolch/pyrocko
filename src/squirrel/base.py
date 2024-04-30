@@ -176,6 +176,12 @@ class Batch(object):
         self.ngroups = ngroups
         self.traces = traces
 
+    def __str__(self):
+        return 'Batch %i/%i, group %i/%i, %i traces, %s - %s' % (
+            self.i, self.n, self.igroup, self.ngroups, len(self.traces),
+            util.time_to_str(self.tmin),
+            util.time_to_str(self.tmax))
+
     def as_multitrace(
             self,
             codes=None,
@@ -194,12 +200,11 @@ class Batch(object):
             warn_snap=warn_snap,
             chop=False)
 
-        if codes is not None:
-            d = dict((tr.codes, tr) for tr in traces)
-            traces = [d.get(_codes, None) for _codes in codes]
-
         data, codes, tmin, deltat = trace.merge_traces_data_as_array(
-            traces, tmin=self.tmin-self.tpad, tmax=self.tmax+self.tpad)
+            traces,
+            tmin=self.tmin-self.tpad,
+            tmax=self.tmax+self.tpad,
+            codes=codes)
 
         return multitrace.MultiTrace(
             data=data,
@@ -364,6 +369,9 @@ class Squirrel(Selection):
 
         with self.transaction('create tables') as cursor:
             self._create_tables_squirrel(cursor)
+
+        self._streams = []
+        self._injector = None
 
     def _create_tables_squirrel(self, cursor):
 
@@ -712,7 +720,7 @@ class Squirrel(Selection):
         paths = list(set(nut.file_path for nut in nuts))
         io.backends.virtual.add_nuts(nuts)
         self.add_virtual(nuts, paths)
-        self._volatile_paths.extend(paths)
+        self._volatile_paths.update(paths)
 
     def add_volatile_waveforms(self, traces):
         '''
@@ -747,6 +755,33 @@ class Squirrel(Selection):
 
         self.add_volatile(nuts)
         return path
+
+    def harvest_streams(self):
+        from .streaming import Injector
+        if self._injector is None:
+            self._injector = Injector(self)
+
+        for stream in self._streams:
+            traces = stream.poll()
+            for tr in traces:
+                self._injector.inject(tr)
+
+    def add_seedlink_stream(self, host, port=18000, codes=None):
+        from pyrocko.gui.snuffler.snuffler_app import SlinkAcquisition
+
+        codes_patterns_for_kind(CHANNEL, codes)
+
+        slink = SlinkAcquisition(
+            host=host, port=port)
+
+        for codes_ in codes:
+            slink.add_stream(*codes_.nslc)
+
+        self._streams.append(slink)
+        slink.start()
+
+    def get_injector(self):
+        return self._injector
 
     def _load(self, check):
         for _ in io.iload(
@@ -3239,6 +3274,12 @@ class Squirrel(Selection):
         for table_name in table_names:
             self._database.print_table(
                 m[table_name] % self._names, stream=stream)
+
+    def _cleanup(self):
+        for stream in self._streams:
+            stream.stop()
+
+        Selection._cleanup(self)
 
 
 class SquirrelStats(Object):
