@@ -1189,7 +1189,16 @@ class SimpleLandslideSTF(STF):
         default=1.0,
         help='Duration of the deceleration phase [s].')
 
+    mute_acceleration = Bool.T(
+        default=False,
+        help='set acceleration to zero (for testing)')
+
+    mute_deceleration = Bool.T(
+        default=False,
+        help='set acceleration to zero (for testing)')
+
     def discretize_t(self, deltat, tref):
+
         d_acc = self.duration_acceleration
         d_dec = self.duration_deceleration
 
@@ -1222,22 +1231,28 @@ class SimpleLandslideSTF(STF):
         amplitudes = num.zeros_like(times)
 
         amplitudes[mask_acc] = - num.sin(
-            (times - tref) / d_acc * num.pi)
+            (times[mask_acc] - tref) / d_acc * num.pi)
 
         amplitudes[mask_dec] = num.sin(
-            (times - (tref + d_acc)) / d_dec * num.pi)
+            (times[mask_dec] - (tref + d_acc)) / d_dec * num.pi)
 
-        sum_acc = num.sum(amplitudes[mask_acc])
+        sum_acc = num.abs(num.sum(amplitudes[mask_acc]))
         if sum_acc != 0.0:
             amplitudes[mask_acc] /= sum_acc
         else:
             amplitudes[mask_acc] = 1.0 / n_acc
 
-        sum_dec = num.sum(amplitudes[mask_dec])
+        sum_dec = num.abs(num.sum(amplitudes[mask_dec]))
         if sum_dec != 0.0:
             amplitudes[mask_dec] /= sum_dec
         else:
             amplitudes[mask_dec] = 1.0 / n_dec
+
+        if self.mute_acceleration:
+            amplitudes[mask_acc] = 0.0
+
+        if self.mute_deceleration:
+            amplitudes[mask_dec] = 0.0
 
         return times, amplitudes
 
@@ -4812,35 +4827,33 @@ class SimpleLandslideSource(Source):
 
     discretized_source_class = meta.DiscretizedSFSource
 
-    fn = Float.T(
+    stf_mode = Bool.T(default='pre')
+
+    fv = Float.T(
         default=0.,
-        help='northward component of single force [N]')
+        help='vertical impulse [Ns]')
 
-    fe = Float.T(
+    fh = Float.T(
         default=0.,
-        help='eastward component of single force [N]')
+        help='horizontal impulse [Ns]')
 
-    fd = Float.T(
+    azimuth = Float.T(
         default=0.,
-        help='downward component of single force [N]')
+        help='azimuth direction of the mass movement [deg]')
 
-    stf_n = SimpleLandslideSTF(
+    stf_v = SimpleLandslideSTF.T(
         default=SimpleLandslideSTF.D(),
-        help='source time function for northward force component')
+        help='source time function for vertical force component')
 
-    stf_e = SimpleLandslideSTF(
+    stf_h = SimpleLandslideSTF.T(
         default=SimpleLandslideSTF.D(),
-        help='source time function for eastward force component')
-
-    stf_d = SimpleLandslideSTF(
-        default=SimpleLandslideSTF.D(),
-        help='source time function for downward force component')
+        help='source time function for horizontal force component')
 
     def __init__(self, **kwargs):
         Source.__init__(self, **kwargs)
 
     def base_key(self):
-        return Source.base_key(self) + (self.fn, self.fe, self.fd)
+        return Source.base_key(self) + (self.fv, self.fh)
 
     def get_factor(self):
         return 1.0
@@ -4850,23 +4863,32 @@ class SimpleLandslideSource(Source):
             raise Exception(
                 'SimpleLandslideSource: Only works with stf_mode == "pre".')
 
-        dsources = []
-        for icomp, (f, stf) in enumerate(zip(
-                [self.fn, self.fe, self.fd],
-                [self.stf_n, self.stf_e, self.stf_d])):
+        times, amplitudes = self.stf_v.discretize_t(
+            store.config.deltat,
+            self.time)
 
-            times, amplitudes = stf.discretize_t(
-                store.config.deltat, self.time)
+        forces = num.zeros((times.size, 3))
+        forces[:, 2] = amplitudes * self.fv
 
-            forces = num.zeros((times.size, 3))
-            forces[:, icomp] = amplitudes * f
+        dsource_v = meta.DiscretizedSFSource(
+                forces=forces,
+                **self._dparams_base_repeated(times))
 
-            dsources.append(
-                meta.DiscretizedSFSource(
-                    forces=forces,
-                    **self._dparams_base_repeated(times)))
+        times, amplitudes = self.stf_h.discretize_t(
+            store.config.deltat,
+            self.time)
 
-        return meta.DiscretizedSFSource.combine(dsources)
+        forces = num.zeros((times.size, 3))
+        forces[:, 0] = \
+            amplitudes * self.fh * num.cos(self.azimuth * d2r)
+        forces[:, 1] = \
+            amplitudes * self.fh * num.sin(self.azimuth * d2r)
+
+        dsource_h = meta.DiscretizedSFSource(
+                forces=forces,
+                **self._dparams_base_repeated(times))
+
+        return meta.DiscretizedSFSource.combine([dsource_v, dsource_h])
 
     def pyrocko_event(self, store=None, target=None, **kwargs):
         return Source.pyrocko_event(
