@@ -1206,7 +1206,7 @@ class SimpleLandslideSTF(STF):
         tmax_stf = tref + d_acc + d_dec
         tmin = math.floor(tmin_stf / deltat) * deltat
         tmax = math.ceil(tmax_stf / deltat) * deltat
-        times = util.arange2(tmin, tmax, deltat)
+        times = util.arange2(tmin, tmax, deltat, epsilon=1e-3)
 
         mask_acc = num.logical_and(
             tref <= times,
@@ -4827,15 +4827,21 @@ class SimpleLandslideSource(Source):
 
     discretized_source_class = meta.DiscretizedSFSource
 
-    stf_mode = Bool.T(default='pre')
+    stf_mode = STFMode.T(
+        default='pre',
+        help='SimpleLandslideSource only works with `stf_mode == "pre"`.')
 
-    fv = Float.T(
+    impulse_n = Float.T(
         default=0.,
-        help='vertical impulse [Ns]')
+        help='northward component of impulse [Ns]')
 
-    fh = Float.T(
+    impulse_e = Float.T(
         default=0.,
-        help='horizontal impulse [Ns]')
+        help='eastward component of impulse [Ns]')
+
+    impulse_d = Float.T(
+        default=0.,
+        help='downward component of impulse [Ns]')
 
     azimuth = Float.T(
         default=0.,
@@ -4853,7 +4859,9 @@ class SimpleLandslideSource(Source):
         Source.__init__(self, **kwargs)
 
     def base_key(self):
-        return Source.base_key(self) + (self.fv, self.fh)
+        return Source.base_key(self) + (
+            self.impulse_n, self.impulse_e, self.impulse_d) \
+            + self.stf_v.base_key() + self.stf_h.base_key()
 
     def get_factor(self):
         return 1.0
@@ -4861,31 +4869,37 @@ class SimpleLandslideSource(Source):
     def discretize_basesource(self, store, target=None):
         if self.stf_mode != 'pre':
             raise Exception(
-                'SimpleLandslideSource: Only works with stf_mode == "pre".')
+                'SimpleLandslideSource: '
+                'Only works with `stf_mode == "pre"`.')
+
+        if self.stf is not None:
+            raise Exception(
+                'SimpleLandslideSource: '
+                'Setting `stf` is not supported: use `stf_v` and `stf_h`.')
 
         times, amplitudes = self.stf_v.discretize_t(
             store.config.deltat,
             self.time)
 
-        forces = num.zeros((times.size, 3))
-        forces[:, 2] = amplitudes * self.fv
+        forces_v = num.zeros((times.size, 3))
+        forces_v[:, 2] = amplitudes * self.impulse_d
 
         dsource_v = meta.DiscretizedSFSource(
-                forces=forces,
+                forces=forces_v,
                 **self._dparams_base_repeated(times))
 
         times, amplitudes = self.stf_h.discretize_t(
             store.config.deltat,
             self.time)
 
-        forces = num.zeros((times.size, 3))
-        forces[:, 0] = \
-            amplitudes * self.fh * num.cos(self.azimuth * d2r)
-        forces[:, 1] = \
-            amplitudes * self.fh * num.sin(self.azimuth * d2r)
+        forces_h = num.zeros((times.size, 3))
+        forces_h[:, 0] = \
+            amplitudes * self.impulse_n
+        forces_h[:, 1] = \
+            amplitudes * self.impulse_e
 
         dsource_h = meta.DiscretizedSFSource(
-                forces=forces,
+                forces=forces_h,
                 **self._dparams_base_repeated(times))
 
         return meta.DiscretizedSFSource.combine([dsource_v, dsource_h])
@@ -4899,7 +4913,7 @@ class SimpleLandslideSource(Source):
     def from_pyrocko_event(cls, ev, **kwargs):
         d = {}
         d.update(kwargs)
-        return super(SFSource, cls).from_pyrocko_event(ev, **d)
+        return super(SimpleLandslideSource, cls).from_pyrocko_event(ev, **d)
 
 
 class PorePressurePointSource(Source):
