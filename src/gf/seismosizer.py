@@ -4855,6 +4855,13 @@ class SimpleLandslideSource(Source):
         default=SimpleLandslideSTF.D(),
         help='source time function for horizontal force component')
 
+    anchor_stf = StringChoice.T(
+        choices=['onset', 'centroid'],
+        default='onset',
+        help='``"onset"``: STFs start at origin time ``"centroid"``: STFs all '
+             'start at the same time but so that the centroid is at the given '
+             'origin time.')
+
     def __init__(self, **kwargs):
         Source.__init__(self, **kwargs)
 
@@ -4877,9 +4884,27 @@ class SimpleLandslideSource(Source):
                 'SimpleLandslideSource: '
                 'Setting `stf` is not supported: use `stf_v` and `stf_h`.')
 
+        if self.anchor_stf == 'centroid':
+            duration_acc = num.array([
+                self.stf_h.duration_acceleration,
+                self.stf_h.duration_acceleration,
+                self.stf_v.duration_acceleration], dtype=float)
+
+            impulse = num.array([
+                self.impulse_n,
+                self.impulse_e,
+                self.impulse_d], dtype=float)
+
+            tshift_centroid = \
+                - num.sum(duration_acc * impulse**2) \
+                / num.sum(impulse**2)
+
+        elif self.anchor_stf == 'onset':
+            tshift_centroid = 0.0
+
         times, amplitudes = self.stf_v.discretize_t(
             store.config.deltat,
-            self.time)
+            self.time + tshift_centroid)
 
         forces_v = num.zeros((times.size, 3))
         forces_v[:, 2] = amplitudes * self.impulse_d
@@ -4890,7 +4915,7 @@ class SimpleLandslideSource(Source):
 
         times, amplitudes = self.stf_h.discretize_t(
             store.config.deltat,
-            self.time)
+            self.time + tshift_centroid)
 
         forces_h = num.zeros((times.size, 3))
         forces_h[:, 0] = \
