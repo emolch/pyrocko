@@ -15,7 +15,7 @@ from pyrocko.trace import Trace
 
 h = 3600.
 
-detectionmethods = ('ethz', 'instance', 'scedc', 'stead', 'geofon', 'neic')
+detectionmethods = ('original', 'ethz', 'instance', 'scedc', 'stead', 'geofon', 'neic')
 
 
 class DeepDetector(Snuffling):
@@ -59,7 +59,7 @@ class DeepDetector(Snuffling):
             Choice(
                 'Detection method',
                 'detectionmethod',
-                'ethz',
+                'original',
                 detectionmethods,
             )
         )   
@@ -114,8 +114,12 @@ class DeepDetector(Snuffling):
             return model.default_args['P_threshold']
         
     def set_default_thresholds(self) -> None:
-        self.set_parameter('p_threshold', self.get_default_threshold('P'))
-        self.set_parameter('s_threshold', self.get_default_threshold('S'))
+        if self.detectionmethod is 'original':
+            self.set_parameter('p_threshold', 0.3)
+            self.set_parameter('s_threshold', 0.3)
+        else:
+            self.set_parameter('p_threshold', self.get_default_threshold('P'))
+            self.set_parameter('s_threshold', self.get_default_threshold('S'))
 
     def panel_visibility_changed(self, visible: bool) -> None:
         viewer = self.get_viewer()
@@ -132,6 +136,8 @@ class DeepDetector(Snuffling):
         minfreq = (0.5 / dtmax) * 0.001
         self.set_parameter_range('lowpass', minfreq, maxfreq)
         self.set_parameter_range('highpass', minfreq, maxfreq)
+        self.set_parameter('p_threshold', self.get_default_threshold('P'))
+        self.set_parameter('s_threshold', self.get_default_threshold('S'))
 
     def call(self) -> None:
         " Main method "
@@ -156,6 +162,7 @@ class DeepDetector(Snuffling):
             if self.use_predefined_filters:
                 traces = [self.apply_filter(tr) for tr in traces]
             stream = Stream([compat.to_obspy_trace(tr) for tr in traces])
+            print(stream)
             output = model.classify(
                 stream,
                 P_threshold=self.p_threshold,
