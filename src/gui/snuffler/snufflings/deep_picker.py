@@ -107,12 +107,15 @@ class DeepDetector(Snuffling):
 
     def get_default_threshold(self, phase: str) -> float:
         import seisbench.models as sbm
-        model = sbm.PhaseNet.from_pretrained(self.detectionmethod)
-        if phase == 'S':
-            return model.default_args['S_threshold']
-        elif phase == 'P':
-            return model.default_args['P_threshold']
-        
+        if self.detectionmethod is 'original':
+            return 0.3
+        else:
+            model = sbm.PhaseNet.from_pretrained(self.detectionmethod)
+            if phase == 'S':
+                return model.default_args['S_threshold']
+            elif phase == 'P':
+                return model.default_args['P_threshold']
+            
     def set_default_thresholds(self) -> None:
         if self.detectionmethod is 'original':
             self.set_parameter('p_threshold', 0.3)
@@ -146,11 +149,6 @@ class DeepDetector(Snuffling):
         self.cleanup()
         model = sbm.PhaseNet.from_pretrained(self.detectionmethod)
 
-        viewer = self.get_viewer()
-        deltat_min = viewer.content_deltat_range()[0]
-        window = 1
-        tinc = max(window * 2., 500000. * deltat_min)
-
         for traces in self.chopper_selected_traces(
             fallback=True,
             mode='all',
@@ -163,15 +161,42 @@ class DeepDetector(Snuffling):
                 traces = [self.apply_filter(tr) for tr in traces]
             stream = Stream([compat.to_obspy_trace(tr) for tr in traces])
             print(stream)
-            output = model.classify(
+            output_classify = model.classify(
                 stream,
                 P_threshold=self.p_threshold,
                 S_threshold=self.s_threshold,
             )
+
+            output_annotation = model.annotate(
+                stream,
+                P_threshold=self.p_threshold,
+                S_threshold=self.s_threshold,
+            )
+
+            offset = output_annotation[0].stats.starttime - stream[0].stats.starttime
+
+            data_pile = self.get_pile()
+
+            if self.show_annotation_traces:
+                for i in range(3):
+                    ano_trace = Trace(
+                            deltat=data_pile.deltatmin,
+                            tmin=traces[0].tmin + offset,
+                            ydata=output_annotation[i].data)
+                    if output_annotation[i].stats.channel[-1] != "N":
+                        channel = output_annotation[i].stats.channel
+                        
+                        ano_trace.set_codes(
+                                network='', station='',
+                                location='', channel=channel)
+
+                        ano_trace.meta = {'tabu': True}
+                        self.add_traces([ano_trace])
+
             print('########### Picks ###########')
-            print(output.picks)
+            print(output_classify.picks)
             markers = []
-            for pick in output.picks:
+            for pick in output_classify.picks:
                 t = str(pick.start_time).replace('T', ' ').replace('%fZ', 'OPTFRAC')
                 t = str_to_time(t)
                 if pick.phase == 'P':
