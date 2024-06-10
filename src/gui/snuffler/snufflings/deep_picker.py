@@ -8,6 +8,9 @@ from obspy import Stream
 from pyrocko import obspy_compat as compat
 from pyrocko.trace import Trace
 
+from seisbench.util.annotations import PickList
+import os
+
 # https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
@@ -19,6 +22,8 @@ detectionmethods = ('original', 'ethz', 'instance', 'scedc', 'stead', 'geofon', 
 
 
 class DeepDetector(Snuffling):
+    old_method: str = 'original'
+    pick_list: PickList = PickList()
     def help(self) -> str:
         return '''
         <html>
@@ -63,7 +68,6 @@ class DeepDetector(Snuffling):
                 detectionmethods,
             )
         )   
-
         self.add_parameter(
             Param(
                 'P threshold',
@@ -73,7 +77,6 @@ class DeepDetector(Snuffling):
                 1.,
             )
         )
-
         self.add_parameter(
             Param(
                 'S threshold',
@@ -83,24 +86,21 @@ class DeepDetector(Snuffling):
                 1.,
             )
         )
-
         self.add_parameter(
             Switch(
                 'Show annotation traces', 'show_annotation_traces', 
                 False
             )
         )
-        
         self.add_parameter(
             Switch(
                 'Use predefined filters', 'use_predefined_filters', 
                 True
             )
         )
-
         self.add_trigger(
-            'Set defaul thresholds', 
-            self.set_default_thresholds
+            'Export picks', 
+            self.export_picks
         )
 
         self.set_live_update(True)
@@ -132,6 +132,8 @@ class DeepDetector(Snuffling):
         else:
             viewer.pile_has_changed_signal.disconnect(self.adjust_controls)
 
+            
+
     def adjust_controls(self) -> None:
         viewer = self.get_viewer()
         dtmin, dtmax = viewer.content_deltat_range()
@@ -139,8 +141,6 @@ class DeepDetector(Snuffling):
         minfreq = (0.5 / dtmax) * 0.001
         self.set_parameter_range('lowpass', minfreq, maxfreq)
         self.set_parameter_range('highpass', minfreq, maxfreq)
-        self.set_parameter('p_threshold', self.get_default_threshold('P'))
-        self.set_parameter('s_threshold', self.get_default_threshold('S'))
 
     def call(self) -> None:
         " Main method "
@@ -159,6 +159,9 @@ class DeepDetector(Snuffling):
 
             if self.use_predefined_filters:
                 traces = [self.apply_filter(tr) for tr in traces]
+            for i in range(len(traces)):
+                traces[i].set_codes(location='cg')
+                traces[i].meta = {'tabu': True}
             stream = Stream([compat.to_obspy_trace(tr) for tr in traces])
             print(stream)
             output_classify = model.classify(
@@ -176,7 +179,7 @@ class DeepDetector(Snuffling):
             offset = output_annotation[0].stats.starttime - stream[0].stats.starttime
 
             data_pile = self.get_pile()
-
+            
             if self.show_annotation_traces:
                 for i in range(3):
                     ano_trace = Trace(
@@ -188,13 +191,18 @@ class DeepDetector(Snuffling):
                         
                         ano_trace.set_codes(
                                 network='', station='',
-                                location='', channel=channel)
+                                location='cg', channel=channel)
+                        
+                        ano_trace.add(ano_trace, left=None, right=None)
 
                         ano_trace.meta = {'tabu': True}
-                        self.add_traces([ano_trace])
+                        self.add_trace(ano_trace)
+
+
 
             print('########### Picks ###########')
-            print(output_classify.picks)
+            self.pick_list = output_classify.picks
+            print(self.pick_list)
             markers = []
             for pick in output_classify.picks:
                 t = str(pick.start_time).replace('T', ' ').replace('%fZ', 'OPTFRAC')
@@ -207,6 +215,14 @@ class DeepDetector(Snuffling):
                 self.add_markers(markers)
                 markers = []
 
+        self.adjust_thresholds()
+
+    def adjust_thresholds(self) -> None:
+        method = self.get_parameter_value('detectionmethod')
+        if method != self.old_method:
+            self.set_default_thresholds()
+            self.old_method = method
+        
     def apply_filter(self, tr: Trace) -> Trace:
         viewer = self.get_viewer()
         if viewer.lowpass is not None:
@@ -214,6 +230,13 @@ class DeepDetector(Snuffling):
         if viewer.highpass is not None:
             tr.highpass(4, viewer.highpass, nyquist_exception=False)
         return tr
+    
+    def export_picks(self) -> None:
+        current_path = os.getcwd()
+        output_file = os.path.join(current_path, 'output_file.txt')
+        with open(output_file, 'w') as f:
+            f.write(self.pick_list.__str__())
+
 
 def __snufflings__():
     return [DeepDetector()]
