@@ -1,59 +1,68 @@
-from typing import cast
-import numpy as num
-from ..snuffling import Param, Snuffling, Choice, Switch
-from ..marker import Marker
-from pyrocko.pile import Batch
-from pyrocko.util import str_to_time
-from obspy import Stream
-from pyrocko import obspy_compat as compat
-from pyrocko.trace import Trace
-
-from seisbench.util.annotations import PickList
-import os
-
 # https://pyrocko.org - GPLv3
 #
 # The Pyrocko Developers, 21st Century
 # ---|P------/S----------~Lg----------
 
+import os
+
+from pyrocko.trace import Trace
+from pyrocko import obspy_compat as compat
+
+from ..snuffling import Param, Snuffling, Choice, Switch
+from ..marker import PhaseMarker
+
+
 h = 3600.
 
-detectionmethods = ('original', 'ethz', 'instance', 'scedc', 'stead', 'geofon', 'neic')
+detectionmethods = (
+    'original', 'ethz', 'instance', 'scedc', 'stead', 'geofon', 'neic')
 
 
 class DeepDetector(Snuffling):
-    old_method: str = 'original'
-    pick_list: PickList = PickList()
+
+    def __init__(self, *args, **kwargs):
+        Snuffling.__init__(self, *args, **kwargs)
+        try:
+            from seisbench.util.annotations import PickList
+            self.old_method: str = 'original'
+            self.pick_list: PickList | None = PickList()
+
+        except ImportError:
+            self.old_method = 'original'
+            self.pick_list = None
+
     def help(self) -> str:
         return '''
-        <html>
-        <head>
-        <style type="text/css">
-            body { margin-left:10px };
-        </style>
-        </head>
-        <body>
-        <h1 align="center">PhaseNet Picker</h1>
-        <p>
-        Automatic detection of P- and S-Phases in the given traces, using PhaseNet.<br/>
-        <p>
-        <b>Parameters:</b><br />
-            <b>&middot; P threshold</b>
-            -  Define a trigger threshold for the P-Phase detection <br />
-            <b>&middot; S threshold</b>
-            -  Define a trigger threshold for the S-Phase detection <br />
-            <b>&middot; Detection method</b>
-            -  Choose the pretrained model, used for detection. <br />
-        </p>
-        <p>
-        <span style="color:red">P-Phases</span> are marked with red markers, 
-        <span style="color:green>S-Phases</span>  with green markers.
-        <p>
-        More information about PhaseNet can be found 
-        <a href="https://seisbench.readthedocs.io/en/stable/index.html">on the seisbench website</a>.
-        </p>
-        </body>
-        </html>
+<html>
+<head>
+<style type="text/css">
+    body { margin-left:10px };
+</style>
+</head>
+<body>
+<h1 align="center">PhaseNet Picker</h1>
+<p>
+    Automatic detection of P- and S-Phases in the given traces, using
+    PhaseNet.<br/>
+<p>
+<b>Parameters:</b><br />
+    <b>&middot; P threshold</b>
+    -  Define a trigger threshold for the P-Phase detection <br />
+    <b>&middot; S threshold</b>
+    -  Define a trigger threshold for the S-Phase detection <br />
+    <b>&middot; Detection method</b>
+    -  Choose the pretrained model, used for detection. <br />
+</p>
+<p>
+    <span style="color:red">P-Phases</span> are marked with red markers, <span
+    style="color:green>S-Phases</span>  with green markers.
+<p>
+    More information about PhaseNet can be found <a
+    href="https://seisbench.readthedocs.io/en/stable/index.html">on the
+    seisbench website</a>.
+</p>
+</body>
+</html>
         '''
 
     def setup(self) -> None:
@@ -67,7 +76,7 @@ class DeepDetector(Snuffling):
                 'original',
                 detectionmethods,
             )
-        )   
+        )
         self.add_parameter(
             Param(
                 'P threshold',
@@ -86,28 +95,39 @@ class DeepDetector(Snuffling):
                 1.,
             )
         )
+
+        self.add_parameter(Param(
+            'Block Length [s]', 'block_length', 100., 0.1, 3600.))
+
+        self.add_parameter(Param(
+            'Block Padding [s]', 'block_padding', 50., 0.1, 360.))
+
         self.add_parameter(
             Switch(
-                'Show annotation traces', 'show_annotation_traces', 
+                'Show annotation traces', 'show_annotation_traces',
                 False
             )
         )
         self.add_parameter(
             Switch(
-                'Use predefined filters', 'use_predefined_filters', 
+                'Use predefined filters', 'use_predefined_filters',
                 True
             )
         )
         self.add_trigger(
-            'Export picks', 
+            'Export picks',
             self.export_picks
         )
 
         self.set_live_update(True)
 
     def get_default_threshold(self, phase: str) -> float:
-        import seisbench.models as sbm
-        if self.detectionmethod is 'original':
+        try:
+            import seisbench.models as sbm
+        except ImportError:
+            return 0.3
+
+        if self.detectionmethod == 'original':
             return 0.3
         else:
             model = sbm.PhaseNet.from_pretrained(self.detectionmethod)
@@ -115,9 +135,9 @@ class DeepDetector(Snuffling):
                 return model.default_args['S_threshold']
             elif phase == 'P':
                 return model.default_args['P_threshold']
-            
+
     def set_default_thresholds(self) -> None:
-        if self.detectionmethod is 'original':
+        if self.detectionmethod == 'original':
             self.set_parameter('p_threshold', 0.3)
             self.set_parameter('s_threshold', 0.3)
         else:
@@ -132,8 +152,6 @@ class DeepDetector(Snuffling):
         else:
             viewer.pile_has_changed_signal.disconnect(self.adjust_controls)
 
-            
-
     def adjust_controls(self) -> None:
         viewer = self.get_viewer()
         dtmin, dtmax = viewer.content_deltat_range()
@@ -143,77 +161,83 @@ class DeepDetector(Snuffling):
         self.set_parameter_range('highpass', minfreq, maxfreq)
 
     def call(self) -> None:
-        " Main method "
         import seisbench.models as sbm
+        from obspy import Stream
 
         self.cleanup()
         model = sbm.PhaseNet.from_pretrained(self.detectionmethod)
 
-        for traces in self.chopper_selected_traces(
+        tinc = self.block_length
+        tpad = self.block_padding
+
+        tpad_filter = 0.0
+        if self.use_predefined_filters:
+            fmin = self.get_viewer().highpass
+            tpad_filter = 0.0 if fmin is None else 2.0/fmin
+
+        for batch in self.chopper_selected_traces(
+            tinc=tinc,
+            tpad=tpad + tpad_filter,
             fallback=True,
-            mode='all',
+            mode='visible',
             progress='Calculating PhaseNet detections...',
             responsive=True,
-
+            style='batch',
         ):
 
+            traces = batch.traces
+
+            if not traces:
+                continue
+
+            wmin, wmax = batch.tmin, batch.tmax
+
             if self.use_predefined_filters:
-                traces = [self.apply_filter(tr) for tr in traces]
+                traces = [self.apply_filter(tr, tpad_filter) for tr in traces]
+
             for i in range(len(traces)):
-                traces[i].set_codes(location='cg')
                 traces[i].meta = {'tabu': True}
+
             stream = Stream([compat.to_obspy_trace(tr) for tr in traces])
-            print(stream)
             output_classify = model.classify(
                 stream,
                 P_threshold=self.p_threshold,
                 S_threshold=self.s_threshold,
             )
 
-            output_annotation = model.annotate(
-                stream,
-                P_threshold=self.p_threshold,
-                S_threshold=self.s_threshold,
-            )
-
-            offset = output_annotation[0].stats.starttime - stream[0].stats.starttime
-
-            data_pile = self.get_pile()
-            
             if self.show_annotation_traces:
-                for i in range(3):
-                    ano_trace = Trace(
-                            deltat=data_pile.deltatmin,
-                            tmin=traces[0].tmin + offset,
-                            ydata=output_annotation[i].data)
-                    if output_annotation[i].stats.channel[-1] != "N":
-                        channel = output_annotation[i].stats.channel
-                        
-                        ano_trace.set_codes(
-                                network='', station='',
-                                location='cg', channel=channel)
-                        
-                        ano_trace.add(ano_trace, left=None, right=None)
+                output_annotation = model.annotate(
+                    stream,
+                    P_threshold=self.p_threshold,
+                    S_threshold=self.s_threshold,
+                )
 
-                        ano_trace.meta = {'tabu': True}
-                        self.add_trace(ano_trace)
+                traces_raw = compat.to_pyrocko_traces(output_annotation)
+                traces = []
+                for tr in traces_raw:
+                    tr = tr.copy()
+                    tr.chop(wmin, wmax)
+                    tr.meta = {'tabu': True}
+                    traces.append(tr)
 
+                self.add_traces(traces)
 
+            self.pick_list = output_classify.picks
 
             print('########### Picks ###########')
-            self.pick_list = output_classify.picks
             print(self.pick_list)
+
             markers = []
             for pick in output_classify.picks:
-                t = str(pick.start_time).replace('T', ' ').replace('%fZ', 'OPTFRAC')
-                t = str_to_time(t)
-                if pick.phase == 'P':
-                    markers.append(Marker(('*','*','*','*'), t, t, kind=0))
-                elif pick.phase == 'S':
-                    markers.append(Marker(('*','*','*','*'), t, t, kind=1))
+                # tmin = pick.start_time.timestamp
+                # tmax = pick.end_time.timestamp
+                tpeak = pick.peak_time.timestamp
+                if wmin <= tpeak < wmax:
+                    codes = tuple(pick.trace_id.split('.')) + ('*',)
+                    markers.append(PhaseMarker(
+                        [codes], tpeak, tpeak, phasename=pick.phase))
 
-                self.add_markers(markers)
-                markers = []
+            self.add_markers(markers)
 
         self.adjust_thresholds()
 
@@ -222,20 +246,21 @@ class DeepDetector(Snuffling):
         if method != self.old_method:
             self.set_default_thresholds()
             self.old_method = method
-        
-    def apply_filter(self, tr: Trace) -> Trace:
+
+    def apply_filter(self, tr: Trace, tcut: float) -> Trace:
         viewer = self.get_viewer()
         if viewer.lowpass is not None:
             tr.lowpass(4, viewer.lowpass, nyquist_exception=False)
         if viewer.highpass is not None:
             tr.highpass(4, viewer.highpass, nyquist_exception=False)
+        tr.chop(tr.tmin + tcut, tr.tmax - tcut)
         return tr
-    
+
     def export_picks(self) -> None:
-        current_path = os.getcwd()
-        output_file = os.path.join(current_path, 'output_file.txt')
-        with open(output_file, 'w') as f:
-            f.write(self.pick_list.__str__())
+        if self.pick_list:
+            output_path = self.output_filename(dir=os.getcwd())
+            with open(output_path, 'w') as f:
+                f.write(self.pick_list.__str__())
 
 
 def __snufflings__():
