@@ -4788,6 +4788,10 @@ class SFSource(Source):
     def get_factor(self):
         return 1.0
 
+    @property
+    def force(self):
+        return math.sqrt(self.fn**2 + self.fe**2 + self.fd**2)
+
     def discretize_basesource(self, store, target=None):
         times, amplitudes = self.effective_stf_pre().discretize_t(
             store.config.deltat, self.time)
