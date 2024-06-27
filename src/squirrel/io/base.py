@@ -9,6 +9,7 @@ Squirrel core file reading and indexing.
 
 import time
 import logging
+import threading
 
 from pyrocko import util
 from pyrocko.io.io_common import FileLoadError
@@ -25,6 +26,10 @@ backend_modules = [
     tdms_idas, spickle]
 
 logger = logging.getLogger('psq.io')
+
+
+def tid():
+    return threading.get_ident()
 
 
 def make_task(*args):
@@ -309,6 +314,10 @@ def iload(
                 if tnow - tcommit > 20. or n_files % 1000 == 0:
                     transaction.commit()
                     tcommit = tnow
+                    transaction.close()
+                    transaction = database.transaction(
+                        'update content index')
+
                     transaction.begin()
 
             try:

@@ -8,6 +8,7 @@ Squirrel memory cacheing.
 '''
 
 import logging
+import threading
 
 from pyrocko.guts import Object, Int
 
@@ -76,16 +77,18 @@ class ContentCache(object):
     def __init__(self):
         self._entries = {}
         self._accessor_ticks = {}
+        self._lock = threading.RLock()
 
     def _prune_outdated(self, path, segment, nut_mtime):
-        try:
-            cache_mtime = self._entries[path, segment][0]
-        except KeyError:
-            return
+        with self._lock:
+            try:
+                cache_mtime = self._entries[path, segment][0]
+            except KeyError:
+                return
 
-        if cache_mtime != nut_mtime:
-            logger.debug('Forgetting (outdated): %s %s' % (path, segment))
-            self._entries.pop([path, segment], None)
+            if cache_mtime != nut_mtime:
+                logger.debug('Forgetting (outdated): %s %s' % (path, segment))
+                self._entries.pop([path, segment], None)
 
     def put(self, nut):
         '''
@@ -96,12 +99,13 @@ class ContentCache(object):
         :type nut:
             :py:class:`~pyrocko.squirrel.model.Nut`
         '''
-        path, segment, element, mtime = nut.key
-        self._prune_outdated(path, segment, nut.file_mtime)
-        if (path, segment) not in self._entries.copy():
-            self._entries[path, segment] = nut.file_mtime, {}, {}
+        with self._lock:
+            path, segment, element, mtime = nut.key
+            self._prune_outdated(path, segment, nut.file_mtime)
+            if (path, segment) not in self._entries:
+                self._entries[path, segment] = nut.file_mtime, {}, {}
 
-        self._entries[path, segment][1][element] = nut
+            self._entries[path, segment][1][element] = nut
 
     def get(self, nut, accessor='default', model='squirrel'):
         '''
@@ -121,21 +125,22 @@ class ContentCache(object):
         :returns:
             Content data object
         '''
-        path, segment, element, mtime = nut.key
-        entry = self._entries[path, segment]
+        with self._lock:
+            path, segment, element, mtime = nut.key
+            entry = self._entries[path, segment]
 
-        if accessor not in self._accessor_ticks:
-            self._accessor_ticks[accessor] = 0
+            if accessor not in self._accessor_ticks:
+                self._accessor_ticks[accessor] = 0
 
-        entry[2][accessor] = self._accessor_ticks[accessor]
-        el = entry[1][element]
+            entry[2][accessor] = self._accessor_ticks[accessor]
+            el = entry[1][element]
 
-        if model == 'squirrel':
-            return el.content
-        elif model.endswith('+'):
-            return el.content, el.raw_content[model[:-1]]
-        else:
-            return el.raw_content[model]
+            if model == 'squirrel':
+                return el.content
+            elif model.endswith('+'):
+                return el.content, el.raw_content[model[:-1]]
+            else:
+                return el.raw_content[model]
 
     def has(self, nut):
         '''
@@ -152,14 +157,15 @@ class ContentCache(object):
         '''
         path, segment, element, nut_mtime = nut.key
 
-        try:
-            entry = self._entries[path, segment]
-            cache_mtime = entry[0]
-            entry[1][element]
-        except KeyError:
-            return False
+        with self._lock:
+            try:
+                entry = self._entries[path, segment]
+                cache_mtime = entry[0]
+                entry[1][element]
+            except KeyError:
+                return False
 
-        return cache_mtime == nut_mtime
+            return cache_mtime == nut_mtime
 
     def advance_accessor(self, accessor='default'):
         '''
@@ -171,20 +177,27 @@ class ContentCache(object):
         :type accessor:
             str
         '''
-        if accessor not in self._accessor_ticks:
-            self._accessor_ticks[accessor] = 0
 
-        ta = self._accessor_ticks[accessor]
+        with self._lock:
+            if accessor not in self._accessor_ticks:
+                self._accessor_ticks[accessor] = 0
 
-        for path_segment, entry in self._entries.copy().items():
-            t = entry[2].get(accessor, ta)
-            if t < ta:
-                entry[2].pop(accessor, None)
-                if not entry[2]:
-                    logger.debug('Forgetting (clear): %s %s' % path_segment)
-                    self._entries.pop(path_segment, None)
+            ta = self._accessor_ticks[accessor]
 
-        self._accessor_ticks[accessor] += 1
+            delete = []
+            for path_segment, entry in self._entries.items():
+                t = entry[2].get(accessor, ta)
+                if t < ta:
+                    entry[2].pop(accessor, None)
+                    if not entry[2]:
+                        delete.append(path_segment)
+
+            for path_segment in delete:
+                logger.debug(
+                    'Forgetting (clear): %s %s' % path_segment)
+                self._entries.pop(path_segment, None)
+
+            self._accessor_ticks[accessor] += 1
 
     def clear_accessor(self, accessor='default'):
         '''
@@ -195,23 +208,29 @@ class ContentCache(object):
         :type accessor:
             str
         '''
-        for path_segment, entry in self._entries.copy().items():
-            entry[2].pop(accessor, None)
-            if not entry[2]:
+        with self._lock:
+            delete = []
+            for path_segment, entry in self._entries.items():
+                entry[2].pop(accessor, None)
+                if not entry[2]:
+                    delete.append(path_segment)
+
+            for path_segment in delete:
                 logger.debug('Forgetting (clear): %s %s' % path_segment)
                 self._entries.pop(path_segment, None)
 
-        self._accessor_ticks.pop(accessor, None)
+            self._accessor_ticks.pop(accessor, None)
 
     def clear(self):
         '''
         Empty the cache.
         '''
-        for accessor in list(self._accessor_ticks.keys()):
-            self.clear_accessor(accessor)
+        with self._lock:
+            for accessor in list(self._accessor_ticks.keys()):
+                self.clear_accessor(accessor)
 
-        self._entries = {}
-        self._accessor_ticks = {}
+            self._entries = {}
+            self._accessor_ticks = {}
 
     def get_stats(self):
         '''
@@ -219,6 +238,7 @@ class ContentCache(object):
 
         :returns: :py:class:`ContentCacheStats` object.
         '''
-        return ContentCacheStats(
-            nentries=len(self._entries),
-            naccessors=len(self._accessor_ticks))
+        with self._lock:
+            return ContentCacheStats(
+                nentries=len(self._entries),
+                naccessors=len(self._accessor_ticks))

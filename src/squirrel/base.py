@@ -19,7 +19,6 @@ import threading
 import queue
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 
 from pyrocko.guts import Object, Int, List, Tuple, String, Timestamp, Dict
 from pyrocko import util, trace
@@ -40,17 +39,24 @@ from . import client, environment, error
 logger = logging.getLogger('psq.base')
 
 NTHREADS_DEFAULT = 8
-LOADING_EXECUTOR = None
-
+LOADING_EXECUTOR = {}
 guts_prefix = 'squirrel'
 
 
 def get_loading_executor(max_workers=NTHREADS_DEFAULT):
-    global LOADING_EXECUTOR
-    if LOADING_EXECUTOR is None\
-            or LOADING_EXECUTOR._max_workers != max_workers:
-        LOADING_EXECUTOR = ThreadPoolExecutor(max_workers=max_workers)
-    return LOADING_EXECUTOR
+    pid = os.getpid()
+    if pid not in LOADING_EXECUTOR \
+            or LOADING_EXECUTOR[pid]._max_workers != max_workers:
+        LOADING_EXECUTOR[pid] = ThreadPoolExecutor(max_workers=max_workers)
+
+    return LOADING_EXECUTOR[pid]
+
+
+def get_nthreads():
+    try:
+        return max(1, len(os.sched_getaffinity(0)))
+    except Exception:
+        return os.cpu_count() or 1
 
 
 def nonef(f, xs):
@@ -222,8 +228,9 @@ class Squirrel(Selection):
         :py:class:`str`
 
     :param n_threads:
-        Number of threads for parallel loading of data. By default, 8 threads
-        are used.
+        Number of threads for parallel loading of data. By default a maximum of
+        8 threads are used, or less, depending on how many CPU cores are
+        advertised.
     :type n_threads:
         :py:class:`int`
 
@@ -323,9 +330,9 @@ class Squirrel(Selection):
         self.get_database().set_basepath(os.path.dirname(env.get_basepath()))
 
         if n_threads is None:
-            self._n_threads = min(NTHREADS_DEFAULT, os.cpu_count() or 1)
+            self._n_threads = min(NTHREADS_DEFAULT, get_nthreads())
         elif n_threads == 0:
-            self._n_threads = os.cpu_count() or 1
+            self._n_threads = get_nthreads()
         else:
             self._n_threads = n_threads
 
@@ -1757,11 +1764,35 @@ class Squirrel(Selection):
         segment) will also be loaded as a side effect. The loaded contents are
         cached in the Squirrel object.
         '''
-        executor = get_loading_executor(max_workers=self._n_threads)
-        get_content = partial(
-            self.get_content, cache_id=cache_id, accessor_id=accessor_id,
-            show_progress=show_progress, model=model)
-        return list(executor.map(get_content, nuts))
+        if len(nuts) == 0:
+            return []
+
+        by_file_segment = defaultdict(list)
+        for nut in nuts:
+            by_file_segment[nut.file_path, nut.file_segment].append(nut)
+
+        def get_content(nuts):
+            return [
+                self.get_content(
+                    nut,
+                    cache_id=cache_id,
+                    accessor_id=accessor_id,
+                    show_progress=show_progress,
+                    model=model)
+                for nut in nuts]
+
+        if len(by_file_segment) == 1:
+            return get_content(nuts)
+
+        elif len(by_file_segment) > 1:
+            executor = get_loading_executor(max_workers=self._n_threads)
+            results = []
+            for subresults in executor.map(
+                    get_content, by_file_segment.values()):
+
+                results.extend(subresults)
+
+            return results
 
     def advance_accessor(self, accessor_id='default', cache_id=None):
         '''
@@ -2500,7 +2531,7 @@ class Squirrel(Selection):
             obj, tmin, tmax, time, codes, codes_exclude, sample_rate_min,
             sample_rate_max, order_only=order_only)
 
-        if order_only:
+        if order_only or not nuts:
             return []
 
         if load_data:

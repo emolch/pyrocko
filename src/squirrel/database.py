@@ -13,6 +13,7 @@ import logging
 import sqlite3
 import re
 import time
+import threading
 
 from pyrocko.io.io_common import FileLoadError
 from pyrocko import util
@@ -25,6 +26,12 @@ from .error import SquirrelError
 logger = logging.getLogger('psq.database')
 
 guts_prefix = 'squirrel'
+
+RLOCK_DEBUG = False
+
+
+def tid():
+    return threading.get_ident()
 
 
 def abspath(path):
@@ -71,6 +78,68 @@ def close_database(database):
         del g_databases[path]
 
 
+icolor = 0
+
+ansi_colors = [
+    '\033[%im' % i for i in range(31, 37 + 1)]
+
+ansi_reset = '\033[39m'
+
+
+def next_color():
+    global icolor
+    color = ansi_colors[icolor % len(ansi_colors)]
+    icolor += 1
+    return color
+
+
+thread_colors = {}
+process_colors = {}
+
+
+def thread_color():
+
+    itid = tid()
+    if itid not in thread_colors:
+        thread_colors[itid] = next_color()
+    return thread_colors[itid]
+
+
+def process_color():
+    ipid = os.getpid()
+    return ansi_colors[ipid % len(ansi_colors)]
+
+
+def color_tid_pid():
+    return '(%stid: %s%s, %spid: %s%s)' % (
+        thread_color(), tid(), ansi_reset,
+        process_color(), os.getpid(), ansi_reset)
+
+
+def get_RLock():
+    if RLOCK_DEBUG:
+        RLockBase = threading.RLock().__class__
+
+        class RLockDebug(RLockBase):
+            def acquire(self):
+                logger.debug('Waiting for lock %s' % color_tid_pid())
+                ret = RLockBase.acquire(self)
+                logger.debug('Got lock %s' % color_tid_pid())
+                return ret
+
+            def release(self):
+                logger.debug(
+                    'Releasing lock %s' % color_tid_pid())
+                return RLockBase.release(self)
+
+        return RLockDebug()
+    else:
+        return threading.RLock()
+
+
+LOCK = get_RLock()
+
+
 class Transaction(object):
     def __init__(
             self, conn,
@@ -88,18 +157,35 @@ class Transaction(object):
         self.callback = callback
         self.label = label
         self.started = False
+        self.closed = False
+        self.debug = logger.isEnabledFor(logging.DEBUG)
 
     def begin(self):
+        LOCK.acquire()
         if self.depth == 0:
             tries = 0
             while True:
                 try:
                     tries += 1
+                    if self.debug:
+                        logger.debug(
+                            'Waiting for transaction:   %-30s '
+                            '(pid: %s, tid: %i, mode: %s)',
+                            self.label,
+                            os.getpid(),
+                            tid(),
+                            self.mode)
+
                     self.cursor.execute('BEGIN %s' % self.mode.upper())
                     self.started = True
-                    logger.debug(
-                        'Transaction started:   %-30s (pid: %s, mode: %s)'
-                        % (self.label, os.getpid(), self.mode))
+                    if self.debug:
+                        logger.debug(
+                            'Transaction started:   %-30s '
+                            '(pid: %s, tid: %i, mode: %s)',
+                            self.label,
+                            os.getpid(),
+                            tid(),
+                            self.mode)
 
                     self.total_changes_begin \
                         = self.cursor.connection.total_changes
@@ -111,70 +197,93 @@ class Transaction(object):
 
                     logger.info(
                         'Database is locked retrying in %s s: %s '
-                        '(pid: %s, tries: %i)' % (
+                        '(pid: %s, tid: %i, tries: %i)' % (
                             self.retry_interval, self.label,
-                            os.getpid(), tries))
+                            os.getpid(), tid(), tries))
 
                     time.sleep(self.retry_interval)
 
         self.depth += 1
 
     def commit(self):
-        if not self.started:
-            raise Exception(
-                'Trying to commit without having started a transaction.')
+        try:
+            if not self.started:
+                raise Exception(
+                    'Trying to commit without having started a transaction '
+                    '(%s, %s, %s)' % (
+                        self.label,
+                        os.getpid(),
+                        tid()))
 
-        self.depth -= 1
-        if self.depth == 0:
-            if not self.rollback_wanted:
-                self.cursor.execute('COMMIT')
-                self.started = False
-                if self.total_changes_begin is not None:
-                    total_changes = self.cursor.connection.total_changes \
-                        - self.total_changes_begin
+            self.depth -= 1
+            if self.depth == 0:
+                if not self.rollback_wanted:
+                    self.cursor.execute('COMMIT')
+                    self.started = False
+                    if self.total_changes_begin is not None:
+                        total_changes = self.cursor.connection.total_changes \
+                            - self.total_changes_begin
+                    else:
+                        total_changes = None
+
+                    if self.callback is not None and total_changes:
+                        self.callback('modified', total_changes)
+
+                    if self.debug:
+                        logger.debug(
+                            'Transaction completed: %-30s '
+                            '(pid: %s, tid: %s, changes: %i)',
+                            self.label,
+                            os.getpid(),
+                            tid(),
+                            total_changes or 0)
+
                 else:
-                    total_changes = None
+                    self.cursor.execute('ROLLBACK')
+                    self.started = False
+                    logger.warning('Deferred rollback executed.')
+                    if self.debug:
+                        logger.debug(
+                            'Transaction failed:   %-30s (pid: %s)',
+                            self.label,
+                            os.getpid(),
+                            tid())
 
-                if self.callback is not None and total_changes:
-                    self.callback('modified', total_changes)
-
-                logger.debug(
-                        'Transaction completed: %-30s '
-                        '(pid: %s, changes: %i)' % (
-                            self.label, os.getpid(), total_changes or 0))
-
-            else:
-                self.cursor.execute('ROLLBACK')
-                self.started = False
-                logger.warning('Deferred rollback executed.')
-                logger.debug(
-                    'Transaction failed:   %-30s (pid: %s)' % (
-                        self.label, os.getpid()))
-                self.rollback_wanted = False
+                    self.rollback_wanted = False
+        finally:
+            LOCK.release()
 
     def rollback(self):
-        if not self.started:
-            raise Exception(
-                'Trying to rollback without having started a transaction.')
+        try:
+            if not self.started:
+                raise Exception(
+                    'Trying to rollback without having started a transaction.')
 
-        self.depth -= 1
-        if self.depth == 0:
-            self.cursor.execute('ROLLBACK')
-            self.started = False
+            self.depth -= 1
+            if self.depth == 0:
+                self.cursor.execute('ROLLBACK')
+                self.started = False
 
-            logger.debug(
-                'Transaction failed:   %-30s (pid: %s)' % (
-                    self.label, os.getpid()))
+                if self.debug:
+                    logger.debug(
+                        'Transaction failed:   %-30s (pid: %s)',
+                        self.label,
+                        os.getpid())
 
-            self.rollback_wanted = False
-        else:
-            logger.warning('Deferred rollback scheduled.')
-            self.rollback_wanted = True
+                self.rollback_wanted = False
+            else:
+                logger.warning('Deferred rollback scheduled.')
+                self.rollback_wanted = True
+
+        finally:
+            LOCK.release()
 
     def close(self):
         self.cursor.close()
+        self.closed = True
 
     def __enter__(self):
+        LOCK.acquire()
         self.begin()
         return self.cursor
 
@@ -187,6 +296,37 @@ class Transaction(object):
         if self.depth == 0:
             self.close()
             self.callback = None
+
+        LOCK.release()
+
+
+class Cursor(sqlite3.Cursor):
+
+    def execute(self, *args, **kwargs):
+        with LOCK:
+            return sqlite3.Cursor.execute(self, *args, **kwargs)
+
+    def executemany(self, *args, **kwargs):
+        with LOCK:
+            return sqlite3.Cursor.executemany(self, *args, **kwargs)
+
+    def executescript(self, *args, **kwargs):
+        with LOCK:
+            return sqlite3.Cursor.executescript(self, *args, **kwargs)
+
+    def fetchone(self, *args, **kwargs):
+        with LOCK:
+            return sqlite3.Cursor.fetchone(self, *args, **kwargs)
+
+    def fetchmany(self, *args, **kwargs):
+        with LOCK:
+            return sqlite3.Cursor.fetchmany(self, *args, **kwargs)
+
+
+class Connection(sqlite3.Connection):
+
+    def cursor(self):
+        return Cursor(self)
 
 
 class Database(object):
@@ -208,6 +348,7 @@ class Database(object):
             self._conn = sqlite3.connect(
                 database_path,
                 isolation_level=None,
+                factory=Connection,
                 check_same_thread=False if sqlite3.threadsafety else True)
 
         except sqlite3.OperationalError:
@@ -220,6 +361,7 @@ class Database(object):
         if log_statements:
             self._conn.set_trace_callback(self._log_statement)
 
+        self._transaction = {}
         self._listeners = []
         self._initialize_db()
         self._basepath = None
@@ -254,11 +396,23 @@ class Database(object):
         return self._conn
 
     def transaction(self, label='', mode='immediate'):
-        return Transaction(
+        current_transaction = self._transaction.get(tid())
+        if current_transaction and not current_transaction.closed:
+            # Only one transaction can operate on the db at a time.
+            # Synchronized in Transaction.begin and the Transaction context
+            # manager, therefore we allow one Transaction object per thread.
+            # The following exception is only to catch programming errors.
+            raise error.SquirrelError(
+                'Cannot start transaction "%s". A transaction "%s" is already '
+                'in progress.' % (label, self._transaction[tid()].label))
+
+        self._transaction[tid()] = Transaction(
             self._conn,
             label=label,
             mode=mode,
             callback=self._notify_listeners)
+
+        return self._transaction[tid()]
 
     def add_listener(self, listener):
         listener_ref = util.smart_weakref(listener)
