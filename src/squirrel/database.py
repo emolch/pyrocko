@@ -292,6 +292,12 @@ class Database(object):
 
         return s
 
+    def optimize(self):
+        logger.info('Optimizing database')
+        with self.transaction('optimize') as cursor:
+            cursor.execute('''PRAGMA optimize''')
+        logger.info('Database optimized')
+
     def _initialize_db(self):
         with self.transaction('initialize') as cursor:
             cursor.execute(
