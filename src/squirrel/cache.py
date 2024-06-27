@@ -85,7 +85,7 @@ class ContentCache(object):
 
         if cache_mtime != nut_mtime:
             logger.debug('Forgetting (outdated): %s %s' % (path, segment))
-            del self._entries[path, segment]
+            self._entries.pop([path, segment], None)
 
     def put(self, nut):
         '''
@@ -98,8 +98,7 @@ class ContentCache(object):
         '''
         path, segment, element, mtime = nut.key
         self._prune_outdated(path, segment, nut.file_mtime)
-
-        if (path, segment) not in self._entries:
+        if (path, segment) not in self._entries.copy():
             self._entries[path, segment] = nut.file_mtime, {}, {}
 
         self._entries[path, segment][1][element] = nut
@@ -177,17 +176,13 @@ class ContentCache(object):
 
         ta = self._accessor_ticks[accessor]
 
-        delete = []
-        for path_segment, entry in self._entries.items():
+        for path_segment, entry in self._entries.copy().items():
             t = entry[2].get(accessor, ta)
             if t < ta:
-                del entry[2][accessor]
+                entry[2].pop(accessor, None)
                 if not entry[2]:
-                    delete.append(path_segment)
-
-        for path_segment in delete:
-            logger.debug('Forgetting (advance): %s %s' % path_segment)
-            del self._entries[path_segment]
+                    logger.debug('Forgetting (clear): %s %s' % path_segment)
+                    self._entries.pop(path_segment, None)
 
         self._accessor_ticks[accessor] += 1
 
@@ -200,20 +195,13 @@ class ContentCache(object):
         :type accessor:
             str
         '''
-        delete = []
-        for path_segment, entry in self._entries.items():
+        for path_segment, entry in self._entries.copy().items():
             entry[2].pop(accessor, None)
             if not entry[2]:
-                delete.append(path_segment)
+                logger.debug('Forgetting (clear): %s %s' % path_segment)
+                self._entries.pop(path_segment, None)
 
-        for path_segment in delete:
-            logger.debug('Forgetting (clear): %s %s' % path_segment)
-            del self._entries[path_segment]
-
-        try:
-            del self._accessor_ticks[accessor]
-        except KeyError:
-            pass
+        self._accessor_ticks.pop(accessor, None)
 
     def clear(self):
         '''
