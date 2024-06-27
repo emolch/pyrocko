@@ -306,6 +306,9 @@ class Database(object):
             cursor.execute(
                 '''PRAGMA busy_timeout = 30000''')
 
+            cursor.execute(
+                '''PRAGMA cache_size = -10000''')
+
             if 2 == len(list(
                     cursor.execute(
                         '''
