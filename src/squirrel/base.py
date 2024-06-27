@@ -6,7 +6,9 @@
 '''
 Squirrel main classes.
 '''
+from __future__ import annotations
 
+import asyncio
 import re
 import sys
 import os
@@ -16,6 +18,8 @@ import logging
 import threading
 import queue
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 from pyrocko.guts import Object, Int, List, Tuple, String, Timestamp, Dict
 from pyrocko import util, trace
@@ -35,7 +39,18 @@ from . import client, environment, error
 
 logger = logging.getLogger('psq.base')
 
+NTHREADS_DEFAULT = 8
+LOADING_EXECUTOR = None
+
 guts_prefix = 'squirrel'
+
+
+def get_loading_executor(max_workers=NTHREADS_DEFAULT):
+    global LOADING_EXECUTOR
+    if LOADING_EXECUTOR is None\
+            or LOADING_EXECUTOR._max_workers != max_workers:
+        LOADING_EXECUTOR = ThreadPoolExecutor(max_workers=max_workers)
+    return LOADING_EXECUTOR
 
 
 def nonef(f, xs):
@@ -206,6 +221,12 @@ class Squirrel(Selection):
     :type persistent:
         :py:class:`str`
 
+    :param n_threads:
+        Number of threads for parallel loading of data. By default, 8 threads
+        are used.
+    :type n_threads:
+        :py:class:`int`
+
     This is the central class of the Squirrel framework. It provides a unified
     interface to query and access seismic waveforms, station meta-data and
     event information from local file collections and remote data sources. For
@@ -281,7 +302,8 @@ class Squirrel(Selection):
     '''
 
     def __init__(
-            self, env=None, database=None, cache_path=None, persistent=None):
+            self, env=None, database=None, cache_path=None, persistent=None,
+            n_threads=None):
 
         if not isinstance(env, environment.Environment):
             env = environment.get_environment(env)
@@ -299,6 +321,13 @@ class Squirrel(Selection):
             self, database=database, persistent=persistent)
 
         self.get_database().set_basepath(os.path.dirname(env.get_basepath()))
+
+        if n_threads is None:
+            self._n_threads = min(NTHREADS_DEFAULT, os.cpu_count() or 1)
+        elif n_threads == 0:
+            self._n_threads = os.cpu_count() or 1
+        else:
+            self._n_threads = n_threads
 
         self._content_caches = {
             'waveform': cache.ContentCache(),
@@ -1712,6 +1741,28 @@ class Squirrel(Selection):
             raise error.NotAvailable(
                 'Unable to retrieve content: %s, %s, %s, %s' % nut.key)
 
+    def get_contents_threaded(
+            self,
+            nuts: list[model.Nut],
+            cache_id: str = 'default',
+            accessor_id: str = 'default',
+            show_progress: bool = False,
+            model: str = 'squirrel') -> list[model.Nut]:
+
+        '''
+        Get and possibly load full content for a given index entry from file.
+
+        Loads the actual content objects (channel, station, waveform, ...) from
+        file. For efficiency, sibling content (all stuff in the same file
+        segment) will also be loaded as a side effect. The loaded contents are
+        cached in the Squirrel object.
+        '''
+        executor = get_loading_executor(max_workers=self._n_threads)
+        get_content = partial(
+            self.get_content, cache_id=cache_id, accessor_id=accessor_id,
+            show_progress=show_progress, model=model)
+        return list(executor.map(get_content, nuts))
+
     def advance_accessor(self, accessor_id='default', cache_id=None):
         '''
         Notify memory caches about consumer moving to a new data batch.
@@ -2453,8 +2504,8 @@ class Squirrel(Selection):
             return []
 
         if load_data:
-            traces = [
-                self.get_content(nut, 'waveform', accessor_id) for nut in nuts]
+            traces = self.get_contents_threaded(
+                    nuts, 'waveform', accessor_id=accessor_id)
 
         else:
             traces = [
@@ -2737,6 +2788,26 @@ class Squirrel(Selection):
             self._n_choppers_active -= 1
             if clear_accessor:
                 self.clear_accessor(accessor_id, 'waveform')
+
+    async def chopper_waveforms_async(
+            self, obj=None, tmin=None, tmax=None, time=None, codes=None,
+            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
+            tinc=None, tpad=0.,
+            want_incomplete=True, snap_window=False,
+            degap=True, maxgap=5, maxlap=None,
+            snap=None, include_last=False, load_data=True,
+            accessor_id=None, clear_accessor=True, operator_params=None,
+            grouping=None, channel_priorities=None):
+
+        await asyncio.to_thread(
+            self.chopper_waveforms, obj, tmin, tmax, time, codes,
+            codes_exclude, sample_rate_min, sample_rate_max,
+            tinc, tpad, want_incomplete, snap_window,
+            degap, maxgap, maxlap, snap, include_last, load_data,
+            accessor_id, clear_accessor, operator_params, grouping,
+            channel_priorities)
+
+    chopper_waveforms_async.__doc__ = chopper_waveforms.__doc__
 
     def _process_chopped(
             self, chopped, degap, maxgap, maxlap, want_incomplete, tmin, tmax):
