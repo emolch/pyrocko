@@ -59,7 +59,7 @@ import logging
 from pyrocko import util, trace
 
 from . import (mseed, sac, kan, segy, yaff, seisan_waveform, gse1, gcf,
-               datacube, suds, css, gse2, tdms_idas, hdf5_idas)
+               datacube, suds, css, gse2, tdms_idas, hdf5_idas, hdf5_optodas)
 from .io_common import FileLoadError, FileSaveError
 
 import numpy as num
@@ -138,6 +138,7 @@ def detect_format(filename):
         (suds, 'suds'),
         (tdms_idas, 'tdms_idas'),
         (hdf5_idas, 'hdf5_idas')]
+        (hdf5_optodas, 'hdf5_optodas')]
 
     for mod, fmt in formats:
         if mod.detect(data):
@@ -180,7 +181,8 @@ def iload(filename, format='mseed', getdata=True, substitutions=None):
         '.gse': 'gse2',
         '.wfdisc': 'css',
         '.tdms': 'tdms_idas',
-        '.h5': 'hdf5_idas'
+        '.h5': 'hdf5_idas',
+        '.hdf5': 'hdf5_optodas'
     }
 
     if format == 'from_extension':
@@ -205,7 +207,8 @@ def iload(filename, format='mseed', getdata=True, substitutions=None):
         'suds': suds,
         'css': css,
         'tdms_idas': tdms_idas,
-        'hdf5_idas': hdf5_idas
+        'hdf5_idas': hdf5_idas,
+        'hdf5_optodas': hdf5_optodas
     }
 
     add_args = {
