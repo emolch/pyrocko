@@ -13,7 +13,9 @@ except ImportError:
 
 def iload(filename: str, load_data: bool=True) -> Generator[Trace, Any, None]:
     if simpledas is None:
-        raise ImportError('simpledas is not available')
+        raise ImportError(
+            'simpledas is not available. '
+            'Install ASN SimpleDAS to load ASN OptoDAS HDF5 data.')
 
     trace_data = simpledas.load_DAS_files(
         filename, samples=None if load_data else 0, integrate=False)
@@ -28,7 +30,6 @@ def iload(filename: str, load_data: bool=True) -> Generator[Trace, Any, None]:
     nsamples = time_data.index.size
 
     for channel in trace_data:
-        data = trace_data[channel].values
 
         trace = Trace(
             network='OD',
@@ -39,6 +40,7 @@ def iload(filename: str, load_data: bool=True) -> Generator[Trace, Any, None]:
             tmax=tmin + (nsamples - 1) * deltat,
         )
         if load_data:
+            data = trace_data[channel].values
             trace.ydata = data
         yield trace
 
@@ -46,4 +48,5 @@ def iload(filename: str, load_data: bool=True) -> Generator[Trace, Any, None]:
 def detect(first512: bytes) -> bool:
     if simpledas is None:
         return False
-    return first512.startswith(b'\x89HDF')
+    ret = first512.startswith(b'\x89HDF') and b'TREE' in first512
+    return ret

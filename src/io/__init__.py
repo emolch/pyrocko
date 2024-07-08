@@ -137,7 +137,7 @@ def detect_format(filename):
         (datacube, 'datacube'),
         (suds, 'suds'),
         (tdms_idas, 'tdms_idas'),
-        (hdf5_idas, 'hdf5_idas')]
+        (hdf5_idas, 'hdf5_idas'),
         (hdf5_optodas, 'hdf5_optodas')]
 
     for mod, fmt in formats:

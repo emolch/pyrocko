@@ -143,4 +143,4 @@ def iload(filename, load_data=True) -> Iterator[trace.Trace]:
 
 
 def detect(first512) -> bool:
-    return first512.startswith(b'\x89HDF')
+    return first512.startswith(b'\x89HDF') and False
