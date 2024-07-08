@@ -49,18 +49,31 @@ def make_builtin_datasets():
                 comment='Event catalog: %s, minimum magnitude: %g' % (
                     site, magnitude_min))
 
-    for site, network, cha in [
+    for site, net, cha in [
             ('bgr', 'gr', 'lh')]:
-        name = 'fdsn-%s-%s-%s' % (site, network, cha)
+        name = 'fdsn-%s-%s-%s' % (site, net, cha)
         cha = cha.upper() + '?'
-        network = network.upper()
+        net = net.upper()
         datasets[name] = Dataset(
             sources=[
                 FDSNSource(
                     site=site,
-                    query_args=dict(network=network, channel=cha))],
+                    query_args=dict(network=net, channel=cha))],
             comment='FDSN: %s, network: %s, '
-                    'channels: %s' % (site, network, cha))
+                    'channels: %s' % (site, net, cha))
+
+    for site, net, sta in [
+            ('bgr', 'gr', 'bfo')]:
+        name = 'fdsn-%s-%s-%s' % (site, net, sta)
+        sta = sta.upper()
+        net = net.upper()
+        datasets[name] = Dataset(
+            sources=[
+                FDSNSource(
+                    site=site,
+                    query_args=dict(network=net, station=sta))],
+            comment='FDSN: %s, network: %s, '
+                    'station: %s' % (site, net, sta))
 
     return datasets
 
