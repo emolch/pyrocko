@@ -305,7 +305,10 @@ def _request(
         except socket.timeout:
             raise Timeout(
                 'Timeout error. No response received within %i s. You '
-                'may want to retry with a longer timeout setting.' % timeout)
+                'may want to retry with a longer timeout setting. The global '
+                'timeout can be set with the variable `fdsn_timeout` in '
+                '`~/.pyrocko/config.pf`, but this value may be overriden by '
+                'the script/application for a specific request.' % timeout)
 
         break
 
