@@ -33,6 +33,13 @@ guts_prefix = 'jackseis'
 logger = logging.getLogger('psq.cli.jackseis')
 
 
+g_filenames_all = set()
+
+
+def check_append_hook(fn):
+    return fn in g_filenames_all
+
+
 def dset(kwargs, keys, values):
     for k, v in zip(keys, values):
         kwargs[k] = v
@@ -710,10 +717,15 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
 
                 if out_path is not None:
                     try:
-                        io.save(
+
+                        g_filenames_all.update(io.save(
                             traces, out_path,
                             format=out_format,
                             overwrite=args.force,
+                            append=True,
+                            check_append=True,
+                            check_append_hook=check_append_hook
+                            if not args.append else None,
                             additional=dict(
                                 wmin_year=tts(twmin, format='%Y'),
                                 wmin_month=tts(twmin, format='%m'),
@@ -725,7 +737,7 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
                                 wmax_day=tts(twmax, format='%d'),
                                 wmax_jday=tts(twmax, format='%j'),
                                 wmax=tts(twmax, format='%Y-%m-%d_%H-%M-%S')),
-                            **save_kwargs)
+                            **save_kwargs))
 
                     except io.FileSaveError as e:
                         raise JackseisError(str(e))
@@ -781,6 +793,15 @@ data query options are ignored.
         action='store_true',
         default=False,
         help='Force overwriting of existing files.')
+
+    parser.add_argument(
+        '--append',
+        dest='append',
+        action='store_true',
+        default=False,
+        help='Append to existing files. This only works for mseed files. '
+             'Checks are preformed to ensure that appended traces have no '
+             'overlap with already existing traces.')
 
     Converter.add_arguments(parser)
 
