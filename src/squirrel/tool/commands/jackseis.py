@@ -481,8 +481,8 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
         elif self.out_sds_path:
             out_path = op.join(
                 self.out_sds_path,
-                '%(wmin_year)s/%(network)s/%(station)s/%(channel)s.D'
-                '/%(network)s.%(station)s.%(location)s.%(channel)s.D'
+                '%(wmin_year)s/%(network_safe)s/%(station_safe)s/%(channel_safe)s.D'
+                '/%(network_safe)s.%(station)s.%(location)s.%(channel)s.D'
                 '.%(wmin_year)s.%(wmin_jday)s')
             is_sds = True
         else:
