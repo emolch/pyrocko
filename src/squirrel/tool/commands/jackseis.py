@@ -556,9 +556,18 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
             out_path, is_sds = chain.fcall('get_effective_out_path') \
                 or (None, False)
 
-            if is_sds and tinc != 86400.:
-                logger.warning('Setting time window to 1 day to generate SDS.')
-                tinc = 86400.0
+            if is_sds:
+                if tinc is None:
+                    logger.warning(
+                        'Setting time window to 1 hour to generate SDS.')
+                    tinc = 3600.0
+
+                else:
+                    eps = 1e-6
+                    if (86400.0+eps) % tinc > 2.*eps:
+                        raise JackseisError(
+                            'Day length is not a multiple of the time '
+                            'window (--tinc).')
 
             out_format = chain.get('out_format')
             out_data_type = chain.get('out_data_type')
