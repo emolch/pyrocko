@@ -12,6 +12,7 @@ import math
 import copy
 import logging
 import hashlib
+import re
 from collections import defaultdict
 
 import numpy as num
@@ -1953,27 +1954,7 @@ class Trace(Object):
             .replace('%e', '%(tmax)s')\
             .replace('%j', '%(julianday)s')
 
-        params = dict(
-            zip(('network', 'station', 'location', 'channel'), self.nslc_id))
-        params['tmin'] = util.time_to_str(
-            self.tmin, format='%Y-%m-%d_%H-%M-%S')
-        params['tmax'] = util.time_to_str(
-            self.tmax, format='%Y-%m-%d_%H-%M-%S')
-        params['tmin_ms'] = util.time_to_str(
-            self.tmin, format='%Y-%m-%d_%H-%M-%S.3FRAC')
-        params['tmax_ms'] = util.time_to_str(
-            self.tmax, format='%Y-%m-%d_%H-%M-%S.3FRAC')
-        params['tmin_us'] = util.time_to_str(
-            self.tmin, format='%Y-%m-%d_%H-%M-%S.6FRAC')
-        params['tmax_us'] = util.time_to_str(
-            self.tmax, format='%Y-%m-%d_%H-%M-%S.6FRAC')
-        params['tmin_year'], params['tmin_month'], params['tmin_day'] \
-            = util.time_to_str(self.tmin, format='%Y-%m-%d').split('-')
-        params['tmax_year'], params['tmax_month'], params['tmax_day'] \
-            = util.time_to_str(self.tmax, format='%Y-%m-%d').split('-')
-        params['julianday'] = util.julian_day_of_year(self.tmin)
-        params.update(additional)
-        return template % params
+        return template % TraceStringFiller(self, additional=additional)
 
     def plot(self):
         '''
@@ -2364,6 +2345,101 @@ class TraceTooShort(Exception):
 
 class ResamplingFailed(Exception):
     pass
+
+
+class TraceStringFiller:
+
+    def __init__(self, tr, additional={}):
+        self.tr = tr
+        self.additional = additional
+
+    def __getitem__(self, k):
+        if k in ('network', 'station', 'location', 'channel', 'extra'):
+            return getattr(self.tr, k)
+
+        method = getattr(self, 'get_' + k, None)
+        if method:
+            return method()
+
+        return self.additional[k]
+
+    def _filename_safe(self, s):
+        return re.sub(r'[^0-9A-Za-z_-]', '_', s)
+
+    def get_network_safe(self):
+        return self._filename_safe(self.tr.network)
+
+    def get_station_safe(self):
+        return self._filename_safe(self.tr.station)
+
+    def get_location_safe(self):
+        return self._filename_safe(self.tr.location)
+
+    def get_channel_safe(self):
+        return self._filename_safe(self.tr.channel)
+
+    def get_extra_safe(self):
+        return self._filename_safe(self.tr.extra)
+
+    def get_network_dsafe(self):
+        return self._filename_safe(self.tr.network) or '_'
+
+    def get_station_dsafe(self):
+        return self._filename_safe(self.tr.station) or '_'
+
+    def get_location_dsafe(self):
+        return self._filename_safe(self.tr.location) or '_'
+
+    def get_channel_dsafe(self):
+        return self._filename_safe(self.tr.channel) or '_'
+
+    def get_extra_dsafe(self):
+        return self._filename_safe(self.tr.extra) or '_'
+
+    def get_tmin(self):
+        return util.time_to_str(self.tr.tmin, format='%Y-%m-%d_%H-%M-%S')
+
+    def get_tmax(self):
+        return util.time_to_str(self.tr.tmax, format='%Y-%m-%d_%H-%M-%S')
+
+    def get_tmin_ms(self):
+        return util.time_to_str(self.tr.tmin, format='%Y-%m-%d_%H-%M-%S.3FRAC')
+
+    def get_tmax_ms(self):
+        return util.time_to_str(self.tr.tmax, format='%Y-%m-%d_%H-%M-%S.3FRAC')
+
+    def get_tmin_us(self):
+        return util.time_to_str(self.tr.tmin, format='%Y-%m-%d_%H-%M-%S.6FRAC')
+
+    def get_tmax_us(self):
+        return util.time_to_str(self.tr.tmax, format='%Y-%m-%d_%H-%M-%S.6FRAC')
+
+    def get_tmin_year(self):
+        return util.time_to_str(self.tr.tmin, format='%Y')
+
+    def get_tmin_month(self):
+        return util.time_to_str(self.tr.tmin, format='%m')
+
+    def get_tmin_day(self):
+        return util.time_to_str(self.tr.tmin, format='%d')
+
+    def get_tmax_year(self):
+        return util.time_to_str(self.tr.tmax, format='%Y')
+
+    def get_tmax_month(self):
+        return util.time_to_str(self.tr.tmax, format='%m')
+
+    def get_tmax_day(self):
+        return util.time_to_str(self.tr.tmax, format='%d')
+
+    def get_julianday(self):
+        return str(util.julian_day_of_year(self.tr.tmin))
+
+    def get_tmin_jday(self):
+        return util.time_to_str(self.tr.tmin, format='%j')
+
+    def get_tmax_jday(self):
+        return util.time_to_str(self.tr.tmax, format='%j')
 
 
 def minmax(traces, key=None, mode='minmax', outer_mode='minmax'):

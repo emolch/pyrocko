@@ -909,6 +909,31 @@ class TraceTestCase(unittest.TestCase):
 
         assert tr1 == tr2
 
+    def test_fill_template(self):
+        ydata = num.random.random(61)
+        tmin = util.to_time_float(0.0)
+        tr1 = trace.Trace(
+            'N', 'STA1', '', 'BHZ', tmin=tmin, deltat=1.0, ydata=ydata)
+
+        result = tr1.fill_template(
+            '.'.join('%%(%s)s' % x for x in '''
+                network station location channel extra
+                network_safe station_safe location_safe channel_safe extra_safe
+                tmin tmin_ms tmin_us tmin_year tmin_month tmin_day tmin_jday
+                tmax tmax_ms tmax_us tmax_year tmax_month tmax_day tmax_jday
+                julianday
+                abc'''.split()), abc='cde')
+
+        expect = \
+            'N.STA1..BHZ..' \
+            'N.STA1.__.BHZ._.' \
+            '1970-01-01_00-00-00.1970-01-01_00-00-00.000.1970-01-01_00-00-00.000000.1970.01.01.001.' \
+            '1970-01-01_00-01-00.1970-01-01_00-01-00.000.1970-01-01_00-01-00.000000.1970.01.01.001.' \
+            '1.' \
+            'cde'  # noqa
+
+        assert result == expect
+
 
 if __name__ == '__main__':
     util.setup_logging('test_trace', 'warning')
