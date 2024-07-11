@@ -107,6 +107,7 @@ def save(
         record_length=4096,
         append=False,
         check_append=False,
+        check_append_hook=None,
         steim=1):
 
     from pyrocko import mseed_ext
@@ -114,11 +115,21 @@ def save(
     assert record_length in VALID_RECORD_LENGTHS
     assert dataquality in ('D', 'E', 'C', 'O', 'T', 'L'), 'invalid dataquality'
 
-    if append:
-        overwrite = True
+    # nifty logic for overwrite, append, check_append_hook(fn):
+    # file exists:
+    #   overwrite, append
+    #   0, 0 => fail
+    #   0, 1, None => append
+    #   0, 1, 0 => fail
+    #   0, 1, 1 => append
+    #   1, 0 => truncate
+    #   1, 1, None => append
+    #   1, 1, 0 => truncate, append
+    #   1, 1, 1 => append
 
     if not append:
         check_append = False
+        check_append_hook = None
 
     fn_tr = defaultdict(list)
     for tr in traces:
@@ -133,8 +144,20 @@ def save(
                     (code, val))
 
         fn = tr.fill_template(filename_template, **additional)
-        if not overwrite and os.path.exists(fn):
-            raise FileSaveError('File exists: %s' % fn)
+        if os.path.exists(fn):
+            if not overwrite:
+                if not append or (
+                        append and check_append_hook
+                        and not check_append_hook(fn)):
+
+                    raise FileSaveError('File exists: %s' % fn)
+
+            else:
+                if not append or (
+                        append and check_append_hook
+                        and not check_append_hook(fn)):
+
+                    os.unlink(fn)
 
         fn_tr[fn].append(tr)
 
