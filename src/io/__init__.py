@@ -88,6 +88,9 @@ def allowed_formats(operation, use=None, default=None):
         return lst
 
 
+g_formats_supporting_append = ['mseed']
+
+
 def load(filename, format='mseed', getdata=True, substitutions=None):
     '''
     Load traces from file.
@@ -224,7 +227,8 @@ def iload(filename, format='mseed', getdata=True, substitutions=None):
 
 
 def save(traces, filename_template, format='mseed', additional={},
-         stations=None, overwrite=True, **kwargs):
+         stations=None, overwrite=True, append=False, check_append=False,
+         **kwargs):
     '''
     Save traces to file(s).
 
@@ -240,6 +244,9 @@ def save(traces, filename_template, format='mseed', additional={},
     :param format: %s
     :param additional: dict with custom template placeholder fillins.
     :param overwrite': if ``False``, raise an exception if file exists
+    :param append': append traces to the file if the file exists
+    :param check_append': ensure that appended traces do not overlap with
+            traces already present in the file
     :returns: list of generated filenames
 
     .. note::
@@ -253,9 +260,18 @@ def save(traces, filename_template, format='mseed', additional={},
     if format == 'from_extension':
         format = os.path.splitext(filename_template)[1][1:]
 
+    if append and format not in g_formats_supporting_append:
+        raise FileSaveError(
+            '`pyrocko.io.save` has been called with `append=True` but the '
+            'file format `%s` does not support appending.' % format)
+
     if format == 'mseed':
-        return mseed.save(traces, filename_template, additional,
-                          overwrite=overwrite, **kwargs)
+        return mseed.save(
+            traces, filename_template, additional,
+            overwrite=overwrite,
+            append=append,
+            check_append=check_append,
+            **kwargs)
 
     elif format == 'gse2':
         return gse2.save(traces, filename_template, additional,

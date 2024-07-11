@@ -9,6 +9,7 @@ Read/write MiniSEED files (wraps `libmseed
 '''
 
 
+from collections import defaultdict
 from struct import unpack
 import os
 import re
@@ -97,15 +98,29 @@ def as_tuple(tr, dataquality='D'):
             itmin, itmax, srate, dataquality, tr.get_ydata())
 
 
-def save(traces, filename_template, additional={}, overwrite=True,
-         dataquality='D', record_length=4096, append=False, steim=1):
+def save(
+        traces,
+        filename_template,
+        additional={},
+        overwrite=True,
+        dataquality='D',
+        record_length=4096,
+        append=False,
+        check_append=False,
+        steim=1):
+
     from pyrocko import mseed_ext
 
     assert record_length in VALID_RECORD_LENGTHS
     assert dataquality in ('D', 'E', 'C', 'O', 'T', 'L'), 'invalid dataquality'
-    overwrite = True if append else overwrite
 
-    fn_tr = {}
+    if append:
+        overwrite = True
+
+    if not append:
+        check_append = False
+
+    fn_tr = defaultdict(list)
     for tr in traces:
         for code, maxlen, val in zip(
                 ['network', 'station', 'location', 'channel'],
@@ -121,12 +136,26 @@ def save(traces, filename_template, additional={}, overwrite=True,
         if not overwrite and os.path.exists(fn):
             raise FileSaveError('File exists: %s' % fn)
 
-        if fn not in fn_tr:
-            fn_tr[fn] = []
-
         fn_tr[fn].append(tr)
 
     for fn, traces_thisfile in fn_tr.items():
+        if check_append:
+            if os.path.exists(fn):
+                by_nslc = defaultdict(list)
+                for tr in iload(fn, load_data=False):
+                    by_nslc[tr.nslc_id].append(tr)
+
+                for tr in traces_thisfile:
+                    for tr_in_file in by_nslc[tr.nslc_id]:
+                        if tr.overlaps(tr_in_file.tmin, tr_in_file.tmax):
+                            raise FileSaveError(
+                                'Trace to be stored would overlap with '
+                                'trace already stored in file.\n'
+                                '  Trace in file:      %s\n'
+                                '  Trace to be stored: %s' % (
+                                    tr_in_file.summary,
+                                    tr.summary))
+
         trtups = []
         traces_thisfile.sort(key=lambda a: a.full_id)
         for tr in traces_thisfile:
