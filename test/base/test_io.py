@@ -12,7 +12,7 @@ import shutil
 
 from pyrocko import io, guts
 from pyrocko.io import FileLoadError
-from pyrocko.io import mseed, trace, util, suds, quakeml
+from pyrocko.io import mseed, trace, util, suds, quakeml, io_common
 
 from .. import common
 
@@ -234,14 +234,34 @@ class IOTestCase(unittest.TestCase):
             c, c, c, c,
             ydata=get_ydata(), tmin=0. + nsample*deltat, deltat=deltat)
 
-        fn = os.path.join(self.tmpdir, 'mseed_append')
-        io.save([tr1], fn)
-        io.save([tr2], fn, append=True)
+        for tra, trb in [(tr1, tr2), (tr2, tr1)]:
+            fn = os.path.join(self.tmpdir, 'mseed_append')
+            io.save([tra], fn)
+            io.save([trb], fn, append=True)
 
-        tr_load = io.load(fn)[0]
+            trs_load = io.load(fn)
 
-        num.testing.assert_equal(
-            tr_load.ydata, num.concatenate([tr1.ydata, tr2.ydata]))
+            assert len(trs_load) == 1
+
+            tr_load = trs_load[0]
+
+            num.testing.assert_equal(
+                tr_load.ydata, num.concatenate([tr1.ydata, tr2.ydata]))
+
+            fn = os.path.join(self.tmpdir, 'mseed_append')
+            io.save([tra], fn)
+            io.save([trb], fn, append=True, check_append=True)
+
+            tr_load = io.load(fn)[0]
+
+            num.testing.assert_equal(
+                tr_load.ydata, num.concatenate([tr1.ydata, tr2.ydata]))
+
+            with self.assertRaises(io_common.FileSaveError):
+                io.save([tra], fn, append=True, check_append=True)
+
+            with self.assertRaises(io_common.FileSaveError):
+                io.save([trb], fn, append=True, check_append=True)
 
     def testMSeedOffset(self):
         from pyrocko.io.mseed import iload
