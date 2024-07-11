@@ -2316,6 +2316,15 @@ class MisalignedTraces(Exception):
     pass
 
 
+class OverlappingTraces(Exception):
+    '''
+    This exception is raised by some :py:class:`Trace` operations when traces
+    overlap but should not.
+    '''
+
+    pass
+
+
 class NoData(Exception):
     '''
     This exception is raised by some :py:class:`Trace` operations when no or
@@ -4004,3 +4013,13 @@ def check_alignment(t1, t2):
         raise MisalignedTraces(
             'Cannot calculate misfit of %s and %s due to misaligned '
             'traces.' % ('.'.join(t1.nslc_id), '.'.join(t2.nslc_id)))
+
+
+def check_overlaps(traces_a, traces_b=None, message='Traces overlap.'):
+    for ia, tr_a in enumerate(traces_a):
+        for tr_b in traces_a[ia+1:] if traces_b is None else traces_b:
+            if tr_a.nslc_id == tr_b.nslc_id and tr_a.overlaps(
+                    tr_b.tmin, tr_b.tmax):
+                raise OverlappingTraces(
+                    message + '\n  Trace 1: %s\n  Trace 2: %s' % (
+                        tr_a.summary, tr_b.summary))

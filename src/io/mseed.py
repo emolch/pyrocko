@@ -108,6 +108,7 @@ def save(
         append=False,
         check_append=False,
         check_append_hook=None,
+        check_overlaps=True,
         steim=1):
 
     from pyrocko import mseed_ext
@@ -162,22 +163,27 @@ def save(
         fn_tr[fn].append(tr)
 
     for fn, traces_thisfile in fn_tr.items():
+        if check_overlaps:
+            try:
+                trace.check_overlaps(
+                    traces_thisfile,
+                    message='Traces to be stored would overlap.\n  File: %s'
+                    % fn)
+            except trace.OverlappingTraces as e:
+                raise FileSaveError(str(e)) from e
+
         if check_append:
             if os.path.exists(fn):
-                by_nslc = defaultdict(list)
-                for tr in iload(fn, load_data=False):
-                    by_nslc[tr.nslc_id].append(tr)
-
-                for tr in traces_thisfile:
-                    for tr_in_file in by_nslc[tr.nslc_id]:
-                        if tr.overlaps(tr_in_file.tmin, tr_in_file.tmax):
-                            raise FileSaveError(
-                                'Trace to be stored would overlap with '
-                                'trace already stored in file.\n'
-                                '  Trace in file:      %s\n'
-                                '  Trace to be stored: %s' % (
-                                    tr_in_file.summary,
-                                    tr.summary))
+                traces_infile = list(iload(fn, load_data=False))
+                try:
+                    trace.check_overlaps(
+                        traces_thisfile,
+                        traces_infile,
+                        message='Trace to be stored would overlap with '
+                                'trace already stored in file.\n  File: %s'
+                        % fn)
+                except trace.OverlappingTraces as e:
+                    raise FileSaveError(str(e)) from e
 
         trtups = []
         traces_thisfile.sort(key=lambda a: a.full_id)
