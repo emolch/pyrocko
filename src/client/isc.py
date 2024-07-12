@@ -9,6 +9,7 @@ Client to get earthquake catalog information from
 '''
 
 import logging
+import re
 
 from pyrocko import util
 from pyrocko.util import urlopen
@@ -169,6 +170,13 @@ class ISC(EarthquakeCatalog):
             return []
 
         logger.debug('Received page (%i bytes)' % len(page))
+        if -1 != page.find(
+                'Sorry, but your request cannot be processed at the present '
+                'time'):
+            raise ISCBlocked(
+                'Apparently, we have queried ISC too eagerly:\n'
+                + '-' * 79 + '\n' + re.sub(r'<[^>]+>', ' ', page)
+                + '\n' + '-' * 79)
 
         data = quakeml.QuakeML.load_xml(string=page)
 
