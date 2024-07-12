@@ -508,6 +508,13 @@ def add_squirrel_selection_arguments(parser):
              'datasets. Run ```squirrel template``` to obtain examples of '
              'dataset description files.')
 
+    group.add_argument(
+        '--upgrade-storage',
+        dest='upgrade_storage',
+        default=False,
+        action='store_true',
+        help='Upgrade storage layout of cached data to latest version.')
+
 
 def squirrel_from_selection_arguments(args):
     '''
@@ -543,7 +550,9 @@ def squirrel_from_selection_arguments(args):
         with progress.task('add datasets', logger=logger) as task:
             for dataset_path in task(args.datasets):
                 squirrel.add_dataset(
-                    dataset_path, check=args.check)
+                    dataset_path,
+                    check=args.check,
+                    upgrade=args.upgrade_storage)
 
     return squirrel
 

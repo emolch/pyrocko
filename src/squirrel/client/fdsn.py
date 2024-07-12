@@ -23,6 +23,7 @@ from .base import Source, Constraint
 from ..model import make_waveform_promise_nut, ehash, InvalidWaveform, \
     order_summary, WaveformOrder, g_tmin, g_tmax, g_tmin_queries, \
     codes_to_str_abbreviated, CodesNSLCE
+from .. import storage
 from ..database import ExecuteGet1Error
 from pyrocko.squirrel.error import SquirrelError
 from pyrocko.client import fdsn
@@ -89,35 +90,6 @@ def move_or_keep(fn_temp, fn):
         status = 'new'
 
     return status
-
-
-class Archive(Object):
-
-    def add(self):
-        raise NotImplementedError()
-
-
-class MSeedArchive(Archive):
-    template = String.T(default=op.join(
-        '%(tmin_year)s',
-        '%(tmin_month)s',
-        '%(tmin_day)s',
-        'trace_%(network)s_%(station)s_%(location)s_%(channel)s'
-        + '_%(block_tmin_us)s_%(block_tmax_us)s.mseed'))
-
-    def __init__(self, **kwargs):
-        Archive.__init__(self, **kwargs)
-        self._base_path = None
-
-    def set_base_path(self, path):
-        self._base_path = path
-
-    def add(self, order, trs):
-        path = op.join(self._base_path, self.template)
-        fmt = '%Y-%m-%d_%H-%M-%S.6FRAC'
-        return io.save(trs, path, overwrite=True, additional=dict(
-            block_tmin_us=util.time_to_str(order.tmin, format=fmt),
-            block_tmax_us=util.time_to_str(order.tmax, format=fmt)))
 
 
 def combine_selections(selection):
@@ -391,16 +363,50 @@ class FDSNSource(Source, has_paths.HasPaths):
                 'FDSNSource: auth_token and auth_token_path are mutually '
                 'exclusive.')
 
-    def setup(self, squirrel, check=True):
+    def setup(self, squirrel, check=True, upgrade=False):
         self._cache_path = op.join(
             self.cache_path or squirrel._cache_path, 'fdsn')
 
         util.ensuredir(self._cache_path)
         self._load_constraint()
-        self._archive = MSeedArchive()
+        self._archive = storage.get_storage_scheme('default')
+
         waveforms_path = self._get_waveforms_path()
         util.ensuredir(waveforms_path)
         self._archive.set_base_path(waveforms_path)
+
+        for waveforms_path_compat in self._get_waveforms_paths_compat():
+            if os.path.exists(waveforms_path_compat):
+
+                if upgrade:
+                    import shutil
+                    from pyrocko.squirrel.tool.commands.jackseis \
+                        import Converter
+
+                    logger.info(
+                        'Upgrading waveform archive.\n  old: %s\n  new: %s',
+                        waveforms_path_compat,
+                        waveforms_path)
+
+                    converter = Converter(
+                        in_path=waveforms_path_compat,
+                        out_storage_path=waveforms_path,
+                        tinc=3600.)
+                    converter.set_basepath('.')
+
+                    converter.convert(
+                        squirrel_factory=lambda: squirrel,
+                        append=True)
+
+                    shutil.rmtree(waveforms_path_compat)
+
+                else:
+                    logger.warn(
+                        'Waveform archive with old layout: %s\n💡 Use '
+                        '`squirrel ... --upgrade-storage` or '
+                        '`.add_dataset(..., upgrade=True)` '
+                        'to upgrade.' % waveforms_path_compat)
+                    squirrel.add(waveforms_path_compat, check=check)
 
         squirrel.add(
             self._get_waveforms_path(),
@@ -454,9 +460,15 @@ class FDSNSource(Source, has_paths.HasPaths):
 
     def _get_waveforms_path(self):
         if self.shared_waveforms:
-            return op.join(self._cache_path, 'waveforms')
+            return op.join(self._cache_path, 'waveforms-v2')
         else:
-            return op.join(self._cache_path, self._hash, 'waveforms')
+            return op.join(self._cache_path, self._hash, 'waveforms-v2')
+
+    def _get_waveforms_paths_compat(self):
+        if self.shared_waveforms:
+            return [op.join(self._cache_path, 'waveforms')]
+        else:
+            return [op.join(self._cache_path, self._hash, 'waveforms')]
 
     def _log_meta(self, message, target=logger.info):
         log_prefix = 'FDSN "%s" metadata:' % self.site
@@ -790,7 +802,9 @@ class FDSNSource(Source, has_paths.HasPaths):
                                 else:
                                     elog.append(now, order, 'partial result')
 
-                            paths = self._archive.add(order, trs_order)
+                            paths = self._archive.save(
+                                trs_order,
+                                check_append_merge=True)
                             all_paths.extend(paths)
 
                             nsuccess += 1

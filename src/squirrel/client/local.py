@@ -56,7 +56,7 @@ class LocalData(base.Source, has_paths.HasPaths):
     def describe(self):
         return 'localdata'
 
-    def setup(self, squirrel, check=True):
+    def setup(self, squirrel, check=True, upgrade=False):
         squirrel.add(
             self.expand_path(self.paths),
             kinds=self.kinds,

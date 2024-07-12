@@ -746,7 +746,7 @@ class Squirrel(Selection):
             self._set_file_states_known(transaction)
             self._conn.set_progress_handler(None, 0)
 
-    def add_source(self, source, check=True):
+    def add_source(self, source, check=True, upgrade=False):
         '''
         Add remote resource.
 
@@ -757,7 +757,7 @@ class Squirrel(Selection):
         '''
 
         self._sources.append(source)
-        source.setup(self, check=check)
+        source.setup(self, check=check, upgrade=upgrade)
 
     def add_fdsn(self, *args, **kwargs):
         '''
@@ -779,7 +779,7 @@ class Squirrel(Selection):
 
         self.add_source(catalog.CatalogSource(*args, **kwargs))
 
-    def add_dataset(self, ds, check=True):
+    def add_dataset(self, ds, check=True, upgrade=False):
         '''
         Read dataset description from file and add its contents.
 
@@ -803,7 +803,7 @@ class Squirrel(Selection):
         if isinstance(ds, str):
             ds = dataset.read_dataset(ds)
 
-        ds.setup(self, check=check)
+        ds.setup(self, check=check, upgrade=upgrade)
 
     def _get_selection_args(
             self, kind_id,

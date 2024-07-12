@@ -27,6 +27,8 @@ from pyrocko.squirrel.error import ToolError, SquirrelError
 from pyrocko.squirrel.model import CodesNSLCE, QuantityType
 from pyrocko.squirrel.operators.base import NetworkGrouping, StationGrouping, \
     ChannelGrouping, SensorGrouping
+from pyrocko.squirrel.storage import StorageSchemeChoice, StorageScheme, \
+    StorageSchemeLayout, get_storage_scheme
 from pyrocko.squirrel.tool.common import ldq
 
 tts = util.time_to_str
@@ -157,6 +159,8 @@ class Converter(HasPaths):
 
     out_path = Path.T(optional=True)
     out_sds_path = Path.T(optional=True)
+    out_storage_path = Path.T(optional=True)
+    out_storage_scheme = StorageSchemeChoice.T(default='default')
     out_format = OutputFormatChoice.T(optional=True)
     out_data_type = OutputDataTypeChoice.T(optional=True)
     out_mseed_record_length = IntChoice.T(
@@ -290,8 +294,29 @@ gappy traces), ``%%(wmin_year)s``, ``%%(wmin_month)s``, ``%%(wmin_day)s``,
             help='''
 Set output path to create an SDS archive
 (https://www.seiscomp.de/seiscomp3/doc/applications/slarchive/SDS.html), rooted
-at PATH. Implies ``--tinc 86400``. Example: ``--out-sds-path data/sds``
+at PATH. Implies ``--tinc 3600`` if not specified otherwise. Equivalent to
+``--out-storage-path PATH --out-storage-scheme sds``. Example:
+``--out-sds-path data/sds``
 '''.strip())
+
+        p.add_argument(
+            '--out-storage-path',
+            dest='out_storage_path',
+            metavar='PATH',
+            help='''
+Create storage directory under PATH. The storage scheme can be set with
+``--out-storage-scheme``.
+'''.strip())
+
+        p.add_argument(
+            '--out-storage-scheme',
+            dest='out_storage_scheme',
+            default='default',
+            choices=StorageSchemeChoice.choices,
+            metavar='SCHEME',
+            help='''
+Set storage scheme to produce when using ``--out-storage-path``. Choices: %s
+'''.strip() % ldq(StorageSchemeChoice.choices))
 
         p.add_argument(
             '--out-format',
@@ -425,6 +450,8 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
             out_path=args.out_path,
             tinc=args.tinc,
             out_sds_path=args.out_sds_path,
+            out_storage_path=args.out_storage_path,
+            out_storage_scheme=args.out_storage_scheme,
             out_data_type=args.out_data_type,
             out_mseed_record_length=args.out_mseed_record_length,
             out_mseed_steim=args.out_mseed_steim,
@@ -467,33 +494,34 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
 
         return d
 
-    def get_effective_out_path(self):
+    def get_effective_storage_scheme(self):
         nset = sum(x is not None for x in (
             self.out_path,
-            self.out_sds_path))
+            self.out_sds_path,
+            self.out_storage_path))
 
         if nset > 1:
             raise JackseisError(
-                'More than one out of [out_path, out_sds_path] set.')
+                'More than one out of [out_path, out_sds_path, '
+                'out_storage_path] set.')
 
-        is_sds = False
         if self.out_path:
-            out_path = self.out_path
+            scheme = StorageScheme(
+                layouts=StorageSchemeLayout(
+                    path_template=self.expand_path(self.out_path)))
 
         elif self.out_sds_path:
-            out_path = op.join(
-                self.out_sds_path,
-                '%(wmin_year)s/%(network_safe)s/%(station_safe)s/%(channel_safe)s.D'
-                '/%(network_safe)s.%(station)s.%(location)s.%(channel)s.D'
-                '.%(wmin_year)s.%(wmin_jday)s')
-            is_sds = True
-        else:
-            out_path = None
+            scheme = clone(get_storage_scheme('sds'))
+            scheme.set_base_path(self.expand_path(self.out_sds_path))
 
-        if out_path is not None:
-            return self.expand_path(out_path), is_sds
+        elif self.out_storage_path:
+            scheme = clone(get_storage_scheme(self.out_storage_scheme))
+            scheme.set_base_path(self.expand_path(self.out_storage_path))
+
         else:
-            return None
+            scheme = None
+
+        return scheme
 
     def get_effective_out_meta_path(self):
         if self.out_meta_path is not None:
@@ -568,13 +596,15 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
             codes = chain.get('codes')
             downsample = chain.get('downsample')
             rotate_to_enz = chain.get('rotate_to_enz')
-            out_path, is_sds = chain.fcall('get_effective_out_path') \
-                or (None, False)
+            storage_scheme = chain.fcall('get_effective_storage_scheme')
 
-            if is_sds:
+            out_format = chain.get('out_format')
+
+            if storage_scheme and storage_scheme.name in ('sds', 'default'):
                 if tinc is None:
                     logger.warning(
-                        'Setting time window to 1 hour to generate SDS.')
+                        'Setting time window to 1 hour to fill "%s" storage.',
+                        storage_scheme.name)
                     tinc = 3600.0
 
                 else:
@@ -584,7 +614,14 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
                             'Day length is not a multiple of the time '
                             'window (--tinc).')
 
-            out_format = chain.get('out_format')
+            if storage_scheme and storage_scheme.format is not None \
+                    and out_format != storage_scheme.format:
+
+                logger.warning(
+                    'Setting file format to "%s" to generate storage with '
+                    'scheme "%s"' % (
+                        storage_scheme.format, storage_scheme.name))
+
             out_data_type = chain.get('out_data_type')
 
             out_meta_path = chain.fcall('get_effective_out_meta_path')
@@ -593,7 +630,7 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
                 sx = sq.get_stationxml(codes=codes, tmin=tmin, tmax=tmax)
                 util.ensuredirs(out_meta_path)
                 sx.dump_xml(filename=out_meta_path)
-                if out_path is None:
+                if storage_scheme is None:
                     return
 
             target_deltat = None
@@ -738,12 +775,10 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
                         pass
 
                 traces = chopped_traces
-
-                if out_path is not None:
+                if storage_scheme is not None:
                     try:
-
-                        g_filenames_all.update(io.save(
-                            traces, out_path,
+                        g_filenames_all.update(storage_scheme.save(
+                            traces,
                             format=out_format,
                             overwrite=force,
                             append=True,

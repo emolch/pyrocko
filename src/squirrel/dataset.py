@@ -122,10 +122,10 @@ class Dataset(HasPaths):
     operators = List.T(Operator.T())
     comment = String.T(optional=True)
 
-    def setup(self, squirrel, check=True):
+    def setup(self, squirrel, check=True, upgrade=False):
         for source in self.sources:
             squirrel.add_source(
-                source, check=check)
+                source, check=check, upgrade=upgrade)
 
         for operator in self.operators:
             squirrel.add_operator(operator)

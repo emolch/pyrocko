@@ -117,7 +117,7 @@ class CatalogSource(Source):
     def describe(self):
         return 'catalog:%s:%s' % (self.catalog, self.get_hash())
 
-    def setup(self, squirrel, check=True):
+    def setup(self, squirrel, check=True, upgrade=False):
         self._force_query_age_max = self.anxious
         self._catalog = get_catalog(self.catalog)
 
