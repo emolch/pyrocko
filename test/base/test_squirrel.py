@@ -618,7 +618,10 @@ class SquirrelTestCase(unittest.TestCase):
                     trs.append(tr1)
                     trs.append(tr2)
 
-                fns = io.save(trs, op.join(tempdir, 'data.mseed'))
+                fns = io.save(
+                    trs,
+                    op.join(tempdir, 'data.mseed'),
+                    check_overlaps=False)
 
                 database = squirrel.Database()
                 sq = squirrel.Squirrel(database=database)
