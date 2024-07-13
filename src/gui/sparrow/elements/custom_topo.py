@@ -35,6 +35,7 @@ class CustomTopoElement(Element):
         self._controls = None
         self._visible = False
         self._mesh = None
+        self.t = None
         self._lookuptables = {}
         self._path_loaded = None
 
@@ -108,15 +109,15 @@ class CustomTopoElement(Element):
                     self._parent.remove_actor(self._mesh.actor)
                     self._mesh = None
 
-                t = tile.Tile.from_grd(self._state.path)
+                self.t = tile.Tile.from_grd(self._state.path)
                 self._path_loaded = self._state.path
+
+            if not self._mesh and self.t:
                 self._mesh = TopoMeshPipe(
-                    t,
+                    self.t,
                     mask_ocean=False,
                     smooth=self._state.smooth,
                     lut=self._lookuptables[self._state.cpt])
-
-                self._parent.add_actor(self._mesh.actor)
 
         if not visible and self._mesh:
             self._parent.remove_actor(self._mesh.actor)

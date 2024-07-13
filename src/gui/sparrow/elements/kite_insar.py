@@ -71,7 +71,7 @@ class KiteMeshPipe(TrimeshPipe):
         assert data_center.shape == (nlat-1, nlon-1)
 
         ele = num.zeros((nlat, nlon))
-        ele[:-1, :-1] = data_center * 100000.
+        ele[:-1, :-1] = data_center #* 100000.
         vertices, faces = geometry.topo_to_mesh(
             lat_edge, lon_edge, ele, cake.earthradius)
 
@@ -101,7 +101,7 @@ class KiteSceneElement(ElementState):
 class KiteState(ElementState):
     visible = Bool.T(default=True)
     scenes = List.T(KiteSceneElement.T(), default=[])
-    cpt = CPTState.T(default=CPTState.D(cpt_name='seismic_r'))
+    cpt = CPTState.T(default=CPTState.D(cpt_name="RdYlBu"))
 
     def create(self):
         element = KiteElement()
@@ -158,7 +158,7 @@ class KiteElement(Element):
     def unset_parent(self):
         self.unbind_state()
         if self._parent:
-            for mesh in self._meshes:
+            for mesh in self._meshes.values():
                 self._parent.remove_actor(mesh.actor)
 
             self._meshes.clear()
@@ -255,6 +255,7 @@ class KiteElement(Element):
                     values = scene_tile.data.flatten()
                     self.cpt_handler._values = values
                     self.cpt_handler.update_cpt()
+                    self.cpt_handler.update_cbar("Displacement [m]")
 
                     mesh.set_shading('phong')
                     mesh.set_lookuptable(self.cpt_handler._lookuptable)
@@ -263,6 +264,7 @@ class KiteElement(Element):
                 else:
                     mesh = self._meshes[k]
                     self.cpt_handler.update_cpt()
+                    self.cpt_handler.update_cbar("Displacement [m]")
 
                 if scene_element.visible:
                     self._parent.add_actor(mesh.actor)
@@ -283,10 +285,14 @@ class KiteElement(Element):
             pb_clear.clicked.connect(self.clear_scenes)
             layout.addWidget(pb_clear, 0, 2)
 
+            # color maps
             self.cpt_handler.cpt_controls(
                 self._parent, self._state.cpt, layout)
 
-            layout.addWidget(qw.QFrame(), 4, 0, 1, 3)
+            layout.addWidget(qw.QFrame(), 1, 0, 1, 3)
+
+            self.cpt_handler._update_cpt_combobox()
+            self.cpt_handler._update_cptscale_lineedit()
 
             self._controls = frame
 
