@@ -220,7 +220,12 @@ class KiteElement(Element):
         self._meshes.clear()
         self._state.scenes = []
 
+        self.cpt_handler.remove_cbar_pipe()
         self.update()
+
+    def update_cpt(self):
+        self.cpt_handler.update_cpt()
+        self.cpt_handler.update_cbar("Displacement [m]")
 
     def update(self, *args):
         state = self._state
@@ -254,20 +259,21 @@ class KiteElement(Element):
 
                     values = scene_tile.data.flatten()
                     self.cpt_handler._values = values
-                    self.cpt_handler.update_cpt()
-                    self.cpt_handler.update_cbar("Displacement [m]")
+
 
                     mesh.set_shading('phong')
                     mesh.set_lookuptable(self.cpt_handler._lookuptable)
-
+                    self.update_cpt()
                     self._meshes[k] = mesh
                 else:
                     mesh = self._meshes[k]
-                    self.cpt_handler.update_cpt()
-                    self.cpt_handler.update_cbar("Displacement [m]")
+                    self.update_cpt()
 
                 if scene_element.visible:
                     self._parent.add_actor(mesh.actor)
+
+        else:
+            self.cpt_handler.remove_cbar_pipe()
 
         self._parent.update_view()
 
