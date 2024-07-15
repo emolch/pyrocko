@@ -23,6 +23,7 @@ from .base import Source, Constraint
 from ..model import make_waveform_promise_nut, ehash, InvalidWaveform, \
     order_summary, WaveformOrder, g_tmin, g_tmax, g_tmin_queries, \
     codes_to_str_abbreviated, CodesNSLCE
+from .. import storage
 from ..database import ExecuteGet1Error
 from pyrocko.squirrel.error import SquirrelError
 from pyrocko.client import fdsn
@@ -98,12 +99,6 @@ class Archive(Object):
 
 
 class MSeedArchive(Archive):
-    template = String.T(default=op.join(
-        '%(tmin_year)s',
-        '%(tmin_month)s',
-        '%(tmin_day)s',
-        'trace_%(network)s_%(station)s_%(location)s_%(channel)s'
-        + '_%(block_tmin_us)s_%(block_tmax_us)s.mseed'))
 
     def __init__(self, **kwargs):
         Archive.__init__(self, **kwargs)
@@ -393,7 +388,8 @@ class FDSNSource(Source, has_paths.HasPaths):
 
         util.ensuredir(self._cache_path)
         self._load_constraint()
-        self._archive = MSeedArchive()
+        self._archive = storage.get_storage_scheme('default')
+
         waveforms_path = self._get_waveforms_path()
         util.ensuredir(waveforms_path)
         self._archive.set_base_path(waveforms_path)
@@ -786,7 +782,9 @@ class FDSNSource(Source, has_paths.HasPaths):
                                 else:
                                     elog.append(now, order, 'partial result')
 
-                            paths = self._archive.add(order, trs_order)
+                            paths = self._archive.save(
+                                trs_order,
+                                check_append_merge=True)
                             all_paths.extend(paths)
 
                             nsuccess += 1
