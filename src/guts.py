@@ -987,6 +987,11 @@ class Object(with_metaclass(ObjectMetaClass, object)):
             raise ArgumentError('Invalid argument to %s: %s' % (
                 self.T.tagname, ', '.join(list(kwargs.keys()))))
 
+        self.post_init()
+
+    def post_init(self):
+        pass
+
     @classmethod
     def D(cls, *args, **kwargs):
         '''
