@@ -101,7 +101,7 @@ class KiteSceneElement(ElementState):
 class KiteState(ElementState):
     visible = Bool.T(default=True)
     scenes = List.T(KiteSceneElement.T(), default=[])
-    cpt = CPTState.T(default=CPTState.D(cpt_name="RdYlBu"))
+    cpt = CPTState.T(default=CPTState.D())
 
     def create(self):
         element = KiteElement()
@@ -158,16 +158,15 @@ class KiteElement(Element):
     def unset_parent(self):
         self.unbind_state()
         if self._parent:
-            for mesh in self._meshes.values():
-                self._parent.remove_actor(mesh.actor)
-
-            self._meshes.clear()
+            print("unset parent")
+            self.clear_scenes()
             self._cells.clear()
 
             if self._controls:
                 self._parent.remove_panel(self._controls)
                 self._controls = None
 
+            self.cpt_handler.remove_cbar_pipe()
             self._parent.update_view()
             self._parent = None
 
@@ -235,6 +234,7 @@ class KiteElement(Element):
 
         if self._state.visible:
             for scene_element in state.scenes:
+                print(scene_element.filename)
                 logger.debug('Drawing Kite scene')
 
                 if scene_element.scene is None:
@@ -246,7 +246,7 @@ class KiteElement(Element):
                 scene_tile = SceneTileAdapter(scene)
 
                 k = (scene_tile, state.cpt.cpt_name)
-
+                print(k)
                 if k not in self._meshes:
                     cpt = copy.deepcopy(
                         self.cpt_handler._cpts[state.cpt.cpt_name])
@@ -262,13 +262,15 @@ class KiteElement(Element):
 
 
                     mesh.set_shading('phong')
-                    mesh.set_lookuptable(self.cpt_handler._lookuptable)
                     self.update_cpt()
+                    mesh.set_lookuptable(self.cpt_handler._lookuptable)
                     self._meshes[k] = mesh
                 else:
                     mesh = self._meshes[k]
                     self.update_cpt()
+                    mesh.set_lookuptable(self.cpt_handler._lookuptable)
 
+                print(mesh)
                 if scene_element.visible:
                     self._parent.add_actor(mesh.actor)
 
