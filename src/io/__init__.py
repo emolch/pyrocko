@@ -228,7 +228,7 @@ def iload(filename, format='mseed', getdata=True, substitutions=None):
 
 def save(traces, filename_template, format='mseed', additional={},
          stations=None, overwrite=True, append=False, check_append=False,
-         check_append_hook=None,
+         check_append_merge=False, check_append_hook=None,
          **kwargs):
     '''
     Save traces to file(s).
@@ -248,6 +248,9 @@ def save(traces, filename_template, format='mseed', additional={},
     :param append': append traces to the file if the file exists
     :param check_append': ensure that appended traces do not overlap with
             traces already present in the file
+    :param check_append_merge': try to merge traces with already stored traces
+            where check_append finds a conflict. ``append`` and
+            ``check_append`` must be set to use this option.
     :param check_append_hook: callback queried for permission to append to an
             existing file (for example to prevent overwriting files which
             existed prior to the application start but to allow appending to
@@ -280,6 +283,7 @@ def save(traces, filename_template, format='mseed', additional={},
             overwrite=overwrite,
             append=append,
             check_append=check_append,
+            check_append_merge=check_append_merge,
             check_append_hook=check_append_hook,
             **kwargs)
 

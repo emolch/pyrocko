@@ -107,6 +107,7 @@ def save(
         record_length=4096,
         append=False,
         check_append=False,
+        check_append_merge=False,
         check_append_hook=None,
         check_overlaps=True,
         steim=1):
@@ -172,6 +173,8 @@ def save(
             except trace.OverlappingTraces as e:
                 raise FileSaveError(str(e)) from e
 
+        append_ = append
+
         if check_append:
             if os.path.exists(fn):
                 traces_infile = list(iload(fn, load_data=False))
@@ -183,7 +186,14 @@ def save(
                                 'trace already stored in file.\n  File: %s'
                         % fn)
                 except trace.OverlappingTraces as e:
-                    raise FileSaveError(str(e)) from e
+                    if check_append_merge:
+                        traces_infile = list(iload(fn, load_data=True))
+                        traces_thisfile = trace.degapper(
+                            traces + traces_infile)
+                        append_ = False
+
+                    else:
+                        raise FileSaveError(str(e)) from e
 
         trtups = []
         traces_thisfile.sort(key=lambda a: a.full_id)
@@ -192,7 +202,7 @@ def save(
 
         ensuredirs(fn)
         try:
-            mseed_ext.store_traces(trtups, fn, record_length, append, steim)
+            mseed_ext.store_traces(trtups, fn, record_length, append_, steim)
         except mseed_ext.MSeedError as e:
             raise FileSaveError(
                 str(e) + " (while storing traces to file '%s')" % fn)
