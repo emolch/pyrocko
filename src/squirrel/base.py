@@ -2178,13 +2178,9 @@ class Squirrel(Selection):
                     finally:
                         calls.put(None)
 
-                if len(by_source_id) > 1:
-                    thread = threading.Thread(target=download)
-                    thread.start()
-                    threads.append(thread)
-                else:
-                    download()
-                    calls.put(None)
+                thread = threading.Thread(target=download)
+                thread.start()
+                threads.append(thread)
 
             ndone = 0
             while ndone < len(by_source_id):
