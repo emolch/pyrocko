@@ -2006,12 +2006,30 @@ class Squirrel(Selection):
 
     def _redeem_promises(self, *args, order_only=False):
 
+        to_be_split = []
+
+        def split_promise_execute():
+            for (tmin, tmax, codes, path) in to_be_split:
+                self._split_nuts(
+                    'waveform_promise', tmin, tmax, codes=codes, path=path)
+            to_be_split[:] = []
+
         def split_promise(order, tmax=None):
-            self._split_nuts(
-                'waveform_promise',
-                order.tmin, tmax if tmax is not None else order.tmax,
-                codes=order.codes,
-                path=order.source_id)
+            this = [
+                order.tmin,
+                tmax if tmax is not None else order.tmax,
+                order.codes,
+                order.source_id]
+
+            if to_be_split:
+                last = to_be_split[-1]
+                if last[1] == this[0] and last[2:] == this[2:]:
+                    last[1] = this[1]
+                else:
+                    split_promise_execute()
+                    to_be_split.append(this)
+            else:
+                to_be_split.append(this)
 
         tmin, tmax = args[:2]
 
@@ -2195,6 +2213,8 @@ class Squirrel(Selection):
 
             if task:
                 task.update(n_order_groups - len(order_groups))
+
+        split_promise_execute()
 
         if task:
             task.done()
