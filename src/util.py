@@ -1615,6 +1615,8 @@ def str_to_time_fillup(s):
     `'2010-01-01 00'`, ..., or `'2010'`.
     '''
 
+    s = s.strip().replace('T', ' ').replace('_', ' ')
+
     if s == 'now':
         return time.time()
     elif s == 'today':
