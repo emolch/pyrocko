@@ -236,6 +236,7 @@ class Task(object):
         self._tcreate = time.time()
         self._group = group
         self._lock = threading.RLock()
+        self.update(0)
 
     def __enter__(self):
         return self
