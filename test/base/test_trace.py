@@ -919,6 +919,8 @@ class TraceTestCase(unittest.TestCase):
             '.'.join('%%(%s)s' % x for x in '''
                 network station location channel extra
                 network_safe station_safe location_safe channel_safe extra_safe
+                network_dsafe station_dsafe location_dsafe channel_dsafe
+                extra_dsafe
                 tmin tmin_ms tmin_us tmin_year tmin_month tmin_day tmin_jday
                 tmax tmax_ms tmax_us tmax_year tmax_month tmax_day tmax_jday
                 julianday
@@ -926,7 +928,8 @@ class TraceTestCase(unittest.TestCase):
 
         expect = \
             'N.STA1..BHZ..' \
-            'N.STA1.__.BHZ._.' \
+            'N.STA1..BHZ..' \
+            'N.STA1._.BHZ._.' \
             '1970-01-01_00-00-00.1970-01-01_00-00-00.000.1970-01-01_00-00-00.000000.1970.01.01.001.' \
             '1970-01-01_00-01-00.1970-01-01_00-01-00.000.1970-01-01_00-01-00.000000.1970.01.01.001.' \
             '1.' \
