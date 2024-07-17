@@ -2182,31 +2182,40 @@ class Squirrel(Selection):
             for order in orders_now:
                 by_source_id[order.source_id].append(order)
 
-            threads = []
-            for source_id in by_source_id:
-                def download():
-                    try:
-                        sources[source_id].download_waveforms(
-                            by_source_id[source_id],
-                            success=enqueue(success),
-                            error_permanent=enqueue(split_promise),
-                            error_temporary=noop,
-                            batch_add=enqueue(batch_add))
+            quit_threads = False
 
-                    finally:
-                        calls.put(None)
+            def aborted():
+                return quit_threads
 
-                thread = threading.Thread(target=download)
-                thread.start()
-                threads.append(thread)
+            try:
+                threads = []
+                for source_id in by_source_id:
+                    def download():
+                        try:
+                            sources[source_id].download_waveforms(
+                                by_source_id[source_id],
+                                success=enqueue(success),
+                                error_permanent=enqueue(split_promise),
+                                error_temporary=noop,
+                                batch_add=enqueue(batch_add),
+                                aborted=aborted)
 
-            ndone = 0
-            while ndone < len(by_source_id):
-                ret = calls.get()
-                if ret is None:
-                    ndone += 1
-                else:
-                    ret[0](*ret[1])
+                        finally:
+                            calls.put(None)
+
+                    thread = threading.Thread(target=download)
+                    thread.start()
+                    threads.append(thread)
+
+                ndone = 0
+                while ndone < len(by_source_id):
+                    ret = calls.get()
+                    if ret is None:
+                        ndone += 1
+                    else:
+                        ret[0](*ret[1])
+            finally:
+                quit_threads = True
 
             for thread in threads:
                 thread.join()

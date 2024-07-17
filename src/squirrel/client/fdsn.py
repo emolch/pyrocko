@@ -707,7 +707,7 @@ class FDSNSource(Source, has_paths.HasPaths):
 
     def download_waveforms(
             self, orders, success, batch_add, error_permanent,
-            error_temporary):
+            error_temporary, aborted):
 
         elog = ErrorLog(site=self.site)
         orders.sort(key=orders_sort_key)
@@ -716,7 +716,7 @@ class FDSNSource(Source, has_paths.HasPaths):
         task = make_task(
             'FDSN "%s" waveforms: downloading' % self.site, len(orders))
 
-        while i < len(orders):
+        while i < len(orders) and not aborted():
             orders_now = orders[i:i+neach]
             selection_now = orders_to_selection(orders_now)
             nsamples_estimate = sum(
