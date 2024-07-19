@@ -1490,7 +1490,7 @@ class Squirrel(Selection):
 
         return list(map(list, self._conn.execute(sql, args)))
 
-    def update(self, constraint=None, **kwargs):
+    def update(self, constraint=None, kind=('channel', 'event'), **kwargs):
         '''
         Update or partially update channel and event inventories.
 
@@ -1498,6 +1498,12 @@ class Squirrel(Selection):
             Selection of times or areas to be brought up to date.
         :type constraint:
             :py:class:`~pyrocko.squirrel.client.base.Constraint`
+
+        :param kind:
+            What to update, ``'channel'`` for channel inventories,
+            ``'event'`` for event catalogs.
+        :type kind:
+            :py:class:`tuple` of :py:class:`str`
 
         :param \\*\\*kwargs:
             Shortcut for setting ``constraint=Constraint(**kwargs)``.
@@ -1508,13 +1514,18 @@ class Squirrel(Selection):
         previously unseen times or areas.
         '''
 
+        if isinstance(kind, str):
+            kind = (kind,)
+
         if constraint is None:
             constraint = client.Constraint(**kwargs)
 
         task = make_task('Updating sources')
         for source in task(self._sources):
-            source.update_channel_inventory(self, constraint)
-            source.update_event_inventory(self, constraint)
+            if 'channel' in kind:
+                source.update_channel_inventory(self, constraint)
+            if 'event' in kind:
+                source.update_event_inventory(self, constraint)
 
     def update_waveform_promises(self, constraint=None, **kwargs):
         '''

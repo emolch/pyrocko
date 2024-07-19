@@ -16,7 +16,7 @@ import base64
 from pyrocko import util, moment_tensor
 
 from pyrocko.guts import Float, String, Timestamp, Unicode, \
-    StringPattern, List, Dict, Any
+    StringPattern, List, Dict, Any, Object
 from .location import Location
 
 logger = logging.getLogger('pyrocko.model.event')
@@ -24,6 +24,7 @@ logger = logging.getLogger('pyrocko.model.event')
 guts_prefix = 'pf'
 
 d2r = num.pi / 180.
+km = 1000.
 
 
 def cmp(a, b):
@@ -71,6 +72,84 @@ def opportunistic_cast(v):
         pass
 
     return v
+
+
+def in_range(vmin, vmax, v):
+    return (vmin is None or (v is not None and vmin <= v)) \
+        and (vmax is None or (v is not None and vmax >= v))
+
+
+def mult_none(a, b):
+    if None in (a, b):
+        return None
+    else:
+        return a*b
+
+
+class EventFilter(Object):
+    '''
+    Filter to select events by given criteria.
+    '''
+
+    magnitude_min = Float.T(
+        optional=True,
+        help='Minimum magnitude.')
+    magnitude_max = Float.T(
+        optional=True,
+        help='Maximum magnitude.')
+    depth_min = Float.T(
+        optional=True,
+        help='Minimum event depth [m].')
+    depth_max = Float.T(
+        optional=True,
+        help='Maximum event depth [m].')
+
+    @classmethod
+    def setup_argparse(cls, parser):
+
+        parser.add_argument(
+            '--magnitude-min',
+            dest='magnitude_min',
+            metavar='FLOAT',
+            type=float,
+            help='Minimum magnitude for event filter.')
+
+        parser.add_argument(
+            '--magnitude-max',
+            dest='magnitude_max',
+            metavar='FLOAT',
+            type=float,
+            help='Maximum magnitude for event filter.')
+
+        parser.add_argument(
+            '--depth-min',
+            dest='depth_min_km',
+            metavar='FLOAT',
+            type=float,
+            help='Minimum depth for event filter [km].')
+
+        parser.add_argument(
+            '--depth-max',
+            dest='depth_max_km',
+            metavar='FLOAT',
+            type=float,
+            help='Maximum depth for event filter [km].')
+
+    @classmethod
+    def from_argparse(cls, args):
+        return cls(
+            magnitude_min=args.magnitude_min,
+            magnitude_max=args.magnitude_max,
+            depth_min=mult_none(args.depth_min_km, km),
+            depth_max=mult_none(args.depth_max_km, km))
+
+    def get_filter(self):
+        def filter(ev):
+            return (
+                in_range(self.magnitude_min, self.magnitude_max, ev.magnitude)
+                and in_range(self.depth_min, self.depth_max, ev.depth))
+
+        return filter
 
 
 class Event(Location):
