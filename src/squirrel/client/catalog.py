@@ -19,7 +19,7 @@ from pyrocko import util, progress
 from pyrocko.guts import String, Dict, Duration, dump_all
 
 from .base import Source
-from ..model import ehash
+from ..model import ehash, g_tmin, g_tmax
 from ..lock import LockDir
 
 guts_prefix = 'squirrel'
@@ -162,6 +162,12 @@ class CatalogSource(Source):
 
             if tmax is None:
                 tmax = tmax_sq
+
+            if tmin == g_tmin:
+                tmin = None
+
+            if tmax == g_tmax:
+                tmax = None
 
             if tmin is None or tmax is None:
                 logger.warning(
