@@ -100,17 +100,19 @@ class ISC(EarthquakeCatalog):
         else:
             try:
                 data = quakeml.QuakeML.load_xml(string=page)
-            except Exception:
+            except Exception as e:
                 if page[:500].find(
                         'Please try again in a few minutes') != -1:
 
                     raise ISCBlocked(
                         'Apparently, we have queried ISC too eagerly:\n'
-                        + '-' * 79 + '\n' + page + '\n' + '-' * 79)
+                        + '-' * 79 + '\n' + re.sub(r'<[^>]+>', ' ', page)
+                        + '\n' + '-' * 79) from None
                 else:
                     raise ISCError(
                         "Couldn't parse XML results from ISC:\n"
-                        + '-' * 79 + '\n' + page + '\n' + '-' * 79)
+                        + '-' * 79 + '\n' + re.sub(r'<[^>]+>', ' ', page)
+                        + '\n' + '-' * 79) from e
 
             events = data.get_pyrocko_events()
 
