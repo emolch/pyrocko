@@ -569,7 +569,10 @@ setup(
             'data/fomosto_report/gfreport.*',
             'gui/snuffler/snufflings/map/*.kml',
             'gui/snuffler/snufflings/map/*.html',
-            'gui/snuffler/snufflings/map/*.js'],
+            'gui/snuffler/snufflings/map/*.js',
+            'squirrel/service/page/*.html',
+            'squirrel/service/page/js/*.js',
+            'squirrel/service/page/css/*.css'],
         '': ['README.md']},
     **metadata,
 )
