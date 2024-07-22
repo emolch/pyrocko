@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        <title>Squirrel</title>
+        <link href="css/bootstrap.min.css" rel="stylesheet" />
+        <link href="css/local.css" rel="stylesheet" />
+        <script src="js/d3.v7.min.js"></script>
+    </head>
+
+    <body>
+        <div id="app">
+            <div v-if="!connected" class="curtain">DISCONNECTED</div>
+            <div class="connection-monitor">
+                <div v-if="connected">
+                    Connected: {{ connected.duration }} | Requests: {{
+                    serverInfo ? serverInfo.n_requests : ''}}
+                </div>
+                <div v-else>Disconnected</div>
+            </div>
+
+            <div id="mapcontainer" class="map-container">
+                <svg class="map"></svg>
+            </div>
+        </div>
+    </body>
+
+    <script type="module">
+        import {
+            createApp,
+            ref,
+            computed,
+            onMounted,
+        } from "./js/vue.esm-browser.js";
+
+        const now = () => {
+            return new Date().getTime();
+        };
+
+        const fmtDuration = (d) => {
+            const h = Math.floor(d / 3600);
+            const m = Math.floor((d % 3600) / 60);
+            const s = d % 60;
+            return (
+                (h > 0 ? h.toFixed(0) + "h " : "") +
+                (h > 0 || m > 0 ? m.toFixed(0) + "m " : "") +
+                (s.toFixed(0) + "s")
+            );
+        };
+
+        createApp({
+            setup() {
+                let serverInfo = ref(null);
+                let heartbeats = ref([]);
+
+                const squirrelRequest = async (method, args) => {
+                    const response = await fetch("/squirrel/" + method, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify(args),
+                    });
+                    return response.json();
+                };
+
+                const getServerInfo = async () => {
+                    serverInfo.value = await squirrelRequest("server_info");
+                };
+
+
+                let abortHeartbeat = null;
+
+                const receiveHeartbeat = async () => {
+                    abortHeartbeat = new AbortController();
+                    const response = await fetch("/squirrel/heartbeat", {
+                        signal: abortHeartbeat.signal,
+                    });
+
+                    const decoder = new TextDecoder("utf-8");
+                    try {
+                        for await (const chunk of response.body) {
+                            const heartbeat = JSON.parse(decoder.decode(chunk));
+                            heartbeat["time_now_client"] = now();
+                            heartbeats.value.push(heartbeat);
+                            if (heartbeats.value.length > 10) {
+                                heartbeats.value.splice(
+                                    0,
+                                    heartbeats.value.length - 10
+                                );
+                            }
+                        }
+                    } catch (e) {
+                        heartbeats.value = [];
+                        abortHeartbeat = null;
+                    }
+                };
+
+                let tick = ref(0);
+                setInterval(() => {
+                    tick.value++;
+                }, 1000);
+
+                const connected = computed(() => {
+                    tick.value;
+                    if (heartbeats.value.length == 0) {
+                        return null;
+                    } else {
+                        let latest =
+                            heartbeats.value[heartbeats.value.length - 1];
+                        let delay = now() - latest["time_now_client"];
+                        if (delay < 3000.0) {
+                            return {
+                                duration: fmtDuration(
+                                    latest["time_now"] - latest["time_start"]
+                                ),
+                            };
+                        } else {
+                            return null;
+                        }
+                    }
+                });
+
+                getServerInfo();
+                receiveHeartbeat();
+
+                onMounted(() => {
+                    const d3Test = async () => {
+
+                        const containerPosition = () => {
+                            return document
+                                .getElementById("mapcontainer")
+                                .getBoundingClientRect();
+                        };
+
+                        const getWidth = () => {
+                            return containerPosition().width;
+                        };
+
+                        const getHeight = () => {
+                            let height = containerPosition().height;
+                            return height;
+                        };
+
+                        const getScale = () => {
+                            return 1;
+                        };
+
+                        const resizeProjection = (projection) => {
+                            projection
+                                .scale(
+                                    (getScale() * getHeight()) /
+                                        1.5 /
+                                        1.3 /
+                                        Math.PI
+                                )
+                                .translate([getWidth() / 2, getHeight() / 2]);
+                        };
+
+                        const projections = {
+                            ed: d3
+                                .geoAzimuthalEquidistant()
+                                .clipAngle(180.0 - 1e-3),
+                            ea: d3.geoAzimuthalEqualArea().clipAngle(180.0 - 1),
+                        };
+
+                        const projection = projections.ed;
+                        resizeProjection(projection);
+
+                        projection.rotate([-50, -10]);
+
+                        const svg = d3
+                            .select("svg")
+                            .attr("width", getWidth())
+                            .attr("height", getHeight());
+
+                        let graticule = d3.geoGraticule();
+
+                        // Load external data and boot
+                        const data = await d3.json(
+                            "https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson"
+                        );
+
+                        // Draw the map
+                        svg.append("g")
+                            .selectAll("path")
+                            .data(data.features)
+                            .enter()
+                            .append("path")
+                            .attr("fill", "#dddddd")
+                            .attr("d", d3.geoPath().projection(projection))
+                            .style("stroke", "#aaa");
+
+                        svg.append("g")
+                            .append("path")
+                            .datum(graticule)
+                            .attr("d", d3.geoPath().projection(projection))
+                            .attr("fill", "none")
+                            .attr("stroke", "#aaa");
+
+                        const squirrelEvents = await squirrelRequest("get_events");
+
+                        svg.selectAll("circle")
+                            .data(squirrelEvents)
+                            .enter()
+                            .append("circle")
+                            .attr("r", 2)
+                            .attr('fill', '#ff555577')
+                            .attr("transform", function (ev) {
+                                return (
+                                    "translate(" +
+                                    projection([ev.lon, ev.lat]) +
+                                    ")"
+                                );
+                            });
+
+                        const resize = () => {
+                            resizeProjection(projection);
+                            svg.attr("width", getWidth()).attr(
+                                "height",
+                                getHeight()
+                            );
+
+                            svg.selectAll("g")
+                                .selectAll("path")
+                                .attr("d", d3.geoPath().projection(projection));
+
+                            svg.selectAll('circle')
+                                .attr("transform", function (ev) {
+                                    return (
+                                        "translate(" +
+                                        projection([ev.lon, ev.lat]) +
+                                        ")"
+                                    );
+                                });
+                        };
+
+                        window.onresize = resize;
+                    };
+
+                    d3Test();
+                });
+
+                return { serverInfo, connected };
+            },
+        }).mount("#app");
+    </script>
+</html>
