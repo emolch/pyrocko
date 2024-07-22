@@ -31,6 +31,8 @@ guts_prefix = 'squirrel'
 
 logger = logging.getLogger('psq.dataset')
 
+km = 1000.
+
 
 class PersistentID(StringPattern):
     pattern = re_persistent_name
@@ -49,18 +51,43 @@ def make_builtin_datasets():
                 comment='Event catalog: %s, minimum magnitude: %g' % (
                     site, magnitude_min))
 
-    for site, net, cha in [
-            ('bgr', 'gr', 'lh')]:
-        name = 'fdsn-%s-%s-%s' % (site, net, cha)
-        cha = cha.upper() + '?'
-        net = net.upper()
-        datasets[name] = Dataset(
-            sources=[
-                FDSNSource(
-                    site=site,
-                    query_args=dict(network=net, channel=cha))],
-            comment='FDSN: %s, network: %s, '
-                    'channels: %s' % (site, net, cha))
+    for site in ['geofon', 'gcmt']:
+        depth_min = 100*km
+        for magnitude_min in [6.0, 7.0]:
+            name = 'events-%s-m%g-d%g' % (site, magnitude_min, depth_min/km)
+            datasets[':' + name] = Dataset(
+                sources=[
+                    CatalogSource(
+                        catalog=site,
+                        query_args=dict(
+                            magmin=magnitude_min,
+                            depthmin=depth_min))],
+                comment='Event catalog: %s, minimum magnitude: %g, '
+                        'minimum depth: %g km' % (
+                    site,
+                    magnitude_min,
+                    depth_min/km))
+
+    for site, network, cha in [
+            ('bgr', 'gr', 'lh'),
+            ('up', None, None)]:
+        name = 'fdsn-' + '-'.join(
+            x for x in (site, network, cha) if x is not None)
+
+        query_args = {}
+        comments = ['FDSN: %s' % site]
+
+        if network is not None:
+            query_args['network'] = network.upper()
+            comments.append('network: %s' % query_args['network'])
+
+        if cha is not None:
+            query_args['channel'] = cha.upper() + '?'
+            comments.append('channels: %s' % query_args['channel'])
+
+        datasets[':' + name] = Dataset(
+            sources=[FDSNSource(site=site, query_args=query_args)],
+            comment=', '.join(comments))
 
     for site, net, sta in [
             ('bgr', 'gr', 'bfo')]:
