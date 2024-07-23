@@ -1,0 +1,13 @@
+--- evalresp-3.3.0/evresp.h	2009-04-30 22:42:25.000000000 +0200
++++ evalresp-3.3.0_mod/evresp.h	2024-07-23 06:43:36.065546356 +0200
+@@ -129,6 +129,10 @@
+ #endif
+ #define complex evr_complex
+ #define strncasecmp strnicmp
++#else
++#ifdef complex
++#undef complex
++#endif
+ #endif
+ 
+ struct complex {
