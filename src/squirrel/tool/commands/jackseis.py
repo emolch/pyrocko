@@ -19,6 +19,8 @@ from pyrocko import progress
 from pyrocko.has_paths import Path, HasPaths
 from pyrocko.guts import Dict, String, Choice, Float, Bool, List, Timestamp, \
     StringChoice, IntChoice, Defer, load_all, clone
+
+from pyrocko.squirrel.base import Squirrel
 from pyrocko.squirrel.dataset import Dataset
 from pyrocko.squirrel.client.local import LocalData
 from pyrocko.squirrel.error import ToolError, SquirrelError
@@ -522,7 +524,14 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
 
         tr.set_codes(**rename)
 
-    def convert(self, args, chain=None):
+    def convert(
+            self,
+            squirrel_factory=None,
+            force=False,
+            append=False,
+            overrides=None,
+            chain=None):
+
         if chain is None:
             defaults = clone(g_defaults)
             defaults.set_basepath_from(self)
@@ -533,17 +542,23 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
         if self.parts:
             task = make_task('Jackseis parts')
             for part in task(self.parts):
-                part.convert(args, chain)
+                part.convert(
+                    squirrel_factory,
+                    force=force,
+                    append=append,
+                    overrides=overrides,
+                    chain=chain)
 
             del task
 
         else:
-            sq = args.make_squirrel()
+            if squirrel_factory is None:
+                sq = Squirrel()
+            else:
+                sq = squirrel_factory()
 
-            cli_overrides = Converter.from_arguments(args)
-            cli_overrides.set_basepath('.')
-
-            chain = Chain(cli_overrides, chain)
+            if overrides:
+                chain = Chain(overrides, chain)
 
             chain.mcall('add_dataset', sq)
 
@@ -730,11 +745,11 @@ replacements. Examples: Direct replacement: ```XX``` - set all network codes to
                         g_filenames_all.update(io.save(
                             traces, out_path,
                             format=out_format,
-                            overwrite=args.force,
+                            overwrite=force,
                             append=True,
                             check_append=True,
                             check_append_hook=check_append_hook
-                            if not args.append else None,
+                            if not append else None,
                             additional=dict(
                                 wmin_year=tts(twmin, format='%Y'),
                                 wmin_month=tts(twmin, format='%m'),
@@ -840,7 +855,18 @@ def run(parser, args):
         converter.set_basepath('.')
         converters = [converter]
 
+    cli_overrides = Converter.from_arguments(args)
+    cli_overrides.set_basepath('.')
+
+    def squirrel_factory():
+        return args.make_squirrel()
+
     with progress.view():
         task = make_task('Jackseis jobs')
         for converter in task(converters):
-            converter.convert(args)
+
+            converter.convert(
+                squirrel_factory=squirrel_factory,
+                force=args.force,
+                append=args.append,
+                overrides=cli_overrides)
