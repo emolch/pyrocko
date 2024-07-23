@@ -72,6 +72,8 @@ class MultiTrace(Object):
             tmin=None,
             deltat=None):
 
+        util.experimental_feature_used('pyrocko.multitrace')
+
         if traces is not None:
             if len(traces) == 0:
                 data = ma.zeros((0, 0))

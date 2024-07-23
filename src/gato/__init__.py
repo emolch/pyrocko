@@ -14,6 +14,9 @@ from .delay import *  # noqa
 from .array import *  # noqa
 from .tool import *  # noqa
 from .io import *  # noqa
+from pyrocko import util
 
 __all__ = grid.__all__ + delay.__all__ + array.__all__ + tool.__all__ \
     + io.__all__
+
+util.experimental_feature_used('pyrocko.gato')

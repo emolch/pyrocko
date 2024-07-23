@@ -34,6 +34,7 @@ class Injector(trace.States):
         self._format = format
         self._path = path
         self._forget_fixed = forget_fixed
+        util.experimental_feature_used('pyrocko.squirrel.streaming')
 
     def set_fixation_length(self, length):
         '''

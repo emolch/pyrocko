@@ -79,6 +79,7 @@ import calendar
 import math
 import fnmatch
 import inspect
+import warnings
 import weakref
 try:
     import fcntl
@@ -215,6 +216,21 @@ def subprocess_setup_logging_args():
     in the same way as the main process.
     '''
     return g_setup_logging_args
+
+
+g_experimental_features_used = set()
+
+
+def experimental_feature_used(feature):
+    '''
+    Warn once that an experimental feature is used.
+    '''
+
+    if feature not in g_experimental_features_used:
+        warnings.warn(
+            'Experimental feature used: %s' % feature,
+            stacklevel=2)
+        g_experimental_features_used.add(feature)
 
 
 def data_file(fn):
