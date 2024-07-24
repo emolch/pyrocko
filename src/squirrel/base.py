@@ -3166,6 +3166,9 @@ class Squirrel(Selection):
     def get_operator_codes(self):
         return list(self.iter_operator_codes())
 
+    def get_sources(self):
+        return self._sources
+
     def print_tables(self, table_names=None, stream=None):
         '''
         Dump raw database tables in textual form (for debugging purposes).

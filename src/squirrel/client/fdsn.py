@@ -334,6 +334,10 @@ class FDSNSource(Source, has_paths.HasPaths):
         self._hash = self.make_hash()
         self._source_id = 'client:fdsn:%s' % self._hash
         self._error_infos = []
+        self._cache_path = None
+
+    def get_cache_path(self):
+        return op.join(self._cache_path, self._hash)
 
     def describe(self):
         return self._source_id

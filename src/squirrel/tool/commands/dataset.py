@@ -63,11 +63,28 @@ class Show(SquirrelCommand):
             print(ds)
 
 
+class Sources(SquirrelCommand):
+
+    def make_subparser(self, subparsers):
+        return subparsers.add_parser(
+            'sources',
+            help='List sources attached to Squirrel through datasets.',
+            description='List sources attached to Squirrel through datasets.')
+
+    def setup(self, parser):
+        parser.add_squirrel_selection_arguments()
+
+    def run(self, parser, args):
+        squirrel = args.make_squirrel()
+        for source in squirrel.get_sources():
+            print(source.info())
+
+
 def make_subparser(subparsers):
     return subparsers.add_parser(
         'dataset',
         help=headline,
-        subcommands=[List(), Show()],
+        subcommands=[List(), Show(), Sources()],
         description=description)
 
 

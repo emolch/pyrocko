@@ -109,6 +109,10 @@ class CatalogSource(Source):
         self._nevents_chunk_hint = 5000
         self._tquery = 3600.*24.
         self._tquery_limits = (3600., 3600.*24.*365.)
+        self._cache_path = None
+
+    def get_cache_path(self):
+        return self._cache_path
 
     def describe(self):
         return 'catalog:%s:%s' % (self.catalog, self.get_hash())

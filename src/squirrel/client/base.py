@@ -7,7 +7,7 @@
 Base class for Squirrel remote data clients.
 '''
 
-from pyrocko.guts import Object, Timestamp, List
+from pyrocko.guts import Object, Timestamp, List, String
 
 from ..model import CodesNSLCE
 
@@ -148,6 +148,27 @@ class Source(Object):
         '''
 
         pass
+
+    def describe(self):
+        return ''
+
+    def get_cache_path(self):
+        return None
+
+    def info(self):
+        return SourceInfo(
+            source=self,
+            id=self.describe(),
+            cache_path=self.get_cache_path())
+
+    def setup(self, squirrel, check=True, upgrade=False):
+        pass
+
+
+class SourceInfo(Object):
+    source = Source.T()
+    id = String.T()
+    cache_path = String.T(optional=True)
 
 
 __all__ = [
