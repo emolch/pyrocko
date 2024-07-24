@@ -618,6 +618,16 @@ def add_squirrel_query_arguments(parser, without=[]):
             help='Time instant to query. %s' % help_time_format)
 
 
+def ce(prefix, func, *args):
+    '''
+    Convert Exceptions in to ToolError.
+    '''
+    try:
+        return func(*args)
+    except Exception as e:
+        raise error.ToolError('%s: %s' % (prefix, str(e)))
+
+
 def squirrel_query_from_arguments(args):
     '''
     Get common arguments to be used in squirrel queries from command line.
@@ -640,17 +650,20 @@ def squirrel_query_from_arguments(args):
     if 'kinds' in args and args.kinds:
         d['kind'] = args.kinds
     if 'tmin' in args and args.tmin:
-        d['tmin'] = util.str_to_time_fillup(args.tmin)
+        d['tmin'] = ce(
+            '--tmin', util.str_to_time_fillup, args.tmin)
     if 'tmax' in args and args.tmax:
-        d['tmax'] = util.str_to_time_fillup(args.tmax)
+        d['tmax'] = ce(
+            '--tmax', util.str_to_time_fillup, args.tmax)
     if 'time' in args and args.time:
-        d['tmin'] = d['tmax'] = util.str_to_time_fillup(args.time)
+        d['tmin'] = d['tmax'] = ce(
+            '--time', util.str_to_time_fillup, args.time)
     if 'codes' in args and args.codes:
         d['codes'] = [
             sq.to_codes_guess(s.strip()) for s in args.codes.split(',')]
 
     if ('tmin' in d and 'time' in d) or ('tmax' in d and 'time' in d):
-        raise error.SquirrelError(
+        raise error.ToolError(
             'Options --tmin/--tmax and --time are mutually exclusive.')
     return d
 
