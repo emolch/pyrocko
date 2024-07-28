@@ -12,6 +12,7 @@ raw data.
 import os
 import math
 import logging
+import warnings
 
 import numpy as num
 
@@ -125,7 +126,7 @@ def analyse_gps_tags(header, gps_tags, offset, nsamples):
     blocksize = N_GPS_TAGS_WANTED // 2
     if ipos.size < blocksize:
         blocksize = max(10, ipos.size // 4)
-        logger.warning(
+        warnings.warn(
             'Small number of GPS tags found. '
             'Reducing analysis block size to %i tags. '
             'Time correction may be unreliable.' % blocksize)
@@ -643,7 +644,7 @@ def iload(fn, load_data=True, interpolation='sinc', yield_gps_tags=False):
         header_, (ipos, t, fix, nsvs), offset_, nsamples_)
 
     if icontrol is None:
-        logger.warning(
+        warnings.warn(
             'No usable GPS timestamps found. Using datacube header '
             'information to guess time. (file: "%s")' % fn)
 
@@ -666,7 +667,7 @@ def iload(fn, load_data=True, interpolation='sinc', yield_gps_tags=False):
             num.logical_and(0 <= icontrol, icontrol < nsamples))
 
         if ncontrol_this <= 1:
-            logger.warning(
+            warnings.warn(
                 'Extrapolating GPS time information from directory context '
                 '(insufficient number of GPS timestamps in file: "%s").' % fn)
 
