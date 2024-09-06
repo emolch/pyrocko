@@ -85,6 +85,39 @@ g_pattern_rgb = re.compile(
     r'^(RGBA?|rgba?)\(([^,]+),([^,]+),([^,]+)(,([^)]+))?\)$')
 
 
+g_pyrocko_colors = {
+    "plum-dark": "#835a84",
+    "plum": "#a77fa7",
+    "plum-light": "#c59fbe",
+    "sky-dark": "#2d6faa",
+    "sky": "#4693d7",
+    "sky-light": "#94c6fa",
+    "ocean-dark": "#1a979b",
+    "ocean": "#61c1c6",
+    "ocean-light": "#a6e3dd",
+    "foliage-dark": "#538246",
+    "foliage": "#8ead6e",
+    "foliage-light": "#cbdd81",
+    "ochre-dark": "#e68f0c",
+    "ochre": "#f0b01f",
+    "ochre-light": "#f5db85",
+    "sienna-dark": "#924013",
+    "sienna": "#af7050",
+    "sienna-light": "#cdb27d",
+    "brick-dark": "#a41a15",
+    "brick": "#bf4443",
+    "brick-light": "#d08481",
+    "gray-6": "#3c3c3c",
+    "gray-5": "#636363",
+    "gray-4": "#878787",
+    "gray-3": "#a8a8a8",
+    "gray-2": "#c6c6c6",
+    "gray-1": "#dedede",
+    "pine-dark": "#1c725e",
+    "pine": "#3d907f",
+    "pine-light": "#7db3a1",
+}
+
 g_tango_colors = {
     'butter1':     (252, 233,  79),
     'butter2':     (237, 212,   0),
@@ -127,6 +160,7 @@ g_named_colors = {}
 
 g_named_colors.update(g_tango_colors)
 g_named_colors.update(g_standard_colors)
+g_named_colors.update(g_pyrocko_colors)
 
 
 def parse_color(s):
@@ -145,7 +179,7 @@ def parse_color(s):
     rgba = None
 
     if s in g_named_colors:
-        rgba = tuple(to_float_1(x) for x in g_named_colors[s]) + (1.0,)
+        rgba = tuple(to_float_1(x) for x in g_named_colors[s].RGB) + (1.0,)
 
     else:
         m = g_pattern_hex.match(s)
@@ -317,8 +351,14 @@ class Color(SObject):
 
     def __init__(self, *args, **kwargs):
         if len(args) == 1:
-            SObject.__init__(self, init_props=False)
-            self.name = args[0]
+            if isinstance(args[0], str):
+                SObject.__init__(self, init_props=False)
+                self.name = args[0]
+            elif isinstance(args[0], tuple):
+                Color.__init__(self, *args[0], **kwargs)
+            else:
+                raise ColorError(
+                    'Invalid color specification: %s' % repr(args))
 
         elif len(args) in (3, 4):
             SObject.__init__(self, init_props=False)
@@ -334,6 +374,10 @@ class Color(SObject):
                     args = args + (1.0,)
 
                 self.rgba = args
+
+            else:
+                raise ColorError(
+                    'Invalid color specification: %s' % repr(args))
 
         else:
             SObject.__init__(self, init_props=False)
@@ -520,6 +564,10 @@ class Color(SObject):
         return self.name__ if self.name__ is not None else self.str_rgba
 
 
+for k in g_named_colors:
+    g_named_colors[k] = Color(g_named_colors[k])
+
+
 class ColorGroup(Object):
     '''
     Group of predefined colors.
@@ -532,17 +580,20 @@ class ColorGroup(Object):
     mapping = Dict.T(String.T(), Color.T())
 
 
-g_groups = []
+g_groups = {}
 
 for name, color_dict in [
         ('tango', g_tango_colors),
-        ('standard', g_standard_colors)]:
+        ('standard', g_standard_colors),
+        ('pyrocko', g_pyrocko_colors)]:
 
-    g_groups.append(ColorGroup(
+    g_groups[name] = ColorGroup(
         name=name,
-        mapping=dict((k, Color(*v)) for (k, v) in color_dict.items())))
+        mapping=dict(
+            (k, Color(v))
+            for (k, v) in color_dict.items()))
 
-    for color in g_groups[-1].mapping.values():
+    for color in g_groups[name].mapping.values():
         color.use_hex_name()
 
 
@@ -561,7 +612,7 @@ if __name__ == '__main__':
 
     import sys
 
-    for g in g_groups:
+    for g in g_groups.values():
         print(load_string(str(g)))
 
     for s in sys.argv[1:]:
