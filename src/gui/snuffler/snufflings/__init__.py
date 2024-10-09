@@ -4,12 +4,12 @@
 # ---|P------/S----------~Lg----------
 
 from . import (
-    minmax, rms, stalta, geofon, ampspec, catalogs, download, cake_phase,
-    seismosizer, map, polarization, spectrogram, deep_picker)
+    minmax, rms, seisbench_picker, stalta, geofon, ampspec, catalogs, download, cake_phase,
+    seismosizer, map, polarization, spectrogram)
 
 modules = [
     minmax, rms, download, stalta, geofon, ampspec, catalogs, map, cake_phase,
-    seismosizer, polarization, spectrogram, deep_picker]
+    seismosizer, polarization, spectrogram, seisbench_picker]
 
 
 def __snufflings__():
