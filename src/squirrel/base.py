@@ -901,8 +901,8 @@ class Squirrel(Selection):
 
     def iter_nuts(
             self, kind=None, tmin=None, tmax=None, codes=None,
-            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
-            naiv=False, kind_codes_ids=None, path=None, limit=None):
+            codes_exclude=None, kind_codes_ids=None, sample_rate_min=None,
+            sample_rate_max=None, naiv=False, path=None, limit=None):
 
         '''
         Iterate over content entities matching given constraints.
@@ -2252,8 +2252,8 @@ class Squirrel(Selection):
     @filldocs
     def get_waveform_nuts(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
-            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
-            order_only=False):
+            codes_exclude=None, kind_codes_ids=None, sample_rate_min=None,
+            sample_rate_max=None, order_only=False):
 
         '''
         Get waveform content entities matching given constraints.
@@ -2273,12 +2273,15 @@ class Squirrel(Selection):
             self._redeem_promises(
                 *args,
                 codes_exclude,
+                kind_codes_ids,
                 sample_rate_min,
                 sample_rate_max,
                 order_only=order_only)
 
         nuts = sorted(
-            self.iter_nuts('waveform', *args), key=lambda nut: nut.dkey)
+            self.iter_nuts(
+                'waveform', *args, codes_exclude, kind_codes_ids),
+            key=lambda nut: nut.dkey)
 
         return nuts
 
@@ -2302,9 +2305,9 @@ class Squirrel(Selection):
     @filldocs
     def get_waveforms(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
-            codes_exclude=None, sample_rate_min=None, sample_rate_max=None,
-            uncut=False, want_incomplete=True, degap=True,
-            maxgap=5, maxlap=None, snap=None, include_last=False,
+            codes_exclude=None, kind_codes_ids=None, sample_rate_min=None,
+            sample_rate_max=None, uncut=False, want_incomplete=True,
+            degap=True, maxgap=5, maxlap=None, snap=None, include_last=False,
             load_data=True, accessor_id='default', operator_params=None,
             order_only=False, channel_priorities=None):
 
@@ -2410,7 +2413,9 @@ class Squirrel(Selection):
 
         if channel_priorities is not None:
             return self._get_waveforms_prioritized(
-                tmin=tmin, tmax=tmax, codes=codes, codes_exclude=codes_exclude,
+                tmin=tmin, tmax=tmax,
+                codes=codes, codes_exclude=codes_exclude,
+                kind_codes_ids=kind_codes_ids,
                 sample_rate_min=sample_rate_min,
                 sample_rate_max=sample_rate_max,
                 uncut=uncut, want_incomplete=want_incomplete, degap=degap,
@@ -2446,8 +2451,8 @@ class Squirrel(Selection):
                     accessor_id=accessor_id, params=operator_params)
 
         nuts = self.get_waveform_nuts(
-            obj, tmin, tmax, time, codes, codes_exclude, sample_rate_min,
-            sample_rate_max, order_only=order_only)
+            obj, tmin, tmax, time, codes, codes_exclude, kind_codes_ids,
+            sample_rate_min, sample_rate_max, order_only=order_only)
 
         if order_only:
             return []
@@ -2853,6 +2858,28 @@ class Squirrel(Selection):
     def __str__(self):
         return str(self.get_stats())
 
+    def get_codes_info(self, kind, codes=None):
+        kind_id = to_kind_id(kind)
+        if codes is not None:
+            codes = codes_patterns_for_kind(kind_id, codes)
+
+        codes_info_raw = list(self._iter_codes_info(kind=kind))
+        codes_info = []
+        if codes is None:
+            for _, codes_entry, deltat, kind_codes_id, _ in codes_info_raw:
+                codes_info.append(
+                    (codes_entry, kind_codes_id, codes_entry, deltat))
+
+        else:
+            for codes_entry in codes:
+                pattern = to_codes(kind_id, codes_entry)
+                for _, codes_cand, deltat, kind_codes_id, _ in codes_info_raw:
+                    if model.match_codes(pattern, codes_cand):
+                        codes_info.append(
+                            (pattern, kind_codes_id, codes_cand, deltat))
+
+        return codes_info
+
     def get_coverage(
             self, kind, tmin=None, tmax=None, codes=None, limit=None):
 
@@ -2901,23 +2928,8 @@ class Squirrel(Selection):
         tmax_seconds, tmax_offset = model.tsplit(tmax)
         kind_id = to_kind_id(kind)
 
-        codes_info = list(self._iter_codes_info(kind=kind))
-
-        kdata_all = []
-        if codes is None:
-            for _, codes_entry, deltat, kind_codes_id, _ in codes_info:
-                kdata_all.append(
-                    (codes_entry, kind_codes_id, codes_entry, deltat))
-
-        else:
-            for codes_entry in codes:
-                pattern = to_codes(kind_id, codes_entry)
-                for _, codes_entry, deltat, kind_codes_id, _ in codes_info:
-                    if model.match_codes(pattern, codes_entry):
-                        kdata_all.append(
-                            (pattern, kind_codes_id, codes_entry, deltat))
-
-        kind_codes_ids = [x[1] for x in kdata_all]
+        codes_info = self.get_codes_info(kind, codes=codes)
+        kind_codes_ids = [x[1] for x in codes_info]
 
         counts_at_tmin = {}
         if tmin is not None:
@@ -2931,7 +2943,7 @@ class Squirrel(Selection):
                 counts_at_tmin[k] += 1
 
         coverages = []
-        for pattern, kind_codes_id, codes_entry, deltat in kdata_all:
+        for pattern, kind_codes_id, codes_entry, deltat in codes_info:
             entry = [pattern, codes_entry, deltat, None, None, []]
             for i, order in [(0, 'ASC'), (1, 'DESC')]:
                 sql = self._sql('''
