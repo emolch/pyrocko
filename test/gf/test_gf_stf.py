@@ -89,6 +89,24 @@ class GFSTFTestCase(unittest.TestCase):
         if show_plot:
             plt.show()
 
+    def test_stf_multi_triangle(self):
+        stf = gf.MultiTriangleSTF(
+            deltat=2.0,
+            amplitudes=num.array([1.0, 3.0, 0.5]),
+            anchor=0.0)
+
+        for deltat in [0.1, 0.2, 5.0, 10.0, 20.0]:
+            times, amplitudes = stf.discretize_t(deltat, 0.)
+            integral = num.sum(amplitudes)
+            assert numeq(integral, 9.0, 1e-6)
+
+        stf.normalize()
+
+        for deltat in [0.1, 0.2, 5.0, 10.0, 20.0]:
+            times, amplitudes = stf.discretize_t(deltat, 0.)
+            integral = num.sum(amplitudes)
+            assert numeq(integral, 1.0, 1e-6)
+
     def test_effective_durations(self):
         deltat = 1e-4
         for stf in [
@@ -110,7 +128,8 @@ class GFSTFTestCase(unittest.TestCase):
             if stf_class in (
                     gf.STF,
                     gf.ResonatorSTF,
-                    gf.SimpleLandslideSTF):
+                    gf.SimpleLandslideSTF,
+                    gf.MultiTriangleSTF):
 
                 continue
 
