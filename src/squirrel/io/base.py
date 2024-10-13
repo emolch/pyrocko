@@ -271,7 +271,7 @@ def iload(
             # The list() causes the query to finish, so we don't have to lock,
             # and can start a transaction only when encountering a modified/new
             # file.
-            it = list(database.undig_few(paths, format=format))
+            it = list(database.undig_few(paths, format=format, segment=segment))
 
     else:
         it = (((format, path), []) for path in paths)

@@ -1727,7 +1727,6 @@ class Squirrel(Selection):
         segment) will also be loaded as a side effect. The loaded contents are
         cached in the Squirrel object.
         '''
-
         content_cache = self._content_caches[cache_id]
         if not content_cache.has(nut):
 

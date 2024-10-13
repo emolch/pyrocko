@@ -689,7 +689,7 @@ class Database(object):
                   nut.tmax_seconds, nut.tmax_offset,
                   nut.kscale) for nut in nuts))
 
-    def undig(self, path):
+    def undig(self, path, segment: int | None=None) -> list[Nut]:
 
         path = self.relpath(abspath(path))
 
@@ -712,11 +712,16 @@ class Database(object):
             INNER JOIN nuts ON files.file_id = nuts.file_id
             INNER JOIN kind_codes
                 ON nuts.kind_codes_id == kind_codes.kind_codes_id
-            WHERE path == ?
         '''
+        if segment is not None:
+            sql += ' WHERE files.path == ? AND nuts.file_segment == ?'
+            args = (path, segment)
+        else:
+            sql += ' WHERE files.path == ?'
+            args = (path,)
 
         return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
-                for row in self._conn.execute(sql, (path,))]
+                for row in self._conn.execute(sql, args)]
 
     def undig_all(self):
         sql = '''
@@ -755,9 +760,10 @@ class Database(object):
         if path is not None:
             yield path, nuts
 
-    def undig_few(self, paths, format='detect'):
+    def undig_few(self, paths: list[str],
+                  format: str = 'detect', segment: int | None=None):
         for path in paths:
-            nuts = self.undig(path)
+            nuts = self.undig(path, segment=segment)
             if nuts:
                 yield (nuts[0].file_format, path), nuts
             else:

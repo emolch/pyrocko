@@ -88,7 +88,7 @@ class ContentCache(object):
 
             if cache_mtime != nut_mtime:
                 logger.debug('Forgetting (outdated): %s %s' % (path, segment))
-                self._entries.pop([path, segment], None)
+                self._entries.pop((path, segment), None)
 
     def put(self, nut):
         '''
