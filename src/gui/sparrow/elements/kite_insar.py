@@ -13,8 +13,8 @@ except ImportError:
 import numpy as num
 
 from pyrocko import geometry, cake
-from pyrocko.guts import Bool, String, List
-from pyrocko.gui.qt_compat import qw
+from pyrocko.guts import Bool, String, List, Float
+from pyrocko.gui.qt_compat import qw, qc
 from pyrocko.gui.vtk_util import TrimeshPipe, faces_to_cells
 
 from .. import common
@@ -101,6 +101,7 @@ class KiteSceneElement(ElementState):
 class KiteState(ElementState):
     visible = Bool.T(default=True)
     scenes = List.T(KiteSceneElement.T(), default=[])
+    opacity = Float.T(default=1.0)
     cpt = CPTState.T(default=CPTState.D())
 
     def create(self):
@@ -126,7 +127,7 @@ class KiteElement(Element):
 
     def bind_state(self, state):
         Element.bind_state(self, state)
-        self.talkie_connect(state, ['visible', 'scenes'], self.update)
+        self.talkie_connect(state, ['visible', 'scenes', 'opacity'], self.update)
 
         self.cpt_handler.bind_state(state.cpt, self.update)
 
@@ -158,8 +159,10 @@ class KiteElement(Element):
     def unset_parent(self):
         self.unbind_state()
         if self._parent:
-            print("unset parent")
-            self.clear_scenes()
+            for mesh in self._meshes.values():
+                self._parent.remove_actor(mesh.actor)
+
+            self._meshes.clear()
             self._cells.clear()
 
             if self._controls:
@@ -232,9 +235,8 @@ class KiteElement(Element):
         for mesh in self._meshes.values():
             self._parent.remove_actor(mesh.actor)
 
-        if self._state.visible:
+        if state.visible:
             for scene_element in state.scenes:
-                print(scene_element.filename)
                 logger.debug('Drawing Kite scene')
 
                 if scene_element.scene is None:
@@ -243,11 +245,9 @@ class KiteElement(Element):
 
                 scene = scene_element.scene
 
-                scene_tile = SceneTileAdapter(scene)
-
-                k = (scene_tile, state.cpt.cpt_name)
-                print(k)
+                k = (scene, state.cpt.cpt_name)
                 if k not in self._meshes:
+                    scene_tile = SceneTileAdapter(scene)
                     cpt = copy.deepcopy(
                         self.cpt_handler._cpts[state.cpt.cpt_name])
 
@@ -260,17 +260,17 @@ class KiteElement(Element):
                     values = scene_tile.data.flatten()
                     self.cpt_handler._values = values
 
-
+                    mesh.set_opacity(state.opacity)
                     mesh.set_shading('phong')
                     self.update_cpt()
                     mesh.set_lookuptable(self.cpt_handler._lookuptable)
                     self._meshes[k] = mesh
                 else:
                     mesh = self._meshes[k]
+                    mesh.set_opacity(state.opacity)
                     self.update_cpt()
                     mesh.set_lookuptable(self.cpt_handler._lookuptable)
 
-                print(mesh)
                 if scene_element.visible:
                     self._parent.add_actor(mesh.actor)
 
@@ -280,7 +280,12 @@ class KiteElement(Element):
         self._parent.update_view()
 
     def _get_controls(self):
+
+        state = self._state
+
         if not self._controls:
+            from ..state import state_bind_slider
+
             frame = qw.QFrame()
             layout = qw.QGridLayout()
             frame.setLayout(layout)
@@ -293,11 +298,24 @@ class KiteElement(Element):
             pb_clear.clicked.connect(self.clear_scenes)
             layout.addWidget(pb_clear, 0, 2)
 
+            # opacity
+            layout.addWidget(qw.QLabel('Opacity'), 1, 0)
+
+            slider = qw.QSlider(qc.Qt.Horizontal)
+            slider.setSizePolicy(
+                qw.QSizePolicy(
+                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+            slider.setMinimum(0)
+            slider.setMaximum(1000)
+            layout.addWidget(slider, 1, 1)
+
+            state_bind_slider(self, state, 'opacity', slider, factor=0.001)
+
             # color maps
             self.cpt_handler.cpt_controls(
-                self._parent, self._state.cpt, layout)
+                self._parent, state.cpt, layout)
 
-            layout.addWidget(qw.QFrame(), 1, 0, 1, 3)
+            layout.addWidget(qw.QFrame(), 2, 0, 1, 3)
 
             self.cpt_handler._update_cpt_combobox()
             self.cpt_handler._update_cptscale_lineedit()
