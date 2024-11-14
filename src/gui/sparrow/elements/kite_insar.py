@@ -260,16 +260,14 @@ class KiteElement(Element):
                     values = scene_tile.data.flatten()
                     self.cpt_handler._values = values
 
-                    mesh.set_opacity(state.opacity)
                     mesh.set_shading('phong')
-                    self.update_cpt()
-                    mesh.set_lookuptable(self.cpt_handler._lookuptable)
+                    
                     self._meshes[k] = mesh
-                else:
-                    mesh = self._meshes[k]
-                    mesh.set_opacity(state.opacity)
-                    self.update_cpt()
-                    mesh.set_lookuptable(self.cpt_handler._lookuptable)
+                    
+                mesh = self._meshes[k]
+                mesh.set_opacity(state.opacity)
+                self.update_cpt()
+                mesh.set_lookuptable(self.cpt_handler._lookuptable)
 
                 if scene_element.visible:
                     self._parent.add_actor(mesh.actor)
@@ -299,26 +297,24 @@ class KiteElement(Element):
             layout.addWidget(pb_clear, 0, 2)
 
             # opacity
-            layout.addWidget(qw.QLabel('Opacity'), 1, 0)
+            if False:
+                layout.addWidget(qw.QLabel('Opacity'), 1, 0)
 
-            slider = qw.QSlider(qc.Qt.Horizontal)
-            slider.setSizePolicy(
-                qw.QSizePolicy(
-                    qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
-            slider.setMinimum(0)
-            slider.setMaximum(1000)
-            layout.addWidget(slider, 1, 1)
+                slider = qw.QSlider(qc.Qt.Horizontal)
+                slider.setSizePolicy(
+                    qw.QSizePolicy(
+                        qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed))
+                slider.setMinimum(0)
+                slider.setMaximum(1000)
+                layout.addWidget(slider, 1, 1)
 
-            state_bind_slider(self, state, 'opacity', slider, factor=0.001)
+                state_bind_slider(self, state, 'opacity', slider, factor=0.001)
 
             # color maps
             self.cpt_handler.cpt_controls(
                 self._parent, state.cpt, layout)
 
             layout.addWidget(qw.QFrame(), 2, 0, 1, 3)
-
-            self.cpt_handler._update_cpt_combobox()
-            self.cpt_handler._update_cptscale_lineedit()
 
             self._controls = frame
 

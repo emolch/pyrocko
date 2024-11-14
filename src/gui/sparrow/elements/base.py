@@ -9,7 +9,7 @@ import base64
 import numpy as num
 
 from pyrocko.plot import automap, mpl_get_cmap_names, mpl_get_cmap
-from pyrocko.guts import String, Float, StringChoice, Bool
+from pyrocko.guts import String, Float, StringChoice, Bool, Int
 from pyrocko.plot import AutoScaler, AutoScaleMode
 from pyrocko.dataset import topo
 
@@ -22,7 +22,7 @@ from pyrocko.gui.vtk_util import cpt_to_vtk_lookuptable, ColorbarPipe
 
 from .. import common
 from ..state import \
-    state_bind_combobox, state_bind, state_bind_checkbox, state_bind_slider
+    state_bind_combobox, state_bind, state_bind_checkbox, state_bind_slider, state_bind_lineedit
 
 
 mpl_cmap_blacklist = [
@@ -146,6 +146,8 @@ class CPTState(ElementState):
     cbar_position = ColorBarPositionChoice.T(default='bottom-right')
     cbar_annotation_lightness = Float.T(default=1.0)
     cbar_annotation_fontsize = Float.T(default=0.03)
+    cbar_annotation_ndigits = Int.T(default=2)
+    cbar_annotation_nlabels = Int.T(default=5)
     cbar_height = Float.T(default=1.)
     cbar_width = Float.T(default=1.)
 
@@ -352,6 +354,10 @@ class CPTHandler(Element):
             width_px = int(round(50 * state.cbar_width))
             self._cbar_pipe._format_size(height_px, width_px)
 
+            ndigits = state.cbar_annotation_ndigits
+            nlabels = state.cbar_annotation_nlabels
+            self._cbar_pipe.set_labels(nlabels, ndigits)
+
         else:
             self.remove_cbar_pipe()
 
@@ -387,16 +393,16 @@ class CPTHandler(Element):
         state_bind_combobox(
             self, state, 'cpt_mode', cb)
 
-        le = qw.QLineEdit()
-        le.setEnabled(False)
-        layout.addWidget(le, iy, 2)
+        lescale = qw.QLineEdit()
+        lescale.setEnabled(False)
+        layout.addWidget(lescale, iy, 2)
         state_bind(
             self, state,
             ['cpt_scale_min', 'cpt_scale_max'], _lineedit_to_cptscale,
-            le, [le.editingFinished, le.returnPressed],
+            lescale, [lescale.editingFinished, lescale.returnPressed],
             self._cptscale_to_lineedit)
 
-        self._cpt_scale_lineedit = le
+        self._cpt_scale_lineedit = lescale
 
         iy += 1
         cb = qw.QCheckBox('Revert')
@@ -409,7 +415,7 @@ class CPTHandler(Element):
 
         chb = qw.QCheckBox('show')
         layout.addWidget(chb, iy, 1)
-        state_bind_checkbox(self, state, 'cbar_show', chb)
+        state_bind_checkbox(self, self._state, 'cbar_show', chb)
 
         cb = common.string_choices_to_combobox(
             ColorBarPositionChoice)
@@ -468,7 +474,7 @@ class CPTHandler(Element):
 
         state_bind_slider(
             self,
-            self._state,
+            state,
             'cbar_height',
             slider,
             factor=0.01)
@@ -486,10 +492,35 @@ class CPTHandler(Element):
 
         state_bind_slider(
             self,
-            self._state,
+            state,
             'cbar_width',
             slider,
             factor=0.01)
+
+        # labels
+        if False:
+            # Does not work yet, state binding is broken
+            iy += 1
+            layout.addWidget(qw.QLabel('NDigits'), iy, 1)
+
+            le = qw.QLineEdit()
+            layout.addWidget(le, iy, 2)
+            state_bind_lineedit(
+                self,
+                state,
+                'cbar_annotation_ndigits',
+                le)
+
+            iy += 1
+            layout.addWidget(qw.QLabel('NLabels'), iy, 1)
+
+            le = qw.QLineEdit()
+            layout.addWidget(le, iy, 2)
+            state_bind_lineedit(
+                self,
+                state,
+                'cbar_annotation_nlabels',
+                le)
 
 
 def _lineedit_to_cptscale(widget, cpt_state):

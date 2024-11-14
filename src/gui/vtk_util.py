@@ -732,6 +732,11 @@ class ColorbarPipe(object):
     def set_title(self, cbar_title):
         self.actor.SetTitle(cbar_title)
 
+    def set_labels(self, nlabels, ndigits):
+        print("l d", nlabels, ndigits)
+        self.actor.SetNumberOfLabels(nlabels)
+        self.actor.SetLabelFormat(f"%.{ndigits}f")
+
     def _format_text(self, lightness, fontsize):
 
         if self.prop_title is None:
