@@ -1630,7 +1630,7 @@ def str_to_time_fillup(s):
     Allows e.g. `'2010-01-01 00:00:00'` as `'2010-01-01 00:00'`,
     `'2010-01-01 00'`, ..., or `'2010'`.
     '''
-
+    #print("before:", s)
     s = s.strip().replace('T', ' ').replace('_', ' ')
 
     if s == 'now':
@@ -1642,7 +1642,7 @@ def str_to_time_fillup(s):
 
     if len(s) in (4, 7, 10, 13, 16):
         s += '0000-01-01 00:00:00'[len(s):]
-
+    #print("after: ", s)
     return str_to_time(s)
 
 

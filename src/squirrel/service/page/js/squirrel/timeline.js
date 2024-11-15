@@ -168,6 +168,7 @@ export const squirrelTimeline = (gates_) => {
             0,
             getWidth(),
         ])
+        console.log("gates.timeMin.value, gates.timeMax.value", gates.timeMin.value, gates.timeMax.value)
         trackProjection.range([marginTop, getHeight() - marginBottom])
         pageRect.attr('x', 0)
         pageRect.attr('y', marginTop)
@@ -293,6 +294,7 @@ export const squirrelTimeline = (gates_) => {
             ymin: trackProjection.lower(track),
             ymax: trackProjection.upper(track),
         }
+        console.log("coverage.tmin:", coverage.tmin)
         return box
     }
 

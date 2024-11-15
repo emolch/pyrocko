@@ -42,6 +42,7 @@ def str_choice(s, choices):
 
 
 def optional_time(x):
+    print(f"Parsing time: {x}")
     return util.str_to_time_fillup(x) if x is not None else None
 
 
@@ -86,6 +87,7 @@ class SquirrelRequestHandler(web.RequestHandler):
     def get_cleaned(self, names, parameters):
         if isinstance(names, str):
             names = names.split()
+        print("parameters: ", parameters)
 
         clean = {
              'kind': lambda x: str_choice(x, model.g_content_kinds),
@@ -93,7 +95,6 @@ class SquirrelRequestHandler(web.RequestHandler):
              'tmax': lambda x: optional_time(x),
              'fmin': lambda x: float(x),
              'fmax': lambda x: float(x)}
-
         try:
             return [clean[name](parameters.get(name, None)) for name in names]
         except Exception as e:

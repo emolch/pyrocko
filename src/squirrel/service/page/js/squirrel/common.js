@@ -50,6 +50,10 @@ export const strToTime = (s) => {
     return msecs / 1000.0 + (m[4] ? +m[4] : 0.0)
 }
 
+//console.log('a: ', strToTime('1900-01-01 00:00:00'))
+//console.log('b: ', strToTime('2030-01-01 00:00:00'))
+//console.log('today: ', strToTime('2024-11-21T00:00:00'))
+
 const gmtime = (time) => {
     const secs = Math.floor(time)
     const date = new Date(secs * 1000)

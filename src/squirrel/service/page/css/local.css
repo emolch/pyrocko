@@ -1,6 +1,14 @@
+/* {border:1px solid red; } */
+
+body{
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
 
 .connection-monitor {
     font-size: 80%;
+    margin-top: auto;
 }
 
 .curtain {
@@ -41,7 +49,18 @@
 
 .vbox-main {
     min-height: 20em;
-    flex-grow: 1;
+    /*flex-grow: 1;*/
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.sensor-table {
+    flex-grow: 1
+}
+
+th {
+    cursor: pointer;
 }
 
 svg text{
@@ -50,3 +69,4 @@ svg text{
    -ms-user-select: none;
    user-select: none;
 }
+

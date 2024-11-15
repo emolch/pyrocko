@@ -39,6 +39,7 @@ export const squirrelGate = () => {
             console.log('aaa', span.tmin, timeToStr(span.tmin))
             newTimeSpans[kind] = span
         }
+        console.log("newTimeSpans: ", newTimeSpans)
         return newTimeSpans
     }
 
