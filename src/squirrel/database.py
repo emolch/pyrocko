@@ -689,7 +689,7 @@ class Database(object):
                   nut.tmax_seconds, nut.tmax_offset,
                   nut.kscale) for nut in nuts))
 
-    def undig(self, path, segment: int | None=None) -> list[Nut]:
+    def undig(self, path, segment=None) -> list[Nut]:
 
         path = self.relpath(abspath(path))
 
@@ -761,7 +761,7 @@ class Database(object):
             yield path, nuts
 
     def undig_few(self, paths: list[str],
-                  format: str = 'detect', segment: int | None=None):
+                  format: str = 'detect', segment=None):
         for path in paths:
             nuts = self.undig(path, segment=segment)
             if nuts:
