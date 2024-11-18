@@ -714,11 +714,12 @@ class Database(object):
                 ON nuts.kind_codes_id == kind_codes.kind_codes_id
         '''
         if segment is not None:
-            sql += ' WHERE files.path == ? AND nuts.file_segment == ?'
-            args = [path, segment]
+            sql += ' WHERE files.path == :path'
+            sql += ' AND nuts.file_segment == :segment'
+            args = {"path": path, "segment": segment}
         else:
-            sql += ' WHERE files.path == ?'
-            args = [path]
+            sql += ' WHERE files.path == :path'
+            args = {"path": path}
 
         return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
                 for row in self._conn.execute(sql, args)]
