@@ -715,10 +715,10 @@ class Database(object):
         '''
         if segment is not None:
             sql += ' WHERE files.path == ? AND nuts.file_segment == ?'
-            args = (path, segment)
+            args = [path, segment]
         else:
             sql += ' WHERE files.path == ?'
-            args = (path,)
+            args = [path]
 
         return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
                 for row in self._conn.execute(sql, args)]
