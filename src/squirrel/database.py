@@ -716,7 +716,7 @@ class Database(object):
         if segment is not None:
             sql += ' WHERE files.path == :path'
             sql += ' AND nuts.file_segment == :segment'
-            args = {"path": path, "segment": segment}
+            args = {"path": path, "segment": int(segment)}
         else:
             sql += ' WHERE files.path == :path'
             args = {"path": path}
