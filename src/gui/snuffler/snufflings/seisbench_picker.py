@@ -176,7 +176,7 @@ class SeisBenchDetector(Snuffling):
             elif phase == 'P':
                 return model.default_args['P_threshold']
 
-    def get_model(self, network: str, model: str) -> WaveformModel:
+    def get_model(self, network: str, model: str) -> "WaveformModel":
         if sbm is None:
             raise ImportError(
                 'SeisBench is not installed. Install to use this plugin.')
