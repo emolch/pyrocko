@@ -28,19 +28,16 @@ logger = logging.getLogger(__name__)
 ML_NETWORKS = (
     'PhaseNet', 'EQTransformer', 'GPD', 'LFEDetect'
 )
-
 TRAINED_MODELS = (
     'original', 'ethz', 'instance', 'scedc', 'stead', 'geofon',
     'neic', 'cascadia', 'cms', 'jcms', 'jcs', 'jms', 'mexico',
     'nankai', 'san_andreas'
 )
 
+MODEL_CACHE: Dict[Tuple[str, str], "WaveformModel"] = {}
 
 
-MODEL_CACHE: Dict[Tuple[str, str], WaveformModel] = {}
-
-
-def get_blinding_samples(model: "sbm.WaveformModel") -> Tuple[int, int]:
+def get_blinding_samples(model: "WaveformModel") -> Tuple[int, int]:
     try:
         return model.default_args["blinding"]
     except KeyError:

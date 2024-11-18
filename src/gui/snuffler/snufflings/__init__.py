@@ -4,8 +4,8 @@
 # ---|P------/S----------~Lg----------
 
 from . import (
-    minmax, rms, seisbench_picker, stalta, geofon, ampspec, catalogs, download, cake_phase,
-    seismosizer, map, polarization, spectrogram)
+    minmax, rms, seisbench_picker, stalta, geofon, ampspec, catalogs, download,
+    cake_phase, seismosizer, map, polarization, spectrogram)
 
 modules = [
     minmax, rms, download, stalta, geofon, ampspec, catalogs, map, cake_phase,
