@@ -304,23 +304,23 @@ class Cursor(sqlite3.Cursor):
 
     def execute(self, *args, **kwargs):
         with LOCK:
-            return super(sqlite3.Cursor, self).execute(*args, **kwargs)
+            return super().execute(*args, **kwargs)
 
     def executemany(self, *args, **kwargs):
         with LOCK:
-            return super(sqlite3.Cursor, self).executemany(*args, **kwargs)
+            return super().executemany(*args, **kwargs)
 
     def executescript(self, *args, **kwargs):
         with LOCK:
-            return super(sqlite3.Cursor, self).executescript(*args, **kwargs)
+            return super().executescript(*args, **kwargs)
 
     def fetchone(self, *args, **kwargs):
         with LOCK:
-            return super(sqlite3.Cursor, self).fetchone(*args, **kwargs)
+            return super().fetchone(*args, **kwargs)
 
     def fetchmany(self, *args, **kwargs):
         with LOCK:
-            return super(sqlite3.Cursor, self).fetchmany(*args, **kwargs)
+            return super().fetchmany(*args, **kwargs)
 
 
 class Connection(sqlite3.Connection):
@@ -695,10 +695,10 @@ class Database(object):
 
         sql = '''
             SELECT
-                files.path,
-                files.format,
-                files.mtime,
-                files.size,
+                filtered_files.path,
+                filtered_files.format,
+                filtered_files.mtime,
+                filtered_files.size,
                 nuts.file_segment,
                 nuts.file_element,
                 kind_codes.kind_id,
@@ -708,21 +708,21 @@ class Database(object):
                 nuts.tmax_seconds,
                 nuts.tmax_offset,
                 kind_codes.deltat
-            FROM files
-            INNER JOIN nuts ON files.file_id = nuts.file_id
+            FROM (
+                SELECT *
+                FROM files
+                WHERE path = :path
+            ) AS filtered_files
+            INNER JOIN nuts ON filtered_files.file_id = nuts.file_id
             INNER JOIN kind_codes
                 ON nuts.kind_codes_id = kind_codes.kind_codes_id
         '''
+        args = {"path": path, "segment": segment}
         if segment is not None:
             sql += '''
-            WHERE files.path = :path AND nuts.file_segment = :segment
+            WHERE nuts.file_segment = :segment
             '''
-            args = {"path": path, "segment": segment}
-        else:
-            sql += '''
-            WHERE files.path = :path
-            '''
-            args = {"path": path}
+        print(sql)
 
         return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
                 for row in self._conn.execute(sql, args)]
