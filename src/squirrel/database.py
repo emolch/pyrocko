@@ -28,7 +28,6 @@ logger = logging.getLogger('psq.database')
 guts_prefix = 'squirrel'
 
 RLOCK_DEBUG = False
-IS_WINDOWS = os.name == 'nt'
 
 
 def tid():
@@ -713,16 +712,15 @@ class Database(object):
             INNER JOIN nuts ON files.file_id = nuts.file_id
             INNER JOIN kind_codes
                 ON nuts.kind_codes_id = kind_codes.kind_codes_id
-            WHERE path = ?
         '''
         if segment is not None:
             sql += '''
-            WHERE path = :path AND file_segment = :segment
+            WHERE files.path = :path AND nuts.file_segment = :segment
             '''
-            args = {"path": path, "segment": int(segment)}
+            args = {"path": path, "segment": segment}
         else:
             sql += '''
-            WHERE path = :path
+            WHERE files.path = :path
             '''
             args = {"path": path}
 
