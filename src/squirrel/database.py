@@ -28,6 +28,7 @@ logger = logging.getLogger('psq.database')
 guts_prefix = 'squirrel'
 
 RLOCK_DEBUG = False
+IS_WINDOWS = os.name == 'nt'
 
 
 def tid():
@@ -304,23 +305,23 @@ class Cursor(sqlite3.Cursor):
 
     def execute(self, *args, **kwargs):
         with LOCK:
-            return sqlite3.Cursor.execute(self, *args, **kwargs)
+            return super(sqlite3.Cursor, self).execute(*args, **kwargs)
 
     def executemany(self, *args, **kwargs):
         with LOCK:
-            return sqlite3.Cursor.executemany(self, *args, **kwargs)
+            return super(sqlite3.Cursor, self).executemany(*args, **kwargs)
 
     def executescript(self, *args, **kwargs):
         with LOCK:
-            return sqlite3.Cursor.executescript(self, *args, **kwargs)
+            return super(sqlite3.Cursor, self).executescript(*args, **kwargs)
 
     def fetchone(self, *args, **kwargs):
         with LOCK:
-            return sqlite3.Cursor.fetchone(self, *args, **kwargs)
+            return super(sqlite3.Cursor, self).fetchone(*args, **kwargs)
 
     def fetchmany(self, *args, **kwargs):
         with LOCK:
-            return sqlite3.Cursor.fetchmany(self, *args, **kwargs)
+            return super(sqlite3.Cursor, self).fetchmany(*args, **kwargs)
 
 
 class Connection(sqlite3.Connection):
@@ -714,16 +715,16 @@ class Database(object):
                 ON nuts.kind_codes_id = kind_codes.kind_codes_id
             WHERE path = ?
         '''
-        # if segment is not None:
-        #     sql += '''
-        #     WHERE path = :path AND file_segment = :segment
-        #     '''
-        #     args = {"path": path, "segment": int(segment)}
-        # else:
-        #     sql += '''
-        #     WHERE path = :path
-        #     '''
-        args = (path,)
+        if segment is not None:
+            sql += '''
+            WHERE path = :path AND file_segment = :segment
+            '''
+            args = {"path": path, "segment": int(segment)}
+        else:
+            sql += '''
+            WHERE path = :path
+            '''
+            args = {"path": path}
 
         return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
                 for row in self._conn.execute(sql, args)]
