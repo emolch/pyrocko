@@ -711,28 +711,21 @@ class Database(object):
             FROM files
             INNER JOIN nuts ON files.file_id = nuts.file_id
             INNER JOIN kind_codes
-                ON nuts.kind_codes_id == kind_codes.kind_codes_id
+                ON nuts.kind_codes_id = kind_codes.kind_codes_id
         '''
         if segment is not None:
             sql += '''
-            WHERE files.path == :path AND nuts.file_segment == :segment
+            WHERE files.path = :path AND nuts.file_segment = :segment
             '''
             args = {"path": path, "segment": int(segment)}
         else:
             sql += '''
-            WHERE files.path == :path
+            WHERE files.path = :path
             '''
             args = {"path": path}
 
-        try:
-            return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
-                    for row in self._conn.execute(sql, args)]
-        except sqlite3.InterfaceError:
-            logger.error(sql)
-            logger.error(args)
-            raise
-
-
+        return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
+                for row in self._conn.execute(sql, args)]
 
     def undig_all(self):
         sql = '''
