@@ -714,9 +714,9 @@ class Database(object):
                 ON nuts.kind_codes_id = kind_codes.kind_codes_id
             WHERE files.path = :path
         '''
-        # if segment is not None:
-        #     sql += ' AND nuts.file_segment = :segment\n'
-        args = {"path": path, "segment": segment}
+        if segment is not None:
+            sql += ' AND nuts.file_segment = :segment\n'
+        args = {"path": r"%s" % path, "segment": segment}
 
         return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
                 for row in self._conn.execute(sql, args)]
