@@ -724,8 +724,15 @@ class Database(object):
             '''
             args = {"path": path}
 
-        return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
-                for row in self._conn.execute(sql, args)]
+        try:
+            return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
+                    for row in self._conn.execute(sql, args)]
+        except sqlite3.InterfaceError:
+            logger.error(sql)
+            logger.error(args)
+            raise
+
+
 
     def undig_all(self):
         sql = '''
