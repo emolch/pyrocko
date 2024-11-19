@@ -695,10 +695,10 @@ class Database(object):
 
         sql = '''
             SELECT
-                filtered_files.path,
-                filtered_files.format,
-                filtered_files.mtime,
-                filtered_files.size,
+                files.path,
+                files.format,
+                files.mtime,
+                files.size,
                 nuts.file_segment,
                 nuts.file_element,
                 kind_codes.kind_id,
@@ -708,21 +708,15 @@ class Database(object):
                 nuts.tmax_seconds,
                 nuts.tmax_offset,
                 kind_codes.deltat
-            FROM (
-                SELECT *
-                FROM files
-                WHERE path = :path
-            ) AS filtered_files
-            INNER JOIN nuts ON filtered_files.file_id = nuts.file_id
+            FROM files
+            INNER JOIN nuts ON files.file_id = nuts.file_id
             INNER JOIN kind_codes
                 ON nuts.kind_codes_id = kind_codes.kind_codes_id
+            WHERE files.path = :path
         '''
-        args = {"path": path, "segment": segment}
         if segment is not None:
-            sql += '''
-            WHERE nuts.file_segment = :segment
-            '''
-        print(sql)
+            sql += ' AND nuts.file_segment = :segment\n'
+        args = {"path": path, "segment": segment}
 
         return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
                 for row in self._conn.execute(sql, args)]
