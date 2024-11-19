@@ -477,7 +477,7 @@ class Database(object):
                         cursor,
                         '''
                         SELECT value FROM settings
-                            WHERE key == "version"
+                            WHERE key = "version"
                         ''')[0])
                 except sqlite3.OperationalError:
                     raise error.SquirrelError(
@@ -506,7 +506,7 @@ class Database(object):
 
             self.version = execute_get1(
                 cursor,
-                'SELECT value FROM settings WHERE key == "version"')
+                'SELECT value FROM settings WHERE key = "version"')
 
             cursor.execute(self._register_table(
                 '''
@@ -579,7 +579,7 @@ class Database(object):
                     CREATE TRIGGER IF NOT EXISTS delete_nuts_on_delete_file
                     BEFORE DELETE ON files FOR EACH ROW
                     BEGIN
-                      DELETE FROM nuts where file_id == old.file_id;
+                      DELETE FROM nuts where file_id = old.file_id;
                     END
                 ''')
 
@@ -589,7 +589,7 @@ class Database(object):
                     CREATE TRIGGER IF NOT EXISTS delete_nuts_on_update_file
                     BEFORE UPDATE OF size ON files FOR EACH ROW
                     BEGIN
-                      DELETE FROM nuts where file_id == old.file_id;
+                      DELETE FROM nuts where file_id = old.file_id;
                     END
                 ''')
 
@@ -602,7 +602,7 @@ class Database(object):
                         VALUES (new.kind_codes_id, 0);
                         UPDATE kind_codes_count
                         SET count = count + 1
-                        WHERE new.kind_codes_id == kind_codes_id;
+                        WHERE new.kind_codes_id = kind_codes_id;
                     END
                 ''')
 
@@ -613,7 +613,7 @@ class Database(object):
                     BEGIN
                         UPDATE kind_codes_count
                         SET count = count - 1
-                        WHERE old.kind_codes_id == kind_codes_id;
+                        WHERE old.kind_codes_id = kind_codes_id;
                     END
                 ''')
 
@@ -661,7 +661,7 @@ class Database(object):
             c.executemany(
                 '''UPDATE files SET
                     format = ?, mtime = ?, size = ?
-                    WHERE path == ?
+                    WHERE path = ?
                 ''',
                 ((x[1], x[2], x[3], x[0]) for x in files))
 
@@ -674,11 +674,11 @@ class Database(object):
                     INSERT INTO nuts VALUES
                         (NULL, (
                             SELECT file_id FROM files
-                            WHERE path == ?
+                            WHERE path = ?
                          ),?,?,?,
                          (
                             SELECT kind_codes_id FROM kind_codes
-                            WHERE kind_id == ? AND codes == ? AND deltat == ?
+                            WHERE kind_id = ? AND codes = ? AND deltat = ?
                          ), ?,?,?,?,?)
                 ''',
                 ((self.relpath(nut.file_path),
@@ -744,9 +744,9 @@ class Database(object):
                 nuts.tmax_offset,
                 kind_codes.deltat
             FROM files
-            INNER JOIN nuts ON files.file_id == nuts.file_id
+            INNER JOIN nuts ON files.file_id = nuts.file_id
             INNER JOIN kind_codes
-                ON nuts.kind_codes_id == kind_codes.kind_codes_id
+                ON nuts.kind_codes_id = kind_codes.kind_codes_id
         '''
 
         nuts = []
@@ -899,7 +899,7 @@ class Database(object):
         if kind is not None:
             kind_id = to_kind_id(kind)
 
-            sel = 'AND kind_codes.kind_id == ?'
+            sel = 'AND kind_codes.kind_id = ?'
             args.append(to_kind_id(kind))
 
         if codes is not None:
@@ -924,7 +924,7 @@ class Database(object):
             FROM %(kind_codes_count)s
             INNER JOIN kind_codes
                 ON %(kind_codes_count)s.kind_codes_id
-                    == kind_codes.kind_codes_id
+                    = kind_codes.kind_codes_id
             WHERE %(kind_codes_count)s.count > 0
                 ''' + sel + '''
         ''') % {'kind_codes_count': kind_codes_count}
@@ -940,14 +940,14 @@ class Database(object):
         sel = ''
         if kind is not None:
             assert isinstance(kind, str)
-            sel = 'AND kind_codes.kind_id == ?'
+            sel = 'AND kind_codes.kind_id = ?'
             args.append(to_kind_id(kind))
 
         sql = ('''
             SELECT DISTINCT kind_codes.deltat FROM %(kind_codes_count)s
             INNER JOIN kind_codes
                 ON %(kind_codes_count)s.kind_codes_id
-                    == kind_codes.kind_codes_id
+                    = kind_codes.kind_codes_id
             WHERE %(kind_codes_count)s.count > 0
                 ''' + sel + '''
             ORDER BY kind_codes.deltat
@@ -961,7 +961,7 @@ class Database(object):
         sel = ''
         if kind is not None:
             assert isinstance(kind, str)
-            sel = 'AND kind_codes.kind_id == ?'
+            sel = 'AND kind_codes.kind_id = ?'
             args.append(to_kind_id(kind))
 
         sql = ('''
@@ -969,7 +969,7 @@ class Database(object):
             FROM %(kind_codes_count)s
             INNER JOIN kind_codes
                 ON %(kind_codes_count)s.kind_codes_id
-                    == kind_codes.kind_codes_id
+                    = kind_codes.kind_codes_id
             WHERE %(kind_codes_count)s.count > 0
                 ''' + sel + '''
             ORDER BY kind_codes.codes
@@ -983,14 +983,14 @@ class Database(object):
         args = []
         sel = ''
         if codes is not None:
-            sel = 'AND kind_codes.codes == ?'
+            sel = 'AND kind_codes.codes = ?'
             args.append(codes.safe_str)
 
         sql = ('''
             SELECT DISTINCT kind_codes.kind_id FROM %(kind_codes_count)s
             INNER JOIN kind_codes
                 ON %(kind_codes_count)s.kind_codes_id
-                    == kind_codes.kind_codes_id
+                    = kind_codes.kind_codes_id
             WHERE %(kind_codes_count)s.count > 0
                 ''' + sel + '''
             ORDER BY kind_codes.kind_id
