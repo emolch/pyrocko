@@ -29,6 +29,7 @@ guts_prefix = 'squirrel'
 
 RLOCK_DEBUG = False
 
+
 def tid():
     return threading.get_ident()
 
@@ -711,17 +712,18 @@ class Database(object):
             INNER JOIN nuts ON files.file_id = nuts.file_id
             INNER JOIN kind_codes
                 ON nuts.kind_codes_id = kind_codes.kind_codes_id
+            WHERE path = ?
         '''
-        if segment is not None:
-            sql += '''
-            WHERE path = :path AND file_segment = :segment
-            '''
-            args = {"path": path, "segment": int(segment)}
-        else:
-            sql += '''
-            WHERE path = :path
-            '''
-            args = {"path": path}
+        # if segment is not None:
+        #     sql += '''
+        #     WHERE path = :path AND file_segment = :segment
+        #     '''
+        #     args = {"path": path, "segment": int(segment)}
+        # else:
+        #     sql += '''
+        #     WHERE path = :path
+        #     '''
+        args = (path,)
 
         return [Nut(values_nocheck=(self.abspath(row[0]),) + row[1:])
                 for row in self._conn.execute(sql, args)]
