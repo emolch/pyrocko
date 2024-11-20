@@ -440,7 +440,7 @@ steps:
   - C:\Windows\System32\cleanmgr.exe /dC
   - Remove-Item -Recurse -Force -ErrorAction Ignore C:\\Users\\IEUser\\miniconda3\\Lib\\site-packages\\pyrocko
   # 2024-09-24: current vtk package is incompatible with python 3.12 and using python 3.11 leads to other random dependency issues; omitting vtk
-  - conda create --name test_env_${DRONE_BUILD_NUMBER} --yes pytest m2-tar m2-gzip m2-patch setuptools wheel numpy>=1.16 scipy>=1.0 pyyaml matplotlib requests jinja2 pyqt
+  - conda create --name test_env_${DRONE_BUILD_NUMBER} --yes python=3.12 pytest m2-tar m2-gzip m2-patch setuptools wheel numpy>=1.16 scipy>=1.0 pyyaml matplotlib requests jinja2 pyqt
   #- conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python install.py deps conda --yes
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python install.py user --yes
   - New-Item -Path test\\data -ItemType SymbolicLink -Value C:\\vagrant\\test-data
@@ -522,7 +522,7 @@ platform:
 steps:
 - name: install
   commands:
-  - conda create --name test_env_${DRONE_BUILD_NUMBER} --yes pytest
+  - conda create --name test_env_${DRONE_BUILD_NUMBER} --yes python=3.12 pytest
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python install.py deps conda --yes
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python install.py user --yes
   - cp -r /Users/drone/test-data test/data
