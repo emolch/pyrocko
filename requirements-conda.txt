@@ -1,6 +1,6 @@
 setuptools
 wheel
-numpy>=1.16
+numpy>=1.25
 scipy>=1.0
 pyyaml
 matplotlib
