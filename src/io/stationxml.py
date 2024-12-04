@@ -268,7 +268,21 @@ def check_resp(resp, value, frequency, limit_db, prelude, context):
             '  computed response is zero' % prelude,
             context)])
 
-    diff_db = 20.0 * num.log10(value_resp/value)
+    if value == 0.0:
+        return Delivery(log=[(
+            'warning',
+            '%s\n'
+            '  response value reported in file is zero' % prelude,
+            context)])
+
+    if value < 0.0:
+        return Delivery(log=[(
+            'warning',
+            '%s\n'
+            '  response value reported in file is negative' % prelude,
+            context)])
+
+    diff_db = 20.0 * num.log10(value_resp/abs(value))
 
     if num.abs(diff_db) > limit_db:
         return Delivery(log=[(
@@ -281,10 +295,10 @@ def check_resp(resp, value, frequency, limit_db, prelude, context):
             '  difference [dB]: %g\n'
             '  limit [dB]: %g' % (
                 prelude,
-                value,
+                abs(value),
                 value_resp,
                 frequency,
-                value_resp/value,
+                value_resp/abs(value),
                 diff_db,
                 limit_db),
             context)])
