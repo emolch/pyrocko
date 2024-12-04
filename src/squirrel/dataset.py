@@ -25,7 +25,6 @@ from .client.catalog import CatalogSource
 from .client.fdsn import FDSNSource
 from .error import SquirrelError
 from .selection import re_persistent_name
-from .operators.base import Operator
 
 guts_prefix = 'squirrel'
 
@@ -119,18 +118,12 @@ class Dataset(HasPaths):
     Dataset description.
     '''
     sources = List.T(Source.T())
-    operators = List.T(Operator.T())
     comment = String.T(optional=True)
 
     def setup(self, squirrel, check=True, upgrade=False):
         for source in self.sources:
             squirrel.add_source(
                 source, check=check, upgrade=upgrade)
-
-        for operator in self.operators:
-            squirrel.add_operator(operator)
-
-        squirrel.update_operator_mappings()
 
 
 def read_dataset(path):
