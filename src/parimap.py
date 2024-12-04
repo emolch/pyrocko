@@ -94,6 +94,9 @@ def parimap(function, *iterables, **kwargs):
 
         return
 
+    if multiprocessing.get_start_method(allow_none=True) is None:
+        multiprocessing.set_start_method('spawn')
+
     if nprocs is None:
         nprocs = multiprocessing.cpu_count()
 
