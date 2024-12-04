@@ -27,7 +27,12 @@ class ExternalProgramMissing(Exception):
     pass
 
 
-def app_init(log_level='info', progress_viewer='terminal', program_name=None):
+def app_init(
+        log_level='info',
+        progress_viewer='terminal',
+        program_name=None,
+        multiprocessing_start_method='spawn'):
+
     '''
     Setup logging and progress indicators for Pyrocko scripts.
 
@@ -54,6 +59,8 @@ def app_init(log_level='info', progress_viewer='terminal', program_name=None):
 
     util.setup_logging(sys.argv[0], log_level)
     progress.set_default_viewer(progress_viewer)
+    import multiprocessing
+    multiprocessing.set_start_method(multiprocessing_start_method)
 
 
 def make_squirrel(*args, **kwargs):
