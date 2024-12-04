@@ -7,8 +7,12 @@
 On-demand data processing pipelines.
 '''
 
-from . import base
+from . import base, spectrogram
 
 from .base import *  # noqa
+from .spectrogram import *  # noqa
 
-__all__ = base.__all__
+__all__ = (
+    base.__all__
+    + spectrogram.__all__
+)

@@ -307,8 +307,12 @@ class Squirrel(Selection):
         self._cache_path = cache_path
 
         self._sources = []
-        self._operators = []
-        self._operator_registry = {}
+        self._mapping_counter = 0
+
+        def inc_mapping_counter(event):
+            self._Nonemapping_counter += 1
+
+        self.get_database().add_listener(inc_mapping_counter)
 
         self._pending_orders = []
 
@@ -809,20 +813,7 @@ class Squirrel(Selection):
             self, kind_id,
             obj=None, tmin=None, tmax=None, time=None, codes=None):
 
-        if codes is not None:
-            codes = codes_patterns_for_kind(kind_id, codes)
-
-        if time is not None:
-            tmin = time
-            tmax = time
-
-        if obj is not None:
-            tmin = tmin if tmin is not None else obj.tmin
-            tmax = tmax if tmax is not None else obj.tmax
-            codes = codes if codes is not None else codes_patterns_for_kind(
-                kind_id, obj.codes)
-
-        return tmin, tmax, codes
+        return model.get_selection_args(kind_id, obj, tmin, tmax, time, codes)
 
     def _get_selection_args_str(self, *args, **kwargs):
 
@@ -1644,8 +1635,7 @@ class Squirrel(Selection):
             total_size=self.get_total_size(),
             counts=self.get_counts(),
             time_spans=time_spans,
-            sources=[s.describe() for s in self._sources],
-            operators=[op.describe() for op in self._operators])
+            sources=[s.describe() for s in self._sources])
 
     @filldocs
     def check(
@@ -2280,7 +2270,12 @@ class Squirrel(Selection):
 
         nuts = sorted(
             self.iter_nuts(
-                'waveform', *args, codes_exclude, kind_codes_ids),
+                'waveform',
+                *args,
+                codes_exclude=codes_exclude,
+                kind_codes_ids=kind_codes_ids,
+                sample_rate_min=sample_rate_min,
+                sample_rate_max=sample_rate_max),
             key=lambda nut: nut.dkey)
 
         return nuts
@@ -2308,7 +2303,7 @@ class Squirrel(Selection):
             codes_exclude=None, kind_codes_ids=None, sample_rate_min=None,
             sample_rate_max=None, uncut=False, want_incomplete=True,
             degap=True, maxgap=5, maxlap=None, snap=None, include_last=False,
-            load_data=True, accessor_id='default', operator_params=None,
+            load_data=True, accessor_id='default',
             order_only=False, channel_priorities=None):
 
         '''
@@ -2421,7 +2416,7 @@ class Squirrel(Selection):
                 uncut=uncut, want_incomplete=want_incomplete, degap=degap,
                 maxgap=maxgap, maxlap=maxlap, snap=snap,
                 include_last=include_last, load_data=load_data,
-                accessor_id=accessor_id, operator_params=operator_params,
+                accessor_id=accessor_id,
                 order_only=order_only, channel_priorities=channel_priorities)
 
         kinds = ['waveform']
@@ -2437,18 +2432,6 @@ class Squirrel(Selection):
 
         tmin = tmin if tmin is not None else self_tmin
         tmax = tmax if tmax is not None else self_tmax
-
-        if codes is not None and len(codes) == 1:
-            # TODO: fix for multiple / mixed codes
-            operator = self.get_operator(codes[0])
-            if operator is not None:
-                return operator.get_waveforms(
-                    self, codes[0],
-                    tmin=tmin, tmax=tmax,
-                    uncut=uncut, want_incomplete=want_incomplete, degap=degap,
-                    maxgap=maxgap, maxlap=maxlap, snap=snap,
-                    include_last=include_last, load_data=load_data,
-                    accessor_id=accessor_id, params=operator_params)
 
         nuts = self.get_waveform_nuts(
             obj, tmin, tmax, time, codes, codes_exclude, kind_codes_ids,
@@ -2549,7 +2532,7 @@ class Squirrel(Selection):
             want_incomplete=True, snap_window=False,
             degap=True, maxgap=5, maxlap=None,
             snap=None, include_last=False, load_data=True,
-            accessor_id=None, clear_accessor=True, operator_params=None,
+            accessor_id=None, clear_accessor=True,
             grouping=None, channel_priorities=None):
 
         '''
@@ -2695,14 +2678,11 @@ class Squirrel(Selection):
                     filtering=CodesPatternFiltering(codes=codes),
                     grouping=grouping)
 
-                available = set(self.get_codes(kind='waveform'))
-                if self.downloads_enabled:
-                    available.update(self.get_codes(kind='waveform_promise'))
-                operator.update_mappings(sorted(available))
+                operator.set_input(self)
 
                 codes_list = [
-                    codes_patterns_list(scl)
-                    for scl in operator.iter_in_codes()]
+                    codes_patterns_list(mapping.in_codes)
+                    for mapping in operator.iter_mappings()]
 
             ngroups = len(codes_list)
             for igroup, scl in enumerate(codes_list):
@@ -2724,7 +2704,6 @@ class Squirrel(Selection):
                         maxgap=maxgap,
                         maxlap=maxlap,
                         accessor_id=accessor_id,
-                        operator_params=operator_params,
                         channel_priorities=channel_priorities)
 
                     self.advance_accessor(accessor_id)
@@ -3187,45 +3166,26 @@ class Squirrel(Selection):
             source='Generated by Pyrocko Squirrel.',
             network_list=networks)
 
-    def add_operator(self, op):
-        self._operators.append(op)
-
-    def update_operator_mappings(self):
-        available = self.get_codes(kind=('channel'))
-
-        for operator in self._operators:
-            operator.update_mappings(available, self._operator_registry)
-
-    def iter_operator_mappings(self):
-        for operator in self._operators:
-            for in_codes, out_codes in operator.iter_mappings():
-                yield operator, in_codes, out_codes
-
-    def get_operator_mappings(self):
-        return list(self.iter_operator_mappings())
-
-    def get_operator(self, codes):
-        try:
-            return self._operator_registry[codes][0]
-        except KeyError:
-            return None
-
-    def get_operator_group(self, codes):
-        try:
-            return self._operator_registry[codes]
-        except KeyError:
-            return None, (None, None, None)
-
-    def iter_operator_codes(self):
-        for _, _, out_codes in self.iter_operator_mappings():
-            for codes in out_codes:
-                yield codes
-
-    def get_operator_codes(self):
-        return list(self.iter_operator_codes())
-
     def get_sources(self):
         return self._sources
+
+    def default_preparator(
+            self,
+            frequency_min,
+            frequency_max,
+            **kwargs):
+
+        from .operators.base import Restitution, ToENZ
+
+        restitution = Restitution(
+            frequency_min=frequency_min,
+            frequency_max=frequency_max,
+            **kwargs)
+
+        restitution.set_input(self)
+        to_enz = ToENZ()
+        to_enz.set_input(restitution)
+        return to_enz
 
     def print_tables(self, table_names=None, stream=None):
         '''
@@ -3297,9 +3257,6 @@ class SquirrelStats(Object):
     sources = List.T(
         String.T(),
         help='Descriptions of attached sources.')
-    operators = List.T(
-        String.T(),
-        help='Descriptions of attached operators.')
 
     def __str__(self):
         kind_counts = dict(
@@ -3309,9 +3266,6 @@ class SquirrelStats(Object):
 
         ssources = '<none>' if not self.sources else '\n' + '\n'.join(
             '  ' + s for s in self.sources)
-
-        soperators = '<none>' if not self.operators else '\n' + '\n'.join(
-            '  ' + s for s in self.operators)
 
         def stime(t):
             return util.tts(t) if t is not None and t not in (
@@ -3339,12 +3293,11 @@ Total size of known files:     %s
 Number of index nuts:          %i
 Available content kinds:       %s
 Available codes:               %s
-Sources:                       %s
-Operators:                     %s''' % (
+Sources:                       %s''' % (
             self.nfiles,
             util.human_bytesize(self.total_size),
             self.nnuts,
-            stspans, scodes, ssources, soperators)
+            stspans, scodes, ssources)
 
         return s.lstrip()
 

@@ -913,12 +913,13 @@ class SquirrelTestCase(unittest.TestCase):
         finally:
             shutil.rmtree(tempdir)
 
-    @common.require_internet
-    def test_restitution(self):
+    #@common.require_internet
+    def test_operators(self):
         # 1994 Bolivia earthquake
         tmin = util.str_to_time('1994-06-09 00:00:00')
         tmax = util.str_to_time('1994-06-09 03:00:00')
         database = squirrel.Database()
+        traces = []
         try:
             sq = squirrel.Squirrel(database=database)
             tempdir = os.path.join(self.tempdir, 'test_restitution')
@@ -926,7 +927,7 @@ class SquirrelTestCase(unittest.TestCase):
                 'bgr',
                 dict(
                     network='GR',
-                    station='BFO',
+                    station='BFO,MOX',
                     channel='LH?'),
                 cache_path=tempdir)
 
@@ -934,27 +935,56 @@ class SquirrelTestCase(unittest.TestCase):
             sq.update_waveform_promises(tmin=tmin, tmax=tmax)
             sq.update_responses()
 
-            sq.add_operator(squirrel.Restitution(quantity='displacement'))
-            sq.add_operator(squirrel.Restitution(quantity='velocity'))
-            sq.add_operator(squirrel.Restitution(quantity='acceleration'))
-            sq.update_operator_mappings()
+            op_rest = squirrel.Restitution(
+                quantity='displacement',
+                frequency_min=0.002,
+                frequency_max=10.0)
 
-            traces = []
-            for extra in ['Rd', 'Rv', 'Ra']:
-                traces.extend(
-                    sq.get_waveforms(
-                        tmin=tmin, tmax=tmax,
-                        codes=('GR', 'BFO', '', 'LHZ', extra),
-                        operator_params=squirrel.RestitutionParameters(
-                            frequency_min=0.002,
-                            frequency_max=10.0)))
+            op_enz = squirrel.ToENZ()
+            op_rest.set_input(sq)
+            op_enz.set_input(op_rest)
+
+            op_enz2 = squirrel.ToENZ()
+            op_enz2.set_input(sq)
+
+            print(op_rest.describe())
+            print(op_enz.describe())
+            print(op_enz2.describe())
+
+            for channel in op_rest.get_channels():
+                print(channel.summary)
+
+            for channel in op_enz.get_channels():
+                print(channel.summary)
 
             traces.extend(
-                sq.get_waveforms(
-                    tmin=tmin, tmax=tmax,
-                    codes=('GR', 'BFO', '', 'LHZ', '')))
+                op_rest.get_waveforms(
+                    tmin=tmin,
+                    tmax=tmax,
+                    codes=('GR', '*', '', 'LH?', '*')))
 
-            # trace.snuffle(traces)
+            traces.extend(
+                op_enz.get_waveforms(
+                    tmin=tmin, tmax=tmax,
+                    codes=('GR', '*', '', 'LH?', '*')))
+
+            op_trz = squirrel.ToTRZ(origin=pmodel.Location(lat=0., lon=0.))
+            op_trz.set_input(sq)
+            print(op_trz.describe())
+            for channel in op_trz.get_channels():
+                print(channel)
+
+            trs_trz = op_trz.get_waveforms(
+                tmin=tmin, tmax=tmax)
+
+            for tr in trs_trz:
+                print(tr.summary)
+
+            for coverage in op_enz.get_coverage('waveform'):
+                print(coverage)
+
+            for coverage in op_enz.get_coverage('waveform', codes='x.y.z.a'):
+                print(coverage)
 
         finally:
             shutil.rmtree(tempdir)

@@ -406,6 +406,9 @@ class CodesMatcher:
 
         return any(rpat.match(scodes) for rpat in self._pats_nonexact)
 
+    def filter(self, it):
+        return filter(self.match, it)
+
 
 def match_codes_any(patterns, codes):
 
@@ -647,6 +650,25 @@ def tscale_to_kscale(tscale):
     return int(num.searchsorted(tscale_edges, tscale))
 
 
+def get_selection_args(
+        kind_id, obj=None, tmin=None, tmax=None, time=None, codes=None):
+
+    if codes is not None:
+        codes = codes_patterns_for_kind(kind_id, codes)
+
+    if time is not None:
+        tmin = time
+        tmax = time
+
+    if obj is not None:
+        tmin = tmin if tmin is not None else obj.tmin
+        tmax = tmax if tmax is not None else obj.tmax
+        codes = codes if codes is not None else codes_patterns_for_kind(
+            kind_id, obj.codes)
+
+    return tmin, tmax, codes
+
+
 @squirrel_content
 class Station(Location):
     '''
@@ -838,6 +860,16 @@ class Sensor(ChannelBase):
             cls(channels=channels,
                 **dict(zip(ChannelBase.T.propnames, args)))
             for args, channels in groups.items()]
+
+    @classmethod
+    def from_channels_single(cls, channels):
+        args = channels[0]._get_sensor_args()
+        for channel in channels:
+            assert args == channel._get_sensor_args()
+
+        return cls(
+            channels=channels,
+            **dict(zip(ChannelBase.T.propnames, args)))
 
     def channel_vectors(self):
         return num.vstack(
@@ -1833,6 +1865,72 @@ class Coverage(Object):
         if group:
             yield (group[0][0], group[-1][1])
 
+    def changes_as_arrays(self):
+        if self.changes is None:
+            return None, None
+
+        time_float = util.get_time_float()
+        times = num.array([t for (t, _) in self.changes], dtype=time_float)
+        counts = num.array([c for (_, c) in self.changes], dtype=int)
+        return times, counts
+
+
+def same_or_none(xs):
+    xs = list(xs)
+    if not xs:
+        return None
+
+    if all(x == xs[0] for x in xs):
+        return xs[0]
+    else:
+        return None
+
+
+def join_coverages(coverages, tbleed=0.0):
+    assert len(coverages) > 0
+
+    tmin = min(coverage.tmin for coverage in coverages) + tbleed
+    tmax = max(coverage.tmax for coverage in coverages) - tbleed
+
+    assert tmax >= tmin
+
+    kind_id = same_or_none(coverage.kind_id for coverage in coverages)
+    deltat = same_or_none(coverage.deltat for coverage in coverages)
+
+    if any(coverage.changes is None for coverage in coverages):
+        changes = None
+    else:
+        all_times = []
+        all_diff_counts = []
+        for coverage in coverages:
+            times, counts = coverage.changes_as_arrays()
+            diff_counts = counts.copy()
+            diff_counts[0] = counts[0]
+            diff_counts[1:] = counts[1:] - counts[:-1]
+            all_diff_counts.append(diff_counts)
+            if tbleed != 0.0:
+                times[diff_counts > 0] += tbleed
+                times[diff_counts < 0] -= tbleed
+
+            all_times.append(times)
+
+        times = num.concatenate(all_times)
+        diff_counts = num.concatenate(all_diff_counts)
+        iorder = num.argsort(times)
+        times = times[iorder]
+        diff_counts = diff_counts[iorder]
+        counts = num.cumsum(diff_counts)
+        changes = list(zip(times, counts))
+
+    coverage = Coverage(
+        kind_id=kind_id,
+        tmin=tmin,
+        tmax=tmax,
+        deltat=deltat,
+        changes=changes)
+
+    return coverage
+
 
 __all__ = [
     'UNDEFINED',
@@ -1865,4 +1963,5 @@ __all__ = [
     'Nut',
     'Coverage',
     'WaveformPromise',
+    'QuantityType',
 ]
