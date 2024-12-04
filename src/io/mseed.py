@@ -188,10 +188,12 @@ def save(
                         % fn)
                 except trace.OverlappingTraces as e:
                     if check_append_merge:
-                        traces_infile = list(iload(fn, load_data=True))
+                        traces_thisfile_merge = list(iload(fn, load_data=True))
+                        traces_thisfile_merge.extend(
+                            tr.copy() for tr in traces_thisfile)
                         traces_thisfile = trace.degapper(
                             sorted(
-                                traces + traces_infile,
+                                traces_thisfile_merge,
                                 key=lambda tr: tr.full_id))
 
                         append_ = False
