@@ -150,6 +150,8 @@ class Selection(object):
 
         self._persistent = persistent
         self._database = database
+        self._database.add_selection(self)
+
         self._conn = self._database.get_connection()
         self._sources = []
         self._is_new = True
@@ -185,10 +187,48 @@ class Selection(object):
                 '''))
 
     def __del__(self):
+        self.close()
+
+    def close(self, delete_persistent=False):
         if hasattr(self, '_conn') and self._conn:
             self._cleanup()
-            if not self._persistent:
+            if not self._persistent or delete_persistent:
                 self._delete()
+
+            self._conn = None
+            self._database.remove_selection(self)
+
+    def delete(self):
+        if self._conn is None:
+            raise error.SquirrelError(
+                'Cannot delete selection, no database connection.')
+
+        self.close(delete_persistent=True)
+
+    def _cleanup(self):
+        '''
+        Perform cleanup actions before database connection is closed.
+
+        Removes volatile content from database.
+        '''
+
+        while self._volatile_paths:
+            path = self._volatile_paths.pop()
+            self._database.remove(path)
+
+    def _delete(self):
+        '''
+        Destroy the tables assoctiated with this selection.
+        '''
+        with self.transaction('delete selection') as cursor:
+            cursor.execute(self._sql(
+                'DROP TABLE %(db)s.%(file_states)s'))
+
+            if self._persistent:
+                cursor.execute(
+                    '''
+                        DELETE FROM persistent WHERE name == ?
+                    ''', (self.name[5:],))
 
     def _register_table(self, s):
         return self._database._register_table(s)
@@ -216,36 +256,6 @@ class Selection(object):
         :returns: :py:class:`~pyrocko.squirrel.database.Database` object
         '''
         return self._database
-
-    def _cleanup(self):
-        '''
-        Perform cleanup actions before database connection is closed.
-
-        Removes volatile content from database.
-        '''
-
-        while self._volatile_paths:
-            path = self._volatile_paths.pop()
-            self._database.remove(path)
-
-    def _delete(self):
-        '''
-        Destroy the tables assoctiated with this selection.
-        '''
-        with self.transaction('delete selection') as cursor:
-            cursor.execute(self._sql(
-                'DROP TABLE %(db)s.%(file_states)s'))
-
-            if self._persistent:
-                cursor.execute(
-                    '''
-                        DELETE FROM persistent WHERE name == ?
-                    ''', (self.name[5:],))
-
-        self._conn = None
-
-    def delete(self):
-        self._delete()
 
     @filldocs
     def add(

@@ -189,6 +189,22 @@ class Transaction(object):
             self.callback = None
 
 
+class Connection(sqlite3.Connection):
+
+    def close(self):
+        if hasattr(self, '_close_handlers'):
+            for handler in self._close_handlers:
+                handler()
+
+        sqlite3.Connection.close(self)
+
+    def on_close(self, handler):
+        if not hasattr(self, '_close_handlers'):
+            self._close_handlers = []
+
+        self._close_handlers.append(handler)
+
+
 class Database(object):
     '''
     Shared meta-information database used by Squirrel.
@@ -208,11 +224,14 @@ class Database(object):
             self._conn = sqlite3.connect(
                 database_path,
                 isolation_level=None,
-                check_same_thread=False if sqlite3.threadsafety else True)
+                check_same_thread=False if sqlite3.threadsafety else True,
+                factory=Connection)
 
         except sqlite3.OperationalError:
             raise error.SquirrelError(
                 'Cannot connect to database: %s' % database_path)
+
+        self._conn.on_close(self.close)
 
         self._conn.text_factory = str
         self._tables = {}
@@ -224,7 +243,24 @@ class Database(object):
         self._initialize_db()
         self._basepath = None
 
+        self._selections = []
+
         self.version = None
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        for selection in self._selections[:]:
+            selection.close()
+
+        self._selections[:] = []
+
+    def add_selection(self, selection):
+        self._selections.append(selection)
+
+    def remove_selection(self, selection):
+        self._selections.remove(selection)
 
     def set_basepath(self, basepath):
         if basepath is not None:
