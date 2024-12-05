@@ -2456,7 +2456,19 @@ def pf_upgrade(fn):
     return need
 
 
-def read_leap_seconds(tzfile='/usr/share/zoneinfo/right/UTC'):
+def get_tzdata_path():
+    for path in [
+            '/usr/share/zoneinfo/right/UTC',
+            '/usr/share/zoneinfo/Etc/UTC']:
+
+        if os.path.exists(path):
+            return path
+
+    raise LeapSecondsError(
+        'Could not find system-provided leap time zone data file.')
+
+
+def read_leap_seconds(tzfile=None):
     '''
     Extract leap second information from tzdata.
 
@@ -2465,6 +2477,9 @@ def read_leap_seconds(tzfile='/usr/share/zoneinfo/right/UTC'):
 
     See also 'man 5 tzfile'.
     '''
+
+    if tzfile is None:
+        tzfile = get_tzdata_path()
 
     from struct import unpack, calcsize
     out = []
