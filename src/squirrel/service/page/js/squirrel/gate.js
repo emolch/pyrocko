@@ -1,6 +1,6 @@
 import { ref, computed, watch } from '../vue.esm-browser.js'
 
-import { strToTime, timeToStr } from './common.js'
+import { strToTime, timeToStr, tomorrow } from './common.js'
 
 import { squirrelConnection } from './connection.js'
 
@@ -30,10 +30,14 @@ export const squirrelGate = () => {
     const fetchTimeSpans = async () => {
         const newTimeSpans = {}
         for (const kind of ['waveform', 'channel', 'response']) {
-            newTimeSpans[kind] = await connection.request(
+            const span = await connection.request(
                 'gate/default/get_time_span',
                 { kind: kind }
             )
+            span.tmin = strToTime(span.tmin)
+            span.tmax = Math.min(strToTime(span.tmax), tomorrow())
+            console.log('aaa', span.tmin, timeToStr(span.tmin))
+            newTimeSpans[kind] = span
         }
         return newTimeSpans
     }
@@ -148,6 +152,7 @@ export const squirrelGates = () => {
     let initialTimeSpanSet = false
 
     const makeTimeBlock = (tmin, tmax) => {
+        console.log('xxx', tmin, tmax, timeToStr(tmin), timeToStr(tmax))
         const iscale = Math.ceil(Math.log2(blockFactor * (tmax - tmin)))
         const tstep = Math.pow(2, iscale)
         const itime = Math.round((tmin + tmax) / tstep)
@@ -179,6 +184,7 @@ export const squirrelGates = () => {
     }
 
     const setTimeSpan = (tmin, tmax) => {
+        console.log('yyy')
         timeMin.value = tmin
         timeMax.value = tmax
         update()
@@ -258,12 +264,12 @@ export const squirrelGates = () => {
                     if (spans[kind] === null) {
                         spans[kind] = span
                     } else {
-                        const [tmin1, tmax1] = spans[kind]
-                        const [tmin2, tmax2] = span
-                        spans[kind] = [
-                            Math.min(tmin1, tmin2),
-                            Math.max(tmax1, tmax2),
-                        ]
+                        const [tmin1, tmax1] = [spans[kind].tmin, spans[kind].tmax]
+                        const [tmin2, tmax2] = [span.tmin, span.tmax]
+                        spans[kind] = {
+                            tmin: Math.min(tmin1, tmin2),
+                            tmax: Math.max(tmax1, tmax2),
+                        } 
                     }
                 }
             }
@@ -274,12 +280,14 @@ export const squirrelGates = () => {
 
     watch([timeSpans], () => {
         if (!initialTimeSpanSet) {
+            console.log(timeSpans.value)
             const span = timeSpans.value['waveform']
             if (span !== null) {
-                const duration = span[1] - span[0]
+                const duration = span.tmax - span.tmin
+                console.log('zzz')
                 setTimeSpan(
-                    span[0] - duration * 0.025,
-                    span[1] + duration * 0.025
+                    span.tmin - duration * 0.025,
+                    span.tmax + duration * 0.025
                 )
                 initialTimeSpanSet = true
             }

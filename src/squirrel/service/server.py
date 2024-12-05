@@ -336,7 +336,11 @@ class SquirrelGateHandler(SquirrelRequestHandler):
 
     def p_get_time_span(self, parameters, gate):
         kind, = self.get_cleaned('kind', parameters)
-        return gate.get_time_span(kinds=[kind])
+        tmin, tmax = gate.get_time_span(kinds=[kind])
+        return {
+            'tmin': util.time_to_str(tmin),
+            'tmax': util.time_to_str(tmax)
+        }
 
     def p_get_events(self, parameters, gate):
         return gate.get_events()

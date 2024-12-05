@@ -40,7 +40,7 @@ export const timeToStr = (time, fmt) => {
 }
 
 export const strToTime = (s) => {
-    const reDateTime = /^(\d\d\d\d-\d\d-\d\d)([ T])(\d\d:\d\d:\d\d)(\.\d+)?Z?$/
+    const reDateTime = /^(\d?\d\d\d-\d\d-\d\d)([ T])(\d\d:\d\d:\d\d)(\.\d+)?Z?$/
     const m = s.match(reDateTime)
     const sdatetime = m[1] + 'T' + m[3] + 'Z'
     const msecs = Date.parse(sdatetime)

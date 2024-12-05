@@ -410,6 +410,10 @@ class MultiSpectrogramOperator(base.Operator):
 
     windowing = Pow2Windowing.T()
 
+    @property
+    def kind_requires(self):
+        return ('waveform', 'response')
+
     @cache
     def get_block(self, deltat, kind_codes_id, ilevel, iwindow):
 
