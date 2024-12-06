@@ -164,7 +164,10 @@ class SquirrelRawHandler(SquirrelRequestHandler):
 
     def p_get_time_span(self, parameters, gate):
         kind, = self.get_cleaned('kind', parameters)
-        return self._squirrel.get_time_span(kinds=[kind])
+        return TimeSpan(
+            *self._squirrel.get_time_span(
+                kinds=[kind],
+                dummy_limits=False))
 
     def p_get_events(self, parameters):
         return self._squirrel.get_events()
@@ -190,6 +193,19 @@ class SpectrogramImage(guts.Object):
     fmax = guts.Float.T()
     fscale = ScaleChoice.T()
     image_data_base64 = guts.String.T()
+
+
+class TimeSpan(guts.Object):
+    tmin = model.Timestamp.T(optional=True)
+    tmax = model.Timestamp.T(optional=True)
+
+    def __init__(self, *args, **kwargs):
+        if args:
+            tmin, tmax = args
+            kwargs['tmin'] = tmin
+            kwargs['tmax'] = tmax
+
+        guts.Object.__init__(self, **kwargs)
 
 
 class Gate(guts.Object):
@@ -336,11 +352,7 @@ class SquirrelGateHandler(SquirrelRequestHandler):
 
     def p_get_time_span(self, parameters, gate):
         kind, = self.get_cleaned('kind', parameters)
-        tmin, tmax = gate.get_time_span(kinds=[kind])
-        return {
-            'tmin': util.time_to_str(tmin),
-            'tmax': util.time_to_str(tmax)
-        }
+        return TimeSpan(*gate.get_time_span(kinds=[kind], dummy_limits=False))
 
     def p_get_events(self, parameters, gate):
         return gate.get_events()

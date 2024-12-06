@@ -597,7 +597,7 @@ class Operator(Object):
             WAVEFORM, obj, tmin, tmax, time, codes)
 
         kinds = ['waveform']
-        self_tmin, self_tmax = self.get_time_span(kinds)
+        self_tmin, self_tmax = self.get_time_span(kinds, dummy_limits=False)
 
         if None in (self_tmin, self_tmax):
             logger.warning(
@@ -805,8 +805,17 @@ class Operator(Object):
     def get_time_padding(self) -> float:
         return 0.0
 
-    def get_time_span(self, kinds) -> tTuple[TimeFloat, TimeFloat]:
-        tmin, tmax = self._input.get_time_span(kinds)
+    def get_time_span(
+            self,
+            kinds,
+            dummy_limits=True) -> tTuple[TimeFloat, TimeFloat]:
+
+        tmin, tmax = self._input.get_time_span(
+            kinds, dummy_limits=dummy_limits)
+
+        if None in (tmin, tmax):
+            return (None, None)
+
         return tmin + self.get_time_padding(), tmax - self.get_time_padding()
 
 

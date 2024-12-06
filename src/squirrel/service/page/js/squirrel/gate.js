@@ -4,6 +4,9 @@ import { strToTime, timeToStr, tomorrow } from './common.js'
 
 import { squirrelConnection } from './connection.js'
 
+const TIME_MIN = strToTime('1900-01-01 00:00:00')
+const TIME_MAX = tomorrow() + 5 * 365 * 24 * 60 * 60
+
 export const squirrelGate = () => {
     const counter = ref(0)
     const codes = ref([])
@@ -34,8 +37,11 @@ export const squirrelGate = () => {
                 'gate/default/get_time_span',
                 { kind: kind }
             )
-            span.tmin = strToTime(span.tmin)
-            span.tmax = Math.min(strToTime(span.tmax), tomorrow())
+            span.tmin = span.tmin != null ? strToTime(span.tmin) : TIME_MIN
+            span.tmax =
+                span.tmax != null
+                    ? Math.min(strToTime(span.tmax), tomorrow())
+                    : tomorrow()
             console.log('aaa', span.tmin, timeToStr(span.tmin))
             newTimeSpans[kind] = span
         }
@@ -90,7 +96,7 @@ export const squirrelBlock = (block) => {
             {
                 tmin: timeToStr(my.timeMin),
                 tmax: timeToStr(my.timeMax),
-                ...params
+                ...params,
             }
         )
         for (const spectrogram of spectrograms) {
@@ -142,8 +148,8 @@ export const squirrelBlock = (block) => {
 }
 export const squirrelGates = () => {
     const gates = ref([])
-    const timeMin = ref(strToTime('1900-01-01 00:00:00'))
-    const timeMax = ref(strToTime('2030-01-01 00:00:00'))
+    const timeMin = ref(TIME_MIN)
+    const timeMax = ref(TIME_MAX)
     const frequencyMin = ref(0.001)
     const frequencyMax = ref(100.0)
     const blockFactor = 4
@@ -174,7 +180,10 @@ export const squirrelGates = () => {
             blocks.set(k, block)
             watch([block.counter], () => counter.value++)
             const updateBlock = () => {
-                block.update({fmin: frequencyMin.value, fmax: frequencyMax.value})
+                block.update({
+                    fmin: frequencyMin.value,
+                    fmax: frequencyMax.value,
+                })
             }
             watch([frequencyMin, frequencyMax], updateBlock)
             updateBlock()
@@ -185,8 +194,8 @@ export const squirrelGates = () => {
 
     const setTimeSpan = (tmin, tmax) => {
         console.log('yyy')
-        timeMin.value = tmin
-        timeMax.value = tmax
+        timeMin.value = Math.max(tmin, TIME_MIN)
+        timeMax.value = Math.min(tmax, TIME_MAX)
         update()
     }
 
@@ -264,12 +273,15 @@ export const squirrelGates = () => {
                     if (spans[kind] === null) {
                         spans[kind] = span
                     } else {
-                        const [tmin1, tmax1] = [spans[kind].tmin, spans[kind].tmax]
+                        const [tmin1, tmax1] = [
+                            spans[kind].tmin,
+                            spans[kind].tmax,
+                        ]
                         const [tmin2, tmax2] = [span.tmin, span.tmax]
                         spans[kind] = {
                             tmin: Math.min(tmin1, tmin2),
                             tmax: Math.max(tmax1, tmax2),
-                        } 
+                        }
                     }
                 }
             }
