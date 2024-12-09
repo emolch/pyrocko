@@ -20,7 +20,7 @@ from .trace import Trace, AboveNyquist, _get_cached_filter_coeffs
 from .guts import Object, Float, Timestamp, List, Int
 from .guts_array import Array
 from .squirrel import \
-    CodesNSLCE, SensorGrouping
+    CodesNSLCE, SensorGrouping, Grouping
 
 from .squirrel.operators.base import ReplaceComponentTranslation
 
@@ -200,6 +200,18 @@ class MultiTrace(Object):
             codes=list(self.codes),
             tmin=self.tmin,
             deltat=self.deltat)
+
+    def chopper(self, tinc):
+        nwindows = int(num.floor((self.tmax - self.tmin) / tinc)) + 1
+        nsamples = int(num.floor(tinc / self.deltat))
+        for iwindow in range(nwindows):
+            istart = int(num.floor((iwindow * tinc) / self.deltat))
+            iend = istart + nsamples
+            yield MultiTrace(
+                data=self.data[:, istart:iend],
+                codes=self.codes,
+                tmin=self.tmin + istart * self.deltat,
+                deltat=self.deltat)
 
     @property
     def tmax(self):
@@ -488,6 +500,25 @@ class MultiTrace(Object):
         self.apply_via_fft(
             multiply_taper,
             ntrans_min=n)
+
+    def whiten(self, deltaf, window=num.hanning):
+
+        def smooth(frequency_delta, ntrans, spectrum):
+            n = (int(num.round(deltaf / frequency_delta)) // 2) * 2 + 1
+            taper = window(n)
+            amp_spec = num.abs(spectrum)
+            amp_spec_smooth = signal.fftconvolve(
+                amp_spec, taper[num.newaxis, :], mode='same', axes=1)
+
+            spectrum /= amp_spec_smooth
+            return spectrum
+
+        self.apply_via_fft(smooth)
+
+    def normalize(self, deltat, window=num.hanning):
+        rms = self.get_rms(grouping=Grouping())
+        rms.smooth(deltat)
+        self.data /= rms.data
 
     def apply_via_fft(self, f, ntrans_min=0):
         frequency_delta, ntrans, spectrum = self.get_spectrum(ntrans_min)
