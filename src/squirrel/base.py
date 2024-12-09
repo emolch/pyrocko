@@ -2341,7 +2341,12 @@ class Squirrel(Selection):
 
         nuts = sorted(
             self.iter_nuts(
-                'waveform', *args, codes_exclude, kind_codes_ids),
+                'waveform',
+                *args,
+                codes_exclude=codes_exclude,
+                kind_codes_ids=kind_codes_ids,
+                sample_rate_min=sample_rate_min,
+                sample_rate_max=sample_rate_max),
             key=lambda nut: nut.dkey)
 
         return nuts
@@ -3235,6 +3240,24 @@ class Squirrel(Selection):
 
     def get_sources(self):
         return self._sources
+
+    def default_preparator(
+            self,
+            frequency_min,
+            frequency_max,
+            **kwargs):
+
+        from .operators.base import Restitution, ToENZ
+
+        restitution = Restitution(
+            frequency_min=frequency_min,
+            frequency_max=frequency_max,
+            **kwargs)
+
+        restitution.set_input(self)
+        to_enz = ToENZ()
+        to_enz.set_input(restitution)
+        return to_enz
 
     def print_tables(self, table_names=None, stream=None):
         '''
