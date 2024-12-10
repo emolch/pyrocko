@@ -217,6 +217,13 @@ class Spectrogram(guts.Object):
             self.values[:, fslice].T,
             **kwargs)
 
+    def plot(self, fslice=slice(1, None), **kwargs):
+        fig = plt.figure(figsize=(60, 20))
+        axes = fig.add_subplot(1, 1, 1)
+        self.mpl_draw(axes, fslice=fslice, **kwargs)
+        plot.mpl_time_axis(axes)
+        plt.show()
+
     def crop(self, tslice=slice(None, None), fslice=slice(None, None)):
         return Spectrogram(
             times=self.times[tslice],

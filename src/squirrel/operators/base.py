@@ -26,7 +26,7 @@ from pyrocko.trace import Trace, TraceTooShort, NoData
 from ..model import (
     QuantityType, CodesNSLCE, CodesMatcher, CHANNEL, WAVEFORM,
     get_selection_args, Sensor, Channel, Response, Coverage, join_coverages,
-    codes_patterns_list
+    codes_patterns_list, match_codes_any
 )
 
 from pyrocko.guts import Object, String, Duration, Float, clone, List
@@ -571,8 +571,10 @@ class Operator(Object):
         if not codes_to_traces:
             return []
 
-        return self.process_waveforms(
+        trs = self.process_waveforms(
             mappings, in_codes, codes_to_traces, tmin, tmax)
+
+        return [tr for tr in trs if match_codes_any(codes, tr.codes)]
 
     def get_squirrel(self):
         from ..base import Squirrel
@@ -597,7 +599,7 @@ class Operator(Object):
             WAVEFORM, obj, tmin, tmax, time, codes)
 
         kinds = ['waveform']
-        self_tmin, self_tmax = self.get_time_span(kinds)
+        self_tmin, self_tmax = self.get_time_span(kinds, dummy_limits=False)
 
         if None in (self_tmin, self_tmax):
             logger.warning(
@@ -664,7 +666,6 @@ class Operator(Object):
                         maxgap=maxgap,
                         maxlap=maxlap,
                         accessor_id=accessor_id,
-                        # operator_params=operator_params,
                         channel_priorities=channel_priorities)
 
                     self.get_squirrel().advance_accessor(accessor_id)
@@ -805,8 +806,17 @@ class Operator(Object):
     def get_time_padding(self) -> float:
         return 0.0
 
-    def get_time_span(self, kinds) -> tTuple[TimeFloat, TimeFloat]:
-        tmin, tmax = self._input.get_time_span(kinds)
+    def get_time_span(
+            self,
+            kinds,
+            dummy_limits=True) -> tTuple[TimeFloat, TimeFloat]:
+
+        tmin, tmax = self._input.get_time_span(
+            kinds, dummy_limits=dummy_limits)
+
+        if None in (tmin, tmax):
+            return (None, None)
+
         return tmin + self.get_time_padding(), tmax - self.get_time_padding()
 
 
