@@ -69,18 +69,24 @@
                 </div>
 
 
-                <div id="map" class="map-container tab-pane" v-show="selectedTab === 3"></div>
-
-
+                <div id="map" class="map-container vbox-main tab-pane" v-show="selectedTab === 3"></div>
                 
                 <div class="vbox-main tab-pane sensor-table" v-show="selectedTab === 4">
                     <table class="table table-bordered">
                         <thead>    
                             <tr>
-                                <th scope="col" @click="sortTable('codes')" >Station/Channel</th>
-                                <th scope="col" @click="sortTable('lat')">Latitude</th>
-                                <th scope="col" @click="sortTable('lon')">Longitude</th>
-                                <th scope="col" @click="sortTable('time')">Time Range</th>
+                                <th scope="col" @click="sortTable('codes')" >Station/Channel <span v-if="currentSort === 'codes'">
+                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
+                                </span> </th>
+                                <th scope="col" @click="sortTable('lat')">Latitude     <span v-if="currentSort === 'lat'">
+                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
+                                </span></th>
+                                <th scope="col" @click="sortTable('lon')">Longitude     <span v-if="currentSort === 'lon'">
+                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
+                                </span></th>
+                                <th scope="col" @click="sortTable('time')">Time Range     <span v-if="currentSort === 'time'">
+                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
+                                </span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -92,7 +98,7 @@
                                     <td>{{ channel.lat }}</td>
                                     <td>{{ channel.lon }}</td>
                                     <td>from: {{channel.tmin}} <br>to: {{channel.tmax ? channel.tmax : 'present'}}</td>
-                                    <!--<td>{{sensor}}</td>-->
+                                    <td>{{sensor}}</td>
                                 </tr>
                         </div>
                             </tbody>
@@ -144,7 +150,7 @@
 
         createApp({
             setup() {
-                const selectedTab = ref(2)
+                const selectedTab = ref(3)
                 const sensors = ref([])
                 const currentSort = ref('codes')
                 const currentSortDir = ref('asc')
@@ -186,10 +192,20 @@
                     return [...sensors.value].sort((a,b) => {
                         let modifier = 1
                         if (currentSortDir.value === 'desc') modifier = -1
-
-                        if (a[currentSort.value] < b[currentSort.value]) return -1 * modifier;
-                        if (a[currentSort.value] > b[currentSort.value]) return 1 * modifier;
                         
+                        if (currentSort.value === 'time') {
+                            const tminA = new Date(a.channels[0].tmin);  // assuming 'tmin' is inside the 'channels' array
+                            const tminB = new Date(b.channels[0].tmin);  // same for b
+
+                            // Check for valid date objects to avoid errors
+                            if (tminA.getTime() < tminB.getTime()) return -1 * modifier;
+                            if (tminA.getTime() > tminB.getTime()) return 1 * modifier;
+                            return 0;
+
+                        } else {
+                            if (a[currentSort.value] < b[currentSort.value]) return -1 * modifier;
+                            if (a[currentSort.value] > b[currentSort.value]) return 1 * modifier;
+                        }
                         return 0;
                         });
                     });
