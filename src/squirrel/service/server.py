@@ -518,7 +518,14 @@ async def serve(
         'Binding service to %s, port %i.',
         describe_ip(ip), port)
 
-    http_server = app.listen(port, ip)
+    try:
+        http_server = app.listen(port, ip)
+    except OSError as e:
+        if e.errno == 98:
+            await fail(ToolError(
+                'Address already in use, try specifying a different port '
+                'number with --port INT.'))
+            return
 
     url = 'http://%s:%d' % (url_ip(ip), port)
     if open:
@@ -540,13 +547,21 @@ async def serve(
 
 
 g_shutdown = False
+g_exception = None
 
 
-async def shutdown(sig, loop):
+async def fail(e):
+    global g_exception
+    g_exception = e
+    await shutdown()
+
+
+async def shutdown(sig=None, loop=None):
     global g_shutdown
 
-    logger.debug(
-        'Received exit signal %s.', sig.name)
+    if sig is not None:
+        logger.debug(
+            'Received exit signal %s.', sig.name)
 
     g_shutdown = True
 
@@ -565,6 +580,7 @@ async def shutdown(sig, loop):
     logger.debug(
         'Done waiting for tasks to finish.')
 
+    loop = asyncio.get_event_loop()
     loop.stop()
 
 
@@ -598,7 +614,7 @@ def run(
     signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
     for s in signals:
         loop.add_signal_handler(
-            s, lambda s=s: asyncio.create_task(shutdown(s, loop)))
+            s, lambda s=s: asyncio.create_task(shutdown(s)))
 
     try:
         loop.create_task(
@@ -614,4 +630,7 @@ def run(
 
     finally:
         loop.close()
+        if g_exception is not None:
+            raise g_exception
+
         logger.debug('Shutdown complete.')
