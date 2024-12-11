@@ -1282,8 +1282,8 @@ class Trace(Object):
 
             xself = self.copy()
 
-        if interpolate:
-            n = xself.data_len()
+        n = xself.data_len()
+        if interpolate and n > 2:
             ydata_new = num.empty(n, dtype=float)
             i_control = num.array([0, n-1], dtype=num.int64)
             tref = tmin
