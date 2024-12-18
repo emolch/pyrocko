@@ -3,6 +3,8 @@ import { squirrelConnection } from './connection.js'
 
 export const squirrelMap = () => {
     let map
+    let basemapGroup
+    let symbolGroup
     let scale = 1.0
     let projection
     let container
@@ -26,13 +28,13 @@ export const squirrelMap = () => {
     }
 
     const projectBasemap = () => {
-        map.selectAll('g')
+        basemapGroup.selectAll('g')
             .selectAll('path')
             .attr('d', d3.geoPath().projection(projection))
     }
 
     const projectCircles = () => {
-        map.selectAll('circle').attr('transform', function (ev) {
+        symbolGroup.selectAll('circle').attr('transform', function (ev) {
             return 'translate(' + projection([ev.lon, ev.lat]) + ')'
         })
     }
@@ -67,7 +69,7 @@ export const squirrelMap = () => {
             'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
         )
 
-        map.append('g')
+        basemapGroup.append('g')
             .selectAll('path')
             .data(data.features)
             .enter()
@@ -77,11 +79,13 @@ export const squirrelMap = () => {
 
         let graticule = d3.geoGraticule()
 
-        map.append('g')
+        basemapGroup.append('g')
             .append('path')
             .datum(graticule)
             .attr('fill', 'none')
             .attr('stroke', colors['aluminium2'])
+
+
 
         //map.append('g')
         //    .append('path')
@@ -97,7 +101,7 @@ export const squirrelMap = () => {
         const connection = squirrelConnection()
         const locations = await connection.request('raw/get_sensors')
 
-        map.selectAll('circle')
+        symbolGroup.selectAll('circle')
             .data(locations)
             .enter()
             .append('circle')
@@ -112,6 +116,9 @@ export const squirrelMap = () => {
         container = selection
         map = createIfNeeded(container, 'svg')
 
+        basemapGroup = map.append('g')
+        symbolGroup = map.append('g')
+
         const projections = {
             ed: d3.geoAzimuthalEquidistant().clipAngle(180.0 - 1e-3),
             ea: d3.geoAzimuthalEqualArea().clipAngle(180.0 - 1),
@@ -119,7 +126,7 @@ export const squirrelMap = () => {
             g2: d3.geoNaturalEarth1(),
         }
 
-        projection = projections.g2
+        projection = projections.ea
 
         resize()
 
