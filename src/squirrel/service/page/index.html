@@ -51,7 +51,7 @@
             </ul>
 
                 <div v-show="selectedTab === 1" id="add" class="vbox-main tab-pane">
-                    <p>add menu here</p>
+                    <p>{{response}}</p>
                 </div>
 
 
@@ -72,19 +72,29 @@
                 <div id="map" class="map-container vbox-main tab-pane" v-show="selectedTab === 3"></div>
                 
                 <div class="vbox-main tab-pane sensor-table" v-show="selectedTab === 4">
-                    <table class="table table-bordered">
+                    <table class="table">
                         <thead>    
                             <tr>
-                                <th scope="col" @click="sortTable('codes')" >Station/Channel <span v-if="currentSort === 'codes'">
-                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
-                                </span> </th>
-                                <th scope="col" @click="sortTable('lat')">Latitude     <span v-if="currentSort === 'lat'">
+                                
+                                <th scope="col" @click="sortTable('sensor')">Station/Channel/Sensor/Response<span v-if="currentSort === 'sensor'">
                                     {{ currentSortDir === 'asc' ? '▲' : '▼' }}
                                 </span></th>
-                                <th scope="col" @click="sortTable('lon')">Longitude     <span v-if="currentSort === 'lon'">
+                                <th scope="col" @click="sortTable('lat')" style="text-align: right">Latitude     <span v-if="currentSort === 'lat'">
                                     {{ currentSortDir === 'asc' ? '▲' : '▼' }}
                                 </span></th>
-                                <th scope="col" @click="sortTable('time')">Time Range     <span v-if="currentSort === 'time'">
+                                <th scope="col" @click="sortTable('lon')" style="text-align: right">Longitude     <span v-if="currentSort === 'lon'">
+                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
+                                </span></th>
+                                <th scope="col" @click="sortTable('tmin')" style="text-align: right">Start<span v-if="currentSort === 'tmin'">
+                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
+                                </span></th>
+                                <th scope="col" @click="sortTable('tmax')" style="text-align: right">End<span v-if="currentSort === 'tmax'">
+                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
+                                </span></th>
+                                <th scope="col" @click="sortTable('deltat')" style="text-align: right">ΔT [Hz]<span v-if="currentSort === 'deltat'">
+                                    {{ currentSortDir === 'asc' ? '▲' : '▼' }}
+                                </span></th>
+                                <th scope="col" @click="sortTable('flag')">Flag<span v-if="currentSort === 'flag'">
                                     {{ currentSortDir === 'asc' ? '▲' : '▼' }}
                                 </span></th>
                             </tr>
@@ -93,12 +103,15 @@
                             <template v-for="sensor in sortedSensors">
                                 <tr v-for="channel in sensor.channels">
                                     <td>
-                                        {{channel.codes}}
+                                        {{sensor.codes}}
                                     </td>
-                                    <td>{{ channel.lat }}</td>
-                                    <td>{{ channel.lon }}</td>
-                                    <td>from: {{channel.tmin}} <br>to: {{channel.tmax ? channel.tmax : 'present'}}</td>
-                                    <td>{{sensor}}</td>
+                                    <td style="text-align: right">{{ channel.lat }}</td>
+                                    <td style="text-align: right">{{ channel.lon }}</td>
+                                    <td style="text-align: right">{{channel.tmin}}</td>
+                                    <td style="text-align: right">{{channel.tmax ? channel.tmax : ""}}</td>
+                                    <td style="text-align: right">{{1/sensor.deltat}}</td>
+                                    <td><span v-if="channel.azimuth !== 0 && channel.azimuth !== 90 || channel.dip !== 0 && channel.dip !== -90">&#x2221;</span></td>
+                                    <!--<td>{{sensor}}</td>-->
                                 </tr>
                         </div>
                             </tbody>
@@ -152,6 +165,7 @@
             setup() {
                 const selectedTab = ref(3)
                 const sensors = ref([])
+                const response = ref([])
                 const currentSort = ref('codes')
                 const currentSortDir = ref('asc')
                 
@@ -168,8 +182,14 @@
                     sensors.value = await connection.request('raw/get_sensors')
                 }
 
+                const fetchResponse = async () => {
+                    const connection = squirrelConnection();
+                    response.value = await connection.request('raw/get_codes', { kind: 'response' });
+                };
+
                 onMounted(() => {
                     fetchSensors()
+                    fetchResponse()
                     d3.select('#map').call(map)
                     map.addBasemap().addSensors()
                     d3.select('#timeline').call(timeline)
@@ -193,25 +213,25 @@
                         let modifier = 1
                         if (currentSortDir.value === 'desc') modifier = -1
                         
-                        if (currentSort.value === 'time') {
-                            const tminA = new Date(a.channels[0].tmin);  // assuming 'tmin' is inside the 'channels' array
-                            const tminB = new Date(b.channels[0].tmin);  // same for b
-
-                            // Check for valid date objects to avoid errors
-                            if (tminA.getTime() < tminB.getTime()) return -1 * modifier;
-                            if (tminA.getTime() > tminB.getTime()) return 1 * modifier;
-                            return 0;
-
-                        } else {
-                            if (a[currentSort.value] < b[currentSort.value]) return -1 * modifier;
-                            if (a[currentSort.value] > b[currentSort.value]) return 1 * modifier;
-                        }
+                        if (a[currentSort.value] < b[currentSort.value]) return -1 * modifier;
+                        if (a[currentSort.value] > b[currentSort.value]) return 1 * modifier;
                         return 0;
                         });
                     });
 
+                    const currentDate = new Date()
 
-                return { connection, selectedTab, selectTab, sensors, gates: ref(gates), fmtDuration, currentSort, currentSortDir, sortedSensors, sortTable}
+                    const year = currentDate.getFullYear()
+                    const month = String(currentDate.getMonth() + 1).padStart(2, '0')
+                    const day = String(currentDate.getDate()).padStart(2, '0')
+                    const hours = String(currentDate.getHours()).padStart(2, '0')
+                    const minutes = String(currentDate.getMinutes()).padStart(2, '0')
+                    const seconds = String(currentDate.getSeconds()).padStart(2, '0')
+
+                    const presentDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+
+
+                return { connection, selectedTab, selectTab, sensors, response, gates: ref(gates), fmtDuration, currentSort, currentSortDir, sortedSensors, sortTable, presentDate}
             },
         }).mount('#app')
     </script>
