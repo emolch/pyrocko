@@ -150,30 +150,23 @@ export const squirrelTimeline = (gates_) => {
     let coverages
     let tracks = []
     let trackProjection = projectionHelper()
+    let bounds
 
-    const bounds = () => {
+    const containerBounds = () => {
         return container.node().getBoundingClientRect()
-    }
-
-    const getWidth = () => {
-        return bounds().width
-    }
-
-    const getHeight = () => {
-        return bounds().height
     }
 
     const updateProjection = () => {
         x.domain([gates.timeMin.value, gates.timeMax.value]).range([
             0,
-            getWidth(),
+            bounds.width,
         ])
         console.log("gates.timeMin.value, gates.timeMax.value", gates.timeMin.value, gates.timeMax.value)
-        trackProjection.range([marginTop, getHeight() - marginBottom])
+        trackProjection.range([marginTop, bounds.height - marginBottom])
         pageRect.attr('x', 0)
         pageRect.attr('y', marginTop)
-        pageRect.attr('width', getWidth())
-        pageRect.attr('height', getHeight() - marginTop - marginBottom)
+        pageRect.attr('width', bounds.width)
+        pageRect.attr('height', bounds.height - marginTop - marginBottom)
     }
 
     const update = () => {
@@ -186,7 +179,9 @@ export const squirrelTimeline = (gates_) => {
     }
 
     const resizeHandler = () => {
-        timeline.attr('width', getWidth()).attr('height', getHeight())
+        console.log('resize timeline')
+        bounds = containerBounds()
+        timeline.attr('width', bounds.width).attr('height', bounds.height)
         update()
     }
 
@@ -210,7 +205,7 @@ export const squirrelTimeline = (gates_) => {
             position: [ev.clientX, ev.clientY],
             domain: [...x.domain()],
             mode:
-                ev.clientY > getHeight() - marginBottom
+                ev.clientY > bounds.height - marginBottom
                     ? 'global_fixed'
                     : 'global',
         }
@@ -222,8 +217,8 @@ export const squirrelTimeline = (gates_) => {
             let y1 = ev.clientY
             let x0 = trackStart.position[0]
             let y0 = trackStart.position[1]
-            let w = getWidth()
-            let h = getHeight()
+            let w = bounds.width
+            let h = bounds.height
             let tmin0 = trackStart.domain[0]
             let tmax0 = trackStart.domain[1]
             let mode = trackStart.mode
@@ -412,7 +407,7 @@ export const squirrelTimeline = (gates_) => {
     const updateAxes = () => {
         const axisY = (i) => {
             return [
-                getHeight() - marginBottom + trackPadding,
+                bounds.height - marginBottom + trackPadding,
                 marginTop - trackPadding,
             ][i]
         }
@@ -448,7 +443,7 @@ export const squirrelTimeline = (gates_) => {
                     .attr('stroke-width', axisLineWidth)
             )
             .attr('x1', 0.0)
-            .attr('x2', getWidth)
+            .attr('x2', bounds.width)
             .attr('y1', axisY)
             .attr('y2', axisY)
 
@@ -708,7 +703,7 @@ export const squirrelTimeline = (gates_) => {
         container.on('keydown', keyDownHandler)
         container.on('wheel', scrollHandler)
 
-        window.onresize = resizeHandler
+        window.addEventListener('resize', resizeHandler)
         resizeHandler()
 
         watch([gates.counter], update)

@@ -8,23 +8,16 @@ export const squirrelMap = () => {
     let scale = 1.0
     let projection
     let container
+    let bounds
 
-    const bounds = () => {
+    const containerBounds = () => {
         return container.node().getBoundingClientRect()
-    }
-
-    const getWidth = () => {
-        return bounds().width
-    }
-
-    const getHeight = () => {
-        return bounds().height
     }
 
     const setupProjection = () => {
         projection
-            .scale((scale * getHeight()) / 1.5 / 1.3 / Math.PI)
-            .translate([getWidth() / 2, getHeight() / 2])
+            .scale((scale * bounds.height) / 1.5 / 1.3 / Math.PI)
+            .translate([bounds.width / 2, bounds.height / 2])
     }
 
     const projectBasemap = () => {
@@ -49,8 +42,10 @@ export const squirrelMap = () => {
         project()
     }
 
-    const resize = () => {
-        map.attr('width', getWidth()).attr('height', getHeight())
+    const resizeHandler = () => {
+        console.log('resize map')
+        bounds = containerBounds()
+        map.attr('width', bounds.width).attr('height', bounds.height)
         reProject()
     }
 
@@ -128,9 +123,9 @@ export const squirrelMap = () => {
 
         projection = projections.ea
 
-        resize()
+        resizeHandler()
+        window.addEventListener('resize', resizeHandler)
 
-        window.onresize = resize
         map.on('click', (ev) => {
             rotate(projection.invert(d3.pointer(ev)))
         })
