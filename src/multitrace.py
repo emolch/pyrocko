@@ -17,7 +17,7 @@ from scipy import signal
 
 from . import trace, util
 from .trace import Trace, AboveNyquist, _get_cached_filter_coeffs
-from .guts import Object, Float, Timestamp, List, Int
+from .guts import Object, Float, Timestamp, List, Int, Dict, String
 from .guts_array import Array
 from .squirrel import \
     CodesNSLCE, SensorGrouping, Grouping
@@ -49,25 +49,33 @@ class MultiTrace(Object):
         :py:class:`list` of :py:class:`~pyrocko.trace.Trace`
     '''
 
-    codes = List.T(
+    codes = CodesNSLCE.T(
+        default=CodesNSLCE.D(),
+        help='Codes identifying the multitrace as a whole.')
+
+    component_codes = List.T(
         CodesNSLCE.T(),
         help='List of codes identifying the components.')
+
+    component_axes = Dict.T(
+        String.T(),
+        Array.T(shape=(None,), serialize_as='base64+meta'),
+        help='Auxiliary component coordinate axes.')
+
     nsamples = Int.T(
         help='Number of samples.')
+
     data = Array.T(
         optional=True,
         shape=(None, None),
+        serialize_as='base64+meta',
         help='Array containing the data samples indexed as '
              '``(icomponent, isample)``.')
-    spectrum = Array.T(
-        optional=True,
-        shape=(None, None),
-        dtype=complex,
-        help='Array containing the spectral coefficients indexed as '
-             '``(icomponent, ifrequency)``.')
+
     tmin = Timestamp.T(
         default=Timestamp.D('1970-01-01 00:00:00'),
         help='Start time.')
+
     deltat = Float.T(
         default=1.0,
         help='Sampling interval [s]')
@@ -79,22 +87,27 @@ class MultiTrace(Object):
             data=None,
             nsamples=None,
             codes=None,
+            component_codes=None,
+            component_axes=None,
             tmin=None,
             deltat=None):
 
         util.experimental_feature_used('pyrocko.multitrace')
+
+        if data is not None and not isinstance(data, num.ndarray):
+            data = self.T.get_property('data').regularize_extra(data)
 
         if traces is not None:
             if len(traces) == 0:
                 data = ma.zeros((0, 0))
             else:
                 if assemble == 'merge':
-                    data, codes, tmin, deltat \
+                    data, component_codes, tmin, deltat \
                         = trace.merge_traces_data_as_array(traces)
 
                 elif assemble == 'concatenate':
                     data = ma.array(trace.get_traces_data_as_array(traces))
-                    codes = [tr.codes for tr in traces]
+                    component_codes = [tr.codes for tr in traces]
                     tmin = traces[0].tmin
                     deltat = traces[0].deltat
 
@@ -107,13 +120,13 @@ class MultiTrace(Object):
 
         self.ntraces, nsamples = data.shape
 
-        if codes is None:
-            codes = [CodesNSLCE()] * self.ntraces
+        if component_codes is None:
+            component_codes = [CodesNSLCE()] * self.ntraces
 
-        if len(codes) != self.ntraces:
+        if len(component_codes) != self.ntraces:
             raise ValueError(
                 'MultiTrace construction: mismatch between number of traces '
-                'and number of codes given.')
+                'and number of component codes given.')
 
         if deltat is None:
             deltat = self.T.deltat.default()
@@ -124,20 +137,26 @@ class MultiTrace(Object):
         Object.__init__(
             self,
             codes=codes,
+            component_codes=component_codes,
+            component_axes=component_axes,
             data=data,
             tmin=tmin,
             nsamples=nsamples,
             deltat=deltat)
 
     @property
-    def summary_codes(self):
-        if self.codes:
-            if len(self.codes) == 1:
-                return str(self.codes[0])
-            elif len(self.codes) == 2:
-                return '%s, %s' % (self.codes[0], self.codes[-1])
+    def summary_component_codes(self):
+        if self.component_codes:
+            if len(self.component_codes) == 1:
+                return str(self.component_codes[0])
+            elif len(self.component_codes) == 2:
+                return '%s, %s' % (
+                    self.component_codes[0],
+                    self.component_codes[-1])
             else:
-                return '%s, ..., %s' % (self.codes[0], self.codes[-1])
+                return '%s, ..., %s' % (
+                    self.component_codes[0],
+                    self.component_codes[-1])
         else:
             return 'None'
 
@@ -151,7 +170,7 @@ class MultiTrace(Object):
             str(self.deltat),
             util.time_to_str(self.tmin),
             util.time_to_str(self.tmax),
-            self.summary_codes)
+            self.summary_component_codes)
 
     @property
     def summary(self):
@@ -197,7 +216,8 @@ class MultiTrace(Object):
 
         return MultiTrace(
             data=data,
-            codes=list(self.codes),
+            codes=self.codes,
+            component_codes=list(self.component_codes),
             tmin=self.tmin,
             deltat=self.deltat)
 
@@ -210,6 +230,7 @@ class MultiTrace(Object):
             yield MultiTrace(
                 data=self.data[:, istart:iend],
                 codes=self.codes,
+                component_codes=self.component_codes,
                 tmin=self.tmin + istart * self.deltat,
                 deltat=self.deltat)
 
@@ -219,6 +240,10 @@ class MultiTrace(Object):
         End time (time of last sample, read-only).
         '''
         return self.tmin + (self.nsamples - 1) * self.deltat
+
+    @property
+    def times(self):
+        return self.tmin + num.arange(self.nsamples) * self.deltat
 
     def get_trace(self, i, span=slice(None)):
         '''
@@ -230,7 +255,7 @@ class MultiTrace(Object):
             int
         '''
 
-        network, station, location, channel, extra = self.codes[i]
+        network, station, location, channel, extra = self.component_codes[i]
         return Trace(
             network=network,
             station=station,
@@ -255,6 +280,55 @@ class MultiTrace(Object):
 
     def get_valid_traces(self):
         return list(self.iter_valid_traces())
+
+    def get_component_axis(self, name=None):
+        if name is None:
+            return num.arange(self.ncomponents)
+        else:
+            return self.component_axes[name]
+
+    def mpl_draw(
+            self,
+            axes,
+            component_axis=None,
+            fslice=slice(1, None),
+            **kwargs):
+
+        if component_axis is None:
+            ys = num.arange(self.ncomponents)
+        else:
+            ys = self.component_axes[component_axis]
+
+        return axes.pcolormesh(
+            self.times,
+            ys[fslice],
+            self.data[fslice, :],
+            **kwargs)
+
+    def plot(
+            self,
+            component_axis=None,
+            component_axis_scale='lin',
+            fslice=slice(1, None),
+            path=None, **kwargs):
+
+        from pyrocko import plot
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure(figsize=plot.mpl_papersize('a4', 'landscape'))
+        axes = fig.add_subplot(1, 1, 1)
+        self.mpl_draw(
+            axes,
+            component_axis=component_axis,
+            fslice=fslice, **kwargs)
+
+        axes.set_yscale(component_axis_scale)
+
+        plot.mpl_time_axis(axes)
+        if path is None:
+            plt.show()
+        else:
+            fig.savefig(path)
 
     def snuffle(self, what='valid'):
         '''
@@ -301,16 +375,16 @@ class MultiTrace(Object):
     def apply(self, f):
         self.set_data(f(self.data))
 
-    def reduce(self, f, codes):
+    def reduce(self, f, component_codes):
         data = f(self.data)
         if data.ndim == 1:
             data = data[num.newaxis, :]
-        if isinstance(codes, CodesNSLCE):
-            codes = [codes]
+        if isinstance(component_codes, CodesNSLCE):
+            component_codes = [component_codes]
         assert data.ndim == 2
         assert data.shape[1] == self.data.shape[1]
-        assert len(codes) == data.shape[0]
-        self.codes = codes
+        assert len(component_codes) == data.shape[0]
+        self.component_codes = component_codes
         if isinstance(data, ma.MaskedArray):
             self.data = data
         else:
@@ -540,10 +614,10 @@ class MultiTrace(Object):
             ntrans,
             num.einsum('ik,jk->ijk', spectrum, num.conj(spectrum)))
 
-    def get_codes_grouped(self, grouping):
+    def get_component_codes_grouped(self, grouping):
         groups = defaultdict(list)
-        for irow, codes in enumerate(self.codes):
-            groups[grouping.key(codes)].append(irow)
+        for irow, component_codes in enumerate(self.component_codes):
+            groups[grouping.key(component_codes)].append(irow)
 
         return groups
 
@@ -553,17 +627,18 @@ class MultiTrace(Object):
             translation=ReplaceComponentTranslation(),
             postprocessing=None):
 
-        groups = self.get_codes_grouped(grouping)
+        groups = self.get_component_codes_grouped(grouping)
 
         data = self.data.astype(num.float64)
         data **= 2
         data3 = num.ma.empty((len(groups), self.nsamples))
-        codes = []
+        component_codes = []
         for irow_out, irows_in in enumerate(groups.values()):
             data3[irow_out, :] = data[irows_in, :].sum(axis=0)
-            codes.append(CodesNSLCE(
+            component_codes.append(CodesNSLCE(
                 translation.translate(
-                    self.codes[irows_in[0]]).safe_str.format(component='G')))
+                    self.component_codes[irows_in[0]]).safe_str.format(
+                        component='G')))
 
         if data3.mask is ma.nomask:
             data3.mask = ma.make_mask_none(data3.shape)
@@ -573,7 +648,8 @@ class MultiTrace(Object):
 
         energy = MultiTrace(
             data=data3,
-            codes=codes,
+            codes=self.codes,
+            component_codes=component_codes,
             tmin=self.tmin,
             deltat=self.deltat)
 

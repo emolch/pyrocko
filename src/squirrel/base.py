@@ -185,6 +185,7 @@ class Batch(object):
     def as_multitrace(
             self,
             codes=None,
+            component_codes=None,
             dtype=None,
             deltat=None,
             enforce_global_snap=True,
@@ -200,15 +201,16 @@ class Batch(object):
             warn_snap=warn_snap,
             chop=False)
 
-        data, codes, tmin, deltat = trace.merge_traces_data_as_array(
+        data, component_codes, tmin, deltat = trace.merge_traces_data_as_array(
             traces,
             tmin=self.tmin-self.tpad,
             tmax=self.tmax+self.tpad,
-            codes=codes)
+            codes=component_codes)
 
         return multitrace.MultiTrace(
             data=data,
             codes=codes,
+            component_codes=component_codes,
             tmin=tmin,
             deltat=deltat)
 

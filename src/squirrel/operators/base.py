@@ -177,6 +177,11 @@ class RegexGrouping(Grouping):
         return self._compiled_pattern.fullmatch(codes.safe_str).groups()
 
 
+class AllGrouping(Grouping):
+    def key(self, codes: CodesNSLCE) -> Hashable:
+        return None
+
+
 class NetworkGrouping(RegexGrouping):
     '''
     Group by *network* code.
@@ -1048,6 +1053,7 @@ __all__ = [
     'RegexFiltering',
     'CodesPatternFiltering',
     'Grouping',
+    'AllGrouping',
     'RegexGrouping',
     'NetworkGrouping',
     'StationGrouping',
