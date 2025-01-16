@@ -147,7 +147,9 @@ export const squirrelBlock = (block) => {
 
     return my
 }
-export const squirrelGates = () => {
+
+
+export const setupGates = () => {
     const gates = ref([])
     const timeMin = ref(TIME_MIN)
     const timeMax = ref(TIME_MAX)
@@ -326,4 +328,13 @@ export const squirrelGates = () => {
         getCoverages,
         getImages,
     }
+}
+
+let gates = null
+
+export const squirrelGates = () => {
+    if (connection === null) {
+        gates = setupGates()
+    }
+    return gates
 }
