@@ -180,6 +180,10 @@ class SquirrelRawHandler(SquirrelRequestHandler):
         kind, tmin, tmax = self.get_cleaned('kind tmin tmax', parameters)
         return self._squirrel.get_coverage(kind, tmin=tmin, tmax=tmax)
 
+    def p_get_responses(self, parameters):
+        #tmin, tmax = self.get_cleaned('kind tmin tmax', parameters)
+        return self._squirrel.get_responses()
+
 
 class ScaleChoice(guts.StringChoice):
     choices = ['lin', 'log']
