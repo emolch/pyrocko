@@ -1,29 +1,39 @@
-import { ref, onMounted } from '../vue.esm-browser.js'
+import { ref, computed, onMounted } from '../vue.esm-browser.js'
 import { squirrelMap } from '../squirrel/map.js'
+import { squirrelTimeline } from '../squirrel/timeline.js'
+import { squirrelGates } from '../squirrel/gate.js'
 
 export const componentTimeline = {
-    props: ['gates'],
-    setup(props) {
-      console.log('componentTimeline mounted')
-      const frequencyMin = ref(props.gates.frequencyMin)
-      const frequencyMax = ref(props.gates.frequencyMax)
-      return { frequencyMin, frequencyMax }
+    setup() {
+
+        console.log('componentTimeline mounted')
+        const gates = squirrelGates()
+        const frequencyMin = ref(gates.frequencyMin)
+        const frequencyMax = ref(gates.frequencyMax)
+
+        const timeline = squirrelTimeline()
+
+        onMounted(() => {
+            d3.select('#timeline').call(timeline)
+        })
+
+        return { frequencyMin, frequencyMax }
     },
     template: `
-      <div id="timeline" tabindex="0" class="vbox-main tab-pane">
+        <div id="timeline" tabindex="0" class="vbox-main tab-pane">
+        </div>
+        <div class="container">
+            <div class="form-group row">
+                <div class="col-2">
+                    <input type="text" class="form-control" v-model="frequencyMin" />
                 </div>
-                    <div class="container">
-                        <div class="form-group row">
-                            <div class="col-2">
-                                <input type="text" class="form-control" v-model="frequencyMin" />
-                            </div>
-                            <div class="col-2">
-                                <input type="text" class="form-control" v-model="frequencyMax" />
-                            </div>
-                        </div>
-                    </div>
+                <div class="col-2">
+                    <input type="text" class="form-control" v-model="frequencyMax" />
+                </div>
+            </div>
+        </div>
     `,
-  }
+}
 
 export const componentMap = {
     setup() {
@@ -32,55 +42,66 @@ export const componentMap = {
             d3.select('#map').call(map)
             map.addBasemap().addSensors()
         })
-      
+
         console.log('componentMap mounted')
     },
     template: `
       <div id="map" class="map-container vbox-main tab-pane"></div>
     `,
-  }
-
+}
 
 export const componentTable = {
     setup() {
-      const sortTable = (sortValue) => {
-        if (sortValue === currentSort.value) {
-            currentSortDir.value = currentSortDir.value==='asc'?'desc' : 'asc'
-        } else {
-            currentSort.value = sortValue
-            currentSortDir.value = 'asc'
+        const sortTable = (sortValue) => {
+            if (sortValue === currentSort.value) {
+                currentSortDir.value =
+                    currentSortDir.value === 'asc' ? 'desc' : 'asc'
+            } else {
+                currentSort.value = sortValue
+                currentSortDir.value = 'asc'
+            }
         }
-    }
 
-      const setOption = (option) => {
-        console.log('Selected:', option);
-        selectedOption.value = option;
-      };
+        const setOption = (option) => {
+            console.log('Selected:', option)
+            selectedOption.value = option
+        }
 
+        const sensors = ref([])
+        const currentSort = ref('codes')
+        const currentSortDir = ref('asc')
+        const selectedOption = ref('Station')
+        //const sortedSensors = ref([])
+        //
 
-    const sensors = ref([])
-    const currentSort = ref('codes')
-    const currentSortDir = ref('asc')
-    const selectedOption = ref('Station');
-    const sortedSensors = computed(() => {
-      return [...sensors.value].sort((a, b) => {
-        let modifier = 1
-        if (currentSortDir.value === 'desc') modifier = -1
+        const sortedSensors = computed(() => {
+            return [...sensors.value].sort((a, b) => {
+                let modifier = 1
+                if (currentSortDir.value === 'desc') modifier = -1
 
-        if (a[currentSort.value] < b[currentSort.value]) return -1 * modifier
-        if (a[currentSort.value] > b[currentSort.value]) return 1 * modifier
-        return 0
-      })
-    })
-    // onMounted(() => {
-    //   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-    //   tooltipTriggerList.forEach((tooltipTriggerEl) => {
-    //     new bootstrap.Tooltip(tooltipTriggerEl)
-    //   })
-    // }
-    //)
-      console.log('componentTable mounted')
-      return {sortTable, setOption, sensors, currentSort, currentSortDir, selectedOption, sortedSensors}
+                if (a[currentSort.value] < b[currentSort.value])
+                    return -1 * modifier
+                if (a[currentSort.value] > b[currentSort.value])
+                    return 1 * modifier
+                return 0
+            })
+        })
+        // onMounted(() => {
+        //   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        //   tooltipTriggerList.forEach((tooltipTriggerEl) => {
+        //     new bootstrap.Tooltip(tooltipTriggerEl)
+        //   })
+        // }
+        //)
+        console.log('componentTable mounted')
+        return {
+            sortTable,
+            setOption,
+            currentSort,
+            currentSortDir,
+            selectedOption,
+            sortedSensors,
+        }
     },
     template: `
     <div class="vbox-main tab-pane sensor-table">
@@ -160,6 +181,5 @@ export const componentTable = {
                         </tbody>
                     </table>
                 </div>
-    `
-  }
-
+    `,
+}

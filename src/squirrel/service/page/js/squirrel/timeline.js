@@ -9,6 +9,7 @@ import {
     tomorrow,
 } from './common.js'
 import { squirrelConnection } from './connection.js'
+import { squirrelGates } from './gate.js'
 
 const sha1 = async (str) => {
     const enc = new TextEncoder()
@@ -117,10 +118,10 @@ const projectionHelper = () => {
     return my
 }
 
-export const squirrelTimeline = (gates_) => {
+export const squirrelTimeline = () => {
     // parameters
 
-    let gates = gates_
+    let gates = squirrelGates()
 
     let marginTop = 100
     let marginBottom = 110
