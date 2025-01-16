@@ -51,7 +51,9 @@
             </ul>
 
                 <div v-show="selectedTab === 1" id="add" class="vbox-main tab-pane">
-                    <p>{{response}}</p>
+                    <template v-for="res in response">
+                        <p>{{res}}</p>
+                    </template>
                 </div>
 
 
@@ -75,10 +77,29 @@
                     <table class="table">
                         <thead>    
                             <tr>
+                                <th scope="col">
+                                    <div class="dropdown">
+                                        <button
+                                            class="btn btn-outline-primary dropdown-toggle"
+                                            type="button"
+                                            id="stationChannelDropdown"
+                                            data-bs-toggle="dropdown"
+                                            
+                                        >
+                                            {{ selectedOption }}
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="stationChannelDropdown">
+                                            <li><a class="dropdown-item" href="#" @click="setOption('Station')">Station</a></li>
+                                            <li><a class="dropdown-item" href="#" @click="setOption('Channel')">Channel</a></li>
+                                            <li><a class="dropdown-item" href="#" @click="setOption('Sensor')">Sensor</a></li>
+                                            <li><a class="dropdown-item" href="#" @click="setOption('Response')">Response</a></li>
+                                        </ul>
+                                    </div>
+                                </th>
                                 
-                                <th scope="col" @click="sortTable('sensor')">Station/Channel/Sensor/Response<span v-if="currentSort === 'sensor'">
+                                <!--<th scope="col" @click="sortTable('sensor')">Station/Channel/Sensor/Response <span v-if="currentSort === 'sensor'"
                                     {{ currentSortDir === 'asc' ? '▲' : '▼' }}
-                                </span></th>
+                                </span></th> -->
                                 <th scope="col" @click="sortTable('lat')" style="text-align: right">Latitude     <span v-if="currentSort === 'lat'">
                                     {{ currentSortDir === 'asc' ? '▲' : '▼' }}
                                 </span></th>
@@ -88,7 +109,7 @@
                                 <th scope="col" @click="sortTable('tmin')" style="text-align: right">Start<span v-if="currentSort === 'tmin'">
                                     {{ currentSortDir === 'asc' ? '▲' : '▼' }}
                                 </span></th>
-                                <th scope="col" @click="sortTable('tmax')" style="text-align: right">End<span v-if="currentSort === 'tmax'">
+                                <th scope="col" @click="sortTable('tmin')" style="text-align: right">End<span v-if="currentSort === 'tmin'">
                                     {{ currentSortDir === 'asc' ? '▲' : '▼' }}
                                 </span></th>
                                 <th scope="col" @click="sortTable('deltat')" style="text-align: right">ΔT [Hz]<span v-if="currentSort === 'deltat'">
@@ -102,15 +123,26 @@
                         <tbody>
                             <template v-for="sensor in sortedSensors">
                                 <tr v-for="channel in sensor.channels">
+                                    
                                     <td>
-                                        {{sensor.codes}}
+                                        <!--{{sensor.codes}}-->
+                                        <template v-if="selectedOption === 'Station'">
+                                            {{sensor.codes}}
+                                        </template>
+                                        <template v-if="selectedOption === 'Channel'">
+                                            {{channel.codes}}
+                                        </template>
+                                        <!--<template v-if="selectedOption === 'Response'">
+                                                <p>Sampling rate: {{res.input_sample_rate}} Hz -> {{res.output_sample_rate}} Hz</p>
+                                        </template>-->
+                                        
                                     </td>
                                     <td style="text-align: right">{{ channel.lat }}</td>
                                     <td style="text-align: right">{{ channel.lon }}</td>
                                     <td style="text-align: right">{{channel.tmin}}</td>
                                     <td style="text-align: right">{{channel.tmax ? channel.tmax : ""}}</td>
                                     <td style="text-align: right">{{1/sensor.deltat}}</td>
-                                    <td><span v-if="channel.azimuth !== 0 && channel.azimuth !== 90 || channel.dip !== 0 && channel.dip !== -90">&#x2221;</span></td>
+                                    <td><span v-if="channel.azimuth !== 0 && channel.azimuth !== 90 || channel.dip !== 0 && channel.dip !== -90" data-bs-toggle="tooltip" :title="`Unusual Orientation: Azimuth ${channel.azimuth}, Dip ${channel.dip}`">&#x2221;</span></td>
                                     <!--<td>{{sensor}}</td>-->
                                 </tr>
                         </div>
@@ -168,12 +200,16 @@
                 const response = ref([])
                 const currentSort = ref('codes')
                 const currentSortDir = ref('asc')
+
+                const selectedOption = ref('Station');
+                
                 
 
                 let connection = ref(squirrelConnection())
                 let gates = squirrelGates()
                 let timeline = squirrelTimeline(gates)
                 let map = squirrelMap()
+                
 
                 gates.addGate()
 
@@ -184,7 +220,7 @@
 
                 const fetchResponse = async () => {
                     const connection = squirrelConnection();
-                    response.value = await connection.request('raw/get_codes', { kind: 'response' });
+                    response.value = await connection.request('raw/get_responses', { kind: 'response' });
                 };
 
                 onMounted(() => {
@@ -193,6 +229,10 @@
                     d3.select('#map').call(map)
                     map.addBasemap().addSensors()
                     d3.select('#timeline').call(timeline)
+                    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+                    tooltipTriggerList.forEach((tooltipTriggerEl) => {
+                    new bootstrap.Tooltip(tooltipTriggerEl);
+                    })
                 })
 
                 const selectTab = (tabIndex) => {
@@ -230,8 +270,15 @@
 
                     const presentDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 
+                     
 
-                return { connection, selectedTab, selectTab, sensors, response, gates: ref(gates), fmtDuration, currentSort, currentSortDir, sortedSensors, sortTable, presentDate}
+                    const setOption = (option) => {
+                        console.log('Selected:', option);
+                        selectedOption.value = option;
+                    };
+
+
+                return { connection, selectedTab, selectTab, sensors, response, gates: ref(gates), fmtDuration, currentSort, currentSortDir, sortedSensors, sortTable, presentDate, selectedOption, setOption}
             },
         }).mount('#app')
     </script>
