@@ -437,8 +437,8 @@ platform:
 steps:
 - name: install
   commands:
-  - C:\Windows\System32\cleanmgr.exe /dC
-  - Remove-Item -Recurse -Force -ErrorAction Ignore C:\\Users\\IEUser\\miniconda3\\Lib\\site-packages\\pyrocko
+  #- C:\\Windows\\System32\\cleanmgr.exe /dC
+  #- Remove-Item -Recurse -Force -ErrorAction Ignore C:\\Users\\IEUser\\miniconda3\\Lib\\site-packages\\pyrocko
   # 2024-09-24: current vtk package is incompatible with python 3.12 and using python 3.11 leads to other random dependency issues; omitting vtk
   - conda create --name test_env_${DRONE_BUILD_NUMBER} --yes python=3.12 pytest m2-tar m2-gzip m2-patch setuptools wheel numpy>=1.16 scipy>=1.0 pyyaml matplotlib requests jinja2 pyqt
   #- conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python install.py deps conda --yes
@@ -446,17 +446,8 @@ steps:
   - New-Item -Path test\\data -ItemType SymbolicLink -Value C:\\vagrant\\test-data
   # ensure config is there to prevent race conditions in parallel test runs
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pyrocko.config
-
-- name: test-base
-  commands:
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/base
-
-- name: test-gf
-  commands:
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gf
-
-- name: test-examples
-  commands:
   - mkdir test\\example_run_dir
   - mkdir test\\example_run_dir_local
   - New-Item -Path test\\example_run_dir\\ak135_static -ItemType SymbolicLink -Value C:\\vagrant\\test-data\\gf_stores\\ak135_static
@@ -464,14 +455,7 @@ steps:
   - New-Item -Path test\\example_run_dir\\gf_abruzzo_nearfield_vmod_Ameri -ItemType SymbolicLink -Value C:\\vagrant\\test-data\\gf_stores\\gf_abruzzo_nearfield_vmod_Ameri
   - New-Item -Path test\\example_run_dir\\iceland_reg_v2 -ItemType SymbolicLink -Value C:\\vagrant\\test-data\\gf_stores\\iceland_reg_v2
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/examples
-
-- name: test-gui
-  commands:
   - conda run --no-capture-output --name test_env_${DRONE_BUILD_NUMBER} python -m pytest -v test/gui/test_snuffler.py
-
-- name: finalize
-  commands: []
-
 - name: cleanup
   commands:
   - conda env remove --name test_env_${DRONE_BUILD_NUMBER} --yes
