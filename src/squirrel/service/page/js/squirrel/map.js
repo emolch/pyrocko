@@ -1,7 +1,10 @@
+import { watch } from '../vue.esm-browser.js'
 import { createIfNeeded, colors } from './common.js'
 import { squirrelConnection } from './connection.js'
 
-export const squirrelMap = () => {
+export const squirrelMap = (gates_) => {
+    let gates = gates_
+
     let map
     let basemapGroup
     let symbolGroup
@@ -92,9 +95,9 @@ export const squirrelMap = () => {
         projectBasemap()
     }
 
-    const addSensors = async () => {
-        const connection = squirrelConnection()
-        const locations = await connection.request('raw/get_sensors')
+    const updateSensors = () => {
+
+        locations = gates.sensors.value
 
         symbolGroup.selectAll('circle')
             .data(locations)
@@ -132,6 +135,8 @@ export const squirrelMap = () => {
         map.on('wheel', (ev) => {
             scaleDelta(ev.wheelDeltaY / 120)
         })
+
+        watch([gates.sensors], updateSensors)
     }
 
     my.scale = function (_) {

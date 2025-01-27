@@ -10,6 +10,9 @@ const TIME_MAX = tomorrow() + 5 * 365 * 24 * 60 * 60
 export const squirrelGate = () => {
     const counter = ref(0)
     const codes = ref([])
+    const channels = ref([])
+    const sensors = ref([])
+    const responses = ref([])
     const timeSpans = ref({
         waveform: null,
         channel: null,
@@ -28,6 +31,18 @@ export const squirrelGate = () => {
             }
         }
         return Array.from(codes)
+    }
+
+    const fetchChannels = async () => {
+        return connection.request('gate/default/get_channels')
+    }
+
+    const fetchSensors = async () => {
+        return connection.request('gate/default/get_sensors')
+    }
+
+    const fetchResponses = async () => {
+        return connection.request('gate/default/get_responses')
     }
 
     const fetchTimeSpans = async () => {
@@ -50,10 +65,11 @@ export const squirrelGate = () => {
     }
 
     const update = async () => {
-        const newCodes = await fetchCodes()
-        codes.value = newCodes
-        const newTimeSpans = await fetchTimeSpans()
-        timeSpans.value = newTimeSpans
+        codes.value = await fetchCodes()
+        timeSpans.value = await fetchTimeSpans()
+        channels.value = await fetchChannels()
+        sensors.value = await fetchSensors()
+        responses.value = await fetchResponses()
     }
 
     return { codes, timeSpans, update, counter }
@@ -252,6 +268,16 @@ export const setupGates = () => {
         }
         return block.getImages()
     }
+
+    const sensors = computed(() => {
+        const sensors = []
+        for (const gate of gates.value) {
+            for (const sensor of gate.sensors.value) {
+                sensors.push(sensor)
+            }
+        }
+        return sensors
+    })
 
     const codes = computed(() => {
         const codes = new Set()
