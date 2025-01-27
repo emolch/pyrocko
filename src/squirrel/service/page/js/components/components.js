@@ -2,6 +2,7 @@ import { ref, computed, onMounted } from '../vue.esm-browser.js'
 import { squirrelMap } from '../squirrel/map.js'
 import { squirrelTimeline } from '../squirrel/timeline.js'
 import { squirrelGates } from '../squirrel/gate.js'
+import { squirrelConnection } from '../squirrel/connection.js'
 
 export const componentTimeline = {
     setup() {
@@ -71,8 +72,11 @@ export const componentTable = {
         const currentSort = ref('codes')
         const currentSortDir = ref('asc')
         const selectedOption = ref('Station')
-        //const sortedSensors = ref([])
-        //
+
+        const fetchSensors = async () => {
+            const connection = squirrelConnection()
+            sensors.value = await connection.request('raw/get_sensors')
+        }
 
         const sortedSensors = computed(() => {
             return [...sensors.value].sort((a, b) => {
@@ -86,13 +90,13 @@ export const componentTable = {
                 return 0
             })
         })
-        // onMounted(() => {
+        onMounted(() => {
         //   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
         //   tooltipTriggerList.forEach((tooltipTriggerEl) => {
         //     new bootstrap.Tooltip(tooltipTriggerEl)
         //   })
-        // }
-        //)
+            fetchSensors()
+        })
         console.log('componentTable mounted')
         return {
             sortTable,
@@ -174,7 +178,7 @@ export const componentTable = {
                                       <td>
                                         <span v-if="channel.azimuth !== 0 && channel.azimuth !== 90 || channel.dip !== 0 && channel.dip !== -90" data-bs-toggle="tooltip" :title="'Unusual Orientation: Azimuth ' + channel.azimuth + ', Dip ' + channel.dip">&#x2221;</span>
                                       </td>
-                                      <td>{{sensor}}</td>
+                                      <!--<td>{{sensor}}</td>-->
                                 </tr>
                               </template>
                         

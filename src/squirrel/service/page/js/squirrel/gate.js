@@ -333,7 +333,7 @@ export const setupGates = () => {
 let gates = null
 
 export const squirrelGates = () => {
-    if (connection === null) {
+    if (gates === null) { 
         gates = setupGates()
     }
     return gates

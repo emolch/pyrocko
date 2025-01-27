@@ -151,6 +151,8 @@
 
                 gates.addGate()
 
+                
+
                 onMounted(() => {
                     //const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
                     //tooltipTriggerList.forEach((tooltipTriggerEl) => {
@@ -159,9 +161,9 @@
                 })
 
                 const selectTab = (tabName) => {
-                    //tabs[selectedTab].deactivate()
+                    //tabs[tabName].deactivate()
                     selectedTab.value = tabName
-                    //tabs[tabName].activate()
+                    //tabs[tabName].activate() !!
                 }
 
                 return {
