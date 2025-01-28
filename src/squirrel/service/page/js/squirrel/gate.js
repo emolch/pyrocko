@@ -7,12 +7,13 @@ import { squirrelConnection } from './connection.js'
 const TIME_MIN = strToTime('1900-01-01 00:00:00')
 const TIME_MAX = tomorrow() + 5 * 365 * 24 * 60 * 60
 
-export const squirrelGate = () => {
+export const squirrelGate = (gate_id_) => {
+    const gate_id = gate_id_
     const counter = ref(0)
-    const codes = ref([])
-    const channels = ref([])
+    const codes = shallowRef([])
+    const channels = shallowRef([])
     const sensors = shallowRef([])
-    const responses = ref([])
+    const responses = shallowRef([])
     const timeSpans = ref({
         waveform: null,
         channel: null,
@@ -21,10 +22,14 @@ export const squirrelGate = () => {
 
     const connection = squirrelConnection()
 
+    const gateRequest = (method, data) => {
+        return connection.request('gate/' + gate_id + '/' + method, data)
+    }
+
     const fetchCodes = async () => {
         const codes = new Set()
         for (const kind of ['waveform', 'channel', 'response']) {
-            for (const c of await connection.request('gate/default/get_codes', {
+            for (const c of await gateRequest('get_codes', {
                 kind: kind,
             })) {
                 codes.add(c)
@@ -34,24 +39,21 @@ export const squirrelGate = () => {
     }
 
     const fetchChannels = async () => {
-        return connection.request('gate/default/get_channels')
+        return gateRequest('get_channels')
     }
 
     const fetchSensors = async () => {
-        return connection.request('gate/default/get_sensors')
+        return gateRequest('get_sensors')
     }
 
     const fetchResponses = async () => {
-        return connection.request('gate/default/get_responses')
+        return gateRequest('get_responses')
     }
 
     const fetchTimeSpans = async () => {
         const newTimeSpans = {}
         for (const kind of ['waveform', 'channel', 'response']) {
-            const span = await connection.request(
-                'gate/default/get_time_span',
-                { kind: kind }
-            )
+            const span = await gateRequest('get_time_span', { kind: kind })
             span.tmin = span.tmin != null ? strToTime(span.tmin) : TIME_MIN
             span.tmax =
                 span.tmax != null
@@ -229,7 +231,7 @@ export const setupGates = () => {
     const pageBackward = makePageMove(-1)
 
     const addGate = () => {
-        const gate = squirrelGate()
+        const gate = squirrelGate('default')
         gates.value.push(gate)
         gate.update()
     }
