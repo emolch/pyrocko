@@ -1,9 +1,10 @@
 import { watch } from '../vue.esm-browser.js'
 import { createIfNeeded, colors } from './common.js'
 import { squirrelConnection } from './connection.js'
+import { squirrelGates } from './gate.js'
 
-export const squirrelMap = (gates_) => {
-    let gates = gates_
+export const squirrelMap = () => {
+    let gates = squirrelGates()
 
     let map
     let basemapGroup
@@ -24,7 +25,8 @@ export const squirrelMap = (gates_) => {
     }
 
     const projectBasemap = () => {
-        basemapGroup.selectAll('g')
+        basemapGroup
+            .selectAll('g')
             .selectAll('path')
             .attr('d', d3.geoPath().projection(projection))
     }
@@ -46,7 +48,7 @@ export const squirrelMap = (gates_) => {
     }
 
     const resizeHandler = () => {
-        console.log('resize map')
+        updateSensors()
         bounds = containerBounds()
         map.attr('width', bounds.width).attr('height', bounds.height)
         reProject()
@@ -67,7 +69,8 @@ export const squirrelMap = (gates_) => {
             'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
         )
 
-        basemapGroup.append('g')
+        basemapGroup
+            .append('g')
             .selectAll('path')
             .data(data.features)
             .enter()
@@ -77,13 +80,12 @@ export const squirrelMap = (gates_) => {
 
         let graticule = d3.geoGraticule()
 
-        basemapGroup.append('g')
+        basemapGroup
+            .append('g')
             .append('path')
             .datum(graticule)
             .attr('fill', 'none')
             .attr('stroke', colors['aluminium2'])
-
-
 
         //map.append('g')
         //    .append('path')
@@ -96,10 +98,10 @@ export const squirrelMap = (gates_) => {
     }
 
     const updateSensors = () => {
+        const locations = gates.sensors.value
 
-        locations = gates.sensors.value
-
-        symbolGroup.selectAll('circle')
+        symbolGroup
+            .selectAll('circle')
             .data(locations)
             .enter()
             .append('circle')
@@ -145,11 +147,6 @@ export const squirrelMap = (gates_) => {
 
     my.addBasemap = () => {
         addBasemap()
-        return my
-    }
-
-    my.addSensors = () => {
-        addSensors()
         return my
     }
 

@@ -162,7 +162,6 @@ export const squirrelTimeline = () => {
             0,
             bounds.width,
         ])
-        console.log("gates.timeMin.value, gates.timeMax.value", gates.timeMin.value, gates.timeMax.value)
         trackProjection.range([marginTop, bounds.height - marginBottom])
         pageRect.attr('x', 0)
         pageRect.attr('y', marginTop)
@@ -180,7 +179,6 @@ export const squirrelTimeline = () => {
     }
 
     const resizeHandler = () => {
-        console.log('resize timeline')
         bounds = containerBounds()
         timeline.attr('width', bounds.width).attr('height', bounds.height)
         update()
@@ -290,7 +288,6 @@ export const squirrelTimeline = () => {
             ymin: trackProjection.lower(track),
             ymax: trackProjection.upper(track),
         }
-        console.log("coverage.tmin:", coverage.tmin)
         return box
     }
 

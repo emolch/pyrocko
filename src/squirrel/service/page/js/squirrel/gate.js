@@ -1,4 +1,4 @@
-import { ref, computed, watch } from '../vue.esm-browser.js'
+import { ref, shallowRef, computed, watch } from '../vue.esm-browser.js'
 
 import { strToTime, timeToStr, tomorrow } from './common.js'
 
@@ -11,7 +11,7 @@ export const squirrelGate = () => {
     const counter = ref(0)
     const codes = ref([])
     const channels = ref([])
-    const sensors = ref([])
+    const sensors = shallowRef([])
     const responses = ref([])
     const timeSpans = ref({
         waveform: null,
@@ -57,10 +57,8 @@ export const squirrelGate = () => {
                 span.tmax != null
                     ? Math.min(strToTime(span.tmax), tomorrow())
                     : tomorrow()
-            console.log('aaa', span.tmin, timeToStr(span.tmin))
             newTimeSpans[kind] = span
         }
-        console.log("newTimeSpans: ", newTimeSpans)
         return newTimeSpans
     }
 
@@ -72,7 +70,7 @@ export const squirrelGate = () => {
         responses.value = await fetchResponses()
     }
 
-    return { codes, timeSpans, update, counter }
+    return { codes, timeSpans, channels, sensors, responses, update, counter }
 }
 
 export const squirrelBlock = (block) => {
@@ -177,7 +175,6 @@ export const setupGates = () => {
     let initialTimeSpanSet = false
 
     const makeTimeBlock = (tmin, tmax) => {
-        console.log('xxx', tmin, tmax, timeToStr(tmin), timeToStr(tmax))
         const iscale = Math.ceil(Math.log2(blockFactor * (tmax - tmin)))
         const tstep = Math.pow(2, iscale)
         const itime = Math.round((tmin + tmax) / tstep)
@@ -212,7 +209,6 @@ export const setupGates = () => {
     }
 
     const setTimeSpan = (tmin, tmax) => {
-        console.log('yyy')
         timeMin.value = Math.max(tmin, TIME_MIN)
         timeMax.value = Math.min(tmax, TIME_MAX)
         update()
@@ -269,10 +265,20 @@ export const setupGates = () => {
         return block.getImages()
     }
 
+    const channels = computed(() => {
+        const channels = []
+        for (const gate of gates.value) {
+            for (const channel of gate.channels.value) {
+                channels.push(channel)
+            }
+        }
+        return channels
+    })
+
     const sensors = computed(() => {
         const sensors = []
         for (const gate of gates.value) {
-            for (const sensor of gate.sensors.value) {
+            for (const sensor of gate.sensors) {
                 sensors.push(sensor)
             }
         }
@@ -315,17 +321,14 @@ export const setupGates = () => {
                 }
             }
         }
-        console.log('computed time spans', spans)
         return spans
     })
 
     watch([timeSpans], () => {
         if (!initialTimeSpanSet) {
-            console.log(timeSpans.value)
             const span = timeSpans.value['waveform']
             if (span !== null) {
                 const duration = span.tmax - span.tmin
-                console.log('zzz')
                 setTimeSpan(
                     span.tmin - duration * 0.025,
                     span.tmax + duration * 0.025
@@ -350,6 +353,8 @@ export const setupGates = () => {
         halfPageBackward,
         addGate,
         codes,
+        channels,
+        sensors,
         timeSpans,
         getCoverages,
         getImages,

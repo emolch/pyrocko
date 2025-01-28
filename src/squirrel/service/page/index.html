@@ -148,19 +148,8 @@
                 const selectedTab = ref('timeline')
                 let connection = ref(squirrelConnection())
                 let gates = squirrelGates()
-                let timeline = squirrelTimeline(gates)
-                let map = squirrelMap(gates)
 
                 gates.addGate()
-
-                
-
-                onMounted(() => {
-                    //const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-                    //tooltipTriggerList.forEach((tooltipTriggerEl) => {
-                    //new bootstrap.Tooltip(tooltipTriggerEl)
-                    //})
-                })
 
                 const selectTab = (tabName) => {
                     //tabs[tabName].deactivate()

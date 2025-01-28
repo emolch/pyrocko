@@ -27,6 +27,7 @@ from pyrocko.squirrel import model
 from pyrocko import guts
 from pyrocko.squirrel.error import ToolError, SquirrelError
 from pyrocko.squirrel import operators as ops
+from pyrocko.squirrel.base import Squirrel
 
 logger = logging.getLogger('psq.service.server')
 
@@ -41,9 +42,8 @@ def str_choice(s, choices):
     return s
 
 
-def optional_time(x):
-    print(f"Parsing time: {x}")
-    return util.str_to_time_fillup(x) if x is not None else None
+def to_codes_list(x):
+    return [model.to_codes_guess(s.strip()) for s in x.split(',')]
 
 
 def get_parameters_dict(body):
@@ -90,13 +90,22 @@ class SquirrelRequestHandler(web.RequestHandler):
         print("parameters: ", parameters)
 
         clean = {
-             'kind': lambda x: str_choice(x, model.g_content_kinds),
-             'tmin': lambda x: optional_time(x),
-             'tmax': lambda x: optional_time(x),
-             'fmin': lambda x: float(x),
-             'fmax': lambda x: float(x)}
+            'kind': lambda x: str_choice(x, model.g_content_kinds),
+            'tmin': util.str_to_time_fillup,
+            'tmax': util.str_to_time_fillup,
+            'codes': to_codes_list,
+            'fmin': float,
+            'fmax': float
+        }
+
+        def clean_or_none(f, x):
+            return f(x) if x is not None else None
+
         try:
-            return [clean[name](parameters.get(name, None)) for name in names]
+            return [
+                clean_or_none(clean[name], parameters.get(name, None))
+                for name in names]
+
         except Exception as e:
             raise web.HTTPError(400, 'Bad request: %s' % str(e))
 
@@ -171,18 +180,24 @@ class SquirrelRawHandler(SquirrelRequestHandler):
                 dummy_limits=False))
 
     def p_get_events(self, parameters):
+        tmin, tmax = self.get_cleaned('tmin tmax', parameters)
         return self._squirrel.get_events()
 
+    def p_get_channels(self, parameters):
+        tmin, tmax, codes = self.get_cleaned('tmin tmax codes', parameters)
+        return self._squirrel.get_channels(tmin=tmin, tmax=tmax, codes=codes)
+
     def p_get_sensors(self, parameters):
-        return self._squirrel.get_sensors()
+        tmin, tmax, codes = self.get_cleaned('tmin tmax codes', parameters)
+        return self._squirrel.get_sensors(tmin=tmin, tmax=tmax, codes=codes)
+
+    def p_get_responses(self, parameters):
+        tmin, tmax, codes = self.get_cleaned('tmin tmax codes', parameters)
+        return self._squirrel.get_responses(tmin=tmin, tmax=tmax, codes=codes)
 
     def p_get_coverage(self, parameters):
         kind, tmin, tmax = self.get_cleaned('kind tmin tmax', parameters)
         return self._squirrel.get_coverage(kind, tmin=tmin, tmax=tmax)
-
-    def p_get_responses(self, parameters):
-        #tmin, tmax = self.get_cleaned('kind tmin tmax', parameters)
-        return self._squirrel.get_responses()
 
 
 class ScaleChoice(guts.StringChoice):
@@ -226,13 +241,13 @@ class Gate(guts.Object):
     def from_query_arguments(cls, codes=None, tmin=None, tmax=None, time=None):
         operators = []
 
-        operators.append(
-            ops.MultiSpectrogramOperator(
-                filtering=ops.CodesPatternFiltering(codes=codes),
-                windowing=ops.Pow2Windowing(
-                    nblock=2**10,
-                    nlevels=3,
-                    weighting_exponent=4)))
+        # operators.append(
+        #     ops.MultiSpectrogramOperator(
+        #         filtering=ops.CodesPatternFiltering(codes=codes),
+        #         windowing=ops.Pow2Windowing(
+        #             nblock=2**10,
+        #             nlevels=3,
+        #             weighting_exponent=4)))
 
         return cls(
             tmin=tmin,
@@ -253,10 +268,21 @@ class Gate(guts.Object):
     def get_codes(self, *args, **kwargs):
         return self._outlet.get_codes(*args, **kwargs)
 
+    def get_channels(self, *args, **kwargs):
+        return self._outlet.get_channels(*args, **kwargs)
+
+    def get_sensors(self, *args, **kwargs):
+        return self._outlet.get_sensors(*args, **kwargs)
+
+    def get_responses(self, *args, **kwargs):
+        return self._outlet.get_responses(*args, **kwargs)
+
     def get_coverage(self, *args, **kwargs):
         return self._outlet.get_coverage(*args, **kwargs)
 
     def get_spectrogram_images(self, *args, fmin=0.001, fmax=1000.0, **kwargs):
+        if isinstance(self._outlet, Squirrel):
+            return []
 
         images = []
         for group in self._outlet.get_spectrogram_groups(
@@ -360,10 +386,20 @@ class SquirrelGateHandler(SquirrelRequestHandler):
         return TimeSpan(*gate.get_time_span(kinds=[kind], dummy_limits=False))
 
     def p_get_events(self, parameters, gate):
-        return gate.get_events()
+        tmin, tmax = self.get_cleaned('tmin tmax codes', parameters)
+        return gate.get_events(tmin=tmin, tmax=tmax)
+
+    def p_get_channels(self, parameters, gate):
+        tmin, tmax, codes = self.get_cleaned('tmin tmax codes', parameters)
+        return gate.get_channels(tmin=tmin, tmax=tmax, codes=codes)
 
     def p_get_sensors(self, parameters, gate):
-        return gate.get_sensors()
+        tmin, tmax, codes = self.get_cleaned('tmin tmax codes', parameters)
+        return gate.get_sensors(tmin=tmin, tmax=tmax, codes=codes)
+
+    def p_get_responses(self, parameters, gate):
+        tmin, tmax, codes = self.get_cleaned('tmin tmax codes', parameters)
+        return gate.get_responses(tmin=tmin, tmax=tmax, codes=codes)
 
     def p_get_coverage(self, parameters, gate):
         kind, tmin, tmax = self.get_cleaned('kind tmin tmax', parameters)

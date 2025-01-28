@@ -531,6 +531,23 @@ class Operator(Object):
         return self.process_channels(
             mappings, in_codes, channels, tmin, tmax)
 
+    def get_sensors(
+                self,
+                obj: HasTimeAndCodes = None,
+                tmin: TimeFloat = None,
+                tmax: TimeFloat = None,
+                time: TimeFloat = None,
+                codes: CodesConvertible = None,
+            ) -> tList[Sensor]:
+
+        tmin, tmax, codes = get_selection_args(
+            CHANNEL, obj, tmin, tmax, time, codes)
+
+        mappings = self.get_mappings(codes)
+        in_codes = self.get_in_codes(mappings)
+        channels = self.get_in_channels(in_codes, tmin, tmax)
+        return self.process_sensors(channels.values(), tmin, tmax)
+
     def get_responses(
                 self,
                 obj: HasTimeAndCodes = None,
@@ -741,6 +758,19 @@ class Operator(Object):
 
         return channels
 
+    def process_sensors(
+                self,
+                channels: tList[Channel],
+                tmin: TimeFloat = None,
+                tmax: TimeFloat = None,
+            ) -> tList[Sensor]:
+
+        from pyrocko.squirrel.base import match_time_span
+        return [
+            sensor
+            for sensor in Sensor.from_channels(channels)
+            if match_time_span(tmin, tmax, sensor)]
+
     def process_responses(
                 self,
                 mappings: tList[CodesMapping],
@@ -755,10 +785,13 @@ class Operator(Object):
             for in_codes, out_codes in zip(
                     mapping.in_codes, mapping.out_codes):
 
-                responses_in = codes_to_response[in_codes]
+                try:
+                    responses_in = codes_to_response[in_codes]
+                except KeyError:
+                    continue
+
                 response = clone(responses_in)
                 response.codes = out_codes
-
                 responses.append(response)
 
         return responses

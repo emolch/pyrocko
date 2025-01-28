@@ -6,8 +6,6 @@ import { squirrelConnection } from '../squirrel/connection.js'
 
 export const componentTimeline = {
     setup() {
-
-        console.log('componentTimeline mounted')
         const gates = squirrelGates()
         const frequencyMin = ref(gates.frequencyMin)
         const frequencyMax = ref(gates.frequencyMax)
@@ -41,10 +39,8 @@ export const componentMap = {
         let map = squirrelMap()
         onMounted(() => {
             d3.select('#map').call(map)
-            map.addBasemap().addSensors()
+            map.addBasemap()
         })
-
-        console.log('componentMap mounted')
     },
     template: `
       <div id="map" class="map-container vbox-main tab-pane"></div>
@@ -64,19 +60,15 @@ export const componentTable = {
         }
 
         const setOption = (option) => {
-            console.log('Selected:', option)
             selectedOption.value = option
         }
 
-        const sensors = ref([])
+        const gates = squirrelGates()
+
+        const sensors = gates.sensors
         const currentSort = ref('codes')
         const currentSortDir = ref('asc')
         const selectedOption = ref('Station')
-
-        const fetchSensors = async () => {
-            const connection = squirrelConnection()
-            sensors.value = await connection.request('raw/get_sensors')
-        }
 
         const sortedSensors = computed(() => {
             return [...sensors.value].sort((a, b) => {
@@ -90,14 +82,6 @@ export const componentTable = {
                 return 0
             })
         })
-        onMounted(() => {
-        //   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-        //   tooltipTriggerList.forEach((tooltipTriggerEl) => {
-        //     new bootstrap.Tooltip(tooltipTriggerEl)
-        //   })
-            fetchSensors()
-        })
-        console.log('componentTable mounted')
         return {
             sortTable,
             setOption,
