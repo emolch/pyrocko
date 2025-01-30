@@ -1735,12 +1735,15 @@ class Coverage(Object):
     Information about times covered by a waveform or other time series data.
     '''
     kind_id = Int.T(
-        help='Content type.')
+        help='Content type.',
+        optional=True)
     pattern = Codes.T(
         help='The codes pattern in the request, which caused this entry to '
-             'match.')
+             'match.',
+        optional=True)
     codes = Codes.T(
-        help='NSLCE or NSL codes identifier of the time series.')
+        help='NSLCE or NSL codes identifier of the time series.',
+        optional=True)
     deltat = Float.T(
         help='Sampling interval [s]',
         optional=True)
@@ -1755,7 +1758,8 @@ class Coverage(Object):
         help='List of change points, with entries of the form '
              '``(time, count)``, where a ``count`` of zero indicates start of '
              'a gap, a value of 1 start of normal data coverage and a higher '
-             'value duplicate or redundant data coverage.')
+             'value duplicate or redundant data coverage.',
+        optional=True)
 
     @classmethod
     def from_values(cls, args):
@@ -1781,11 +1785,11 @@ class Coverage(Object):
 
         return (
             self.__class__.__name__,
-            to_kind(self.kind_id),
-            str(self.codes),
+            to_kind(self.kind_id) if self.kind_id is not None else 'none',
+            str(self.codes) if self.codes is not None else 'none',
             ts,
             '%10.3g' % srate if srate else '',
-            '%i' % len(self.changes),
+            '%i' % len(self.changes) if self.changes is not None else 'none',
             '%s' % duration_to_str(total) if total else 'none')
 
     @property
@@ -1819,6 +1823,9 @@ class Coverage(Object):
         return total_t
 
     def iter_spans(self):
+        if self.changes is None:
+            return
+
         last = None
         for (t, count) in self.changes:
             if last is not None:
@@ -1829,6 +1836,9 @@ class Coverage(Object):
             last = (t, count)
 
     def iter_uncovered_by(self, other):
+        if None in (self.changes, other.changes):
+            return
+
         a = self
         b = other
         ia = ib = -1
@@ -1969,6 +1979,7 @@ __all__ = [
     'Response',
     'Nut',
     'Coverage',
+    'join_coverages',
     'WaveformPromise',
     'QuantityType',
 ]

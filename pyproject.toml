@@ -69,6 +69,7 @@ hamster = "pyrocko.apps.hamster:main"
 jackseis = "pyrocko.apps.jackseis:main"
 colosseo = "pyrocko.apps.colosseo:main"
 squirrel = "pyrocko.apps.squirrel:main"
+gato = "pyrocko.apps.gato:main"
 
 [project.entry-points.gui_scripts]
 snuffler = "pyrocko.apps.snuffler:main"

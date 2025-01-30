@@ -307,7 +307,7 @@ def main(args=None):
 
 def get_engine(gf_store_superdirs):
     engine = gf.LocalEngine(
-        store_superdirs=gf_store_superdirs, use_config=True)
+        store_superdirs=gf_store_superdirs, use_config=False)
 
     logger.info(
         'Directories to be searched for GF stores:\n%s'

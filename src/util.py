@@ -2177,7 +2177,11 @@ def match_nslcs(patterns, nslcs):
     return matching
 
 
-def glob_filter(patterns, names):
+class GlobFilterNoMatch(Exception):
+    pass
+
+
+def glob_filter(patterns, names, raise_if_nomatch=False):
     '''
     Select names matching any of the given patterns.
     '''
@@ -2185,10 +2189,31 @@ def glob_filter(patterns, names):
     if not patterns:
         return names
 
-    rpattern = re.compile(r'|'.join(
-        fnmatch.translate(pattern) for pattern in patterns))
+    rpatterns = [
+        re.compile(fnmatch.translate(pattern)) for pattern in patterns]
 
-    return [name for name in names if rpattern.match(name)]
+    if raise_if_nomatch:
+        count = [0] * len(patterns)
+
+    matching = []
+
+    for name in names:
+        matched = False
+        for ipattern, rpattern in enumerate(rpatterns):
+            if rpattern.match(name):
+                matched = True
+                count[ipattern] += 1
+
+        if matched:
+            matching.append(name)
+
+    if raise_if_nomatch and not all(count):
+        nonmatching = [pat for (pat, n) in zip(patterns, count) if n == 0]
+        raise GlobFilterNoMatch(
+            'Pattern%s did not match: %s'
+            % (plural_s(nonmatching), ', '.join(nonmatching)))
+
+    return matching
 
 
 class Timeout(Exception):
