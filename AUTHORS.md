@@ -3,27 +3,28 @@
 This following list includes contributors how have directly touched code or documentation of Pyrocko. 
 It is not a complete list, in the sense that many others have influenced the development of Pyrocko through discussion, bug reports and more.
 
-* Sebastian Heimann
-* Marius Kriegerowski
-* Marius Isken
-* Hannes Bathke
-* Malte Metz
-* Matthias Ohrnberger
-* Simone Cesca
-* Anne Mutzek
-* Maximilian Dwars
-* Simon Daout
-* Francesco Grigoli
-* Carina Juretzek
-* Johanna Lehr
-* Henning Lilienkamp
-* Richard McGraw
-* Tobias Megies
-* Nima Nooshiri
-* Gesa Petersen
+* Alexandra Tsiakalou
 * Andreas Steinberg
+* Anne Mutzek
+* Carina Juretzek
+* Francesco Grigoli
+* Gesa Petersen
+* Hannes Bathke
+* Henning Lilienkamp
 * Henriette Sudhaus
-* Timothy Willey
+* Johanna Lehr
+* Malte Metz
+* Marius Isken
+* Marius Kriegerowski
+* Matthias Ohrnberger
+* Maximilian Dwars
+* Nima Nooshiri
+* Richard McGraw
+* Sebastian Heimann
+* Simon Daout
+* Simone Cesca
 * Thoralf Dietrich
+* Timothy Willey
+* Tobias Megies
 * Torsten Dahm
 * Wasja Bloch

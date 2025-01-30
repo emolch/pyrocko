@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        <title>Squirrel</title>
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="images/apple-touch-icon.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="32x32"
+            href="images/favicon-32x32.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="16x16"
+            href="images/favicon-16x16.png"
+        />
+        <link rel="manifest" href="site.webmanifest" />
+
+        <link href="css/bootstrap.min.css" rel="stylesheet" />
+        <link href="css/local.css" rel="stylesheet" />
+        <script src="js/d3.v7.min.js"></script>
+        <script src="js/bootstrap.bundle.min.js"></script>
+    </head>
+
+    <body>
+        <div id="app" class="vbox-container">
+            <!--{{ selectedTab }}-->
+            <div v-if="!connection.connected" class="curtain">DISCONNECTED</div>
+            <div
+                v-if="connection.connected && connection.connected.delay > 5.0"
+                class="curtain"
+            >
+                DELAY {{ fmtDuration(connection.connected.delay) }}
+            </div>
+            <ul class="nav nav-tabs mt-1" role="tablist">
+                <li style="position: absolute; right: 0" class="nav-item">
+                    <a
+                        class="nav-link"
+                        :class="{ active: selectedTab === 1 }"
+                        @click=""
+                        ><img src="images/squirrel.svg" style="width: 5em; height: 5em;"></a>
+                </li>
+                <li class="nav-item">
+                    <a
+                        class="nav-link"
+                        :class="{ active: selectedTab === 'timeline' }"
+                        @click="selectTab('timeline')"
+                        >Timeline</a
+                    >
+                </li>
+                <li class="nav-item">
+                    <a
+                        class="nav-link"
+                        :class="{ active: selectedTab === 'map' }"
+                        @click="selectTab('map')"
+                        >Map</a
+                    >
+                </li>
+                <li class="nav-item">
+                    <a
+                        class="nav-link"
+                        :class="{ active: selectedTab === 'table' }"
+                        @click="selectTab('table')"
+                        >Info</a
+                    >
+                </li>
+            </ul>
+
+            <keep-alive>
+                <component :is="tabs[selectedTab]"></component>
+            </keep-alive>
+
+            <div v-if="connection.latestError" class="error-display">
+                <pre><code>{{ connection.latestError }}</code></pre>
+                <div>
+                    <button
+                        class="btn btn-primary"
+                        @click="connection.latestError = ''"
+                    >
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            <div class="connection-monitor">
+                <div v-if="connection.connected">
+                    <footer>
+                        Version: {{ connection.serverInfo.pyrocko_version }} |
+                        Connected:
+                        {{ fmtDuration(connection.connected.duration) }} |
+                        Requests:
+                        {{
+                            connection.serverInfo
+                                ? connection.serverInfo.n_requests
+                                : ''
+                        }}
+                        <span v-if="connection.connected.delay > 2.0">
+                            | Delay:
+                            {{ fmtDuration(connection.connected.delay) }}
+                        </span>
+                    </footer>
+                </div>
+                <div v-else>Disconnected</div>
+            </div>
+        </div>
+    </body>
+
+    <script type="module">
+        import {
+            createApp,
+            ref,
+            onMounted,
+            computed,
+        } from './js/vue.esm-browser.js'
+
+        import { squirrelConnection } from './js/squirrel/connection.js'
+        import { squirrelGates } from './js/squirrel/gate.js'
+        import { fmtDuration } from './js/squirrel/common.js'
+        import {
+            componentTimeline,
+            componentMap,
+            componentTable,
+        } from './js/components/components.js'
+
+        createApp({
+            components: {
+                componentTimeline,
+                componentMap,
+                componentTable,
+            },
+
+            setup() {
+                const tabs = {
+                    timeline: componentTimeline,
+                    map: componentMap,
+                    table: componentTable,
+                }
+
+                const selectedTab = ref('timeline')
+                let connection = ref(squirrelConnection())
+                let gates = squirrelGates()
+
+                gates.addGate()
+
+                const selectTab = (tabName) => {
+                    //tabs[tabName].deactivate()
+                    selectedTab.value = tabName
+                    //tabs[tabName].activate() !!
+                }
+
+                return {
+                    connection,
+                    selectedTab,
+                    selectTab,
+                    fmtDuration,
+                    tabs,
+                }
+            },
+        }).mount('#app')
+    </script>
+</html>
