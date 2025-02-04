@@ -428,8 +428,9 @@ g_content_kinds = [
     'response',
     'event',
     'waveform_promise',
-    'empty']
-
+    'empty',
+    'carpet',
+]
 
 g_codes_classes = [
     CodesX,
@@ -439,7 +440,8 @@ g_codes_classes = [
     CodesNSLCE,
     CodesX,
     CodesNSLCE,
-    CodesX]
+    CodesX,
+    CodesNSLCE]
 
 g_codes_classes_ndot = {
     0: CodesX,
@@ -491,7 +493,7 @@ def codes_patterns_for_kind(kind_id, codes):
 
 g_content_kind_ids = (
     UNDEFINED, WAVEFORM, STATION, CHANNEL, RESPONSE, EVENT,
-    WAVEFORM_PROMISE, EMPTY) = range(len(g_content_kinds))
+    WAVEFORM_PROMISE, EMPTY, CARPET) = range(len(g_content_kinds))
 
 
 g_tmin, g_tmax = util.get_working_system_time_range()[:2]
@@ -519,7 +521,7 @@ def to_kind_ids(kinds):
     return [g_content_kinds.index(kind) for kind in kinds]
 
 
-g_kind_mask_all = 0xff
+g_kind_mask_all = 0xffff
 
 
 def to_kind_mask(kinds):
@@ -1643,6 +1645,10 @@ def make_event_nut(**kwargs):
     return Nut(kind_id=EVENT, **kwargs)
 
 
+def make_carpet_nut(**kwargs):
+    return Nut(kind_id=CARPET, **kwargs)
+
+
 def group_channels(nuts):
     by_ansl = {}
     for nut in nuts:
@@ -1941,6 +1947,7 @@ __all__ = [
     'EVENT',
     'WAVEFORM_PROMISE',
     'EMPTY',
+    'CARPET',
     'to_codes',
     'to_codes_guess',
     'to_codes_simple',

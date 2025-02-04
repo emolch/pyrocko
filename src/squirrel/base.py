@@ -25,7 +25,7 @@ from pyrocko.plot import nice_time_tick_inc_approx_secs
 from . import model, io, cache, dataset
 
 from .model import to_kind_id, WaveformOrder, to_kind, to_codes, \
-    STATION, CHANNEL, RESPONSE, EVENT, WAVEFORM, codes_patterns_list, \
+    STATION, CHANNEL, RESPONSE, EVENT, WAVEFORM, CARPET, codes_patterns_list, \
     codes_patterns_for_kind
 from .client import fdsn, catalog
 from .selection import Selection, filldocs
@@ -352,6 +352,7 @@ class Squirrel(Selection):
 
         self._content_caches = {
             'waveform': cache.ContentCache(),
+            'carpet': cache.ContentCache(),
             'default': cache.ContentCache()}
 
         self._cache_path = cache_path
@@ -2798,6 +2799,62 @@ class Squirrel(Selection):
             chopped = chopped_weeded
 
         return chopped
+
+    @filldocs
+    def get_carpets(
+            self, obj=None, tmin=None, tmax=None, time=None, codes=None,
+            uncut=False, join=True, load_data=True, accessor_id='default'):
+
+        '''
+        Get carpets matching given constraints.
+
+        %(query_args)s
+        '''
+        from pyrocko import multitrace
+
+        tmin, tmax, codes = self._get_selection_args(
+            CARPET, obj, tmin, tmax, time, codes)
+
+        self_tmin, self_tmax = self.get_time_span(['carpet'])
+
+        if None in (self_tmin, self_tmax):
+            logger.warning(
+                'No carpets available.')
+            return []
+
+        tmin = tmin if tmin is not None else self_tmin
+        tmax = tmax if tmax is not None else self_tmax
+
+        nuts = sorted(
+            self.iter_nuts('carpet', tmin, tmax, codes),
+            key=lambda nut: nut.dkey)
+
+        if load_data:
+            carpets = [
+                self.get_content(nut, 'carpet', accessor_id) for nut in nuts]
+
+        else:
+            carpets = [
+                trace.Carpet(**nut.carpet_kwargs) for nut in nuts]
+
+        if uncut:
+            return carpets
+
+        chopped = []
+        for carpet in carpets:
+            if not load_data and carpet.data is not None:
+                carpet = carpet.copy(data='drop')
+
+            try:
+                chopped.append(carpet.chop(tmin, tmax))
+
+            except trace.NoData:
+                pass
+
+        if join:
+            return multitrace.join(chopped)
+        else:
+            return chopped
 
     def _get_pyrocko_stations(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
