@@ -3,6 +3,7 @@ from pyrocko.util import HTTPError, URLErrorSSL
 from pyrocko.client import catalog
 from pyrocko import moment_tensor
 import unittest
+import requests
 from .. import common
 
 
@@ -22,7 +23,7 @@ def is_the_haiti_event_geofon(ev):
 class CatalogTestCase(unittest.TestCase):
 
     @common.require_internet
-    @common.skip_on(HTTPError)
+    @common.skip_on(requests.ConnectionError)
     def testGeofon(self):
 
         cat = catalog.Geofon()
@@ -46,7 +47,7 @@ class CatalogTestCase(unittest.TestCase):
         cat.flush()
 
     @common.require_internet
-    @common.skip_on(HTTPError)
+    @common.skip_on(requests.ConnectionError)
     def testGeofonSingleEvent(self):
         cat = catalog.Geofon()
         ev = cat.get_event('gfz2010avtm')
@@ -57,7 +58,7 @@ class CatalogTestCase(unittest.TestCase):
         assert ev.name == 'gfz2019hkck'
 
     @common.require_internet
-    @common.skip_on(HTTPError)
+    @common.skip_on(requests.ConnectionError)
     def testGeofonMT(self):
         cat = catalog.Geofon()
         tmin = util.str_to_time('2014-01-01 00:00:00')
@@ -77,7 +78,7 @@ class CatalogTestCase(unittest.TestCase):
         assert isinstance(ev.moment_tensor, moment_tensor.MomentTensor)
 
     @unittest.skip("don't want to annoy our colleagues at GEOFON")
-    @common.skip_on(HTTPError)
+    @common.skip_on(requests.ConnectionError)
     def testGeofonMassive(self):
         cat = catalog.Geofon(get_moment_tensors=False)
         tmin = util.str_to_time('2010-01-01 00:00:00')

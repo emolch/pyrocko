@@ -5,19 +5,18 @@
 
 '''
 Client to get earthquake catalog information from
-`GEOFON <http://geofon.gfz-potsdam.de/>`_.
+`GEOFON <https://geofon.gfz.de/>`_.
 '''
 
 import time
 import re
 import logging
-import json
+
+import requests
 
 from pyrocko import model, util
 from pyrocko.moment_tensor import MomentTensor, symmat6
 from .base_catalog import EarthquakeCatalog, NotFound
-
-from pyrocko.util import urlopen
 
 logger = logging.getLogger('pyrocko.client.geofon')
 
@@ -31,6 +30,7 @@ class Geofon(EarthquakeCatalog):
     def __init__(self, get_moment_tensors=True):
         self.events = {}
         self._get_moment_tensors = get_moment_tensors
+        self._session = requests.Session()
 
     def flush(self):
         self.events = {}
@@ -57,7 +57,7 @@ class Geofon(EarthquakeCatalog):
 
         ipage = 1
         while True:
-            url = ('http://geofon.gfz-potsdam.de/eqinfo/list.php?' + '&'.join([
+            url = ('https://geofon.gfz.de/eqinfo/list.php?' + '&'.join([
                 'page=%i' % ipage,
                 'datemin=%s' % dmin,
                 'datemax=%s' % dmax,
@@ -70,9 +70,9 @@ class Geofon(EarthquakeCatalog):
                 'nmax=%i' % nmax]))
 
             logger.debug('Opening URL: %s' % url)
-            page = urlopen(url).read()
-            logger.debug('Received page (%i bytes)' % len(page))
-            events = self._parse_events_page(page)
+            r = self._session.get(url)
+            logger.debug('Received page (%i bytes)' % len(r.content))
+            events = self._parse_events_page(r)
             for ev in events:
                 if ev.moment_tensor is True:
                     ev.moment_tensor = self.get_mt(ev)
@@ -91,14 +91,14 @@ class Geofon(EarthquakeCatalog):
         logger.debug('In Geofon.get_event("%s")' % name)
 
         if name not in self.events:
-            url = 'http://geofon.gfz-potsdam.de/eqinfo/event.php' \
+            url = 'https://geofon.gfz.de/eqinfo/event.php' \
                   '?id=%s&fmt=geojson' % name
             logger.debug('Opening URL: %s' % url)
-            page = urlopen(url).read()
-            logger.debug('Received page (%i bytes)' % len(page))
+            r = self._session.get(url)
+            logger.debug('Received page (%i bytes)' % len(r.content))
 
             try:
-                ev = self._parse_event_page(page)
+                ev = self._parse_event_page(r)
                 self.events[name] = ev
 
             except NotFound:
@@ -113,18 +113,18 @@ class Geofon(EarthquakeCatalog):
 
     def get_mt(self, ev):
         syear = time.strftime('%Y', time.gmtime(ev.time))
-        url = 'http://geofon.gfz-potsdam.de/data/alerts/%s/%s/mt.txt' % (
+        url = 'https://geofon.gfz.de/data/alerts/%s/%s/mt.txt' % (
             syear, ev.name)
 
-        try:
-            logger.debug('Opening URL: %s' % url)
-            page = urlopen(url).read()
-            logger.debug('Received page (%i bytes)' % len(page))
-        except util.HTTPError:
+        logger.debug('Opening URL: %s' % url)
+        r = self._session.get(url)
+        logger.debug('Received page (%i bytes)' % len(r.content))
+
+        if r.status_code == 404:
             logger.warning('No MT found for event "%s".' % ev.name)
             return None
 
-        return self._parse_mt_page(page)
+        return self._parse_mt_page(r.content)
 
     def _parse_mt_page(self, page):
         d = {}
@@ -141,8 +141,8 @@ class Geofon(EarthquakeCatalog):
 
         return mt
 
-    def _parse_events_page(self, page, limit=None):
-        j = json.loads(page.decode('utf-8'))
+    def _parse_events_page(self, r, limit=None):
+        j = r.json()
         events = []
         for ifeature, feature in enumerate(j['features']):
             ev = self._json_feature_to_event(feature)
@@ -152,8 +152,8 @@ class Geofon(EarthquakeCatalog):
 
         return events
 
-    def _parse_event_page(self, page):
-        return self._parse_events_page(page, limit=1)[0]
+    def _parse_event_page(self, r):
+        return self._parse_events_page(r, limit=1)[0]
 
     def _json_feature_to_event(self, feature):
         name = feature['id']
