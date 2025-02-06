@@ -20,8 +20,7 @@ from . import trace, util
 from .trace import Trace, AboveNyquist, _get_cached_filter_coeffs, costaper
 from .guts import Object, Float, Timestamp, List, Int, Dict, String
 from .guts_array import Array
-from .squirrel import \
-    CodesNSLCE, SensorGrouping, Grouping
+from .model.codes import CodesNSLCE
 
 from .squirrel.operators.base import ReplaceComponentTranslation
 
@@ -140,6 +139,21 @@ class CarpetStringFiller:
         return util.time_to_str(self.carpet.tmax, format='%j')
 
 
+class CarpetStats(Object):
+    min = Float.T()
+    p10 = Float.T()
+    median = Float.T()
+    p90 = Float.T()
+    max = Float.T()
+
+    @classmethod
+    def make(cls, data):
+        min, p10, median, p90, max = num.nanpercentile(
+            data, [0., 10., 50., 90., 100.])
+
+        return cls(min=min, p10=p10, median=median, p90=p90, max=max)
+
+
 class Carpet(Object):
     '''
     Container for multi-component waveforms with common time span and sampling.
@@ -193,6 +207,8 @@ class Carpet(Object):
     deltat = Float.T(
         default=1.0,
         help='Sampling interval [s]')
+
+    stats__ = CarpetStats.T(optional=True)
 
     def __init__(
             self,
@@ -271,6 +287,17 @@ class Carpet(Object):
             tmin=tmin,
             nsamples=nsamples,
             deltat=deltat)
+
+    @property
+    def stats(self):
+        if self._stats is None:
+            self._stats = CarpetStats.make(self.data)
+
+        return self._stats
+
+    @stats.setter
+    def stats(self, stats):
+        self._stats = stats
 
     @property
     def summary_component_codes(self):
@@ -356,6 +383,7 @@ class Carpet(Object):
             data=data,
             codes=self.codes,
             component_codes=list(self.component_codes),
+            component_axes=self.component_axes,
             tmin=self.tmin,
             deltat=self.deltat)
 
@@ -783,6 +811,7 @@ class Carpet(Object):
         self.apply_via_fft(smooth)
 
     def normalize(self, deltat, window=num.hanning):
+        from pyrocko.squirrel import Grouping
         rms = self.get_rms(grouping=Grouping())
         rms.smooth(deltat)
         self.data /= rms.data
@@ -816,9 +845,14 @@ class Carpet(Object):
 
     def get_energy(
             self,
-            grouping=SensorGrouping(),
+            grouping=None,
             translation=ReplaceComponentTranslation(),
             postprocessing=None):
+
+        from pyrocko.squirrel import SensorGrouping
+
+        if grouping is None:
+            grouping = SensorGrouping()
 
         groups = self.get_component_codes_grouped(grouping)
 
@@ -872,6 +906,108 @@ class Carpet(Object):
                 out=data),
             0.5 / num.log(10.0),
             out=data))
+
+    def crop(self, fslice=slice(None, None)):
+        return Carpet(
+            tmin=self.tmin,
+            deltat=self.deltat,
+            codes=self.codes,
+            component_codes=self.component_codes[fslice],
+            component_axes=dict(
+                (k, v[fslice]) for (k, v) in self.component_axes.items()),
+            data=self.data[fslice, :])
+
+    def resample_band(
+            self, fmin, fmax, nf,
+            registration='cell',
+            scale='log',
+            component_axis='frequency'):
+
+        if scale == 'log':
+            log, exp, condition = num.log, num.exp, lambda y: y > 0
+        elif scale == 'lin':
+            log, exp, condition = lambda y: y, lambda y: y, lambda y: True
+        elif isinstance(scale, tuple):
+            log, exp, condition = scale
+        else:
+            raise ValueError(
+                'Carpet.resample_band: Scale must be "lin", "log" or a tuple '
+                'with scaling, inverse scaling, and condition functions, e.g. '
+                '`(log, exp, lambda y: y > 0)`.')
+
+        frequencies = self.component_axes[component_axis]
+        if not num.all(num.diff(frequencies) > 0.0):
+            raise ValueError(
+                'Carpet.resample_band: Component axis must be monotonically '
+                'increasing.')
+
+        iok = num.where(condition(frequencies))[0]
+
+        if iok.size < self.ncomponents:
+            if iok.size == 0:
+                raise ValueError(
+                    'Carpet.resample_band: No elements of component axis meet '
+                    'scaling condition (e.g. y > 0 for log scaling)')
+
+            self = self.crop(fslice=slice(iok[0], None))
+            frequencies = self.component_axes[component_axis]
+
+        if fmin is None:
+            fmin = frequencies[0]
+
+        if fmax is None:
+            fmax = frequencies[-1]
+
+        if registration == 'cell':
+            log_frequencies_out = num.linspace(
+                log(fmin), log(fmax), nf+1)
+
+        elif registration == 'node':
+            d_log_f = log(fmin + (fmax - fmin) / nf) - log(fmin)
+            log_frequencies_out = num.linspace(
+                log(fmin)-0.5*d_log_f,
+                log(fmax)+0.5*d_log_f,
+                nf+1)
+
+        log_frequencies = log(frequencies)
+        iok = num.where(num.logical_and(
+            log_frequencies[0] <= log_frequencies_out,
+            log_frequencies_out <= log_frequencies[-1]))[0]
+
+        fslice = slice(iok[0], iok[-1]+1)
+        fslice_out = slice(iok[0], iok[-1])
+
+        d_log_frequencies_half = num.diff(log_frequencies) * 0.5
+        int_values = num.zeros_like(self.data)
+        num.cumsum(
+            (self.data[1:, :] + self.data[:-1, :])
+            * d_log_frequencies_half[:, num.newaxis],
+            axis=0,
+            out=int_values[1:, :])
+
+        i = num.searchsorted(log_frequencies, log_frequencies_out[fslice])
+
+        w1 = (log_frequencies_out[fslice] - log_frequencies[i-1]) \
+            / (log_frequencies[i] - log_frequencies[i-1])
+
+        w0 = 1.0 - w1
+
+        int_values_out = int_values[i-1, :] * w0[:, num.newaxis] \
+            + int_values[i, :] * w1[:, num.newaxis]
+
+        values_out = num.full((nf, self.data.shape[1]), num.nan)
+        values_out[fslice_out, :] = num.diff(int_values_out, axis=0) \
+            / num.diff(log_frequencies_out[fslice])[:, num.newaxis]
+
+        frequencies_out = exp(
+            0.5 * (log_frequencies_out[1:] + log_frequencies_out[:-1]))
+
+        return Carpet(
+            codes=self.codes,
+            tmin=self.tmin,
+            deltat=self.deltat,
+            component_axes={component_axis: frequencies_out},
+            data=values_out)
 
 
 def correlate(a, b, mode='valid', normalization=None, use_fft=False):

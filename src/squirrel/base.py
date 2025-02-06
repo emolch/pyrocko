@@ -2833,7 +2833,8 @@ class Squirrel(Selection):
     @filldocs
     def get_carpets(
             self, obj=None, tmin=None, tmax=None, time=None, codes=None,
-            uncut=False, join=True, load_data=True, accessor_id='default'):
+            uncut=False, join=True, load_data=True, nsamples_limit=None,
+            accessor_id='default'):
 
         '''
         Get carpets matching given constraints.
@@ -2855,8 +2856,15 @@ class Squirrel(Selection):
         tmin = tmin if tmin is not None else self_tmin
         tmax = tmax if tmax is not None else self_tmax
 
+        sample_rate_max = None
+        if nsamples_limit is not None:
+            sample_rate_max = nsamples_limit / (tmax - tmin)
+            print(sample_rate_max)
+
         nuts = sorted(
-            self.iter_nuts('carpet', tmin, tmax, codes),
+            self.iter_nuts(
+                'carpet', tmin, tmax, codes,
+                sample_rate_max=sample_rate_max),
             key=lambda nut: nut.dkey)
 
         if load_data:
