@@ -94,8 +94,8 @@ class SquirrelRequestHandler(web.RequestHandler):
             'tmin': util.str_to_time_fillup,
             'tmax': util.str_to_time_fillup,
             'codes': to_codes_list,
-            'fmin': float,
-            'fmax': float
+            'ymin': float,
+            'ymax': float
         }
 
         def clean_or_none(f, x):
@@ -209,8 +209,8 @@ class SpectrogramImage(guts.Object):
     shape = guts.Tuple.T(2, guts.Int.T())
     tmin = guts.Timestamp.T()
     tmax = guts.Timestamp.T()
-    fmin = guts.Float.T()
-    fmax = guts.Float.T()
+    ymin = guts.Float.T()
+    ymax = guts.Float.T()
     fscale = ScaleChoice.T()
     image_data_base64 = guts.String.T()
 
@@ -280,7 +280,50 @@ class Gate(guts.Object):
     def get_coverage(self, *args, **kwargs):
         return self._outlet.get_coverage(*args, **kwargs)
 
-    def get_spectrogram_images(self, *args, fmin=0.001, fmax=1000.0, **kwargs):
+    def get_carpet_images(self, *args, ymin=None, ymax=None, **kwargs):
+        ny = 400
+        images = []
+        for carpet in self._outlet.get_carpets(
+                *args, **kwargs, nsamples_limit=300000):
+
+            carpet = carpet.resample_band(ymin, ymax, ny)
+            vmin, vmax = carpet.stats.min, carpet.stats.max
+
+            image_data = num.zeros(
+                carpet.data.shape + (4,), dtype=num.uint8)
+
+            ok = num.isfinite(carpet.data)
+            values = num.zeros(carpet.data.shape)
+            values[ok] = carpet.data[ok]
+            values[ok] -= vmax
+            values[ok] *= 255.0 / (vmin - vmax)
+
+            image_data[::-1, :, :3] \
+                = values.astype(num.uint8)[:, :, num.newaxis]
+            ok_alpha = num.array([[[False, False, False, True]]], dtype=bool)
+            ok3 = num.logical_and(ok[:, :, num.newaxis], ok_alpha)
+            image_data[ok3[::-1, :, :]] = 255
+
+            from PIL import Image
+            im = Image.fromarray(image_data, mode='RGBA')
+            from io import BytesIO
+            buffer = BytesIO()
+            im.save(buffer, format='png')
+
+            images.append(SpectrogramImage(
+                codes=carpet.codes,
+                tmin=carpet.times[0],
+                tmax=carpet.times[-1],
+                ymin=carpet.component_axes['frequency'][0],
+                ymax=carpet.component_axes['frequency'][-1],
+                fscale='log',
+                shape=carpet.data.shape,
+                image_data_base64='data:image/png;base64,' + base64.b64encode(
+                    buffer.getvalue()).decode('ascii')))
+
+        return images
+
+    def get_spectrogram_images(self, *args, ymin=0.001, ymax=1000.0, **kwargs):
         if isinstance(self._outlet, Squirrel):
             return []
 
@@ -296,8 +339,8 @@ class Gate(guts.Object):
                 .crop(fslice=fslice)
 
             ny = 200
-            print(fmin, fmax)
-            spectrogram_ = spectrogram.resample_band(fmin, fmax, ny)
+            print(ymin, ymax)
+            spectrogram_ = spectrogram.resample_band(ymin, ymax, ny)
             print(spectrogram_.stats)
             vmin, vmax = spectrogram_.stats.min, spectrogram_.stats.max
 
@@ -326,8 +369,8 @@ class Gate(guts.Object):
                 codes=group.codes,
                 tmin=spectrogram_.times[0],
                 tmax=spectrogram_.times[-1],
-                fmin=spectrogram_.frequencies[0],
-                fmax=spectrogram_.frequencies[-1],
+                ymin=spectrogram_.frequencies[0],
+                ymax=spectrogram_.frequencies[-1],
                 fscale='log',
                 shape=spectrogram_.values.shape,
                 image_data_base64='data:image/png;base64,' + base64.b64encode(
@@ -406,15 +449,26 @@ class SquirrelGateHandler(SquirrelRequestHandler):
         return gate.get_coverage(kind, tmin=tmin, tmax=tmax)
 
     def p_get_spectrograms(self, parameters, gate):
-        tmin, tmax, fmin, fmax = self.get_cleaned(
-            'tmin tmax fmin fmax',
+        tmin, tmax, ymin, ymax = self.get_cleaned(
+            'tmin tmax ymin ymax',
             parameters)
 
         return gate.get_spectrogram_images(
             tmin=tmin,
             tmax=tmax,
-            fmin=fmin,
-            fmax=fmax)
+            ymin=ymin,
+            ymax=ymax)
+
+    def p_get_carpets(self, parameters, gate):
+        tmin, tmax, ymin, ymax = self.get_cleaned(
+            'tmin tmax ymin ymax',
+            parameters)
+
+        return gate.get_carpet_images(
+            tmin=tmin,
+            tmax=tmax,
+            ymin=ymin,
+            ymax=ymax)
 
 
 def get_ip(host):

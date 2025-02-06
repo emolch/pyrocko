@@ -298,25 +298,30 @@ export const squirrelTimeline = () => {
                 // || !trackVisible(track)) {
                 return null
             }
-            const yminTrack = trackProjection.lower(track) + padding
-            const ymaxTrack = trackProjection.upper(track) - padding
+            const yMinTrack = trackProjection.lower(track) + padding
+            const yMaxTrack = trackProjection.upper(track) - padding
+
+            const yMinData =
+                gates.yMin.value !== null ? gates.yMin.value : image.ymin
+            const yMaxData =
+                gates.yMax.value !== null ? gates.yMax.value : image.ymax
 
             const fproject = d3.scaleLog(
-                [gates.frequencyMin.value, gates.frequencyMax.value],
-                [yminTrack, ymaxTrack]
+                [yMinData, yMaxData],
+                [yMaxTrack, yMinTrack]
             )
 
             return {
                 id: image.id,
                 xmin: x(image.tmin),
                 xmax: x(image.tmax),
-                ymin: fproject(image.fmin),
-                ymax: fproject(image.fmax),
+                ymin: fproject(image.ymax),
+                ymax: fproject(image.ymin),
                 clip: `url(#track-${track.index})`,
                 xminClip: x(gates.timeMin.value),
                 xmaxClip: x(gates.timeMax.value),
-                yminClip: yminTrack,
-                ymaxClip: ymaxTrack,
+                yminClip: yMinTrack,
+                ymaxClip: yMaxTrack,
                 image_data_base64: image.image_data_base64,
             }
         }
@@ -330,7 +335,11 @@ export const squirrelTimeline = () => {
     }
     const getImages = (padding) => {
         const images = gates.getImages()
-        return images === null ? [] : images.map(makeImageToImage(padding)) //.filter((img) => img !== null)
+        return images === null
+            ? []
+            : images
+                  .map(makeImageToImage(padding))
+                  .filter((img) => img !== null)
     }
 
     const updateBoxes = (t) => {

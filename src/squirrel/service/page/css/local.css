@@ -74,3 +74,6 @@ svg text{
    user-select: none;
 }
 
+.input-error, .input-error:focus {
+    background-color: #eebbbb;
+}

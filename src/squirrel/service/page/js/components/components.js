@@ -1,14 +1,26 @@
-import { ref, computed, onMounted } from '../vue.esm-browser.js'
+import { ref, computed, onMounted, watch } from '../vue.esm-browser.js'
 import { squirrelMap } from '../squirrel/map.js'
 import { squirrelTimeline } from '../squirrel/timeline.js'
 import { squirrelGates } from '../squirrel/gate.js'
 import { squirrelConnection } from '../squirrel/connection.js'
 
+const positiveOrNull = (s) => {
+    if (s.trim() == '') {
+        return null
+    }
+    const x = Number(s)
+    if (!Number.isFinite(x)) {
+        throw new Error('Invalid number: ' + s)
+    }
+    if (x <= 0) {
+        throw new Error('Number is zero or negative: ' + x)
+    }
+    return x
+}
+
 export const componentTimeline = {
     setup() {
         const gates = squirrelGates()
-        const frequencyMin = ref(gates.frequencyMin)
-        const frequencyMax = ref(gates.frequencyMax)
 
         const timeline = squirrelTimeline()
 
@@ -16,7 +28,31 @@ export const componentTimeline = {
             d3.select('#timeline').call(timeline)
         })
 
-        return { frequencyMin, frequencyMax }
+        const yMinInput = ref('')
+        const yMaxInput = ref('')
+        const yError = ref(null)
+
+        const propagate = () => {
+            let yMin
+            let yMax
+            try {
+                yMin = positiveOrNull(yMinInput.value)
+                yMax = positiveOrNull(yMaxInput.value)
+                if (yMax !== null && yMin !== null && yMax <= yMin) {
+                    throw new Error('Invalid entries: yMax <= yMin')
+                }
+                yError.value = null
+                gates.yMin.value = yMin
+                gates.yMax.value = yMax
+            } catch (e) {
+                yError.value = e
+            }
+        }
+
+        watch(yMinInput, propagate)
+        watch(yMaxInput, propagate)
+
+        return { yMinInput, yMaxInput, yError }
     },
     template: `
         <div id="timeline" tabindex="0" class="vbox-main tab-pane">
@@ -24,10 +60,10 @@ export const componentTimeline = {
         <div class="container">
             <div class="form-group row">
                 <div class="col-2">
-                    <input type="text" class="form-control" v-model="frequencyMin" />
+                    <input type="text" class="form-control" :class="{ 'input-error': yError }" v-model="yMinInput" />
                 </div>
                 <div class="col-2">
-                    <input type="text" class="form-control" v-model="frequencyMax" />
+                    <input type="text" class="form-control" :class="{ 'input-error': yError }" v-model="yMaxInput" />
                 </div>
             </div>
         </div>
