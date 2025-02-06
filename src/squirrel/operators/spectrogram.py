@@ -1,3 +1,8 @@
+# http://pyrocko.org - GPLv3
+#
+# The Pyrocko Developers, 21st Century
+# ---|P------/S----------~Lg----------
+
 import logging
 import math
 import hashlib
@@ -10,6 +15,7 @@ import matplotlib.pyplot as plt
 from pyrocko import util, guts, guts_array, plot
 from pyrocko.squirrel import model, error
 from . import base
+from ... import multitrace
 
 logger = logging.getLogger('psq.ops.spectrogram')
 
@@ -289,14 +295,14 @@ class SpectrogramGroup(guts.Object):
     tmax = guts.Timestamp.T()
     deltat = guts.Float.T()
     windowing = Pow2Windowing.T()
-    levels = guts.List.T(Spectrogram.T())
+    levels = guts.List.T(multitrace.Carpet.T())
 
     def get_multi_spectrogram(self):
         frequencies, weights = self.windowing.frequencies_and_weights(
             self.deltat)
 
         times = self.levels[0].times
-        spectrogram = num.zeros((times.size, frequencies.size))
+        spectrogram = num.zeros((frequencies.size, times.size))
         nfcut = frequencies.size
 
         for ilevel, level in enumerate(self.levels):
@@ -309,9 +315,9 @@ class SpectrogramGroup(guts.Object):
                     times - level.times[0])
                     / (level.times[1] - level.times[0])).astype(int)
 
-                spectrogram[:, :nfcut] \
-                    += level.values[index_t][:, index_f] \
-                    * weights[ilevel, :nfcut][num.newaxis, :]
+                spectrogram[:nfcut, :] \
+                    += level.values[index_f][:, index_t] \
+                    * weights[ilevel, :nfcut][:, num.newaxis]
 
             else:
                 deltat = level.times[1] - level.times[0]
@@ -326,22 +332,23 @@ class SpectrogramGroup(guts.Object):
                 print(num.min(w1), num.max(w1))
                 w0 = 1.0 - w1
 
-                spectrogram[:, :nfcut] \
-                    += w0[:, num.newaxis] \
-                    * level.values[index_t][:, index_f] \
-                    * weights[ilevel, :nfcut][num.newaxis, :]
+                spectrogram[:nfcut, :] \
+                    += w0[num.newaxis, :] \
+                    * level.values[index_f][:, index_t] \
+                    * weights[ilevel, :nfcut][:, num.newaxis]
 
-                spectrogram[:, :nfcut] \
-                    += w1[:, num.newaxis] \
-                    * level.values[index_t+1][:, index_f] \
-                    * weights[ilevel, :nfcut][num.newaxis, :]
+                spectrogram[:nfcut, :] \
+                    += w1[num.newaxis, :] \
+                    * level.values[index_f][:, index_t+1] \
+                    * weights[ilevel, :nfcut][:, num.newaxis]
 
             nfcut -= self.windowing.nfrequencies // 2
 
-        return Spectrogram(
-            times=times,
-            frequencies=frequencies,
-            values=spectrogram)
+        return multitrace.Carpet(
+            tmin=times[0],
+            deltat=self.deltat,
+            component_axes={'frequency': frequencies},
+            data=spectrogram)
 
     def get_frequency_range(self):
         return (
@@ -355,9 +362,7 @@ class SpectrogramGroup(guts.Object):
             tmin=util.time_to_str(self.tmin, '%Y-%m-%dT%H-%M-%S'),
             tmax=util.time_to_str(self.tmax, '%Y-%m-%dT%H-%M-%S'))
 
-    def plot_construction(
-            self,
-            path='spectrogram_{codes}_{tmin}_{tmax}_construction.png'):
+    def plot_construction(self, path=None):
 
         fig = plt.figure(figsize=(60, 20))
         axes_over = fig.add_subplot(3, 1, 2)
@@ -410,7 +415,10 @@ class SpectrogramGroup(guts.Object):
         axes_weights.plot(
             frequencies[fslice], num.sum(weights, axis=0)[fslice])
 
-        fig.savefig(self.fill_template(path))
+        if path is not None:
+            fig.savefig(self.fill_template(path))
+        else:
+            plt.show()
 
 
 class MultiSpectrogramOperator(base.Operator):
