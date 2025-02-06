@@ -78,7 +78,8 @@ def run(parser, args):
 
         if not args.event_time_span:
             raise SquirrelError(
-                'Time span setting need. Currently --event-time-span')
+                'Time span setting needed. Currently --event-time-span is '
+                'required when using --get-events.')
 
         try:
             span_tmin, span_tmax = [
