@@ -284,7 +284,7 @@ class Gate(guts.Object):
         ny = 400
         images = []
         for carpet in self._outlet.get_carpets(
-                *args, **kwargs, nsamples_limit=300000):
+                *args, **kwargs, nsamples_limit=3000):
 
             carpet = carpet.resample_band(ymin, ymax, ny)
             vmin, vmax = carpet.stats.min, carpet.stats.max

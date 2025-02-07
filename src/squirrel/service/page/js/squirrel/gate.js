@@ -147,7 +147,7 @@ export const squirrelBlock = (block) => {
         return coverages || []
     }
 
-    my.getImages = () => {
+    my.getCarpets = () => {
         return carpets || []
     }
 
@@ -170,6 +170,24 @@ export const squirrelBlock = (block) => {
 
     my.counter = counter
 
+    my.active = false
+    my.activeChanged = 0
+
+    my.setActive = (active) => {
+        if (my.active != active) {
+            my.active = active
+            my.activeChanged = Date.now()
+        }
+    }
+
+    my.activeOrZombieAge = () => {
+        return Date.now() - my.activeChanged
+    }
+
+    my.isActiveOrZombie = () => {
+        return my.active || my.activeOrZombieAge() < 1000
+    }
+
     return my
 }
 
@@ -183,6 +201,7 @@ export const setupGates = () => {
     const blocks = new Map()
     let counter = ref(0)
     let initialTimeSpanSet = false
+    let _relevantBlocks = []
 
     const makeTimeBlock = (tmin, tmax) => {
         const iscale = Math.ceil(Math.log2(blockFactor * (tmax - tmin)))
@@ -200,9 +219,10 @@ export const setupGates = () => {
     const blockKey = (block) => block.iScale + ',' + block.iTime
 
     const dropOldBlocks = () => {
-        const kDelete = Array.from(blocks.values()).toSorted(
-            (a, b) => b.getLastTouched() - a.getLastTouched()
-        ).slice(5).map(blockKey)
+        const kDelete = Array.from(blocks.values())
+            .toSorted((a, b) => b.getLastTouched() - a.getLastTouched())
+            .slice(5)
+            .map(blockKey)
 
         for (const k of kDelete) {
             console.log('deleting', k)
@@ -273,34 +293,44 @@ export const setupGates = () => {
     }
 
     const getRelevantBlocks = () => {
-        return Array.from(blocks.values())
+        const relevant = Array.from(blocks.values())
             .toSorted((a, b) => b.getLastTouched() - a.getLastTouched())
             .filter(
                 (block) =>
                     block.overlaps(timeMin.value, timeMax.value) &&
                     block.ready()
             )
-    }
+        if (
+            relevant.length > 0 &&
+            (_relevantBlocks.length == 0 || relevant[0] !== _relevantBlocks[0])
+        ) {
+            _relevantBlocks.unshift(relevant[0])
+            if (_relevantBlocks.length > 4) {
+                _relevantBlocks.length = 4
+            }
+        }
+        _relevantBlocks = _relevantBlocks
+            .map((block, iblock) => (block.setActive(iblock == 0), block))
+            .filter((block) => block.isActiveOrZombie())
 
-    const getRelevantBlock = () => {
-        const relevant = getRelevantBlocks()
-        return relevant.length > 0 ? relevant[0] : null
+        return _relevantBlocks
     }
 
     const getCoverages = () => {
-        const block = getRelevantBlock()
-        if (block === null) {
-            return []
-        }
-        return block.getCoverages()
+        return getRelevantBlocks()
+            .slice(0, 1)
+            .flatMap((block) => block.getCoverages())
     }
 
-    const getImages = () => {
-        const block = getRelevantBlock()
-        if (block === null) {
-            return []
+    const getCarpets = () => {
+        const carpets = []
+        for (const block of getRelevantBlocks()) {
+            for (const carpet of block.getCarpets()) {
+                carpet.zombie = !block.active
+                carpets.push(carpet)
+            }
         }
-        return block.getImages()
+        return carpets
     }
 
     const channels = computed(() => {
@@ -397,7 +427,7 @@ export const setupGates = () => {
         sensors,
         timeSpans,
         getCoverages,
-        getImages,
+        getCarpets,
     }
 }
 

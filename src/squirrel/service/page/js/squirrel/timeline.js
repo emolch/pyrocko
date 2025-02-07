@@ -291,9 +291,9 @@ export const squirrelTimeline = () => {
         return box
     }
 
-    const makeImageToImage = (padding) => {
-        return (image) => {
-            let track = codesToTracks[image.codes]
+    const carpetToImage = (padding) => {
+        return (carpet) => {
+            let track = codesToTracks[carpet.codes]
             if (track == null) {
                 // || !trackVisible(track)) {
                 return null
@@ -302,9 +302,9 @@ export const squirrelTimeline = () => {
             const yMaxTrack = trackProjection.upper(track) - padding
 
             const yMinData =
-                gates.yMin.value !== null ? gates.yMin.value : image.ymin
+                gates.yMin.value !== null ? gates.yMin.value : carpet.ymin
             const yMaxData =
-                gates.yMax.value !== null ? gates.yMax.value : image.ymax
+                gates.yMax.value !== null ? gates.yMax.value : carpet.ymax
 
             const fproject = d3.scaleLog(
                 [yMinData, yMaxData],
@@ -312,17 +312,18 @@ export const squirrelTimeline = () => {
             )
 
             return {
-                id: image.id,
-                xmin: x(image.tmin),
-                xmax: x(image.tmax),
-                ymin: fproject(image.ymax),
-                ymax: fproject(image.ymin),
+                id: carpet.id,
+                xmin: x(carpet.tmin),
+                xmax: x(carpet.tmax),
+                ymin: fproject(carpet.ymax),
+                ymax: fproject(carpet.ymin),
                 clip: `url(#track-${track.index})`,
                 xminClip: x(gates.timeMin.value),
                 xmaxClip: x(gates.timeMax.value),
                 yminClip: yMinTrack,
                 ymaxClip: yMaxTrack,
-                image_data_base64: image.image_data_base64,
+                zombie: carpet.zombie,
+                image_data_base64: carpet.image_data_base64,
             }
         }
     }
@@ -334,12 +335,24 @@ export const squirrelTimeline = () => {
             : coverages.map(coverageToBox).filter((box) => box !== null)
     }
     const getImages = (padding) => {
-        const images = gates.getImages()
-        return images === null
-            ? []
-            : images
-                  .map(makeImageToImage(padding))
-                  .filter((img) => img !== null)
+        return gates
+            .getCarpets()
+            .map(carpetToImage(padding))
+            .filter((img) => img !== null)
+    }
+
+    const targetOpacities = new Map()
+
+    const needOpacityChange = (img) => {
+        return (
+            !targetOpacities.has(img.id) ||
+            (targetOpacities.get(img.id) != img.zombie ? 0 : 1)
+        )
+    }
+
+    const trackOpacityChange = (img, opacity) => {
+        targetOpacities.set(img.id, opacity)
+        return opacity
     }
 
     const updateBoxes = (t) => {
@@ -379,6 +392,8 @@ export const squirrelTimeline = () => {
 
         const images = getImages(padding)
 
+        const imageTransition = d3.transition('image').duration(1000)
+
         imageGroup
             .selectAll('image')
             .data(images, (img) => img.id)
@@ -389,11 +404,9 @@ export const squirrelTimeline = () => {
                         .attr('preserveAspectRatio', 'none')
                         .attr('href', (img) => img.image_data_base64)
                         .attr('y', (img) => img.ymin)
-                        .attr('height', (img) => img.ymax - img.ymin),
-                //.style('opacity', 0)
-                //.call((enter) =>
-                //    enter.transition().duration(200).style('opacity', 1)
-                //),
+                        .attr('height', (img) => img.ymax - img.ymin)
+                        //.style('mix-blend-mode', 'plus-lighter')
+                        .style('opacity', (img) => trackOpacityChange(img, 0)),
                 (update) =>
                     update.call((update) =>
                         update
@@ -405,10 +418,12 @@ export const squirrelTimeline = () => {
             .attr('clip-path', (img) => img.clip)
             .attr('x', (img) => img.xmin)
             .attr('width', (img) => img.xmax - img.xmin)
-
-        //(img) =>
-        //    `rect(${img['yminClip']},${img['xmaxClip']},${img['ymaxClip']},${img['xminClip']}) view-box`
-        //)
+            //.filter(needOpacityChange)
+            .transition(imageTransition)
+            .duration((img) => (img.zombie ? 1000 : 100))
+            .style('opacity', (img) =>
+                trackOpacityChange(img, img.zombie ? 0 : 1)
+            )
     }
 
     const updateAxes = () => {
