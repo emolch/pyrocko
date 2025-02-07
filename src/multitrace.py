@@ -275,6 +275,9 @@ class Carpet(Object):
         if tmin is None:
             tmin = self.T.tmin.default()
 
+        if codes is None:
+            codes = CodesNSLCE()
+
         if component_axes is None:
             component_axes = {}
 
