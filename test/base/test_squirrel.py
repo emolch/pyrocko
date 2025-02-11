@@ -913,7 +913,7 @@ class SquirrelTestCase(unittest.TestCase):
         finally:
             shutil.rmtree(tempdir)
 
-    #@common.require_internet
+    # @common.require_internet
     def test_operators(self):
         # 1994 Bolivia earthquake
         tmin = util.str_to_time('1994-06-09 00:00:00')
@@ -1258,6 +1258,49 @@ class SquirrelTestCase(unittest.TestCase):
 
         sq.remove(handle)
         assert len(sq.get_waveforms(tmin=tmin, tmax=tmax)) == 0
+
+    def test_multi_spectrogram(self):
+
+        ntraces = 5 + 2
+        nsamples = 100
+        deltat = 1.0
+        tmin = util.str_to_time('1970-01-01 00:00:00')
+        traces = []
+        for itrace in range(ntraces):
+            ctmin = tmin+itrace*nsamples*deltat - nsamples * deltat
+            data = num.random.normal(size=nsamples)
+            traces.append(
+                trace.Trace(
+                    'N', 'STA', '', 'Z',
+                    tmin=ctmin, deltat=deltat, ydata=data))
+
+        database = squirrel.Database()
+        sq = squirrel.Squirrel(database=database)
+        handle = sq.add_volatile_waveforms(traces)
+
+        musop = squirrel.MultiSpectrogramOperator(
+            restitute=False,
+            windowing=squirrel.Pow2Windowing(
+                nblock=2**3,
+                nlevels=3,
+                weighting_exponent=4
+            ),
+        )
+
+        musop.set_input(sq)
+
+        nwindows = 2
+        for iwindow in range(nwindows):
+            tinc = 20
+            group = musop.get_spectrogram_groups(
+                codes=('N', 'STA', '', 'Z'),
+                tmin=tmin+iwindow*tinc,
+                tmax=tmin+(iwindow+1)*tinc)[0]
+
+            carpet = group.get_multi_spectrogram()
+            print(carpet.summary)
+
+        sq.remove(handle)
 
 
 def do_chopper(params):

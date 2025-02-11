@@ -95,7 +95,7 @@ export const squirrelBlock = (block) => {
         )
 
         for (const coverage of coverages) {
-            coverage.codes = coverage.codes + '.'
+            coverage.codes = coverage.codes
             coverage.id = [
                 coverage.kind,
                 coverage.tmin,
@@ -115,7 +115,7 @@ export const squirrelBlock = (block) => {
             ...params,
         })
         for (const carpet of carpets) {
-            carpet.codes = carpet.codes + '.'
+            carpet.codes = carpet.codes
             carpet.id = [
                 carpet.tmin,
                 carpet.tmax,
@@ -225,7 +225,6 @@ export const setupGates = () => {
             .map(blockKey)
 
         for (const k of kDelete) {
-            console.log('deleting', k)
             blocks.delete(k)
         }
     }
@@ -240,7 +239,6 @@ export const setupGates = () => {
         }
 
         const kNewest = blockKey(sorted[0])
-        console.log(kNewest)
 
         for (const k of blocks.keys()) {
             if (k == kNewest) {
@@ -390,7 +388,6 @@ export const setupGates = () => {
                 }
             }
         }
-        console.log(spans)
         return spans
     })
 

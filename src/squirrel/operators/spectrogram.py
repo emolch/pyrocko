@@ -70,10 +70,14 @@ class Pow2Windowing(guts.Object):
         return deltat * (self.nblock // 2) * 2**ilevel
 
     def iwindow_range(self, deltat, tmin, tmax, ilevel):
+        itmin = int(round(tmin/deltat))
+        itmax = int(round(tmax/deltat))
         tinc = self.time_increment(deltat, ilevel)
-        imin = int(math.floor(tmin / tinc))
-        imax = int(math.ceil(tmax / tinc))
-        return num.arange(imin, imax+1)
+        itinc = int(round(tinc / deltat))
+        imin = (itmin + (itinc-1)) // itinc
+        imax = (itmax - 1) // itinc + 1
+        iadd = 1 if ilevel > 0 else 0
+        return num.arange(imin-iadd, imax+iadd)
 
     def frequencies_and_weights(self, deltat):
         eps1 = 1e-4
@@ -288,7 +292,7 @@ class SpectrogramGroup(guts.Object):
     windowing = Pow2Windowing.T()
     levels = guts.List.T(multitrace.Carpet.T())
 
-    def get_multi_spectrogram(self):
+    def get_multi_spectrogram(self, interpolation='cos'):
         frequencies, weights = self.windowing.frequencies_and_weights(
             self.deltat)
 
@@ -296,29 +300,35 @@ class SpectrogramGroup(guts.Object):
         spectrogram = num.zeros((frequencies.size, times.size))
         nfcut = frequencies.size
 
+        thalf0 = 0.5 * self.levels[0].deltat
+
         for ilevel, level in enumerate(self.levels):
             index_f = num.floor(
                 frequencies[:nfcut]
                 / level.component_axes['frequency'][1]).astype(int)
 
-            if False:
+            thalf = 0.5 * level.deltat
+
+            if interpolation == 'nearest_neigbor' or ilevel == 0:
                 index_t = num.round((
-                    times - level.times[0])
-                    / (level.times[1] - level.times[0])).astype(int)
+                    (times + thalf0) - (level.tmin + thalf))
+                    / level.deltat).astype(int)
 
                 spectrogram[:nfcut, :] \
                     += level.data[index_f][:, index_t] \
                     * weights[ilevel, :nfcut][:, num.newaxis]
 
-            else:
-                deltat = level.times[1] - level.times[0]
+            elif interpolation == 'cos':
                 index_t = num.clip(
-                    num.floor((times - level.times[0]) / deltat).astype(int),
-                    0, times.size-2)
+                    num.floor(
+                        ((times + thalf0) - (level.tmin + thalf))
+                        / level.deltat).astype(int),
+                    0,
+                    level.times.size-2)
 
                 w1 = cos_taper(
-                    num.pi * (times - level.times[index_t])
-                    / (level.times[index_t+1] - level.times[index_t]))
+                    num.pi * ((times+thalf0) - (level.times[index_t]+thalf))
+                    / level.deltat)
 
                 w0 = 1.0 - w1
 
@@ -332,17 +342,18 @@ class SpectrogramGroup(guts.Object):
                     * level.data[index_f][:, index_t+1] \
                     * weights[ilevel, :nfcut][:, num.newaxis]
 
-            nfcut -= self.windowing.nfrequencies // 2
+            else:
+                raise ValueError(
+                    'invalid interpolation method: %s' % interpolation)
 
-        itmin = int(math.ceil((self.tmin - times[0]) / self.levels[0].deltat))
-        itmax = int(math.ceil((self.tmax - times[0]) / self.levels[0].deltat))
+            nfcut -= self.windowing.nfrequencies // 2
 
         return multitrace.Carpet(
             codes=self.codes,
-            tmin=times[itmin],
+            tmin=self.levels[0].tmin,
             deltat=self.levels[0].deltat,
             component_axes={'frequency': frequencies},
-            data=spectrogram[:, itmin:itmax])
+            data=spectrogram)
 
     def get_frequency_range(self):
         return (
@@ -356,7 +367,7 @@ class SpectrogramGroup(guts.Object):
             tmin=util.time_to_str(self.tmin, '%Y-%m-%dT%H-%M-%S'),
             tmax=util.time_to_str(self.tmax, '%Y-%m-%dT%H-%M-%S'))
 
-    def plot_construction(self, path=None):
+    def plot_construction(self, path=None, interpolation='cos'):
 
         fig = plt.figure(figsize=(60, 20))
         axes_over = fig.add_subplot(3, 1, 2)
@@ -433,7 +444,10 @@ class MultiSpectrogramOperator(base.Operator):
 
     @property
     def kind_requires(self):
-        return ('waveform', 'response')
+        if self.restitute:
+            return ('waveform', 'response')
+        else:
+            return ('waveform',)
 
     @cache
     def get_block(self, deltat, kind_codes_id, ilevel, iwindow):
@@ -516,6 +530,9 @@ class MultiSpectrogramOperator(base.Operator):
                 iwindows = self.windowing.iwindow_range(
                     deltat, tmin, tmax, ilevel)
 
+                times = iwindows \
+                    * self.windowing.time_increment(deltat, ilevel)
+
                 nwindows = iwindows.size
                 nfrequencies = self.windowing.nfrequencies
                 values = num.zeros(
@@ -524,9 +541,6 @@ class MultiSpectrogramOperator(base.Operator):
                 for i in range(nwindows):
                     values[:, i] = self.get_block(
                         deltat, kind_codes_id, ilevel, iwindows[i])[0]
-
-                times = (0.5 + iwindows) \
-                    * self.windowing.time_increment(deltat, ilevel)
 
                 frequency_delta = 1.0 \
                     / (deltat * self.windowing.nblock * 2**ilevel)

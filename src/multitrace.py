@@ -390,9 +390,9 @@ class Carpet(Object):
             tmin=self.tmin,
             deltat=self.deltat)
 
-    def chop(self, tmin, tmax):
-        istart = int(round((tmin - self.tmin) / self.deltat))
-        iend = int(round((tmax - self.tmin) / self.deltat))
+    def chop(self, tmin, tmax, snap=(round, round)):
+        istart = int(snap[0]((tmin - self.tmin) / self.deltat))
+        iend = int(snap[1]((tmax - self.tmin) / self.deltat))
 
         istart = max(0, istart)
         iend = min(self.nsamples, iend)
@@ -768,8 +768,9 @@ class Carpet(Object):
         return Carpet(
             data=data,
             codes=self.codes,
+            component_axes=self.component_axes,
             component_codes=self.component_codes,
-            tmin=self.tmin + self.deltat * (ibmin + nfold // 2),
+            tmin=self.tmin + self.deltat * ibmin,
             deltat=nfold*self.deltat)
 
     def smooth(self, t, window=num.hanning):

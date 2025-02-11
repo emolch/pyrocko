@@ -7,6 +7,7 @@
 Web server component for Squirrel web services.
 '''
 
+import re
 import asyncio
 import json
 import logging
@@ -87,7 +88,6 @@ class SquirrelRequestHandler(web.RequestHandler):
     def get_cleaned(self, names, parameters):
         if isinstance(names, str):
             names = names.split()
-        print("parameters: ", parameters)
 
         clean = {
             'kind': lambda x: str_choice(x, model.g_content_kinds),
@@ -228,6 +228,16 @@ class TimeSpan(guts.Object):
         guts.Object.__init__(self, **kwargs)
 
 
+def drop_resolution(codes):
+    return codes.replace(extra=re.sub(r'-L\d\d$', '', codes.extra))
+
+
+def drop_resolution_codes(codes_list):
+    return [
+        codes for codes in codes_list
+        if not re.match(r'-L\d\d$', codes.extra)]
+
+
 class Gate(guts.Object):
 
     tmin = guts.Timestamp.T(optional=True)
@@ -266,7 +276,7 @@ class Gate(guts.Object):
         return self._outlet.get_time_span(*args, **kwargs)
 
     def get_codes(self, *args, **kwargs):
-        return self._outlet.get_codes(*args, **kwargs)
+        return drop_resolution_codes(self._outlet.get_codes(*args, **kwargs))
 
     def get_channels(self, *args, **kwargs):
         return self._outlet.get_channels(*args, **kwargs)
@@ -278,6 +288,7 @@ class Gate(guts.Object):
         return self._outlet.get_responses(*args, **kwargs)
 
     def get_coverage(self, *args, **kwargs):
+        kwargs['codes'] = '*.*.*.*.'
         return self._outlet.get_coverage(*args, **kwargs)
 
     def get_carpet_images(self, *args, ymin=None, ymax=None, **kwargs):
@@ -311,7 +322,7 @@ class Gate(guts.Object):
             im.save(buffer, format='png')
 
             images.append(SpectrogramImage(
-                codes=carpet.codes,
+                codes=drop_resolution(carpet.codes),
                 tmin=carpet.times[0],
                 tmax=carpet.times[-1],
                 ymin=carpet.component_axes['frequency'][0],
@@ -339,9 +350,7 @@ class Gate(guts.Object):
                 .crop(fslice=fslice)
 
             ny = 200
-            print(ymin, ymax)
             spectrogram_ = spectrogram.resample_band(ymin, ymax, ny)
-            print(spectrogram_.stats)
             vmin, vmax = spectrogram_.stats.min, spectrogram_.stats.max
 
             image_data = num.zeros(

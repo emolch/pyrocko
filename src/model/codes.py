@@ -103,10 +103,7 @@ class CodesNSLCE(CodesNSLCEBase, Codes):
         Codes.__init__(self)
 
     def __str__(self):
-        if self.extra == '':
-            return '.'.join(self[:-1])
-        else:
-            return '.'.join(self)
+        return '.'.join(self)
 
     def __eq__(self, other):
         if not isinstance(other, CodesNSLCE):

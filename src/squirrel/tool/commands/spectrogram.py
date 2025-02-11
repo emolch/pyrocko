@@ -14,7 +14,7 @@ import logging
 from pyrocko import progress, util
 from pyrocko.squirrel.error import ToolError
 
-logger = logging.getLogger('psq.cli.summon')
+logger = logging.getLogger('psq.cli.spectrogram')
 
 headline = 'Calculate multi-resolution spectrograms.'
 
@@ -115,10 +115,8 @@ def run(parser, args):
                     group.plot_construction()
 
                 fslice = slice(2, None)
-
-                carpet = group \
-                    .get_multi_spectrogram() \
-                    .crop(fslice=fslice)
+                carpet = group.get_multi_spectrogram(
+                    interpolation='cos').crop(fslice=fslice)
 
                 path = os.path.join(
                     'spectrograms',

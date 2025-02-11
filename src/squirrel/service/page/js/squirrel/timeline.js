@@ -148,7 +148,6 @@ export const squirrelTimeline = () => {
     let trackStart = null
     let codes
     let codesToTracks = new Map()
-    let coverages
     let tracks = []
     let trackProjection = projectionHelper()
     let bounds
@@ -199,6 +198,7 @@ export const squirrelTimeline = () => {
     }
 
     const pointerDownHandler = (ev) => {
+        console.log('down')
         container.node().setPointerCapture(ev.pointerId)
         trackStart = {
             position: [ev.clientX, ev.clientY],
@@ -211,6 +211,11 @@ export const squirrelTimeline = () => {
     }
 
     const pointerMoveHandler = (ev) => {
+        console.log(ev)
+        //if (ev.buttons == 0) {
+        //    trackStart = null
+        //    return
+        //}
         if (trackStart) {
             let x1 = ev.clientX
             let y1 = ev.clientY
@@ -236,6 +241,7 @@ export const squirrelTimeline = () => {
     }
 
     const pointerUpHandler = (ev) => {
+        console.log('up')
         trackStart = null
     }
 
@@ -276,7 +282,7 @@ export const squirrelTimeline = () => {
     }
 
     const coverageToBox = (coverage) => {
-        let track = codesToTracks[coverage.codes]
+        let track = codesToTracks.get(coverage.codes)
         if (track == null) {
             // || !trackVisible(track)) {
             return null
@@ -293,7 +299,7 @@ export const squirrelTimeline = () => {
 
     const carpetToImage = (padding) => {
         return (carpet) => {
-            let track = codesToTracks[carpet.codes]
+            let track = codesToTracks.get(carpet.codes)
             if (track == null) {
                 // || !trackVisible(track)) {
                 return null
@@ -401,6 +407,7 @@ export const squirrelTimeline = () => {
                 (enter) =>
                     enter
                         .append('image')
+                        .attr('draggable', 'false')
                         .attr('preserveAspectRatio', 'none')
                         .attr('href', (img) => img.image_data_base64)
                         .attr('y', (img) => img.ymin)
@@ -696,7 +703,7 @@ export const squirrelTimeline = () => {
         codesToTracks.clear()
         for (const track of tracks) {
             for (const codes of track.codes) {
-                codesToTracks[codes] = track
+                codesToTracks.set(codes, track)
             }
         }
         trackProjection.domain([0, tracks.length])
@@ -707,6 +714,8 @@ export const squirrelTimeline = () => {
     let my = (selection) => {
         container = selection
         timeline = createIfNeeded(container, 'svg')
+        timeline.attr('draggable', 'false')
+
         defs = timeline.append('defs')
 
         pageRect = defs.append('clipPath').attr('id', 'page').append('rect')
