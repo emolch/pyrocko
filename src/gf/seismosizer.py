@@ -4966,17 +4966,7 @@ class SimpleLandslideSource(Source):
     def get_factor(self):
         return 1.0
 
-    def discretize_basesource(self, store, target=None):
-        if self.stf_mode != 'pre':
-            raise Exception(
-                'SimpleLandslideSource: '
-                'Only works with `stf_mode == "pre"`.')
-
-        if self.stf is not None:
-            raise Exception(
-                'SimpleLandslideSource: '
-                'Setting `stf` is not supported: use `stf_v` and `stf_h`.')
-
+    def get_tshift_centroid(self):
         if self.anchor_stf == 'centroid':
             duration_acc = num.array([
                 self.stf_h.duration_acceleration,
@@ -4988,12 +4978,26 @@ class SimpleLandslideSource(Source):
                 self.impulse_e,
                 self.impulse_d], dtype=float)
 
-            tshift_centroid = \
-                - num.sum(duration_acc * impulse**2) \
+            return - num.sum(duration_acc * impulse**2) \
                 / num.sum(impulse**2)
 
         elif self.anchor_stf == 'onset':
-            tshift_centroid = 0.0
+            return 0.0
+        else:
+            raise ValueError('Invalid anchor_stf.')
+
+    def discretize_basesource(self, store, target=None):
+        if self.stf_mode != 'pre':
+            raise Exception(
+                'SimpleLandslideSource: '
+                'Only works with `stf_mode == "pre"`.')
+
+        if self.stf is not None:
+            raise Exception(
+                'SimpleLandslideSource: '
+                'Setting `stf` is not supported: use `stf_v` and `stf_h`.')
+
+        tshift_centroid = self.get_tshift_centroid()
 
         times, amplitudes = self.stf_v.discretize_t(
             store.config.deltat,
