@@ -775,7 +775,8 @@ def alongtrack_distance(begin_lat, begin_lon, end_lat, end_lon,
                         point_lat, point_lon):
     '''Calculate distance of a point along a great-circle path in [deg].
 
-    Distance is relative to the beginning of the path.
+    Distance is relative to the beginning of the path. Negative distance is
+    before the beginning of the path.
 
     .. math ::
 
@@ -798,12 +799,23 @@ def alongtrack_distance(begin_lat, begin_lon, end_lat, end_lon,
     :return: Distance of the point along the great-circle path in [deg].
     :rtype: float
     '''
-    start = Loc(begin_lat, begin_lon)
+    begin = Loc(begin_lat, begin_lon)
+    end = Loc(end_lat, end_lon)
     point = Loc(point_lat, point_lon)
-    cos_dist_ang = cosdelta(start, point)
-    dist_rad = crosstrack_distance(
-        begin_lat, begin_lon, end_lat, end_lon, point_lat, point_lon) * d2r
-    return math.acos(cos_dist_ang / math.cos(dist_rad)) * r2d
+
+    def along_distance(begin, end):
+        cos_dist_ang = cosdelta(begin, point)
+        dist_rad = crosstrack_distance(
+            begin.lat, begin.lon, end.lat, end.lon, point.lat, point.lon) * d2r
+        return math.acos(cos_dist_ang / math.cos(dist_rad)) * r2d
+
+    distance_profile = math.acos(cosdelta(begin, end)) * r2d
+    distance_begin = along_distance(begin, end)
+    distance_end = along_distance(end, begin)
+
+    if distance_end > distance_profile:
+        return -distance_begin
+    return distance_begin
 
 
 def alongtrack_distance_m(begin_lat, begin_lon, end_lat, end_lon,
@@ -842,7 +854,10 @@ def alongtrack_distance_m(begin_lat, begin_lon, end_lat, end_lon,
     along_point = Loc(
         *azidist_to_latlon(begin_lat, begin_lon, azi_end, dist_deg))
 
-    return distance_accurate50m(start, along_point)
+    distance = distance_accurate50m(start, along_point)
+    if dist_deg < 0:
+        distance = -distance
+    return distance
 
 
 def ne_to_latlon_alternative_method(lat0, lon0, north_m, east_m):
