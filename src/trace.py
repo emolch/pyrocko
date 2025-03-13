@@ -2185,7 +2185,7 @@ def merge_traces_data_as_array(traces, tmin=None, tmax=None, codes=None):
         codes = codes_patterns_for_kind(WAVEFORM, codes)
 
     if not traces:
-        raise ValueError('Need at least one trace.')
+        raise NoData('Need at least one trace.')
 
     _ensure_aligned(traces)
 
@@ -2702,7 +2702,10 @@ def degapper(
 
                 if idist <= 0 and (maxlap is None or -maxlap < idist):
                     # still cut off overlap (cut off on first trace)
-                    a.chop(a.tmin, max(a.tmin, b.tmin-b.deltat))
+                    try:
+                        a.chop(a.tmin, max(a.tmin, b.tmin-b.deltat))
+                    except NoData:
+                        pass
 
                 pass
 
