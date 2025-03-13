@@ -817,7 +817,7 @@ class Carpet(Object):
     def normalize(self, deltat, window=num.hanning):
         from pyrocko.squirrel import Grouping
         rms = self.get_rms(grouping=Grouping())
-        rms.smooth(deltat)
+        rms.smooth(deltat, window=window)
         self.data /= rms.data
 
     def apply_via_fft(self, f, ntrans_min=0):
