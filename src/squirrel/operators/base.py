@@ -867,6 +867,8 @@ class Restitution(Operator):
     frequency_min = Float.T()
     frequency_max = Float.T()
     frequency_taper_factor = Float.T(default=1.5)
+    frequency_taper_min = Float.T(optional=True)
+    frequency_taper_max = Float.T(optional=True)
     time_taper_factor = Float.T(default=2.0)
     time_padding_extra_factor = Float.T(default=2.0)
 
@@ -895,6 +897,15 @@ class Restitution(Operator):
         return self.time_taper_factor \
             / self.frequency_min * self.time_padding_extra_factor
 
+    def get_taper_frequencies(self):
+        return (
+            self.frequency_min / self.frequency_taper_factor
+            if self.frequency_taper_min is None else self.frequency_taper_min,
+            self.frequency_min,
+            self.frequency_max,
+            self.frequency_max * self.frequency_taper_factor
+            if self.frequency_taper_max is None else self.frequency_taper_max)
+
     def process_waveforms(
                 self,
                 mappings: tList[CodesMapping],
@@ -909,11 +920,7 @@ class Restitution(Operator):
         codes_to_response = self.get_in_responses(
             in_codes, tmin_trs, tmax_trs)
 
-        freqlimits = (
-            self.frequency_min / self.frequency_taper_factor,
-            self.frequency_min,
-            self.frequency_max,
-            self.frequency_max * self.frequency_taper_factor)
+        freqlimits = self.get_taper_frequencies()
 
         traces_out = []
         for mapping in mappings:
